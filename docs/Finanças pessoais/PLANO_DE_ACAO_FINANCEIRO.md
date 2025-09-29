@@ -14,9 +14,10 @@
 3.1 [x] Levantar entidades principais com nomes em português e registrar detalhes no `readme_pessoal.md`.
 3.2 [x] Definir constraints, índices e políticas de consistência no `readme_pessoal.md`.
 3.3 [x] Planejar scripts/migrações versionadas e registrar documentação técnica no `readme_pessoal.md`.
+3.4 [x] Disponibilizar scripts SQL de estrutura e dados de desenvolvimento (`sql_esquema_inicial.sql`, `sql_dados_exemplo_dev.sql`).
 
 4. Backend e integrações
-4.1 [ ] Vincular o projeto Supabase `financeiro_pessoal` ao repositório (CLI) e configurar variáveis de ambiente.
+4.1 [ ] Vincular o projeto Supabase `financeiro_pessoal` ao repositório (CLI) e configurar variáveis de ambiente (estrutura criada via `sql_esquema_inicial.sql`; falta link/configuração local).
 4.2 [ ] Implementar Edge Functions/API para cadastros, lançamentos diários, conciliação de faturas e metas.
 4.3 [ ] Determinar integração ou isolamento em relação ao sistema de imóveis (usuários, infraestrutura, limites de dados).
 

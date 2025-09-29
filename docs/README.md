@@ -182,6 +182,8 @@ Observações:
 - O logger de auditoria imprime resumo do corpo no stdout; sanitização extra (tokens/PII) segue listado no Plano 6.6.
 - Scripts `dev.sh` e `scripts/install-dev-command.sh` aceleram o setup local (backend + frontend simultâneos).
 - O gráfico de desembolsos carrega por padrão 6 meses e ignora categorias específicas (IDs 8, 15 e 18). A UI permite personalizar meses/categorias e memoriza preferências; ajuste adicional para comissão permanece pendente no plano.
+- Para reduzir cold start no Render, use `scripts/keep_alive.sh` em um cron job (Render cron task ou serviço externo) — variables `SITE_HEALTH_URL`, `FRONTEND_URL` e `GPT_HEALTH_URL` podem ser sobrescritas ao chamar o script.
+- Índices sugeridos para agilizar o carregamento da Home estão em `docs/consultas/indices_lancamentos.sql`.
 
 ## Rotas Em Uso (UI atual)
 

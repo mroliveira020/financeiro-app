@@ -1,9 +1,63 @@
 import api from './http';
 
+const DEFAULT_RETRY_DELAY_MS = 1500;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const shouldRetry = (error) => {
+  if (!error) return false;
+
+  if (!error.response) {
+    return true;
+  }
+
+  const status = error.response.status;
+  return status >= 500 || status === 429;
+};
+
+async function getWithRetry(requestFn, options = {}) {
+  const {
+    retries = 0,
+    baseDelayMs = DEFAULT_RETRY_DELAY_MS,
+    onRetry,
+  } = options;
+
+  let attempt = 0;
+  let lastError;
+
+  while (attempt <= retries) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      lastError = error;
+
+      if (!shouldRetry(error) || attempt === retries) {
+        throw error;
+      }
+
+      const nextAttempt = attempt + 1;
+      const delayMs = baseDelayMs * (2 ** (nextAttempt - 1));
+
+      if (typeof onRetry === 'function') {
+        try {
+          onRetry({ attempt: nextAttempt, delayMs, error });
+        } catch (callbackError) {
+          console.error('[api] Erro no callback onRetry:', callbackError);
+        }
+      }
+
+      await sleep(delayMs);
+      attempt = nextAttempt;
+    }
+  }
+
+  throw lastError;
+}
+
 // ✅ Buscar lista de imóveis
-export async function fetchImoveis() {
-  const { data } = await api.get('/imoveis');
-  return data;
+export async function fetchImoveis(options = {}) {
+  const response = await getWithRetry(() => api.get('/imoveis'), options);
+  return response.data;
 }
 
 // ✅ Excluir um imóvel
@@ -41,13 +95,16 @@ export async function fetchUltimosLancamentos(limit = 10) {
 }
 
 // Dashboard geral: gastos mensais por imóvel (para gráficos)
-export async function fetchGastosMensais(meses = 6, categoriasExcluidas = []) {
+export async function fetchGastosMensais(meses = 6, categoriasExcluidas = [], options = {}) {
   const params = new URLSearchParams();
-  if (meses) params.append("meses", meses);
+  if (meses) params.append('meses', meses);
   if (categoriasExcluidas.length) {
-    params.append("excluir", categoriasExcluidas.join(","));
+    params.append('excluir', categoriasExcluidas.join(','));
   }
   const query = params.toString();
-  const { data } = await api.get(`/dashboard/gastos-mensais${query ? `?${query}` : ""}`);
-  return data;
+  const response = await getWithRetry(
+    () => api.get(`/dashboard/gastos-mensais${query ? `?${query}` : ''}`),
+    options,
+  );
+  return response.data;
 }

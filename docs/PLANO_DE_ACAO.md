@@ -112,6 +112,11 @@
        2.7.2 [x] Frontend: substituir valor único pelo total investido (soma da consulta) e inserir mini gráfico de pizza com os grupos (fonte menor para acomodar o gráfico)
        2.7.3 [x] Frontend: exibir rótulo `Período <MM/AAAA> a <MM/AAAA>` usando a primeira e a última transação confirmada do imóvel
        2.7.4 [x] UX: ajustar layout do card (legendas, alinhamento e responsividade) garantindo contraste, legibilidade e paleta com cores translúcidas (seguindo o gráfico maior)
+   2.8 [x] Confiabilidade do carregamento inicial
+       2.8.1 [x] Axios com timeout maior (45s) e retry exponencial (2 tentativas) nas chamadas `/imoveis` e `/dashboard/gastos-mensais`.
+       2.8.2 [x] UI exibe estado “tentando novamente” e oferece botão de recarregar após falha.
+       2.8.3 [x] Script `scripts/keep_alive.sh` (pings configuráveis) pronto para agendamento em cron/uptime monitor do Render.
+       2.8.4 [x] Query `listar_imoveis` reescrita + script `docs/consultas/indices_lancamentos.sql` com índices recomendados para agregações.
 
 3. Próximas (médio prazo)
    3.1 [ ] Segurança (Fase 2 — login por usuário)

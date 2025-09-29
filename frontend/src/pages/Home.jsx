@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   fetchImoveis,
@@ -21,6 +21,11 @@ const MES_ANO_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   month: "2-digit",
   year: "numeric",
 });
+const IMOVEIS_MAX_RETRIES = 2;
+const GASTOS_MAX_RETRIES = 2;
+const RETRY_BASE_DELAY_MS = 2000;
+const TOTAL_IMOVEIS_ATTEMPTS = IMOVEIS_MAX_RETRIES + 1;
+const TOTAL_GASTOS_ATTEMPTS = GASTOS_MAX_RETRIES + 1;
 
 const normalizarGrupos = (raw) => {
   if (!raw) {
@@ -81,6 +86,17 @@ function Home() {
   const [categoriasDisponiveis, setCategoriasDisponiveis] = useState([]);
   const [categoriasLoading, setCategoriasLoading] = useState(false);
   const [categoriasErro, setCategoriasErro] = useState(false);
+  const [imoveisRetryState, setImoveisRetryState] = useState({
+    status: "idle",
+    attempt: 1,
+    totalAttempts: TOTAL_IMOVEIS_ATTEMPTS,
+  });
+  const [gastosRetryState, setGastosRetryState] = useState({
+    status: "idle",
+    attempt: 1,
+    totalAttempts: TOTAL_GASTOS_ATTEMPTS,
+  });
+  const [gastosReloadKey, setGastosReloadKey] = useState(0);
   const editorToken = useEditorToken();
   const canEdit = !!editorToken;
 
@@ -124,56 +140,118 @@ function Home() {
     setPrefReady(true);
   }, []);
 
-  useEffect(() => {
+  const carregarImoveis = useCallback(async () => {
     setLoadingImoveis(true);
     setErroImoveis(false);
-    fetchImoveis()
-      .then((data) => {
-        const imoveisNormalizados = (data || []).map((imovel) => {
-          const totalInvestidoRaw =
-            imovel.total_investido ?? imovel.totalInvestido ?? imovel.totallancamentos ?? 0;
-          const periodoInicio = imovel.periodo_inicio ?? null;
-          const periodoFim = imovel.periodo_fim ?? null;
-          return {
-            ...imovel,
-            totalInvestido: Number(totalInvestidoRaw) || 0,
-            grupos: normalizarGrupos(imovel.grupos),
-            periodoInicio,
-            periodoFim,
-          };
-        });
-        setImoveis(imoveisNormalizados);
-      })
-      .catch(() => {
-        setErroImoveis(true);
-        setImoveis([]);
-      })
-      .finally(() => setLoadingImoveis(false));
+    setImoveisRetryState({ status: "running", attempt: 1, totalAttempts: TOTAL_IMOVEIS_ATTEMPTS });
+
+    try {
+      const data = await fetchImoveis({
+        retries: IMOVEIS_MAX_RETRIES,
+        baseDelayMs: RETRY_BASE_DELAY_MS,
+        onRetry: ({ attempt }) => {
+          setImoveisRetryState({
+            status: "retrying",
+            attempt: Math.min(attempt + 1, TOTAL_IMOVEIS_ATTEMPTS),
+            totalAttempts: TOTAL_IMOVEIS_ATTEMPTS,
+          });
+        },
+      });
+
+      const imoveisNormalizados = (data || []).map((imovel) => {
+        const totalInvestidoRaw =
+          imovel.total_investido ?? imovel.totalInvestido ?? imovel.totallancamentos ?? 0;
+        const periodoInicio = imovel.periodo_inicio ?? null;
+        const periodoFim = imovel.periodo_fim ?? null;
+        return {
+          ...imovel,
+          totalInvestido: Number(totalInvestidoRaw) || 0,
+          grupos: normalizarGrupos(imovel.grupos),
+          periodoInicio,
+          periodoFim,
+        };
+      });
+      setImoveis(imoveisNormalizados);
+      setImoveisRetryState({ status: "success", attempt: 1, totalAttempts: TOTAL_IMOVEIS_ATTEMPTS });
+    } catch (error) {
+      console.error("Erro ao carregar imóveis:", error);
+      setErroImoveis(true);
+      setImoveis([]);
+      setImoveisRetryState({
+        status: "failed",
+        attempt: TOTAL_IMOVEIS_ATTEMPTS,
+        totalAttempts: TOTAL_IMOVEIS_ATTEMPTS,
+      });
+    } finally {
+      setLoadingImoveis(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    carregarImoveis();
 
     fetchUltimaAtualizacao()
       .then((res) => setUltimaAtualizacao(res?.data || null))
       .catch(() => setUltimaAtualizacao(null));
-  }, []);
+  }, [carregarImoveis]);
 
   useEffect(() => {
     if (!prefReady) {
       return;
     }
 
+    let ativo = true;
     setLoadingGastos(true);
     setErroGastos(false);
+    setGastosRetryState({ status: "running", attempt: 1, totalAttempts: TOTAL_GASTOS_ATTEMPTS });
 
-    fetchGastosMensais(chartPref.meses, chartPref.excluir || [])
+    fetchGastosMensais(chartPref.meses, chartPref.excluir || [], {
+      retries: GASTOS_MAX_RETRIES,
+      baseDelayMs: RETRY_BASE_DELAY_MS,
+      onRetry: ({ attempt }) => {
+        if (!ativo) return;
+        setGastosRetryState({
+          status: "retrying",
+          attempt: Math.min(attempt + 1, TOTAL_GASTOS_ATTEMPTS),
+          totalAttempts: TOTAL_GASTOS_ATTEMPTS,
+        });
+      },
+    })
       .then((dados) => {
+        if (!ativo) return;
         setGastosMensais(dados || []);
         setErroGastos(false);
+        setGastosRetryState({ status: "success", attempt: 1, totalAttempts: TOTAL_GASTOS_ATTEMPTS });
       })
-      .catch(() => {
+      .catch((error) => {
+        if (!ativo) return;
+        console.error("Erro ao carregar gastos mensais:", error);
         setGastosMensais([]);
         setErroGastos(true);
+        setGastosRetryState({
+          status: "failed",
+          attempt: TOTAL_GASTOS_ATTEMPTS,
+          totalAttempts: TOTAL_GASTOS_ATTEMPTS,
+        });
       })
-      .finally(() => setLoadingGastos(false));
-  }, [prefReady, chartPref.meses, (chartPref.excluir || []).join(',')]);
+      .finally(() => {
+        if (ativo) {
+          setLoadingGastos(false);
+        }
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [prefReady, chartPref.meses, (chartPref.excluir || []).join(','), gastosReloadKey]);
+
+  const handleTentarNovamenteImoveis = () => {
+    carregarImoveis();
+  };
+
+  const handleTentarNovamenteGastos = () => {
+    setGastosReloadKey((valor) => valor + 1);
+  };
 
   useEffect(() => {
     if (!prefReady) return;
@@ -384,12 +462,24 @@ function Home() {
               </form>
             </div>
           )}
+          {gastosRetryState.status === "retrying" && (
+            <div className="alert alert-info py-2 px-3 small mb-3" role="status">
+              Tentando novamente ({gastosRetryState.attempt}/{gastosRetryState.totalAttempts})...
+            </div>
+          )}
           {loadingGastos ? (
             <div className="text-center text-muted py-4">Carregando gráfico...</div>
           ) : erroGastos ? (
             <div className="text-center text-muted py-4">
               <p className="mb-1">Não foi possível carregar os dados.</p>
-              <small>Tente novamente mais tarde.</small>
+              <small className="d-block mb-3">Tente novamente mais tarde.</small>
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm"
+                onClick={handleTentarNovamenteGastos}
+              >
+                Tentar novamente agora
+              </button>
             </div>
           ) : (
             <GastosMensaisChart dados={gastosMensais} />
@@ -425,11 +515,23 @@ function Home() {
       )}
 
       {/* Lista de imóveis */}
+      {imoveisRetryState.status === "retrying" && (
+        <div className="alert alert-info py-2 px-3 small" role="status">
+          Tentando novamente ({imoveisRetryState.attempt}/{imoveisRetryState.totalAttempts})...
+        </div>
+      )}
       {loadingImoveis ? (
         <p className="fs-6 text-muted">Carregando imóveis...</p>
       ) : erroImoveis ? (
         <div className="alert alert-warning" role="alert">
-          Não foi possível carregar a lista de imóveis. Verifique sua conexão ou tente novamente mais tarde.
+          <div>Não foi possível carregar a lista de imóveis. Verifique sua conexão ou tente novamente mais tarde.</div>
+          <button
+            type="button"
+            className="btn btn-outline-secondary btn-sm mt-3"
+            onClick={handleTentarNovamenteImoveis}
+          >
+            Tentar novamente
+          </button>
         </div>
       ) : imoveis.length === 0 ? (
         <p className="fs-6 text-muted">Nenhum imóvel cadastrado ainda.</p>

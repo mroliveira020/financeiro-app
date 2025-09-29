@@ -162,3 +162,8 @@ Usar a mesma estrutura do sistema de gerenciamento de imóveis, porem com tabela
 - Seeds controlados em `dados_exemplo.sql` com categorias e contas padrão para ambiente de desenvolvimento.
 - Documentação complementar em `/docs` descrevendo cada migração, dependências e instruções para rollback.
 - Processo de revisão: executar `supabase db reset` em ambiente local antes de aplicar em produção e validar com testes automatizados de integração.
+
+## Scripts SQL de Referência
+- `docs/Finanças pessoais/sql_esquema_inicial.sql`: criação completa do esquema (tabelas, índices, funções, triggers e policies). Execute via Supabase Studio (SQL Editor) usando uma sessão com permissões de service role.
+- `docs/Finanças pessoais/sql_dados_exemplo_dev.sql`: insere dados de exemplo para desenvolvimento (perfis, contas, categorias, orçamentos, lançamentos, fatura e notificações). Substitua os valores de `id_usuario_supabase` pelos IDs reais do Auth antes de validar RLS com usuários reais.
+- Após aplicar os scripts, verifique no Table Editor se os saldos foram recalculados pelas triggers e ajuste limites/categorias conforme necessidade do ambiente.

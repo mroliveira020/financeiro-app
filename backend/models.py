@@ -13,54 +13,40 @@ def listar_imoveis():
             im.id,
             im.nome,
             im.vendido,
-            COALESCE(res.total_investido, 0) AS total_investido,
-            res.periodo_inicio,
-            res.periodo_fim,
-            COALESCE(res.grupos, '[]'::json) AS grupos
+            COALESCE(totais.total_investido, 0) AS total_investido,
+            totais.periodo_inicio,
+            totais.periodo_fim,
+            COALESCE(grupos.lista, '[]'::jsonb) AS grupos
         FROM imoveis im
         LEFT JOIN LATERAL (
-            WITH filtrado AS (
+            SELECT
+                COALESCE(SUM(l.valor), 0) AS total_investido,
+                MIN(l.data) AS periodo_inicio,
+                MAX(l.data) AS periodo_fim
+            FROM lancamentos l
+            LEFT JOIN categorias c ON c.id = l.id_categoria
+            WHERE l.id_imovel = im.id
+              AND l.id_situacao = 1
+              AND (l.ativo IS DISTINCT FROM FALSE)
+              AND (c.id IS NULL OR c.id NOT IN (4, 8, 15, 18))
+        ) totais ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT jsonb_agg(jsonb_build_object('grupo', grupo, 'total', total) ORDER BY grupo) AS lista
+            FROM (
                 SELECT
-                    l.valor,
-                    l.data,
-                    g.grupo
+                    g.grupo,
+                    SUM(l.valor) AS total
                 FROM lancamentos l
                 JOIN categorias c ON c.id = l.id_categoria
                 JOIN grupos g ON g.id = c.id_grupo
                 WHERE l.id_imovel = im.id
                   AND l.id_situacao = 1
                   AND (l.ativo IS DISTINCT FROM FALSE)
-                  AND (l.id_categoria IS NULL OR c.id NOT IN (4, 8, 15, 18))
-            ),
-            totais AS (
-                SELECT
-                    COALESCE(SUM(valor), 0) AS total_investido,
-                    MIN(data) AS periodo_inicio,
-                    MAX(data) AS periodo_fim
-                FROM filtrado
-            ),
-            grupos AS (
-                SELECT
-                    json_agg(
-                        json_build_object('grupo', grupo, 'total', total)
-                        ORDER BY grupo
-                    ) AS lista
-                FROM (
-                    SELECT
-                        grupo,
-                        SUM(valor) AS total
-                    FROM filtrado
-                    GROUP BY grupo
-                    ORDER BY grupo
-                ) dados
-            )
-            SELECT
-                totais.total_investido,
-                totais.periodo_inicio,
-                totais.periodo_fim,
-                COALESCE(grupos.lista, '[]'::json) AS grupos
-            FROM totais, grupos
-        ) res ON TRUE
+                  AND (c.id IS NULL OR c.id NOT IN (4, 8, 15, 18))
+                GROUP BY g.grupo
+                ORDER BY g.grupo
+            ) dados
+        ) grupos ON TRUE
         ORDER BY im.created_at DESC
     """)
     resultados = cur.fetchall()
