@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import api from "../services/http";
 import ModalEditarOrcamento from "./ModalEditarOrcamento";
 import useEditorToken from "../hooks/useEditorToken";
@@ -109,219 +109,200 @@ function ResumoFinanceiro() {
    // 2. Passar os dados do imóvel (ou apenas 'imovel.ganho_capital') como prop de Dashboard para ResumoFinanceiro.
    // Por enquanto, estou assumindo 0.15 (15%) se 'imovel' não existir aqui. Se você já busca 'imovel' e está apenas omitindo no contexto fornecido, ignore esta nota.
 
-  return (
-    <div className="col-12 mb-3">
-      <div className="card p-3 shadow-sm position-relative">
+  const formatarMoeda = (valor) => {
+    const numerico = Number(valor || 0);
+    return numerico.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  };
 
-        {/* Botões do cabeçalho */}
-        <div className="position-absolute top-0 end-0 p-2 d-flex gap-2">
-          <span
-            className="fs-5 text-secondary"
-            onClick={() => setMostrarSegundaTabela(!mostrarSegundaTabela)}
-            title={mostrarSegundaTabela ? "Recolher Detalhamento" : "Expandir Detalhamento"}
-            style={{ cursor: "pointer" }} // Adiciona style para indicar que é clicável
-          >
-            {mostrarSegundaTabela ? "🔽" : "▶️"}
-          </span>
+  const kpis = useMemo(
+    () => [
+      { titulo: "Investimento total", valor: formatarMoeda(investimentoTotal || 0) },
+      { titulo: "Saldo a investir", valor: formatarMoeda(totaisPrimeira.saldo_a_investir_total || 0) },
+      { titulo: "Resultado líquido", valor: formatarMoeda(resultadoLiquido || 0) },
+      {
+        titulo: "ROI projetado",
+        valor: `${(roi * 100).toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}%`,
+      },
+    ],
+    [investimentoTotal, totaisPrimeira.saldo_a_investir_total, resultadoLiquido, roi]
+  );
 
-          {canEdit && (
-            <span
-              className="fs-4 text-primary"
-              onClick={() => setMostrarModalOrcamento(true)}
-              title="Atualizar Orçamento"
-              style={{ cursor: "pointer" }}
-            >
-              ✏️
-            </span>
-          )}
-        </div>
-
-        <h2 className="fs-6 fw-bold mb-3">Resumo Financeiro</h2>
-
-{/* Primeira Tabela */}
-<div className="table-responsive mb-4">
-  <table className="table table-sm table-striped align-middle small">
-    <thead>
-      <tr>
-        <th>Grupo</th>
-        <th className="text-end">Orçamento</th>
-        <th className="text-end">Efetivado</th>
-        <th className="text-end">Em Contratação</th>
-        <th className="text-end">Efetivado + Em Contratação</th>
-        {/* NOVO CÁLCULO AQUI: Saldo a Investir individual */}
-        <th className="text-end">Saldo a Investir</th>
-        <th className="text-end">Total Estimado</th>
-      </tr>
-    </thead>
-    <tbody>
-      {primeiraTabela.map(item => (
-        <tr key={item.id_grupo}>
-          <td>{item.grupo}</td>
-          <td className="text-end">
-            {Number(item.orcamento).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-          </td>
-          <td className="text-end">
-            {Number(item.valor_efetivado).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-          </td>
-          <td className="text-end">
-            {Number(item.valor_em_contratacao).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-          </td>
-          <td className="text-end">
-            {calcularEfetivadoMaisContratacao(item).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-          </td>
-          {/* EXIBE o Saldo a Investir individual */}
-          <td className="text-end">
-            {calcularSaldoAInvestir(item).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-          </td>
-          <td className="text-end">
-            {calcularTotalEstimado(item).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-          </td>
-        </tr>
-      ))}
-      <tr className="fw-bold">
-        <td>Total</td>
-        <td className="text-end">
-          {totaisPrimeira.orcamento.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-        </td>
-        <td className="text-end">
-          {totaisPrimeira.valor_efetivado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-        </td>
-        <td className="text-end">
-          {totaisPrimeira.valor_em_contratacao.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-        </td>
-        <td className="text-end">
-          {totaisPrimeira.efetivado_mais_contratacao.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-        </td>
-        {/* EXIBE o NOVO total de Saldo a Investir (soma dos individuais) */}
-        <td className="text-end">
-          {totaisPrimeira.saldo_a_investir_total.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-        </td>
-        <td className="text-end">
-          {totaisPrimeira.valor_total_estimado.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-        {/* Segunda Tabela (Fechamento) */}
-        {/* Note: Esta tabela usa totais Estimados dos grupos específicos, não os totais da primeira tabela */}
-        <div className="mb-4" style={{ maxWidth: "400px" }}>
-          <h3 className="fs-6 fw-bold mb-2">Fechamento</h3>
-          <table className="table table-sm align-middle small mb-0">
-            <tbody>
-              <tr>
-                <td>Investimento Total</td>
-                <td className="text-end">
-                  {investimentoTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                </td>
-              </tr>
-              <tr>
-                <td>Financiamento a Quitar</td>
-                <td className="text-end">
-                  {totalEstimadoGrupo6.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                </td>
-              </tr>
-              <tr className="fw-bold">
-                <td>Custo do Imóvel</td>
-                <td className="text-end">
-                  {custoDoImovel.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                </td>
-              </tr>
-
-              <tr>
-                <td colSpan="2"> </td>{/* Linha em branco para separação */}
-              </tr>
-
-              <tr>
-                <td>Valor de Venda</td>
-                <td className="text-end">
-                  {valorDeVenda.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                </td>
-              </tr>
-              <tr>
-                <td>Corretor</td>
-                <td className="text-end">
-                  {corretor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                </td>
-              </tr>
-               <tr>
-                <td>IR Ganho de Capital</td>
-                <td className="text-end">
-                  {irGanhoDeCapital.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                </td>
-              </tr>
-              <tr className="fw-bold">
-                <td>Resultado Líquido</td>
-                <td className="text-end">
-                  {resultadoLiquido.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                </td>
-              </tr>
-              <tr className="fw-bold">
-                <td>ROI</td>
-                <td className="text-end">
-                  {(roi * 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Terceira Tabela (detalhamento expandido dos grupos de fechamento) */}
-        {mostrarSegundaTabela && (
-          <div className="table-responsive">
-            <h3 className="fs-6 fw-bold mb-2">Detalhamento Fechamento</h3>
-            <table className="table table-sm table-striped align-middle small">
-              <thead>
-                <tr>
-                  <th>Grupo</th>
-                  <th className="text-end">Orçamento</th>
-                  <th className="text-end">Efetivado</th>
-                  <th className="text-end">Em Contratação</th>
-                  <th className="text-end">Efetivado + Em Contratação</th>
-                  <th className="text-end">Total Estimado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {terceiraTabela.map(item => (
-                  <tr key={item.id_grupo}>
-                    <td>{item.grupo}</td>
-                    <td className="text-end">
-                      {Number(item.orcamento).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </td>
-                    <td className="text-end">
-                      {Number(item.valor_efetivado).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </td>
-                    <td className="text-end">
-                      {Number(item.valor_em_contratacao).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </td>
-                    <td className="text-end">
-                      {calcularEfetivadoMaisContratacao(item).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </td>
-                    <td className="text-end">
-                      {calcularTotalEstimado(item).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Modal de Edição do Orçamento */}
-        {mostrarModalOrcamento && (
-          <ModalEditarOrcamento
-            id_imovel={id_imovel}
-            onClose={() => setMostrarModalOrcamento(false)}
-            onSave={() => {
-              setMostrarModalOrcamento(false);
-              carregarResumo(); // Recarrega os dados após salvar
-            }}
-          />
-        )}
-
-      </div>
+  const tabelaPrimeira = (
+    <div className="resumo-card__table table-responsive">
+      <table className="table align-middle">
+        <thead>
+          <tr>
+            <th>Grupo</th>
+            <th className="text-end">Orçamento</th>
+            <th className="text-end">Efetivado</th>
+            <th className="text-end">Em Contratação</th>
+            <th className="text-end">Efetivado + Em Contratação</th>
+            <th className="text-end">Saldo a Investir</th>
+            <th className="text-end">Total Estimado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {primeiraTabela.map((item) => (
+            <tr key={item.id_grupo}>
+              <td>{item.grupo}</td>
+              <td className="text-end">{formatarMoeda(item.orcamento)}</td>
+              <td className="text-end">{formatarMoeda(item.valor_efetivado)}</td>
+              <td className="text-end">{formatarMoeda(item.valor_em_contratacao)}</td>
+              <td className="text-end">{formatarMoeda(calcularEfetivadoMaisContratacao(item))}</td>
+              <td className="text-end">{formatarMoeda(calcularSaldoAInvestir(item))}</td>
+              <td className="text-end">{formatarMoeda(calcularTotalEstimado(item))}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td>Total</td>
+            <td className="text-end">{formatarMoeda(totaisPrimeira.orcamento)}</td>
+            <td className="text-end">{formatarMoeda(totaisPrimeira.valor_efetivado)}</td>
+            <td className="text-end">{formatarMoeda(totaisPrimeira.valor_em_contratacao)}</td>
+            <td className="text-end">{formatarMoeda(totaisPrimeira.efetivado_mais_contratacao)}</td>
+            <td className="text-end">{formatarMoeda(totaisPrimeira.saldo_a_investir_total)}</td>
+            <td className="text-end">{formatarMoeda(totaisPrimeira.valor_total_estimado)}</td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
+  );
+
+  const tabelaFechamento = (
+    <div className="resumo-card__table resumo-card__closing">
+      <table className="table align-middle mb-0">
+        <tbody>
+          <tr>
+            <td>Investimento Total</td>
+            <td className="text-end">{formatarMoeda(investimentoTotal)}</td>
+          </tr>
+          <tr>
+            <td>Financiamento a Quitar</td>
+            <td className="text-end">{formatarMoeda(totalEstimadoGrupo6)}</td>
+          </tr>
+          <tr className="fw-bold">
+            <td>Custo do Imóvel</td>
+            <td className="text-end">{formatarMoeda(custoDoImovel)}</td>
+          </tr>
+          <tr className="table-separator">
+            <td colSpan={2}>&nbsp;</td>
+          </tr>
+          <tr>
+            <td>Valor de Venda</td>
+            <td className="text-end">{formatarMoeda(valorDeVenda)}</td>
+          </tr>
+          <tr>
+            <td>Corretor</td>
+            <td className="text-end">{formatarMoeda(corretor)}</td>
+          </tr>
+          <tr>
+            <td>IR Ganho de Capital</td>
+            <td className="text-end">{formatarMoeda(irGanhoDeCapital)}</td>
+          </tr>
+          <tr className="fw-bold">
+            <td>Resultado Líquido</td>
+            <td className="text-end">{formatarMoeda(resultadoLiquido)}</td>
+          </tr>
+          <tr className="fw-bold">
+            <td>ROI</td>
+            <td className="text-end">
+              {(roi * 100).toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}%
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const tabelaFechamentoDetalhada = mostrarSegundaTabela ? (
+    <div className="resumo-card__table table-responsive">
+      <h3 className="fs-6 fw-bold mb-2">Detalhamento Fechamento</h3>
+      <table className="table align-middle">
+        <thead>
+          <tr>
+            <th>Grupo</th>
+            <th className="text-end">Orçamento</th>
+            <th className="text-end">Efetivado</th>
+            <th className="text-end">Em Contratação</th>
+            <th className="text-end">Efetivado + Em Contratação</th>
+            <th className="text-end">Total Estimado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {terceiraTabela.map((item) => (
+            <tr key={item.id_grupo}>
+              <td>{item.grupo}</td>
+              <td className="text-end">{formatarMoeda(item.orcamento)}</td>
+              <td className="text-end">{formatarMoeda(item.valor_efetivado)}</td>
+              <td className="text-end">{formatarMoeda(item.valor_em_contratacao)}</td>
+              <td className="text-end">{formatarMoeda(calcularEfetivadoMaisContratacao(item))}</td>
+              <td className="text-end">{formatarMoeda(calcularTotalEstimado(item))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <section className="dashboard-card resumo-card">
+        <header className="d-flex justify-content-between align-items-start flex-wrap gap-3">
+          <div>
+            <h2>Resumo Financeiro</h2>
+            <small className="text-muted">Síntese dos grupos orçamentários e projeções do imóvel</small>
+          </div>
+          <div className="resumo-card__toggle">
+            <button
+              type="button"
+              className="resumo-card__toggle-btn"
+              onClick={() => setMostrarSegundaTabela((prev) => !prev)}
+            >
+              {mostrarSegundaTabela ? "Ocultar detalhamento" : "Mostrar detalhamento"}
+            </button>
+            {canEdit && (
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setMostrarModalOrcamento(true)}>
+                Atualizar orçamento
+              </button>
+            )}
+          </div>
+        </header>
+
+        <div className="resumo-card__metrics">
+          {kpis.map((kpi) => (
+            <div key={kpi.titulo} className="resumo-card__metric">
+              <span>{kpi.titulo}</span>
+              <strong>{kpi.valor}</strong>
+            </div>
+          ))}
+        </div>
+
+        {tabelaPrimeira}
+        {tabelaFechamento}
+        {tabelaFechamentoDetalhada}
+      </section>
+
+      {mostrarModalOrcamento && (
+        <ModalEditarOrcamento
+          id_imovel={id_imovel}
+          onClose={() => setMostrarModalOrcamento(false)}
+          onSave={() => {
+            setMostrarModalOrcamento(false);
+            carregarResumo();
+          }}
+        />
+      )}
+    </>
   );
 }
 

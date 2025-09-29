@@ -152,28 +152,31 @@ function TransacoesIncompletas() {
   };
 
   return (
-    <div className="col-md-6">
-      <div className="card p-3 shadow-sm position-relative h-100">
-        <h2 className="fs-6 fw-bold d-flex justify-content-between align-items-center">
-          Transações Incompletas
+    <>
+      <section className="dashboard-card transacoes-card">
+        <header>
+          <h2>Transações Incompletas</h2>
           {canEdit && (
             <button
-              className="btn btn-sm btn-outline-secondary"
+              type="button"
+              className="btn btn-outline-secondary btn-sm"
               onClick={abrirModalLote}
-              title="Adicionar em Lote"
+              title="Adicionar lançamentos em lote"
             >
-              📥
+              📥 Importar lote
             </button>
           )}
-        </h2>
+        </header>
 
-        <LancamentosTable
-          lancamentos={lancamentos}
-          onEdit={iniciarEdicao}
-          onDelete={handleExcluir}
-          editable={canEdit}
-        />
-      </div>
+        <div className="transacoes-card__table-wrapper">
+          <LancamentosTable
+            lancamentos={lancamentos}
+            onEdit={iniciarEdicao}
+            onDelete={handleExcluir}
+            editable={canEdit}
+          />
+        </div>
+      </section>
 
       <ModalEdicao
         formEdicao={formEdicao}
@@ -188,7 +191,7 @@ function TransacoesIncompletas() {
         setTextoLote={setTextoLote}
         enviarLote={enviarLote}
       />
-    </div>
+    </>
   );
 }
 

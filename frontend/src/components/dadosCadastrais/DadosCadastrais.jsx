@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../services/http";
 import ModalSelecionarImovel from "./ModalSelecionarImovel";
@@ -35,47 +35,33 @@ function DadosCadastrais() {
   };
 
   const renderMapa = () => {
-    if (imovel.latitude && imovel.longitude) {
+    if (imovel?.latitude && imovel?.longitude) {
       const mapaUrl = `https://maps.google.com/maps?q=${imovel.latitude},${imovel.longitude}&z=15&output=embed`;
       return (
         <iframe
           title="Mapa do Imóvel"
           src={mapaUrl}
-          width="100%"
-          height="100%"
-          style={{ border: 0, borderRadius: "8px" }}
-          allowFullScreen=""
+          allowFullScreen
           loading="lazy"
-        ></iframe>
-      );
-    } else {
-      return (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            color: "#888",
-          }}
-        >
-          Localização não informada
-        </div>
+        />
       );
     }
+    return (
+      <div className="dados-card__map--placeholder">
+        Localização não informada
+      </div>
+    );
   };
 
-  // Garantir que temos números antes de formatar
   const formatarPorcentagem = (valor) => {
-    if (valor === null || valor === undefined || isNaN(valor)) {
+    if (valor === null || valor === undefined || Number.isNaN(Number(valor))) {
       return "0,00%";
     }
-    return (parseFloat(valor) * 100).toFixed(2).replace('.', ',') + "%";
+    return `${(parseFloat(valor) * 100).toFixed(2).replace(".", ",")}%`;
   };
 
   const formatarMoeda = (valor) => {
-    if (valor === null || valor === undefined || isNaN(parseFloat(valor))) {
+    if (valor === null || valor === undefined || Number.isNaN(parseFloat(valor))) {
       return "R$ 0,00";
     }
     return Number(valor).toLocaleString("pt-BR", {
@@ -84,123 +70,88 @@ function DadosCadastrais() {
     });
   };
 
+  const detalhes = useMemo(() => {
+    if (!imovel) {
+      return [];
+    }
+    return [
+      { label: "Endereço", value: imovel.endereco || "Não informado" },
+      { label: "Ocupante", value: imovel.nome_ocupante || "Não informado" },
+      { label: "CPF do Ocupante", value: imovel.cpf_ocupante || "Não informado" },
+      { label: "Latitude", value: imovel.latitude || "Não informado" },
+      { label: "Longitude", value: imovel.longitude || "Não informado" },
+      { label: "Status", value: imovel.vendido ? "Vendido" : "Disponível" },
+      { label: "Corretagem", value: formatarPorcentagem(imovel.corretagem) },
+      { label: "Ganho de Capital", value: formatarPorcentagem(imovel.ganho_capital) },
+      { label: "Valor de Venda", value: formatarMoeda(imovel.valor_venda) },
+    ];
+  }, [imovel]);
+
   if (!imovel) {
     return (
-      <div className="col-12 mb-3">
-        <div className="card p-3 shadow-sm">Carregando dados do imóvel...</div>
-      </div>
+      <section className="dashboard-card dados-card">
+        <span className="text-muted">Carregando dados do imóvel...</span>
+      </section>
     );
   }
 
   return (
-    <div className="col-12 mb-3">
-      <div className="card p-3 shadow-sm position-relative">
-
-        {/* Ícone de troca de imóvel */}
-        <div className="position-absolute top-0 end-0 p-2">
-          <span
-            className="fs-4 text-primary cursor-pointer"
-            onClick={() => setMostrarModalImoveis(true)}
-            title="Trocar de imóvel"
-            style={{ cursor: "pointer" }}
-          >
-            🏠 ➡️
-          </span>
-        </div>
-
-        {/* Linha principal com mapa e nome */}
-        <div className="d-flex align-items-center">
-          <div
-            className="flex-grow-0"
-            style={{
-              width: "25%",
-              height: "170px",
-              background: "#ddd",
-              borderRadius: "8px",
-              overflow: "hidden",
-            }}
-          >
-            {renderMapa()}
-          </div>
-
-          <div
-            className="ms-3 flex-grow-1 d-flex justify-content-center align-items-center"
-            style={{
-              height: "120px",
-            }}
-          >
-            <h2
-              className="fw-bold mb-0"
-              style={{ fontSize: "1.8rem", textAlign: "center" }}
-            >
-              {imovel.nome}
-            </h2>
-          </div>
-        </div>
-
-        {/* Botão expandir/recolher */}
-        <div className="d-flex justify-content-end">
-          <button
-            className="btn btn-sm btn-link p-0 d-flex align-items-center"
-            onClick={() => setExpandir(!expandir)}
-          >
-            {expandir ? (
-              <>
-                ▲ <span className="ms-1">Ocultar detalhes</span>
-              </>
-            ) : (
-              <>
-                ▼ <span className="ms-1">Mostrar detalhes</span>
-              </>
-            )}
+    <>
+      <section className="dashboard-card dados-card">
+        <div className="dados-card__actions">
+          <button type="button" onClick={() => setMostrarModalImoveis(true)}>
+            🏠 Trocar imóvel
+          </button>
+          {canEdit && (
+            <button type="button" onClick={() => setMostrarModalEditar(true)}>
+              ✏️ Editar dados
+            </button>
+          )}
+          <button type="button" onClick={() => setExpandir((prev) => !prev)}>
+            {expandir ? "Ocultar detalhes" : "Mostrar detalhes"}
           </button>
         </div>
 
-        {/* Detalhes adicionais */}
-        {expandir && (
-          <div className="mt-2 small">
-            <p><strong>Endereço:</strong> {imovel.endereco || "Não informado"}</p>
-            <p><strong>Ocupante:</strong> {imovel.nome_ocupante || "Não informado"}</p>
-            <p><strong>CPF Ocupante:</strong> {imovel.cpf_ocupante || "Não informado"}</p>
-            <p><strong>Latitude:</strong> {imovel.latitude || "Não informado"}</p>
-            <p><strong>Longitude:</strong> {imovel.longitude || "Não informado"}</p>
-            <p><strong>Vendido:</strong> {imovel.vendido ? "Sim" : "Não"}</p>
-            <p><strong>Corretagem:</strong> {formatarPorcentagem(imovel.corretagem)}</p>
-            <p><strong>Ganho Capital:</strong> {formatarPorcentagem(imovel.ganho_capital)}</p>
-            <p><strong>Valor de Venda:</strong> {formatarMoeda(imovel.valor_venda)}</p>
-
-            {canEdit && (
-              <button
-                className="btn btn-sm btn-primary mt-2"
-                onClick={() => setMostrarModalEditar(true)}
-              >
-                Editar Dados
-              </button>
-            )}
+        <div className="dados-card__layout">
+          <div className="dados-card__map">{renderMapa()}</div>
+          <div className="dados-card__name">
+            <span className="dados-card__status" data-status={imovel.vendido ? "vendido" : "disponivel"}>
+              {imovel.vendido ? "Imóvel vendido" : "Imóvel em andamento"}
+            </span>
+            <h2>{imovel.nome}</h2>
           </div>
-        )}
+        </div>
 
-        {/* Modal de seleção de imóveis */}
-        {mostrarModalImoveis && (
-          <ModalSelecionarImovel
-            onClose={() => setMostrarModalImoveis(false)}
-            onSelectImovel={trocarImovel}
-          />
+        {expandir && (
+          <dl className="dados-card__details">
+            {detalhes.map((item) => (
+              <div key={item.label}>
+                <dt>{item.label}</dt>
+                <dd>{item.value}</dd>
+              </div>
+            ))}
+          </dl>
         )}
+      </section>
 
-        {/* Modal de edição de dados */}
-        {mostrarModalEditar && (
-          <ModalEditarImovel
-            imovel={imovel}
-            onClose={() => setMostrarModalEditar(false)}
-            onSave={() => {
-              setMostrarModalEditar(false);
-              fetchImovel();
-            }}
-          />
-        )}
-      </div>
-    </div>
+      {mostrarModalImoveis && (
+        <ModalSelecionarImovel
+          onClose={() => setMostrarModalImoveis(false)}
+          onSelectImovel={trocarImovel}
+        />
+      )}
+
+      {mostrarModalEditar && (
+        <ModalEditarImovel
+          imovel={imovel}
+          onClose={() => setMostrarModalEditar(false)}
+          onSave={() => {
+            setMostrarModalEditar(false);
+            fetchImovel();
+          }}
+        />
+      )}
+    </>
   );
 }
 

@@ -98,20 +98,25 @@ function TransacoesCompletas() {
   };
 
   return (
-    <div className="col-md-6">
-      <div className="card p-3 shadow-sm position-relative">
-        <h2 className="fs-6 fw-bold d-flex justify-content-between align-items-center">
-          Transações Completas
-        </h2>
+    <>
+      <section className="dashboard-card transacoes-card">
+        <header>
+          <h2>Transações Completas</h2>
+          {canEdit && (
+            <span className="text-muted small">Clique em uma linha para editar</span>
+          )}
+        </header>
 
-        <LancamentosTable
-          lancamentos={lancamentos}
-          onEdit={iniciarEdicao}
-          onDelete={handleExcluir}
-          tipo="completo"
-          editable={canEdit}
-        />
-      </div>
+        <div className="transacoes-card__table-wrapper table-responsive">
+          <LancamentosTable
+            lancamentos={lancamentos}
+            onEdit={iniciarEdicao}
+            onDelete={handleExcluir}
+            tipo="completo"
+            editable={canEdit}
+          />
+        </div>
+      </section>
 
       <ModalEdicao
         idModal="modalEdicaoCompleto"
@@ -121,7 +126,7 @@ function TransacoesCompletas() {
         categorias={categorias}
         imoveis={imoveis}
       />
-    </div>
+    </>
   );
 }
 

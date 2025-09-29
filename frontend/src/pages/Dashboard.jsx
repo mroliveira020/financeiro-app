@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 import DadosCadastrais from "../components/dadosCadastrais/DadosCadastrais";
@@ -7,32 +7,33 @@ import ResumoFinanceiro from "../components/ResumoFinanceiro";
 import TransacoesIncompletas from "../components/TransacoesIncompletas/TransacoesIncompletas";
 import TransacoesCompletas from "../components/transacoes/TransacoesCompletas";
 
+import "./Dashboard.css";
+
 function Dashboard() {
-  const { id } = useParams();
-
   return (
-    <div className="container mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1 className="h4 mb-0">Dashboard</h1>
-        <Link to="/" className="btn btn-outline-secondary">
-          ← Voltar para a Home
-        </Link>
-      </div>
+    <div className="dashboard-page">
+      <div className="dashboard-container">
+        <header className="dashboard-header">
+          <div className="dashboard-header__title">
+            <h1>Dashboard</h1>
+            <span>Acompanhe o desempenho financeiro e operacional do imóvel</span>
+          </div>
+          <div className="dashboard-header__actions">
+            <Link to="/" className="btn btn-outline-secondary">
+              ← Voltar para a Home
+            </Link>
+          </div>
+        </header>
 
-      {/* PRIMEIRA SEÇÃO - DADOS CADASTRAIS E RESUMO FINANCEIRO */}
-      <div className="row mb-4">
-        <div className="col-12 mb-3">
+        <section className="dashboard-main">
           <DadosCadastrais />
-        </div>
-        <div className="col-12">
           <ResumoFinanceiro />
-        </div>
-      </div>
+        </section>
 
-      {/* SEGUNDA SEÇÃO - NÃO MEXI! */}
-      <div className="row mt-4">
-        <TransacoesIncompletas />
-        <TransacoesCompletas />
+        <section className="dashboard-transactions">
+          <TransacoesIncompletas />
+          <TransacoesCompletas />
+        </section>
       </div>
     </div>
   );
