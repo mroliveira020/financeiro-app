@@ -1,5 +1,6 @@
 from db_connection import conectar
 import json
+from collections import defaultdict
 
 
 # ======================================================
@@ -411,7 +412,7 @@ def listar_ultimos_lancamentos_confirmados(limit=10):
     return itens
 
 
-def listar_totais_mensais_por_imovel(meses=6, categorias_excluidas=None):
+def listar_totais_mensais_por_imovel(meses=6, categorias_excluidas=None, incluir_vendidos=True):
     """Retorna os totais desembolsados por mês (lancamentos confirmados), agrupados por imóvel."""
 
     try:
@@ -446,6 +447,9 @@ def listar_totais_mensais_por_imovel(meses=6, categorias_excluidas=None):
             "WHERE l.id_situacao = 1",
             "  AND (l.ativo IS DISTINCT FROM FALSE)",
         ]
+
+        if not incluir_vendidos:
+            base_sql.append("  AND (i.vendido IS DISTINCT FROM TRUE)")
 
         params = []
 
@@ -483,6 +487,126 @@ def listar_totais_mensais_por_imovel(meses=6, categorias_excluidas=None):
         return resultados
     finally:
         conn.close()
+
+# ======================================================
+# 🔹 Resumo agregado dos imóveis
+# ======================================================
+
+def listar_resumo_imoveis(incluir_vendidos=True):
+    conn, cur = conectar()
+    try:
+        base_query = [
+            "SELECT",
+            "    i.id AS id_imovel,",
+            "    i.vendido,",
+            "    COALESCE(o.id_grupo, 0) AS id_grupo,",
+            "    COALESCE(o.valor_efetivado, 0) AS valor_efetivado,",
+            "    COALESCE(o.valor_em_contratacao, 0) AS valor_em_contratacao,",
+            "    COALESCE(o.orcamento, 0) AS orcamento",
+            "FROM vw_orcamento_execucao o",
+            "JOIN imoveis i ON i.id = o.id_imovel",
+        ]
+
+        params = []
+        if not incluir_vendidos:
+            base_query.append("WHERE i.vendido IS DISTINCT FROM TRUE")
+
+        query = "\n".join(base_query)
+        cur.execute(query, tuple(params))
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        return {
+            "totais": {
+                "total_efetivado": 0.0,
+                "total_a_investir": 0.0,
+                "lucro_projetado": 0.0,
+                "investimento_total": 0.0,
+                "imoveis_considerados": 0,
+                "inclui_vendidos": incluir_vendidos,
+            }
+        }
+
+    def _safe(value):
+        try:
+            if value is None:
+                return 0.0
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    imoveis_data = defaultdict(lambda: {
+        "valor_efetivado": 0.0,
+        "investimento_total": 0.0,
+        "saldo_a_investir": 0.0,
+        "grupo6": 0.0,
+        "grupo7": 0.0,
+        "grupo8": 0.0,
+        "grupo9": 0.0,
+    })
+
+    for row in rows:
+        imovel_id = row["id_imovel"]
+        dados = imoveis_data[imovel_id]
+
+        grupo = row["id_grupo"]
+        valor_efetivado = _safe(row["valor_efetivado"])
+        valor_em_contratacao = _safe(row["valor_em_contratacao"])
+        orcamento = _safe(row["orcamento"])
+
+        total_estimado = max(orcamento, valor_efetivado + valor_em_contratacao)
+
+        if grupo in (6, 7, 8, 9):
+            if grupo == 6:
+                dados["grupo6"] = total_estimado
+            elif grupo == 7:
+                dados["grupo7"] = total_estimado
+            elif grupo == 8:
+                dados["grupo8"] = total_estimado
+            elif grupo == 9:
+                dados["grupo9"] = total_estimado
+        else:
+            dados["valor_efetivado"] += valor_efetivado
+            dados["investimento_total"] += total_estimado
+            dados["saldo_a_investir"] += total_estimado - valor_efetivado
+
+    total_efetivado_global = 0.0
+    total_a_investir_global = 0.0
+    lucro_projetado_global = 0.0
+    investimento_total_global = 0.0
+
+    for dados in imoveis_data.values():
+        investimento_total = dados["investimento_total"]
+        saldo_a_investir = dados["saldo_a_investir"]
+        valor_efetivado = dados["valor_efetivado"]
+
+        total_efetivado_global += valor_efetivado
+        total_a_investir_global += saldo_a_investir
+        investimento_total_global += investimento_total
+
+        custo_imovel = investimento_total + dados["grupo6"]
+        valor_venda = dados["grupo8"]
+        corretor = dados["grupo7"]
+
+        ganho_capital_base = valor_venda - custo_imovel - corretor
+        ir_calculado = ganho_capital_base * 0.15 if ganho_capital_base > 0 else 0.0
+        ir_ganho_capital = max(dados["grupo9"], ir_calculado)
+
+        resultado_liquido = valor_venda - custo_imovel - corretor - ir_ganho_capital
+        lucro_projetado_global += resultado_liquido
+
+    return {
+        "totais": {
+            "total_efetivado": round(total_efetivado_global, 2),
+            "total_a_investir": round(total_a_investir_global, 2),
+            "lucro_projetado": round(lucro_projetado_global, 2),
+            "investimento_total": round(investimento_total_global, 2),
+            "imoveis_considerados": len(imoveis_data),
+            "inclui_vendidos": incluir_vendidos,
+        }
+    }
 
 # ======================================================
 # 🔹 Funções para ORÇAMENTOS

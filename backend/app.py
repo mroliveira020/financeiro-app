@@ -15,6 +15,7 @@ from models import (
     #adicionar_lancamento,
     adicionar_lancamentos_em_lote,
     listar_resumo_financeiro,
+    listar_resumo_imoveis,
     listar_orcamentos_por_imovel,
     atualizar_inserir_orcamentos
 )
@@ -271,6 +272,21 @@ def get_orcamento_execucao(id_imovel):
     except Exception as e:
         print(f"Erro ao buscar orçamento execução: {e}")
         return jsonify({"error": "Erro ao buscar orçamento execução"}), 500
+
+
+@app.route("/dashboard/resumo-imoveis", methods=["GET"])
+def get_resumo_imoveis():
+    incluir_vendidos_raw = request.args.get("includeVendidos") or request.args.get("incluir_vendidos")
+    incluir_vendidos = True
+    if incluir_vendidos_raw is not None:
+        incluir_vendidos = incluir_vendidos_raw.lower() in {"1", "true", "t", "yes", "sim"}
+
+    try:
+        dados = listar_resumo_imoveis(incluir_vendidos)
+        return jsonify(dados), 200
+    except Exception as e:
+        print(f"Erro ao buscar resumo de imóveis: {e}")
+        return jsonify({"error": "Erro ao buscar resumo de imóveis"}), 500
 
 # =====================================================
 # 🔹 ROTAS ORÇAMENTOS

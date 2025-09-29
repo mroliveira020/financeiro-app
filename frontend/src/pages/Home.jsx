@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   fetchImoveis,
@@ -8,6 +8,7 @@ import {
   fetchUltimosLancamentos,
   fetchGastosMensais,
   fetchCategorias,
+  fetchResumoImoveis,
 } from "../services/api";
 import "bootstrap/dist/css/bootstrap.min.css";
 import useEditorToken from "../hooks/useEditorToken";
@@ -61,6 +62,17 @@ const formatarPeriodo = (inicio, fim) => {
   }
 };
 
+const formatarMoeda = (valor) =>
+  Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+const RESUMO_INICIAL = {
+  totalEfetivado: 0,
+  totalAInvestir: 0,
+  lucroProjetado: 0,
+  investimentoTotal: 0,
+  imoveisConsiderados: 0,
+};
+
 function Home() {
   const [imoveis, setImoveis] = useState([]);
   const [loadingImoveis, setLoadingImoveis] = useState(true);
@@ -73,6 +85,10 @@ function Home() {
   const [gastosMensais, setGastosMensais] = useState([]);
   const [loadingGastos, setLoadingGastos] = useState(true);
   const [erroGastos, setErroGastos] = useState(false);
+  const [resumoImoveis, setResumoImoveis] = useState(RESUMO_INICIAL);
+  const [loadingResumo, setLoadingResumo] = useState(true);
+  const [erroResumo, setErroResumo] = useState(false);
+  const [mostrarVendidos, setMostrarVendidos] = useState(false);
   const [chartPref, setChartPref] = useState(() => ({
     meses: DEFAULT_CHART_PREF.meses,
     excluir: [...DEFAULT_CHART_PREF.excluir],
@@ -99,6 +115,13 @@ function Home() {
   const [gastosReloadKey, setGastosReloadKey] = useState(0);
   const editorToken = useEditorToken();
   const canEdit = !!editorToken;
+
+  const imoveisVisiveis = useMemo(() => {
+    if (mostrarVendidos) {
+      return imoveis;
+    }
+    return imoveis.filter((imovel) => !imovel.vendido);
+  }, [imoveis, mostrarVendidos]);
 
   useEffect(() => {
     let storedPref = {
@@ -196,6 +219,29 @@ function Home() {
   }, [carregarImoveis]);
 
   useEffect(() => {
+    setLoadingResumo(true);
+    setErroResumo(false);
+
+    fetchResumoImoveis(mostrarVendidos)
+      .then((dados) => {
+        const totais = dados?.totais || {};
+        setResumoImoveis({
+          totalEfetivado: Number(totais.total_efetivado ?? 0),
+          totalAInvestir: Number(totais.total_a_investir ?? 0),
+          lucroProjetado: Number(totais.lucro_projetado ?? 0),
+          investimentoTotal: Number(totais.investimento_total ?? 0),
+          imoveisConsiderados: Number(totais.imoveis_considerados ?? 0),
+        });
+        setErroResumo(false);
+      })
+      .catch(() => {
+        setResumoImoveis(RESUMO_INICIAL);
+        setErroResumo(true);
+      })
+      .finally(() => setLoadingResumo(false));
+  }, [mostrarVendidos]);
+
+  useEffect(() => {
     if (!prefReady) {
       return;
     }
@@ -216,6 +262,7 @@ function Home() {
           totalAttempts: TOTAL_GASTOS_ATTEMPTS,
         });
       },
+      includeVendidos: mostrarVendidos,
     })
       .then((dados) => {
         if (!ativo) return;
@@ -243,7 +290,7 @@ function Home() {
     return () => {
       ativo = false;
     };
-  }, [prefReady, chartPref.meses, (chartPref.excluir || []).join(','), gastosReloadKey]);
+  }, [prefReady, chartPref.meses, (chartPref.excluir || []).join(','), gastosReloadKey, mostrarVendidos]);
 
   const handleTentarNovamenteImoveis = () => {
     carregarImoveis();
@@ -332,6 +379,10 @@ function Home() {
     });
   };
 
+  const handleToggleVendidos = () => {
+    setMostrarVendidos((prev) => !prev);
+  };
+
   const handleAplicarConfiguracao = (event) => {
     event.preventDefault();
     const mesesBrutos = configDraft.meses;
@@ -362,6 +413,26 @@ function Home() {
           {canEdit ? "Modo editor ativo" : "Visualização somente leitura"}
         </div>
       </header>
+
+      <div className="home-filter-bar card border-0 shadow-sm mb-4">
+        <div className="card-body d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+          <div>
+            <h2 className="fs-6 fw-semibold mb-1">Visibilidade dos imóveis</h2>
+            <small className="text-muted">Controle se os imóveis vendidos devem aparecer nas métricas e na listagem.</small>
+          </div>
+          <div className="ios-toggle-wrapper">
+            <span className="ios-toggle__label">Exibir imóveis vendidos</span>
+            <button
+              type="button"
+              className={`ios-switch ${mostrarVendidos ? "ios-switch--on" : ""}`}
+              onClick={handleToggleVendidos}
+              aria-pressed={mostrarVendidos}
+            >
+              <span className="ios-switch__handle" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Gráfico de desembolsos mensais */}
       <section className="card border-0 shadow-sm mb-4">
@@ -487,6 +558,48 @@ function Home() {
         </div>
       </section>
 
+      {/* Resumo agregado dos imóveis */}
+      <section className="card border-0 shadow-sm mb-4 resumo-imoveis-card">
+        <div className="card-body">
+          <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
+            <div>
+              <h2 className="fs-5 fw-semibold mb-0">Resumo geral dos imóveis</h2>
+              <small className="text-muted">
+                Totais considerando {mostrarVendidos ? "todos os imóveis (incluindo vendidos)" : "apenas os imóveis ativos"}.
+              </small>
+            </div>
+            {resumoImoveis.imoveisConsiderados > 0 && (
+              <span className="badge text-bg-light fw-semibold">
+                {resumoImoveis.imoveisConsiderados} {resumoImoveis.imoveisConsiderados === 1 ? "imóvel" : "imóveis"}
+              </span>
+            )}
+          </div>
+
+          {loadingResumo ? (
+            <div className="text-muted">Calculando resumo...</div>
+          ) : erroResumo ? (
+            <div className="alert alert-warning mb-0" role="alert">
+              Não foi possível carregar o resumo dos imóveis. Tente novamente mais tarde.
+            </div>
+          ) : (
+            <div className="resumo-imoveis-card__metrics">
+              <article className="resumo-imoveis-card__metric">
+                <span>Total efetivado</span>
+                <strong>{formatarMoeda(resumoImoveis.totalEfetivado)}</strong>
+              </article>
+              <article className="resumo-imoveis-card__metric">
+                <span>Total a investir</span>
+                <strong>{formatarMoeda(resumoImoveis.totalAInvestir)}</strong>
+              </article>
+              <article className="resumo-imoveis-card__metric">
+                <span>Lucro projetado</span>
+                <strong>{formatarMoeda(resumoImoveis.lucroProjetado)}</strong>
+              </article>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Formulário para adicionar novo imóvel (apenas Editor) */}
       {canEdit && (
       <div className="card border-0 shadow-sm mb-4">
@@ -533,11 +646,17 @@ function Home() {
             Tentar novamente
           </button>
         </div>
-      ) : imoveis.length === 0 ? (
-        <p className="fs-6 text-muted">Nenhum imóvel cadastrado ainda.</p>
+      ) : imoveisVisiveis.length === 0 ? (
+        imoveis.length > 0 ? (
+          <div className="alert alert-light" role="alert">
+            Nenhum imóvel atende ao filtro atual.
+          </div>
+        ) : (
+          <p className="fs-6 text-muted">Nenhum imóvel cadastrado ainda.</p>
+        )
       ) : (
         <div className="row g-4">
-          {imoveis.map((imovel) => {
+          {imoveisVisiveis.map((imovel) => {
             const totalValor = Number(imovel.totalInvestido ?? 0);
             const periodo = formatarPeriodo(imovel.periodoInicio, imovel.periodoFim);
             return (

@@ -96,15 +96,29 @@ export async function fetchUltimosLancamentos(limit = 10) {
 
 // Dashboard geral: gastos mensais por imóvel (para gráficos)
 export async function fetchGastosMensais(meses = 6, categoriasExcluidas = [], options = {}) {
+  const { retries, baseDelayMs, onRetry, includeVendidos } = options;
   const params = new URLSearchParams();
   if (meses) params.append('meses', meses);
   if (categoriasExcluidas.length) {
     params.append('excluir', categoriasExcluidas.join(','));
   }
+  if (includeVendidos !== undefined) {
+    params.append('includeVendidos', includeVendidos ? 'true' : 'false');
+  }
   const query = params.toString();
   const response = await getWithRetry(
     () => api.get(`/dashboard/gastos-mensais${query ? `?${query}` : ''}`),
-    options,
+    { retries, baseDelayMs, onRetry },
   );
   return response.data;
+}
+
+export async function fetchResumoImoveis(includeVendidos = true) {
+  const params = new URLSearchParams();
+  if (!includeVendidos) {
+    params.append('includeVendidos', 'false');
+  }
+  const query = params.toString();
+  const { data } = await api.get(`/dashboard/resumo-imoveis${query ? `?${query}` : ''}`);
+  return data;
 }

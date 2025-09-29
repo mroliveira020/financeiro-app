@@ -166,7 +166,12 @@ def get_gastos_mensais():
                 except Exception:
                     continue
 
-        dados = listar_totais_mensais_por_imovel(meses, categorias_excluidas)
+        incluir_vendidos_raw = request.args.get('includeVendidos') or request.args.get('incluir_vendidos')
+        incluir_vendidos = True
+        if incluir_vendidos_raw is not None:
+            incluir_vendidos = incluir_vendidos_raw.lower() in {"1", "true", "t", "yes", "sim"}
+
+        dados = listar_totais_mensais_por_imovel(meses, categorias_excluidas, incluir_vendidos)
         return jsonify(dados), 200
     except Exception as e:
         print(f"Erro ao listar gastos mensais: {e}")

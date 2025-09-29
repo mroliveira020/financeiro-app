@@ -200,3 +200,84 @@
   margin: 0;
   text-align: center;
 }
+
+.home-filter-bar {
+  border-radius: 16px;
+}
+
+.ios-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ios-toggle__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2933;
+}
+
+.ios-switch {
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  background: #d0d5dd;
+  border: none;
+  position: relative;
+  padding: 0;
+  transition: background 0.2s ease;
+}
+
+.ios-switch:focus-visible {
+  outline: 2px solid rgba(13, 110, 253, 0.35);
+  outline-offset: 2px;
+}
+
+.ios-switch__handle {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
+  transition: transform 0.2s ease;
+}
+
+.ios-switch--on {
+  background: #0d6efd;
+}
+
+.ios-switch--on .ios-switch__handle {
+  transform: translateX(20px);
+}
+
+.resumo-imoveis-card__metrics {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.resumo-imoveis-card__metric {
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.08), rgba(13, 110, 253, 0.02));
+  border: 1px solid rgba(13, 110, 253, 0.08);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.resumo-imoveis-card__metric span {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #5f6b7c;
+}
+
+.resumo-imoveis-card__metric strong {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1f2933;
+}
