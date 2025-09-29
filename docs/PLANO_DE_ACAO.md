@@ -117,6 +117,9 @@
        2.8.2 [x] UI exibe estado “tentando novamente” e oferece botão de recarregar após falha.
        2.8.3 [x] Script `scripts/keep_alive.sh` (pings configuráveis) pronto para agendamento em cron/uptime monitor do Render.
        2.8.4 [x] Query `listar_imoveis` reescrita + script `docs/consultas/indices_lancamentos.sql` com índices recomendados para agregações.
+   2.9 [ ] Resumo agregado performático
+       2.9.1 [ ] Consolidar totais (efetivado, a investir, lucro) direto via SQL, evitando processamento em memória.
+       2.9.2 [ ] Cache ou otimizar view conforme necessidade (avaliar após medição).
 
 3. Próximas (médio prazo)
    3.1 [ ] Segurança (Fase 2 — login por usuário)
