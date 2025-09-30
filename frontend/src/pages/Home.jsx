@@ -195,8 +195,8 @@ function Home() {
       const imoveisNormalizados = (data || []).map((imovel) => {
         const totalInvestidoRaw =
           imovel.total_investido ?? imovel.totalInvestido ?? imovel.totallancamentos ?? 0;
-        const totalInvestido = toNumber(totalInvestidoRaw);
-        const valorEfetivado = toNumber(imovel.valor_efetivado, totalInvestido);
+        const valorEfetivado = toNumber(imovel.valor_efetivado, toNumber(totalInvestidoRaw));
+        const totalInvestido = valorEfetivado;
         const valorAInvestir = toNumber(imovel.valor_a_investir);
         const lucroProjetado = toNumber(imovel.lucro_projetado);
         const ativoEsperado = toNumber(
@@ -684,8 +684,10 @@ function Home() {
       ) : (
         <div className="row g-4">
           {imoveisVisiveis.map((imovel) => {
-            const totalValor = toNumber(imovel.totalInvestido);
-            const valorEfetivadoCard = toNumber(imovel.valorEfetivado, totalValor);
+            const valorEfetivadoCard = toNumber(
+              imovel.valorEfetivado,
+              toNumber(imovel.totalInvestido),
+            );
             const valorAInvestirCard = toNumber(imovel.valorAInvestir);
             const ativoEsperadoCard = toNumber(
               imovel.ativoEsperado,
@@ -695,12 +697,14 @@ function Home() {
             const periodo = formatarPeriodo(imovel.periodoInicio, imovel.periodoFim);
             const metrics = [
               {
-                label: "Valor efetivado",
-                value: formatarMoeda(valorEfetivadoCard),
-              },
-              {
                 label: "Valor a investir",
                 value: formatarMoeda(valorAInvestirCard),
+                valueClass:
+                  valorAInvestirCard > 0
+                    ? "property-card__metrics-value--pending"
+                    : valorAInvestirCard < 0
+                      ? "property-card__metrics-value--negative"
+                      : "",
               },
               {
                 label: "Ativo esperado",
@@ -743,11 +747,11 @@ function Home() {
                     <div className="property-card__summary">
                       <div className="property-card__summary-info">
                         <p
-                          className={`property-card__amount ${totalValor >= 0 ? "property-card__amount--positive" : "property-card__amount--negative"}`}
+                          className={`property-card__amount ${valorEfetivadoCard >= 0 ? "property-card__amount--positive" : "property-card__amount--negative"}`}
                         >
-                          {formatarMoeda(totalValor)}
+                          {formatarMoeda(valorEfetivadoCard)}
                         </p>
-                        <p className="property-card__label">Total investido</p>
+                        <p className="property-card__label">Valor efetivado</p>
                         <p className="property-card__periodo">{periodo || "Sem período disponível"}</p>
                         <div className="property-card__metrics">
                           {metrics.map(({ label, value, valueClass }) => {
@@ -784,7 +788,7 @@ function Home() {
                               title="Editar imóvel"
                               onClick={() => console.log("Editar imóvel:", imovel.id)}
                             />
-                            {totalValor === 0 && (
+                            {valorEfetivadoCard === 0 && (
                               <img
                                 src="/img/excluir.png"
                                 alt="Excluir"

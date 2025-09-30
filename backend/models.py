@@ -1,5 +1,72 @@
+from collections import defaultdict
 from db_connection import conectar
 import json
+
+
+def _to_float(valor):
+    try:
+        return float(valor or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _total_estimado(item):
+    if not item:
+        return 0.0
+    orcamento = _to_float(item.get("orcamento"))
+    efetivado = _to_float(item.get("valor_efetivado"))
+    em_contratacao = _to_float(item.get("valor_em_contratacao"))
+    return max(orcamento, efetivado + em_contratacao)
+
+
+def _metricas_por_imovel(registros):
+    if not registros:
+        return {
+            "valor_efetivado": 0.0,
+            "valor_a_investir": 0.0,
+            "lucro_projetado": 0.0,
+            "ativo_esperado": 0.0,
+            "roi_projetado": 0.0,
+            "investimento_total": 0.0,
+        }
+
+    grupos_base = [r for r in registros if r.get("id_grupo") not in (6, 7, 8, 9)]
+
+    valor_efetivado = sum(_to_float(r.get("valor_efetivado")) for r in grupos_base)
+    investimento_total = sum(_total_estimado(r) for r in grupos_base)
+    valor_a_investir = sum(_total_estimado(r) - _to_float(r.get("valor_efetivado")) for r in grupos_base)
+
+    def _total_grupo(numero):
+        registro = next((r for r in registros if r.get("id_grupo") == numero), None)
+        return _total_estimado(registro)
+
+    total_grupo6 = _total_grupo(6)
+    total_grupo7 = _total_grupo(7)
+    total_grupo8 = _total_grupo(8)
+    total_grupo9 = _total_grupo(9)
+
+    custo_do_imovel = investimento_total + total_grupo6
+    valor_de_venda = total_grupo8
+    corretor = total_grupo7
+
+    ganho_capital_base = valor_de_venda - custo_do_imovel - corretor
+    ir_ganho_capital = max(
+        total_grupo9,
+        ganho_capital_base * 0.15 if ganho_capital_base > 0 else 0.0,
+    )
+
+    lucro_projetado = valor_de_venda - custo_do_imovel - corretor - ir_ganho_capital
+    roi_projetado = (lucro_projetado / investimento_total) if investimento_total else 0.0
+    ativo_esperado = valor_efetivado + valor_a_investir + lucro_projetado
+
+    return {
+        "valor_efetivado": valor_efetivado,
+        "valor_a_investir": valor_a_investir,
+        "lucro_projetado": lucro_projetado,
+        "ativo_esperado": ativo_esperado,
+        "roi_projetado": roi_projetado,
+        "investimento_total": investimento_total,
+    }
 
 
 # ======================================================
@@ -8,135 +75,101 @@ import json
 
 def listar_imoveis():
     conn, cur = conectar()
-    cur.execute("""
-        WITH resumos AS (
+    try:
+        cur.execute("""
             SELECT
-                agg.id_imovel,
-                agg.investimento_total,
-                agg.valor_efetivado,
-                agg.saldo_a_investir,
-                (
-                    agg.total_grupo8 - (agg.investimento_total + agg.total_grupo6) - agg.total_grupo7
-                ) - GREATEST(
-                    agg.total_grupo9,
-                    CASE
-                        WHEN (agg.total_grupo8 - (agg.investimento_total + agg.total_grupo6) - agg.total_grupo7) > 0
-                            THEN (agg.total_grupo8 - (agg.investimento_total + agg.total_grupo6) - agg.total_grupo7) * 0.15
-                        ELSE 0
-                    END
-                ) AS lucro_projetado
-            FROM (
+                im.id,
+                im.nome,
+                im.vendido,
+                COALESCE(totais.total_investido, 0) AS total_investido,
+                totais.periodo_inicio,
+                totais.periodo_fim,
+                COALESCE(grupos.lista, '[]'::jsonb) AS grupos
+            FROM imoveis im
+            LEFT JOIN LATERAL (
                 SELECT
-                    base.id_imovel,
-                    COALESCE(SUM(CASE WHEN base.id_grupo NOT IN (6,7,8,9)
-                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao)
-                        ELSE 0 END), 0) AS investimento_total,
-                    COALESCE(SUM(CASE WHEN base.id_grupo NOT IN (6,7,8,9)
-                        THEN base.valor_efetivado ELSE 0 END), 0) AS valor_efetivado,
-                    COALESCE(SUM(CASE WHEN base.id_grupo NOT IN (6,7,8,9)
-                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao) - base.valor_efetivado
-                        ELSE 0 END), 0) AS saldo_a_investir,
-                    COALESCE(SUM(CASE WHEN base.id_grupo = 6
-                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao)
-                        ELSE 0 END), 0) AS total_grupo6,
-                    COALESCE(SUM(CASE WHEN base.id_grupo = 7
-                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao)
-                        ELSE 0 END), 0) AS total_grupo7,
-                    COALESCE(SUM(CASE WHEN base.id_grupo = 8
-                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao)
-                        ELSE 0 END), 0) AS total_grupo8,
-                    COALESCE(SUM(CASE WHEN base.id_grupo = 9
-                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao)
-                        ELSE 0 END), 0) AS total_grupo9
-                FROM vw_orcamento_execucao base
-                GROUP BY base.id_imovel
-            ) agg
-        )
-        SELECT
-            im.id,
-            im.nome,
-            im.vendido,
-            COALESCE(totais.total_investido, 0) AS total_investido,
-            totais.periodo_inicio,
-            totais.periodo_fim,
-            COALESCE(grupos.lista, '[]'::jsonb) AS grupos,
-            COALESCE(resumos.valor_efetivado, 0) AS valor_efetivado,
-            COALESCE(resumos.saldo_a_investir, 0) AS valor_a_investir,
-            COALESCE(resumos.investimento_total, 0) AS investimento_total,
-            COALESCE(resumos.lucro_projetado, 0) AS lucro_projetado,
-            COALESCE(resumos.valor_efetivado, 0)
-                + COALESCE(resumos.saldo_a_investir, 0)
-                + COALESCE(resumos.lucro_projetado, 0) AS ativo_esperado,
-            CASE
-                WHEN resumos.investimento_total IS NOT NULL AND resumos.investimento_total <> 0
-                    THEN COALESCE(resumos.lucro_projetado, 0) / NULLIF(resumos.investimento_total, 0)
-                ELSE 0
-            END AS roi_projetado
-        FROM imoveis im
-        LEFT JOIN LATERAL (
-            SELECT
-                COALESCE(SUM(l.valor), 0) AS total_investido,
-                MIN(l.data) AS periodo_inicio,
-                MAX(l.data) AS periodo_fim
-            FROM lancamentos l
-            LEFT JOIN categorias c ON c.id = l.id_categoria
-            WHERE l.id_imovel = im.id
-              AND l.id_situacao = 1
-              AND (l.ativo IS DISTINCT FROM FALSE)
-              AND (c.id IS NULL OR c.id NOT IN (4, 8, 15, 18))
-        ) totais ON TRUE
-        LEFT JOIN LATERAL (
-            SELECT jsonb_agg(jsonb_build_object('grupo', grupo, 'total', total) ORDER BY grupo) AS lista
-            FROM (
-                SELECT
-                    g.grupo,
-                    SUM(l.valor) AS total
+                    COALESCE(SUM(l.valor), 0) AS total_investido,
+                    MIN(l.data) AS periodo_inicio,
+                    MAX(l.data) AS periodo_fim
                 FROM lancamentos l
-                JOIN categorias c ON c.id = l.id_categoria
-                JOIN grupos g ON g.id = c.id_grupo
+                LEFT JOIN categorias c ON c.id = l.id_categoria
                 WHERE l.id_imovel = im.id
                   AND l.id_situacao = 1
                   AND (l.ativo IS DISTINCT FROM FALSE)
                   AND (c.id IS NULL OR c.id NOT IN (4, 8, 15, 18))
-                GROUP BY g.grupo
-                ORDER BY g.grupo
-            ) dados
-        ) grupos ON TRUE
-        LEFT JOIN resumos ON resumos.id_imovel = im.id
-        ORDER BY im.created_at DESC
-    """)
-    resultados = cur.fetchall()
-    conn.close()
-    imoveis = []
-    for row in resultados:
-        item = dict(row)
-        grupos = item.get("grupos")
-        if isinstance(grupos, str):
-            try:
-                grupos = json.loads(grupos)
-            except json.JSONDecodeError:
-                grupos = []
-        elif grupos is None:
-            grupos = []
-        item["grupos"] = grupos
-        for chave in (
-            "valor_efetivado",
-            "valor_a_investir",
-            "investimento_total",
-            "lucro_projetado",
-            "ativo_esperado",
-            "roi_projetado",
-        ):
-            valor = item.get(chave)
-            if valor is None:
-                item[chave] = 0.0
-            else:
+            ) totais ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT jsonb_agg(jsonb_build_object('grupo', grupo, 'total', total) ORDER BY grupo) AS lista
+                FROM (
+                    SELECT
+                        g.grupo,
+                        SUM(l.valor) AS total
+                    FROM lancamentos l
+                    JOIN categorias c ON c.id = l.id_categoria
+                    JOIN grupos g ON g.id = c.id_grupo
+                    WHERE l.id_imovel = im.id
+                      AND l.id_situacao = 1
+                      AND (l.ativo IS DISTINCT FROM FALSE)
+                      AND (c.id IS NULL OR c.id NOT IN (4, 8, 15, 18))
+                    GROUP BY g.grupo
+                    ORDER BY g.grupo
+                ) dados
+            ) grupos ON TRUE
+            ORDER BY im.created_at DESC
+        """)
+        resultados = cur.fetchall()
+
+        ids = [row["id"] for row in resultados]
+        registros_por_imovel = defaultdict(list)
+
+        if ids:
+            cur.execute(
+                """
+                    SELECT
+                        id_imovel,
+                        id_grupo,
+                        grupo,
+                        valor_efetivado,
+                        valor_em_contratacao,
+                        valor_total,
+                        orcamento
+                    FROM vw_orcamento_execucao
+                    WHERE id_imovel = ANY(%s)
+                """,
+                (ids,),
+            )
+
+            for registro in cur.fetchall():
+                registros_por_imovel[registro["id_imovel"]].append(dict(registro))
+
+        imoveis = []
+        for row in resultados:
+            item = dict(row)
+            grupos = item.get("grupos")
+            if isinstance(grupos, str):
                 try:
-                    item[chave] = float(valor)
-                except (TypeError, ValueError):
-                    item[chave] = 0.0
-        imoveis.append(item)
-    return imoveis
+                    grupos = json.loads(grupos)
+                except json.JSONDecodeError:
+                    grupos = []
+            elif grupos is None:
+                grupos = []
+            item["grupos"] = grupos
+
+            metricas = _metricas_por_imovel(registros_por_imovel.get(item["id"], []))
+            for chave, valor in metricas.items():
+                item[chave] = float(valor)
+
+            total_investido = _to_float(item.get("total_investido"))
+            if total_investido == 0 and metricas["valor_efetivado"]:
+                total_investido = float(metricas["valor_efetivado"])
+            item["total_investido"] = total_investido
+            item["totalInvestido"] = total_investido
+
+            imoveis.append(item)
+
+        return imoveis
+    finally:
+        conn.close()
 
 def adicionar_imovel(nome, vendido):
     conn, cur = conectar()

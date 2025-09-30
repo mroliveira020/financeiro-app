@@ -106,9 +106,9 @@
 
 .property-card__metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 12px;
-  margin-top: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 12px;
+  margin-top: 8px;
 }
 
 .property-card__metrics-item {
@@ -126,16 +126,22 @@
 }
 
 .property-card__metrics-value {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #1f2933;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: initial;
+  word-break: break-word;
 }
 
 .property-card__metrics-value--accent {
   color: #0d6efd;
+}
+
+.property-card__metrics-value--pending {
+  color: #b26a00;
 }
 
 .property-card__metrics-value--positive {
@@ -224,7 +230,7 @@
   }
 
   .property-card__metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }
 }
 
