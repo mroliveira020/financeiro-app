@@ -34,22 +34,25 @@ function DadosCadastrais() {
     navigate(`/dashboard/${novoId}`);
   };
 
+  const mapaDisponivel = Boolean(imovel?.latitude && imovel?.longitude);
+  const mapaEmbedUrl = mapaDisponivel
+    ? `https://maps.google.com/maps?q=${imovel.latitude},${imovel.longitude}&z=15&output=embed`
+    : null;
+  const mapaLink = mapaDisponivel
+    ? `https://www.google.com/maps/search/?api=1&query=${imovel.latitude},${imovel.longitude}`
+    : null;
+
   const renderMapa = () => {
-    if (imovel?.latitude && imovel?.longitude) {
-      const mapaUrl = `https://maps.google.com/maps?q=${imovel.latitude},${imovel.longitude}&z=15&output=embed`;
-      return (
-        <iframe
-          title="Mapa do Imóvel"
-          src={mapaUrl}
-          allowFullScreen
-          loading="lazy"
-        />
-      );
+    if (!mapaDisponivel) {
+      return <div className="dados-card__map--placeholder">Localização não informada</div>;
     }
     return (
-      <div className="dados-card__map--placeholder">
-        Localização não informada
-      </div>
+      <iframe
+        title="Mapa do Imóvel"
+        src={mapaEmbedUrl}
+        allowFullScreen
+        loading="lazy"
+      />
     );
   };
 
@@ -113,7 +116,27 @@ function DadosCadastrais() {
         </div>
 
         <div className="dados-card__layout">
-          <div className="dados-card__map">{renderMapa()}</div>
+          <div className="dados-card__media">
+            {imovel.foto_url ? (
+              <figure className="dados-card__photo">
+                <img src={imovel.foto_url} alt={`Foto do imóvel ${imovel.nome}`} />
+              </figure>
+            ) : null}
+            <div
+              className={`dados-card__map ${imovel.foto_url ? "dados-card__map--compact" : "dados-card__map--full"}`}
+            >
+              {renderMapa()}
+            </div>
+            {mapaLink && (
+              <button
+                type="button"
+                className="dados-card__map-button"
+                onClick={() => window.open(mapaLink, "_blank", "noopener")}
+              >
+                🌐 Abrir mapa ampliado
+              </button>
+            )}
+          </div>
           <div className="dados-card__name">
             <span className="dados-card__status" data-status={imovel.vendido ? "vendido" : "disponivel"}>
               {imovel.vendido ? "Imóvel vendido" : "Imóvel em andamento"}

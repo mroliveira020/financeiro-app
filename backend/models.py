@@ -1,6 +1,14 @@
+import base64
+import os
+import uuid
 from collections import defaultdict
+from functools import lru_cache
 from db_connection import conectar
 import json
+
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "imoveis")
+STATIC_URL_PREFIX = "/static/imoveis"
 
 
 def _to_float(valor):
@@ -69,11 +77,74 @@ def _metricas_por_imovel(registros):
     }
 
 
+@lru_cache(maxsize=1)
+def _garantir_coluna_foto():
+    conn, cur = conectar()
+    try:
+        cur.execute("ALTER TABLE imoveis ADD COLUMN IF NOT EXISTS foto_url TEXT")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        conn.close()
+
+
+def _remover_foto(caminho_url):
+    if not caminho_url:
+        return
+    nome_arquivo = os.path.basename(caminho_url)
+    caminho_arquivo = os.path.join(UPLOAD_DIR, nome_arquivo)
+    if os.path.exists(caminho_arquivo):
+        try:
+            os.remove(caminho_arquivo)
+        except OSError:
+            pass
+
+
+def _salvar_foto_base64(imovel_id, data_uri, foto_atual=None):
+    if not data_uri or "," not in data_uri:
+        return foto_atual
+
+    cabecalho, conteudo = data_uri.split(",", 1)
+    if "base64" not in cabecalho:
+        return foto_atual
+
+    mime_type = cabecalho.split(";")[0].split(":")[-1].lower()
+    extensao = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/webp": "webp",
+    }.get(mime_type, "jpg")
+
+    try:
+        dados = base64.b64decode(conteudo)
+    except (base64.binascii.Error, ValueError):
+        return foto_atual
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    nome_arquivo = f"imovel_{imovel_id}_{uuid.uuid4().hex[:8]}.{extensao}"
+    caminho_arquivo = os.path.join(UPLOAD_DIR, nome_arquivo)
+
+    try:
+        with open(caminho_arquivo, "wb") as arquivo:
+            arquivo.write(dados)
+    except OSError:
+        return foto_atual
+
+    if foto_atual:
+        _remover_foto(foto_atual)
+
+    return f"{STATIC_URL_PREFIX}/{nome_arquivo}"
+
+
 # ======================================================
 # 🔹 Funções para a tabela IMOVEIS
 # ======================================================
 
 def listar_imoveis():
+    _garantir_coluna_foto()
     conn, cur = conectar()
     try:
         cur.execute("""
@@ -84,7 +155,8 @@ def listar_imoveis():
                 COALESCE(totais.total_investido, 0) AS total_investido,
                 totais.periodo_inicio,
                 totais.periodo_fim,
-                COALESCE(grupos.lista, '[]'::jsonb) AS grupos
+                COALESCE(grupos.lista, '[]'::jsonb) AS grupos,
+                im.foto_url
             FROM imoveis im
             LEFT JOIN LATERAL (
                 SELECT
@@ -172,6 +244,7 @@ def listar_imoveis():
         conn.close()
 
 def adicionar_imovel(nome, vendido):
+    _garantir_coluna_foto()
     conn, cur = conectar()
     cur.execute("""
         INSERT INTO imoveis (nome, vendido) 
@@ -181,13 +254,14 @@ def adicionar_imovel(nome, vendido):
     imovel_id = cur.fetchone()[0]
     conn.commit()
     conn.close()
-    return {"id": imovel_id, "nome": nome, "vendido": vendido}
+    return {"id": imovel_id, "nome": nome, "vendido": vendido, "foto_url": None}
 
 def buscar_imovel_por_id(imovel_id):
+    _garantir_coluna_foto()
     conn, cur = conectar()
     cur.execute("""
         SELECT id, created_at, nome, vendido, ganho_capital, corretagem, valor_venda, "bAtivo",
-               endereco, cpf_ocupante, nome_ocupante, latitude, longitude
+               endereco, cpf_ocupante, nome_ocupante, latitude, longitude, foto_url
         FROM imoveis
         WHERE id = %s
     """, (imovel_id,))
@@ -212,8 +286,11 @@ def atualizar_imovel(
     longitude=None,
     corretagem=None,
     ganho_capital=None,
-    valor_venda=None
+    valor_venda=None,
+    foto_base64=None,
+    remover_foto=False,
 ):
+    _garantir_coluna_foto()
     imovel = buscar_imovel_por_id(imovel_id)
     if not imovel:
         return None
@@ -230,6 +307,14 @@ def atualizar_imovel(
     ganho_capital = float(str(ganho_capital).replace(',', '.')) if ganho_capital not in (None, '', ' ') else imovel.get("ganho_capital")
     valor_venda = float(str(valor_venda).replace(',', '.')) if valor_venda not in (None, '', ' ') else imovel.get("valor_venda")
 
+    foto_atual = imovel.get("foto_url")
+    nova_foto_url = foto_atual
+    if foto_base64:
+        nova_foto_url = _salvar_foto_base64(imovel_id, foto_base64, foto_atual)
+    elif remover_foto and foto_atual:
+        _remover_foto(foto_atual)
+        nova_foto_url = None
+
     conn, cur = conectar()
     cur.execute("""
         UPDATE imoveis
@@ -242,11 +327,13 @@ def atualizar_imovel(
             longitude = %s,
             corretagem = %s,
             ganho_capital = %s,
-            valor_venda = %s
+            valor_venda = %s,
+            foto_url = %s
         WHERE id = %s
     """, (
         nome, vendido, endereco, nome_ocupante, cpf_ocupante,
-        latitude, longitude, corretagem, ganho_capital, valor_venda, imovel_id
+        latitude, longitude, corretagem, ganho_capital, valor_venda,
+        nova_foto_url, imovel_id
     ))
 
     conn.commit()
@@ -263,7 +350,8 @@ def atualizar_imovel(
         "longitude": longitude,
         "corretagem": corretagem,
         "ganho_capital": ganho_capital,
-        "valor_venda": valor_venda
+        "valor_venda": valor_venda,
+        "foto_url": nova_foto_url,
     }
 
 def deletar_imovel(imovel_id):

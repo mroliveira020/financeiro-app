@@ -196,6 +196,8 @@ def update_imovel(imovel_id):
     corretagem = data.get("corretagem", imovel.get("corretagem", 0))
     ganho_capital = data.get("ganho_capital", imovel.get("ganho_capital", 0))
     valor_venda = data.get("valor_venda", imovel.get("valor_venda", 0))
+    foto_base64 = data.get("foto_base64")
+    remover_foto = bool(data.get("remover_foto"))
 
     imovel_atualizado = atualizar_imovel(
         imovel_id,
@@ -208,7 +210,9 @@ def update_imovel(imovel_id):
         longitude,
         corretagem,
         ganho_capital,
-        valor_venda
+        valor_venda,
+        foto_base64,
+        remover_foto,
     )
 
     return jsonify(imovel_atualizado)

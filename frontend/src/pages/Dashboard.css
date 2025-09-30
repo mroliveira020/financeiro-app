@@ -85,18 +85,47 @@
 
 .dados-card__layout {
   display: grid;
-  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
   gap: 1.5rem;
-  align-items: center;
+  align-items: stretch;
+}
+
+.dados-card__media {
+  display: grid;
+  gap: 1rem;
+}
+
+.dados-card__photo {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  aspect-ratio: 5 / 3;
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.12), rgba(13, 110, 253, 0.02));
+  border: 1px solid rgba(13, 110, 253, 0.12);
+  box-shadow: 0 18px 40px -30px rgba(15, 35, 95, 0.45);
+}
+
+.dados-card__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .dados-card__map {
-  width: 100%;
-  aspect-ratio: 4 / 3;
   border-radius: 16px;
   overflow: hidden;
   background: #e5e9f2;
   border: 1px solid rgba(35, 50, 74, 0.08);
+  min-height: 180px;
+}
+
+.dados-card__map--compact {
+  aspect-ratio: 4 / 3;
+}
+
+.dados-card__map--full {
+  aspect-ratio: 4 / 3;
 }
 
 .dados-card__map iframe {
@@ -113,6 +142,24 @@
   place-items: center;
   color: #7b88a6;
   font-size: 0.95rem;
+  background: rgba(124, 136, 166, 0.12);
+}
+
+.dados-card__map-button {
+  border: none;
+  background: rgba(13, 110, 253, 0.1);
+  color: #1f2d47;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  width: fit-content;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.dados-card__map-button:hover {
+  background: rgba(13, 110, 253, 0.18);
+  transform: translateY(-1px);
 }
 
 .dados-card__name {
@@ -302,38 +349,166 @@
 .transacoes-card {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.2rem;
 }
 
-.transacoes-card header {
+.transacoes-card__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.transacoes-card header h2 {
+.transacoes-card__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.transacoes-card__title h2 {
   margin: 0;
   font-size: 1rem;
+  font-weight: 700;
+  color: #1f2a3f;
 }
 
-.transacoes-card header .btn-outline-secondary,
-.transacoes-card header .btn {
+.transacoes-card__title .small {
+  color: #7c879e;
+}
+
+.transacoes-card__stats,
+.transacoes-card__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.transacoes-card__stat {
+  min-width: 120px;
+  background: linear-gradient(135deg, rgba(13, 110, 253, 0.12), rgba(13, 110, 253, 0.02));
+  border: 1px solid rgba(13, 110, 253, 0.1);
+  border-radius: 14px;
+  padding: 0.55rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.transacoes-card__stat span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #627293;
+}
+
+.transacoes-card__stat strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1f2d47;
+}
+
+.transacoes-card__header .btn-outline-secondary,
+.transacoes-card__header .btn,
+.transacoes-card__header-actions .btn-outline-secondary {
   border-radius: 999px;
-  padding: 0.4rem 0.85rem;
+  padding: 0.4rem 0.95rem;
   font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .transacoes-card__table-wrapper {
   flex: 1;
+  border: 1px solid rgba(31, 42, 63, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .transacoes-card .table-responsive {
   max-height: 440px;
+  background: #fff;
 }
 
 .transacoes-card .table {
   font-size: 0.92rem;
+  margin-bottom: 0;
+}
+
+.transacoes-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+}
+
+.transacoes-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f4f6fb;
+  border-bottom: 1px solid rgba(31, 42, 63, 0.08);
+  padding: 0.65rem 0.75rem;
+  font-weight: 600;
+  color: #37435a;
+  z-index: 1;
+}
+
+.transacoes-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.transacoes-table tbody tr:nth-of-type(even) {
+  background: rgba(13, 110, 253, 0.04);
+}
+
+.transacoes-table__row--clickable {
+  cursor: pointer;
+}
+
+.transacoes-table__row--clickable:hover {
+  background: rgba(13, 110, 253, 0.18);
+  color: #152238;
+}
+
+.transacoes-table__cell {
+  padding: 0.65rem 0.75rem;
+  vertical-align: middle;
+}
+
+.transacoes-table__cell--date {
+  white-space: nowrap;
+  color: #3d465d;
+  font-weight: 600;
+}
+
+.transacoes-table__cell--description {
+  max-width: 320px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #1f2d47;
+}
+
+.transacoes-table__cell--categoria {
+  width: 160px;
+}
+
+.transacoes-table__chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(56, 128, 255, 0.12);
+  color: #2a4ab7;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transacoes-table__pagination-actions .btn {
+  min-width: 110px;
 }
 
 @media (max-width: 1100px) {

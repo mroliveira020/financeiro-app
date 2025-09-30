@@ -216,6 +216,7 @@ function Home() {
           ativoEsperado,
           roiProjetado,
           investimentoTotal,
+          fotoUrl: imovel.foto_url ?? null,
           grupos: normalizarGrupos(imovel.grupos),
           periodoInicio,
           periodoFim,

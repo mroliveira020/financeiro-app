@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../services/http";
 import LancamentosTable from "./LancamentosTable";
@@ -14,6 +14,30 @@ function TransacoesCompletas() {
   const [imoveis, setImoveis] = useState([]);
   const editorToken = useEditorToken();
   const canEdit = !!editorToken;
+
+  const totais = useMemo(() => {
+    if (!lancamentos.length) {
+      return {
+        quantidade: 0,
+        soma: 0,
+        categorias: 0,
+      };
+    }
+    const soma = lancamentos.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+    const categorias = new Set(
+      lancamentos
+        .map((item) => item.nome_categoria)
+        .filter((categoria) => categoria && categoria.trim() !== "")
+    ).size;
+    return {
+      quantidade: lancamentos.length,
+      soma,
+      categorias,
+    };
+  }, [lancamentos]);
+
+  const formatarMoeda = (valor) =>
+    Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   useEffect(() => {
     fetchLancamentos();
@@ -100,11 +124,27 @@ function TransacoesCompletas() {
   return (
     <>
       <section className="dashboard-card transacoes-card">
-        <header>
-          <h2>Transações Completas</h2>
-          {canEdit && (
-            <span className="text-muted small">Clique em uma linha para editar</span>
-          )}
+        <header className="transacoes-card__header">
+          <div className="transacoes-card__title">
+            <h2>Transações Completas</h2>
+            <span className="text-muted small">
+              {canEdit ? "Clique em uma linha para editar" : "Lista de lançamentos confirmados"}
+            </span>
+          </div>
+          <div className="transacoes-card__stats">
+            <div className="transacoes-card__stat">
+              <span>Registros</span>
+              <strong>{totais.quantidade}</strong>
+            </div>
+            <div className="transacoes-card__stat">
+              <span>Categoria(s)</span>
+              <strong>{totais.categorias}</strong>
+            </div>
+            <div className="transacoes-card__stat">
+              <span>Total confirmado</span>
+              <strong>{formatarMoeda(totais.soma)}</strong>
+            </div>
+          </div>
         </header>
 
         <div className="transacoes-card__table-wrapper table-responsive">

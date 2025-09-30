@@ -1,5 +1,5 @@
 // TransacoesIncompletas.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../services/http";
 import LancamentosTable from "./LancamentosTable";
@@ -17,6 +17,17 @@ function TransacoesIncompletas() {
   const [textoLote, setTextoLote] = useState('');
   const editorToken = useEditorToken();
   const canEdit = !!editorToken;
+
+  const totais = useMemo(() => {
+    if (!lancamentos.length) {
+      return { quantidade: 0, soma: 0 };
+    }
+    const soma = lancamentos.reduce((acc, item) => acc + Number(item.valor || 0), 0);
+    return { quantidade: lancamentos.length, soma };
+  }, [lancamentos]);
+
+  const formatarMoeda = (valor) =>
+    Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   useEffect(() => {
     fetchLancamentosIncompletos();
@@ -154,18 +165,31 @@ function TransacoesIncompletas() {
   return (
     <>
       <section className="dashboard-card transacoes-card">
-        <header>
-          <h2>Transações Incompletas</h2>
-          {canEdit && (
-            <button
-              type="button"
-              className="btn btn-outline-secondary btn-sm"
-              onClick={abrirModalLote}
-              title="Adicionar lançamentos em lote"
-            >
-              📥 Importar lote
-            </button>
-          )}
+        <header className="transacoes-card__header">
+          <div className="transacoes-card__title">
+            <h2>Transações Incompletas</h2>
+            <span className="text-muted small">Revise e complete os lançamentos pendentes</span>
+          </div>
+          <div className="transacoes-card__header-actions">
+            <div className="transacoes-card__stat">
+              <span>Pendentes</span>
+              <strong>{totais.quantidade}</strong>
+            </div>
+            <div className="transacoes-card__stat">
+              <span>Valor total</span>
+              <strong>{formatarMoeda(totais.soma)}</strong>
+            </div>
+            {canEdit && (
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm"
+                onClick={abrirModalLote}
+                title="Adicionar lançamentos em lote"
+              >
+                📥 Importar lote
+              </button>
+            )}
+          </div>
         </header>
 
         <div className="transacoes-card__table-wrapper">

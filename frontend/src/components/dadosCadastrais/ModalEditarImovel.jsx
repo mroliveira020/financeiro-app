@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import api from "../../services/http";
 
 function ModalEditarImovel({ imovel, onClose, onSave }) {
@@ -12,8 +12,11 @@ function ModalEditarImovel({ imovel, onClose, onSave }) {
     longitude: "",
     corretagem: "",
     ganho_capital: "",
-    valor_venda: ""
+    valor_venda: "",
+    foto_base64: null,
+    remover_foto: false,
   });
+  const [fotoPreview, setFotoPreview] = useState("");
 
   useEffect(() => {
     if (imovel) {
@@ -27,8 +30,11 @@ function ModalEditarImovel({ imovel, onClose, onSave }) {
         longitude: imovel.longitude !== null ? imovel.longitude : "",
         corretagem: formatarPercentual(imovel.corretagem),
         ganho_capital: formatarPercentual(imovel.ganho_capital),
-        valor_venda: formatarMoeda(imovel.valor_venda)
+        valor_venda: formatarMoeda(imovel.valor_venda),
+        foto_base64: null,
+        remover_foto: false,
       });
+      setFotoPreview(imovel.foto_url || "");
     }
   }, [imovel]);
 
@@ -60,6 +66,47 @@ function ModalEditarImovel({ imovel, onClose, onSave }) {
     }));
   };
 
+  const handleFotoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("Selecione um arquivo de imagem válido.");
+      event.target.value = "";
+      return;
+    }
+
+    const maxSizeBytes = 5 * 1024 * 1024; // 5 MB
+    if (file.size > maxSizeBytes) {
+      alert("A imagem deve ter no máximo 5 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const resultado = reader.result;
+      setFotoPreview(resultado);
+      setForm((prev) => ({
+        ...prev,
+        foto_base64: resultado,
+        remover_foto: false,
+      }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoverFoto = () => {
+    setFotoPreview("");
+    setForm((prev) => ({
+      ...prev,
+      foto_base64: null,
+      remover_foto: true,
+    }));
+  };
+
   const handleSubmit = async () => {
     try {
       const payload = {
@@ -72,8 +119,14 @@ function ModalEditarImovel({ imovel, onClose, onSave }) {
         longitude: form.longitude !== "" ? parseFloat(form.longitude) : null,
         corretagem: desformatarPercentual(form.corretagem),
         ganho_capital: desformatarPercentual(form.ganho_capital),
-        valor_venda: desformatarMoeda(form.valor_venda)
+        valor_venda: desformatarMoeda(form.valor_venda),
       };
+
+      if (form.foto_base64) {
+        payload.foto_base64 = form.foto_base64;
+      } else if (form.remover_foto) {
+        payload.remover_foto = true;
+      }
 
       await api.patch(`/imoveis/${imovel.id}`, payload);
 
@@ -204,6 +257,38 @@ function ModalEditarImovel({ imovel, onClose, onSave }) {
                 value={form.valor_venda}
                 onChange={handleChange}
               />
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Foto do imóvel</label>
+              {fotoPreview ? (
+                <div className="mb-2">
+                  <img
+                    src={fotoPreview}
+                    alt="Pré-visualização do imóvel"
+                    className="img-fluid rounded"
+                    style={{ maxHeight: "200px", objectFit: "cover" }}
+                  />
+                </div>
+              ) : (
+                <p className="text-muted small mb-2">Nenhuma foto selecionada.</p>
+              )}
+              <div className="d-flex flex-wrap gap-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="form-control form-control-sm"
+                  onChange={handleFotoChange}
+                />
+                {(fotoPreview || imovel?.foto_url) && (
+                  <button type="button" className="btn btn-outline-danger btn-sm" onClick={handleRemoverFoto}>
+                    Remover foto
+                  </button>
+                )}
+              </div>
+              <small className="text-muted d-block mt-1">
+                Formatos aceitos: JPG, PNG ou WEBP (máx. 5&nbsp;MB).
+              </small>
             </div>
           </div>
 

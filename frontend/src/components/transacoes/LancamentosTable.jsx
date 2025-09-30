@@ -1,16 +1,12 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 
-function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo" }) {
+function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", editable = false }) {
   const [sortConfig, setSortConfig] = useState({ key: "data", direction: "asc" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
 
   const getSituacaoIcone = (id_situacao) => {
     return id_situacao === 1 ? "✅" : "🕒";
-  };
-
-  const formatarDescricao = (descricao) => {
-    return descricao.length > 10 ? descricao.slice(0, 10) + "..." : descricao;
   };
 
   const getSortableValue = (item, key) => {
@@ -24,14 +20,16 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo" }) 
     return item[key]?.toString().toLowerCase();
   };
 
-  const sortedLancamentos = [...lancamentos].sort((a, b) => {
-    const aVal = getSortableValue(a, sortConfig.key);
-    const bVal = getSortableValue(b, sortConfig.key);
+  const sortedLancamentos = useMemo(() => {
+    return [...lancamentos].sort((a, b) => {
+      const aVal = getSortableValue(a, sortConfig.key);
+      const bVal = getSortableValue(b, sortConfig.key);
 
-    if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
-    if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
-    return 0;
-  });
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [lancamentos, sortConfig]);
 
   const totalPages = Math.ceil(sortedLancamentos.length / itemsPerPage);
   const paginatedLancamentos = sortedLancamentos.slice(
@@ -57,7 +55,7 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo" }) 
 
   return (
     <>
-      <table className="table table-sm align-middle small">
+      <table className="transacoes-table table table-sm align-middle small">
         <thead>
           <tr>
             <th
@@ -101,23 +99,33 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo" }) 
             </tr>
           ) : (
             paginatedLancamentos.map((lancamento) => (
-              <tr key={lancamento.id_lancamento}>
-                <td>{lancamento.data}</td>
-                <td>
-                  <span
-                    title={lancamento.descricao}
-                    style={{ cursor: "help" }}
-                  >
-                    {formatarDescricao(lancamento.descricao)}
-                  </span>
+              <tr
+                key={lancamento.id_lancamento}
+                className={editable ? "transacoes-table__row--clickable" : undefined}
+                onClick={() => {
+                  if (editable && typeof onEdit === "function") {
+                    onEdit(lancamento);
+                  }
+                }}
+              >
+                <td className="transacoes-table__cell transacoes-table__cell--date">{lancamento.data}</td>
+                <td
+                  className="transacoes-table__cell transacoes-table__cell--description"
+                  title={lancamento.descricao}
+                >
+                  {lancamento.descricao}
                 </td>
 
                 {tipo === "completo" && (
-                  <td>{lancamento.nome_categoria}</td>
+                  <td className="transacoes-table__cell transacoes-table__cell--categoria">
+                    <span className="transacoes-table__chip" title={lancamento.nome_categoria}>
+                      {lancamento.nome_categoria}
+                    </span>
+                  </td>
                 )}
 
                 {tipo === "completo" && (
-                  <td className="text-end">
+                  <td className="transacoes-table__cell text-end">
                     {Number(lancamento.valor).toLocaleString("pt-BR", {
                       style: "currency",
                       currency: "BRL",
@@ -133,22 +141,31 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo" }) 
                   >
                     {getSituacaoIcone(lancamento.id_situacao)}
                   </span>
+                  {editable && (
+                    <>
+                      <button
+                        className="btn btn-link btn-sm p-0 me-2"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onEdit(lancamento);
+                        }}
+                        title="Editar"
+                      >
+                        ✏️
+                      </button>
 
-                  <button
-                    className="btn btn-link btn-sm p-0 me-2"
-                    onClick={() => onEdit(lancamento)}
-                    title="Editar"
-                  >
-                    ✏️
-                  </button>
-
-                  <button
-                    className="btn btn-link btn-sm p-0"
-                    onClick={() => onDelete(lancamento.id_lancamento)}
-                    title="Excluir"
-                  >
-                    🗑️
-                  </button>
+                      <button
+                        className="btn btn-link btn-sm p-0"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDelete(lancamento.id_lancamento);
+                        }}
+                        title="Excluir"
+                      >
+                        🗑️
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))
@@ -157,12 +174,12 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo" }) 
       </table>
 
       {/* Paginação */}
-      <div className="d-flex justify-content-between align-items-center mt-2">
+      <div className="transacoes-table__pagination d-flex justify-content-between align-items-center mt-2">
         <small className="text-muted">
-          Página {currentPage} de {totalPages}
+          Página {currentPage} de {totalPages || 1}
         </small>
 
-        <div>
+        <div className="transacoes-table__pagination-actions">
           <button
             className="btn btn-outline-secondary btn-sm me-2"
             onClick={handlePrevPage}
@@ -173,7 +190,7 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo" }) 
           <button
             className="btn btn-outline-secondary btn-sm"
             onClick={handleNextPage}
-            disabled={currentPage === totalPages}
+            disabled={currentPage === totalPages || totalPages === 0}
           >
             Próxima ▶
           </button>
