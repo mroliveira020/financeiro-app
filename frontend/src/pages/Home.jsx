@@ -65,6 +65,17 @@ const formatarPeriodo = (inicio, fim) => {
 const formatarMoeda = (valor) =>
   Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const formatarPercentual = (valorFracionario) =>
+  `${(Number(valorFracionario ?? 0) * 100).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}%`;
+
+const toNumber = (valor, padrao = 0) => {
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : padrao;
+};
+
 const RESUMO_INICIAL = {
   totalEfetivado: 0,
   totalAInvestir: 0,
@@ -184,11 +195,27 @@ function Home() {
       const imoveisNormalizados = (data || []).map((imovel) => {
         const totalInvestidoRaw =
           imovel.total_investido ?? imovel.totalInvestido ?? imovel.totallancamentos ?? 0;
+        const totalInvestido = toNumber(totalInvestidoRaw);
+        const valorEfetivado = toNumber(imovel.valor_efetivado, totalInvestido);
+        const valorAInvestir = toNumber(imovel.valor_a_investir);
+        const lucroProjetado = toNumber(imovel.lucro_projetado);
+        const ativoEsperado = toNumber(
+          imovel.ativo_esperado,
+          valorEfetivado + valorAInvestir + lucroProjetado,
+        );
+        const roiProjetado = toNumber(imovel.roi_projetado);
+        const investimentoTotal = toNumber(imovel.investimento_total);
         const periodoInicio = imovel.periodo_inicio ?? null;
         const periodoFim = imovel.periodo_fim ?? null;
         return {
           ...imovel,
-          totalInvestido: Number(totalInvestidoRaw) || 0,
+          totalInvestido,
+          valorEfetivado,
+          valorAInvestir,
+          lucroProjetado,
+          ativoEsperado,
+          roiProjetado,
+          investimentoTotal,
           grupos: normalizarGrupos(imovel.grupos),
           periodoInicio,
           periodoFim,
@@ -657,8 +684,40 @@ function Home() {
       ) : (
         <div className="row g-4">
           {imoveisVisiveis.map((imovel) => {
-            const totalValor = Number(imovel.totalInvestido ?? 0);
+            const totalValor = toNumber(imovel.totalInvestido);
+            const valorEfetivadoCard = toNumber(imovel.valorEfetivado, totalValor);
+            const valorAInvestirCard = toNumber(imovel.valorAInvestir);
+            const ativoEsperadoCard = toNumber(
+              imovel.ativoEsperado,
+              valorEfetivadoCard + valorAInvestirCard + toNumber(imovel.lucroProjetado),
+            );
+            const roiProjetadoCard = toNumber(imovel.roiProjetado);
             const periodo = formatarPeriodo(imovel.periodoInicio, imovel.periodoFim);
+            const metrics = [
+              {
+                label: "Valor efetivado",
+                value: formatarMoeda(valorEfetivadoCard),
+              },
+              {
+                label: "Valor a investir",
+                value: formatarMoeda(valorAInvestirCard),
+              },
+              {
+                label: "Ativo esperado",
+                value: formatarMoeda(ativoEsperadoCard),
+                valueClass: "property-card__metrics-value--accent",
+              },
+              {
+                label: "ROI esperado",
+                value: formatarPercentual(roiProjetadoCard),
+                valueClass:
+                  roiProjetadoCard > 0
+                    ? "property-card__metrics-value--positive"
+                    : roiProjetadoCard < 0
+                      ? "property-card__metrics-value--negative"
+                      : "",
+              },
+            ];
             return (
               <div key={imovel.id} className="col-12 col-md-6 col-lg-4 d-flex">
                 <div className="card border-0 shadow-sm w-100 property-card">
@@ -686,13 +745,23 @@ function Home() {
                         <p
                           className={`property-card__amount ${totalValor >= 0 ? "property-card__amount--positive" : "property-card__amount--negative"}`}
                         >
-                          {totalValor.toLocaleString("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                          })}
+                          {formatarMoeda(totalValor)}
                         </p>
                         <p className="property-card__label">Total investido</p>
                         <p className="property-card__periodo">{periodo || "Sem período disponível"}</p>
+                        <div className="property-card__metrics">
+                          {metrics.map(({ label, value, valueClass }) => {
+                            const metricValueClass = valueClass
+                              ? `property-card__metrics-value ${valueClass}`
+                              : "property-card__metrics-value";
+                            return (
+                              <div key={label} className="property-card__metrics-item">
+                                <span className="property-card__metrics-label">{label}</span>
+                                <span className={metricValueClass}>{value}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                       <div className="property-card__summary-aside">
                         <ImovelGrupoPieChart grupos={imovel.grupos} />

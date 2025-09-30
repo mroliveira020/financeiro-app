@@ -9,6 +9,49 @@ import json
 def listar_imoveis():
     conn, cur = conectar()
     cur.execute("""
+        WITH resumos AS (
+            SELECT
+                agg.id_imovel,
+                agg.investimento_total,
+                agg.valor_efetivado,
+                agg.saldo_a_investir,
+                (
+                    agg.total_grupo8 - (agg.investimento_total + agg.total_grupo6) - agg.total_grupo7
+                ) - GREATEST(
+                    agg.total_grupo9,
+                    CASE
+                        WHEN (agg.total_grupo8 - (agg.investimento_total + agg.total_grupo6) - agg.total_grupo7) > 0
+                            THEN (agg.total_grupo8 - (agg.investimento_total + agg.total_grupo6) - agg.total_grupo7) * 0.15
+                        ELSE 0
+                    END
+                ) AS lucro_projetado
+            FROM (
+                SELECT
+                    base.id_imovel,
+                    COALESCE(SUM(CASE WHEN base.id_grupo NOT IN (6,7,8,9)
+                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao)
+                        ELSE 0 END), 0) AS investimento_total,
+                    COALESCE(SUM(CASE WHEN base.id_grupo NOT IN (6,7,8,9)
+                        THEN base.valor_efetivado ELSE 0 END), 0) AS valor_efetivado,
+                    COALESCE(SUM(CASE WHEN base.id_grupo NOT IN (6,7,8,9)
+                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao) - base.valor_efetivado
+                        ELSE 0 END), 0) AS saldo_a_investir,
+                    COALESCE(SUM(CASE WHEN base.id_grupo = 6
+                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao)
+                        ELSE 0 END), 0) AS total_grupo6,
+                    COALESCE(SUM(CASE WHEN base.id_grupo = 7
+                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao)
+                        ELSE 0 END), 0) AS total_grupo7,
+                    COALESCE(SUM(CASE WHEN base.id_grupo = 8
+                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao)
+                        ELSE 0 END), 0) AS total_grupo8,
+                    COALESCE(SUM(CASE WHEN base.id_grupo = 9
+                        THEN GREATEST(base.orcamento, base.valor_efetivado + base.valor_em_contratacao)
+                        ELSE 0 END), 0) AS total_grupo9
+                FROM vw_orcamento_execucao base
+                GROUP BY base.id_imovel
+            ) agg
+        )
         SELECT
             im.id,
             im.nome,
@@ -16,7 +59,19 @@ def listar_imoveis():
             COALESCE(totais.total_investido, 0) AS total_investido,
             totais.periodo_inicio,
             totais.periodo_fim,
-            COALESCE(grupos.lista, '[]'::jsonb) AS grupos
+            COALESCE(grupos.lista, '[]'::jsonb) AS grupos,
+            COALESCE(resumos.valor_efetivado, 0) AS valor_efetivado,
+            COALESCE(resumos.saldo_a_investir, 0) AS valor_a_investir,
+            COALESCE(resumos.investimento_total, 0) AS investimento_total,
+            COALESCE(resumos.lucro_projetado, 0) AS lucro_projetado,
+            COALESCE(resumos.valor_efetivado, 0)
+                + COALESCE(resumos.saldo_a_investir, 0)
+                + COALESCE(resumos.lucro_projetado, 0) AS ativo_esperado,
+            CASE
+                WHEN resumos.investimento_total IS NOT NULL AND resumos.investimento_total <> 0
+                    THEN COALESCE(resumos.lucro_projetado, 0) / NULLIF(resumos.investimento_total, 0)
+                ELSE 0
+            END AS roi_projetado
         FROM imoveis im
         LEFT JOIN LATERAL (
             SELECT
@@ -47,6 +102,7 @@ def listar_imoveis():
                 ORDER BY g.grupo
             ) dados
         ) grupos ON TRUE
+        LEFT JOIN resumos ON resumos.id_imovel = im.id
         ORDER BY im.created_at DESC
     """)
     resultados = cur.fetchall()
@@ -63,6 +119,22 @@ def listar_imoveis():
         elif grupos is None:
             grupos = []
         item["grupos"] = grupos
+        for chave in (
+            "valor_efetivado",
+            "valor_a_investir",
+            "investimento_total",
+            "lucro_projetado",
+            "ativo_esperado",
+            "roi_projetado",
+        ):
+            valor = item.get(chave)
+            if valor is None:
+                item[chave] = 0.0
+            else:
+                try:
+                    item[chave] = float(valor)
+                except (TypeError, ValueError):
+                    item[chave] = 0.0
         imoveis.append(item)
     return imoveis
 
