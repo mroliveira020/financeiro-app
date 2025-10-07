@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-labelledby="financeiroLogoTitle financeiroLogoDesc">
+  <title id="financeiroLogoTitle">Financeiro</title>
+  <desc id="financeiroLogoDesc">Logotipo azul inspirado em uma casa, simbolizando gestão de imóveis</desc>
+  <defs>
+    <linearGradient id="financeiroCircle" x1="20%" y1="15%" x2="80%" y2="85%">
+      <stop offset="0%" stop-color="#f0f9ff" />
+      <stop offset="100%" stop-color="#d0ebff" />
+    </linearGradient>
+    <linearGradient id="financeiroHouse" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8" />
+      <stop offset="100%" stop-color="#1e40af" />
+    </linearGradient>
+    <linearGradient id="financeiroRoof" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+    <linearGradient id="financeiroDoor" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#22d3ee" />
+    </linearGradient>
+  </defs>
+  <circle cx="100" cy="100" r="88" fill="url(#financeiroCircle)" />
+  <path d="M44 98 98 54a4 4 0 0 1 5 0l54 44a4 4 0 0 1-2.5 7H44a4 4 0 0 1-2.5-7Z" fill="url(#financeiroRoof)" />
+  <path d="M52 102h96v54a12 12 0 0 1-12 12H64a12 12 0 0 1-12-12Z" fill="url(#financeiroHouse)" />
+  <path d="M76 118h24a6 6 0 0 0 0-12H68a6 6 0 0 0-6 6v32a6 6 0 0 0 6 6h12a6 6 0 0 0 0-12h-4Z" fill="#ffffff" fill-opacity="0.96" />
+  <path d="M116 112a6 6 0 0 1 6-6h16a6 6 0 0 1 6 6v32a6 6 0 0 1-6 6h-16a6 6 0 0 1-6-6Z" fill="#ffffff" fill-opacity="0.96" />
+  <rect x="98" y="128" width="24" height="32" rx="6" fill="url(#financeiroDoor)" />
+  <circle cx="112" cy="146" r="3" fill="#0f172a" opacity="0.35" />
+  <path d="M56 150c15 18 38 30 63 30 28 0 53-14 68-36" fill="none" stroke="#38bdf8" stroke-width="8" stroke-linecap="round" stroke-opacity="0.35" />
+</svg>

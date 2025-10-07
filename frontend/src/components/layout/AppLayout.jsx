@@ -1,6 +1,7 @@
 import React from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import EditorBar from "../EditorBar";
+import logo from "../../assets/house-color.png";
 import "./AppLayout.css";
 
 const icons = {
@@ -68,7 +69,9 @@ export default function AppLayout() {
   return (
     <div className="app-shell">
       <aside className="app-shell__sidebar">
-        <div className="app-shell__brand">FI</div>
+        <div className="app-shell__brand">
+          <img src={logo} alt="Financeiro" />
+        </div>
         <nav className="app-shell__nav">
           <SidebarLink to="/" icon={icons.home} label="Home" />
           <SidebarButton icon={icons.dashboard} label="Dash" />
