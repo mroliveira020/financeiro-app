@@ -5,7 +5,7 @@ import api from "../../services/http";
 import LancamentosTable from "./LancamentosTable";
 import ModalEdicao from "./ModalEdicao";
 import ModalLote from "./ModalLote";
-import useEditorToken from "../../hooks/useEditorToken";
+import { useAuth } from "../../context/AuthContext";
 
 function TransacoesIncompletas() {
   const { id } = useParams();
@@ -15,8 +15,8 @@ function TransacoesIncompletas() {
   const [editandoLancamento, setEditandoLancamento] = useState(null);
   const [formEdicao, setFormEdicao] = useState({});
   const [textoLote, setTextoLote] = useState('');
-  const editorToken = useEditorToken();
-  const canEdit = !!editorToken;
+  const { hasRole } = useAuth();
+  const canEdit = hasRole("editor", "admin");
 
   const totais = useMemo(() => {
     if (!lancamentos.length) {

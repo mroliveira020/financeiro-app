@@ -54,3 +54,7 @@ RATE_LIMIT_GPT_WRITE = os.getenv("RATE_LIMIT_GPT_WRITE", "20/minute")
 # Search API (auxiliar para o agente)
 ENABLE_SEARCH_API = os.getenv("ENABLE_SEARCH_API", "true").lower() == "true"
 RATE_LIMIT_SEARCH = os.getenv("RATE_LIMIT_SEARCH", "60/minute")
+
+# Autenticação de usuários
+JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
+JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES", "60"))

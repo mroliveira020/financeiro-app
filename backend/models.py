@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import base64
 import os
 import uuid
@@ -5,6 +7,7 @@ from collections import defaultdict
 from functools import lru_cache
 from db_connection import conectar
 import json
+from werkzeug.security import generate_password_hash
 
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "static", "imoveis")
@@ -137,6 +140,139 @@ def _salvar_foto_base64(imovel_id, data_uri, foto_atual=None):
         _remover_foto(foto_atual)
 
     return f"{STATIC_URL_PREFIX}/{nome_arquivo}"
+
+
+@lru_cache(maxsize=1)
+def _garantir_tabela_usuarios():
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'viewer',
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE OR REPLACE FUNCTION set_updated_at()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = NOW();
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+            """
+        )
+        cur.execute(
+            """
+            DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
+            CREATE TRIGGER trg_users_updated_at
+            BEFORE UPDATE ON users
+            FOR EACH ROW
+            EXECUTE FUNCTION set_updated_at();
+            """
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def criar_usuario(email: str, senha: str, role: str = "viewer", is_active: bool = True) -> dict:
+    _garantir_tabela_usuarios()
+    email_norm = (email or "").strip().lower()
+    if not email_norm:
+        raise ValueError("E-mail obrigatório")
+    senha_hash = generate_password_hash(senha, method="pbkdf2:sha256", salt_length=16)
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            INSERT INTO users (email, password_hash, role, is_active)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, email, role, is_active, created_at, updated_at
+            """,
+            (email_norm, senha_hash, role, is_active),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        return dict(row)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def obter_usuario_por_email(email: str) -> dict | None:
+    _garantir_tabela_usuarios()
+    email_norm = (email or "").strip().lower()
+    if not email_norm:
+        return None
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT id, email, password_hash, role, is_active
+            FROM users
+            WHERE email = %s
+            LIMIT 1
+            """,
+            (email_norm,),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def obter_usuario_por_id(user_id: int) -> dict | None:
+    _garantir_tabela_usuarios()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT id, email, role, is_active
+            FROM users
+            WHERE id = %s
+            """,
+            (user_id,),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def atualizar_status_usuario(user_id: int, is_active: bool) -> None:
+    _garantir_tabela_usuarios()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            UPDATE users
+            SET is_active = %s
+            WHERE id = %s
+            """,
+            (is_active, user_id),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 # ======================================================

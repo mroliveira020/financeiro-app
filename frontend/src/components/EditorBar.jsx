@@ -1,58 +1,27 @@
-import React, { useState, useEffect } from "react";
-import { getEditorToken, setEditorToken, clearEditorToken } from "../services/auth";
+import React, { useMemo } from "react";
+import { useAuth } from "../context/AuthContext";
 
 export default function EditorBar({ className = "" }) {
-  const [tokenInput, setTokenInput] = useState("");
-  const [active, setActive] = useState(!!getEditorToken());
-
-  useEffect(() => {
-    const handler = () => setActive(!!getEditorToken());
-    window.addEventListener("editor-token-changed", handler);
-    return () => window.removeEventListener("editor-token-changed", handler);
-  }, []);
-
-  const enter = () => {
-    setEditorToken(tokenInput);
-    setTokenInput("");
-  };
-
-  const exit = () => {
-    clearEditorToken();
-  };
+  const { user, logout } = useAuth();
+  const roleLabel = useMemo(() => {
+    if (!user) return "Desconhecido";
+    if (user.role === "admin") return "Administrador";
+    if (user.role === "editor") return "Editor";
+    return "Leitor";
+  }, [user]);
 
   return (
     <div className={`d-flex align-items-center gap-2 ${className}`}>
-      <span className="text-muted small text-uppercase fw-semibold">Modo editor</span>
-      {active ? (
-        <>
-          <span className="badge bg-success-subtle text-success border border-success-subtle">Ativo</span>
-          <button className="btn btn-sm btn-outline-secondary" onClick={exit}>
-            Sair
-          </button>
-        </>
-      ) : (
-        <form
-          className="d-flex align-items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (tokenInput.trim()) {
-              enter();
-            }
-          }}
-        >
-          <input
-            type="password"
-            placeholder="Token do editor"
-            value={tokenInput}
-            onChange={(e) => setTokenInput(e.target.value)}
-            className="form-control form-control-sm"
-            style={{ maxWidth: 220 }}
-          />
-          <button className="btn btn-sm btn-primary" type="submit" disabled={!tokenInput.trim()}>
-            Entrar
-          </button>
-        </form>
-      )}
+      <span className="text-muted small text-uppercase fw-semibold">Sessão</span>
+      <div className="d-flex flex-column">
+        <strong className="small">{user?.email}</strong>
+        <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle align-self-start">
+          {roleLabel}
+        </span>
+      </div>
+      <button className="btn btn-sm btn-outline-secondary" onClick={logout}>
+        Sair
+      </button>
     </div>
   );
 }

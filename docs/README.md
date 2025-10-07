@@ -6,17 +6,22 @@
 - Stack: Backend Flask + PostgreSQL; Frontend React (Vite) + Bootstrap.
 - Telas: Home (lista de imóveis) e Dashboard por imóvel (dados cadastrais, resumo financeiro, transações completas e incompletas).
 
+## Diretrizes para Contribuidores
+
+- Consulte `../AGENTS.md` para orientações de estilo, comandos e processo de revisão antes de abrir PRs.
+
 ## Arquitetura
 
 - Backend
   - App Flask em `backend/app.py`: define rotas de imóveis, categorias, lançamentos, resumo financeiro e orçamentos; registra `dashboard_bp` e `analytics_bp`.
+  - Autenticação: `backend/auth.py` expõe `/auth/login`, `/auth/me`, `/auth/logout` e `/auth/users`; tokens JWT emitidos por `backend/security.py` com expiração configurável.
   - Blueprint Dashboard: `backend/dashboard/__init__.py` e `backend/dashboard/routes.py` — lista completos/incompletos, PATCH/DELETE, POST em lote.
   - Camada de dados: `backend/models.py` — CRUD, consultas às views e upsert de orçamentos.
   - Conexão DB: `backend/db_connection.py` — usa variáveis de ambiente do `.env` (PostgreSQL).
   - Analytics (admin): `backend/analytics.py` — rota de SELECT seguro e endpoint de lançamentos consolidados.
   - Notion helper: `backend/notion_service.py` — cliente utilitário não exposto em rotas públicas.
 - Frontend
-  - Rotas: `frontend/src/App.jsx` com `/` (Home) e `/dashboard/:id`.
+  - Rotas: `frontend/src/App.jsx` com `/login`, `/` (Home) e `/dashboard/:id`; `RequireAuth` garante login antes de renderizar layout.
   - Home: `frontend/src/pages/Home.jsx` — lista/adiciona imóveis; usa `frontend/src/services/api.js`.
   - Dashboard: `frontend/src/pages/Dashboard.jsx` — compõe Dados Cadastrais, Resumo Financeiro, Transações Incompletas e Completas.
   - Dados cadastrais: `frontend/src/components/dadosCadastrais/DadosCadastrais.jsx` — GET `/imoveis/:id`, exibe mapa, edição via modal.
@@ -25,6 +30,12 @@
   - Transações Completas: `frontend/src/components/transacoes/TransacoesCompletas.jsx` — GET completos, PATCH/DELETE; tabela e modal.
   - Tabelas: completas em `frontend/src/components/transacoes/LancamentosTable.jsx` (ordenação/paginação); incompletas em `frontend/src/components/TransacoesIncompletas/LancamentosTable.jsx` (ordenação).
   - Cliente HTTP: centralizado em `frontend/src/services/http.js` (Axios) usando `VITE_API_URL`.
+- Garimpo
+  - Scripts: `garimpo/src/principal.py` (filtro por UF), `garimpo/src/localiza_informacoes.py` (parser HTML) e `garimpo/src/extrajudicial_caixa.py` (vendas diretas).
+  - Entrada/saída: consome `garimpo/data/input/base.xlsx` e grava planilhas (`data/output/saida_<UF>.xlsx`, `output.xlsx`, `output_financiado.xlsx`). Execute dentro do venv do backend para garantir `pandas`, `requests`, `beautifulsoup4`.
+  - Execução: configure `garimpo/config.yaml` e rode `python garimpo/src/principal.py` ou `python garimpo/src/extrajudicial_caixa.py` após `source backend/venv/bin/activate`.
+  - Integração: resultados alimentam prospecção manual; não há importação automática nas rotas do backend.
+  - Logs: falhas de scraping são registradas em `data/output/erros_<script>_<data>.csv`.
 
 ## Desenvolvimento (Quickstart)
 
@@ -32,13 +43,26 @@
 - Rodar dev (backend + frontend):
   - `bash dev.sh`
   - Opcional: `bash scripts/install-dev-command.sh` e depois `financeiro-dev`
+  - Garimpo: com venv ativo, `pip install -r garimpo/requirements.txt`
 - Variáveis:
-  - Backend (`backend/.env`): `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` (padrão 5432)
-    - Flags: `APP_ENV` (development|production), `READ_ONLY` (true|false), `ENABLE_SQL_ENDPOINT` (true|false), `ENABLE_SEARCH_API` (true|false), `ALLOWED_ORIGINS` (origens separadas por vírgula), `EDITOR_TOKEN` (opcional), `ADMIN_TOKEN` (opcional para `/sql`).
+  - Backend (copie `backend/.env.example` para `backend/.env`): `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` (padrão 5432)
+    - Flags: `APP_ENV` (development|production), `READ_ONLY` (true|false), `ENABLE_SQL_ENDPOINT` (true|false), `ENABLE_SEARCH_API` (true|false), `ALLOWED_ORIGINS` (origens separadas por vírgula).
+    - Autenticação: `JWT_SECRET` (obrigatório em produção), `JWT_EXPIRES_MINUTES` (padrão 60 minutos), `EDITOR_TOKEN` (opcional, legado para automações), `ADMIN_TOKEN` (opcional para `/sql`).
     - Rate limiting: `RATE_LIMIT_STORAGE_URI` (ex.: `memory://` ou `redis://...`), `RATE_LIMIT_EDIT` (ex.: `30/minute`), `RATE_LIMIT_ADMIN` (ex.: `10/minute`), `RATE_LIMIT_SEARCH` (ex.: `60/minute`), `RATE_LIMIT_GLOBAL` (opcional, ex.: `300/minute`), `TRUST_PROXY` (true em produção no Render).
     - GPT Write: `ENABLE_GPT_WRITE` (true|false), `GPT_TOKEN` (token do agente), `RATE_LIMIT_GPT_WRITE` (ex.: `20/minute`).
   - Frontend: `frontend/.env` (de `.env.example`) com `VITE_API_URL` (ex.: `http://127.0.0.1:5000`)
 - Portas: API `http://127.0.0.1:5000`, Vite `http://127.0.0.1:5173`
+
+## Autenticação e Provisionamento
+
+- Criação inicial de usuário: com o venv ativo e variáveis de banco configuradas, execute `python backend/create_user.py --email admin@empresa.com --role admin` e informe a senha quando solicitado. O script utiliza `backend/models.py` para aplicar hash seguro (Werkzeug) e grava o registro na tabela `users`.
+- Login: acesse `/login`, informe e-mail e senha. O frontend armazena o JWT em `sessionStorage` e renova a sessão via `/auth/me`.
+- Perfis:
+  - `viewer`: leitura das rotas protegidas.
+  - `editor`: leitura + edição (rotas protegidas por `requires_editor_token` agora aceitam JWT com papel editor/admin).
+  - `admin`: inclui acesso a `/auth/users` (criação de novos usuários) e a recursos administrativos.
+- Rotas de leitura (`/imoveis`, `/categorias`, `/dashboard/*`, `/lancamentos`, buscas) exigem JWT válido. Rotas públicas permanecem: `/healthz`, `/openapi.json` e landing do frontend antes do login.
+- Legado: o cabeçalho `Authorization: Bearer <EDITOR_TOKEN>` ainda funciona para automações existentes, mas recomenda-se migrar para usuários com papel `editor`.
 
 ## Ambientes e Serviços
 

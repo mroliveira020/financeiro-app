@@ -1,0 +1,38 @@
+# Configuração padrão para os scripts de garimpo.
+# Copie para garimpo/config.yaml e ajuste conforme necessário.
+
+data:
+  input: data/input/base.xlsx
+  output_dir: data/output
+
+principal:
+  # Lista de UFs que devem ser buscadas no script principal
+  ufs: ["GO", "SC"]
+  # Nome do arquivo de saída combinado
+  output_filename: "output.xlsx"
+  # Quando verdadeiro, ignora imóveis já registrados no arquivo de saída
+  skip_existing: true
+  # Define a cada quantos registros os dados devem ser persistidos (0 = somente ao final)
+  chunk_size: 0
+
+extrajudicial:
+  # Tipos de venda aceitos para coleta
+  venda_tipos: ["Venda Direta", "Venda Direta Online"]
+  output_filename: "output.xlsx"
+  output_financiado_filename: "output_financiado.xlsx"
+
+http:
+  timeout: 5
+  # Sobrescreva cabeçalhos HTTP se precisar simular navegadores específicos
+  headers: {}
+  # Declare cookies quando a sessão depender de autenticação
+  cookies: {}
+
+email:
+  enabled: false
+  smtp_server: ""
+  smtp_port: 587
+  use_tls: true
+  username: ""
+  password: ""
+  from_address: ""

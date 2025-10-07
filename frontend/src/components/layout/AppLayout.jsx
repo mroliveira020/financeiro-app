@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, Outlet } from "react-router-dom";
 import EditorBar from "../EditorBar";
 import "./AppLayout.css";
 
@@ -64,7 +64,7 @@ function SidebarButton({ icon, label }) {
   );
 }
 
-export default function AppLayout({ children }) {
+export default function AppLayout() {
   return (
     <div className="app-shell">
       <aside className="app-shell__sidebar">
@@ -87,7 +87,9 @@ export default function AppLayout({ children }) {
             <EditorBar />
           </div>
         </header>
-        <main className="app-shell__main">{children}</main>
+        <main className="app-shell__main">
+          <Outlet />
+        </main>
       </div>
     </div>
   );

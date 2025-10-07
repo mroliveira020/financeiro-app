@@ -11,7 +11,7 @@ import {
   fetchResumoImoveis,
 } from "../services/api";
 import "bootstrap/dist/css/bootstrap.min.css";
-import useEditorToken from "../hooks/useEditorToken";
+import { useAuth } from "../context/AuthContext";
 import "./Home.css";
 import GastosMensaisChart from "../components/GastosMensaisChart";
 import ImovelGrupoPieChart from "../components/ImovelGrupoPieChart";
@@ -124,8 +124,8 @@ function Home() {
     totalAttempts: TOTAL_GASTOS_ATTEMPTS,
   });
   const [gastosReloadKey, setGastosReloadKey] = useState(0);
-  const editorToken = useEditorToken();
-  const canEdit = !!editorToken;
+  const { hasRole } = useAuth();
+  const canEdit = hasRole("editor", "admin");
 
   const imoveisVisiveis = useMemo(() => {
     if (mostrarVendidos) {

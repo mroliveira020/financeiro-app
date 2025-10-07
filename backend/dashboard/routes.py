@@ -2,7 +2,7 @@ from flask import request, jsonify
 from flask_cors import cross_origin
 from . import dashboard_bp
 from config import ALLOWED_ORIGINS_LIST, RATE_LIMIT_EDIT
-from security import requires_editor_token
+from security import requires_auth, requires_editor_token
 from ratelimit import limiter
 from models import (
     listar_lancamentos_incompletos_view,
@@ -17,6 +17,7 @@ from models import (
 # 🔹 Lista de lançamentos incompletos para um imóvel
 # ==========================================================
 @dashboard_bp.route('/dashboard/lancamentos/incompletos/<int:id_imovel>', methods=['GET'])
+@requires_auth
 @cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
 def get_lancamentos_incompletos(id_imovel):
     try:
@@ -30,6 +31,7 @@ def get_lancamentos_incompletos(id_imovel):
 # 🔹 Lista de lançamentos completos para um imóvel
 # ==========================================================
 @dashboard_bp.route('/dashboard/lancamentos/completos/<int:id_imovel>', methods=['GET'])
+@requires_auth
 @cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
 def get_lancamentos_completos(id_imovel):
     try:
@@ -126,6 +128,7 @@ def alterar_lancamento_incompleto(id_lancamento):
 # 🔹 Rodapé: Data de atualização e últimos lançamentos
 # ==========================================================
 @dashboard_bp.route('/dashboard/ultima_atualizacao', methods=['GET'])
+@requires_auth
 @cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
 def get_ultima_atualizacao():
     try:
@@ -137,6 +140,7 @@ def get_ultima_atualizacao():
 
 
 @dashboard_bp.route('/dashboard/ultimos_lancamentos', methods=['GET'])
+@requires_auth
 @cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
 def get_ultimos_lancamentos():
     try:
@@ -149,6 +153,7 @@ def get_ultimos_lancamentos():
 
 
 @dashboard_bp.route('/dashboard/gastos-mensais', methods=['GET'])
+@requires_auth
 @cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
 def get_gastos_mensais():
     try:

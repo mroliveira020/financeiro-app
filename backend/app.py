@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask import send_file, abort
 from flask_cors import CORS
+from auth import auth_bp
 from dashboard import dashboard_bp
 from models import (
     listar_imoveis,
@@ -34,7 +35,7 @@ from config import (
     RATE_LIMIT_EDIT,
     TRUST_PROXY,
 )
-from security import requires_editor_token
+from security import requires_auth, requires_editor_token
 from ratelimit import limiter
 from werkzeug.middleware.proxy_fix import ProxyFix
 import time, json
@@ -70,6 +71,9 @@ if ENABLE_GPT_WRITE:
 from config import ENABLE_SEARCH_API
 if ENABLE_SEARCH_API:
     app.register_blueprint(search_bp)
+
+# Autenticação de usuários
+app.register_blueprint(auth_bp)
 
 # =====================================================
 # 🔹 HEALTHCHECK
@@ -160,6 +164,7 @@ def handle_exceptions(e):
     return jsonify({"error": str(e)}), 500
 
 @app.route("/imoveis", methods=["GET"])
+@requires_auth
 def get_imoveis():
     return jsonify(listar_imoveis())
 
@@ -171,6 +176,7 @@ def add_imovel():
     return jsonify(adicionar_imovel(data["nome"], data["vendido"]))
 
 @app.route("/imoveis/<int:imovel_id>", methods=["GET"])
+@requires_auth
 def get_imovel_by_id(imovel_id):
     imovel = buscar_imovel_por_id(imovel_id)
     if not imovel:
@@ -228,6 +234,7 @@ def delete_imovel(imovel_id):
 # =====================================================
 
 @app.route("/categorias", methods=["GET"])
+@requires_auth
 def get_categorias():
     return jsonify(listar_categorias())
 
@@ -249,6 +256,7 @@ def delete_categoria(categoria_id):
 # =====================================================
 
 @app.route("/lancamentos", methods=["GET"])
+@requires_auth
 def get_lancamentos():
     return jsonify(listar_lancamentos())
 
@@ -259,6 +267,7 @@ def get_lancamentos():
 # =====================================================
 
 @app.route("/dashboard/resumo-financeiro/<int:id_imovel>", methods=["GET"])
+@requires_auth
 def get_resumo_financeiro(id_imovel):
     try:
         dados = listar_resumo_financeiro(id_imovel)
@@ -269,6 +278,7 @@ def get_resumo_financeiro(id_imovel):
 
 # 🔹 ROTA ALTERNATIVA (opcional)
 @app.route("/dashboard/orcamento_execucao/<int:id_imovel>", methods=["GET"])
+@requires_auth
 def get_orcamento_execucao(id_imovel):
     try:
         dados = listar_resumo_financeiro(id_imovel)
@@ -279,6 +289,7 @@ def get_orcamento_execucao(id_imovel):
 
 
 @app.route("/dashboard/resumo-imoveis", methods=["GET"])
+@requires_auth
 def get_resumo_imoveis():
     incluir_vendidos_raw = request.args.get("includeVendidos") or request.args.get("incluir_vendidos")
     incluir_vendidos = True
@@ -297,6 +308,7 @@ def get_resumo_imoveis():
 # =====================================================
 
 @app.route("/orcamentos/<int:id_imovel>", methods=["GET"])
+@requires_auth
 def get_orcamentos_por_imovel(id_imovel):
     orcamentos = listar_orcamentos_por_imovel(id_imovel)
     return jsonify(orcamentos), 200

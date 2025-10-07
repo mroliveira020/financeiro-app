@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import api from "../services/http";
 import ModalEditarOrcamento from "./ModalEditarOrcamento";
-import useEditorToken from "../hooks/useEditorToken";
+import { useAuth } from "../context/AuthContext";
 
 function ResumoFinanceiro() {
   const [resumo, setResumo] = useState([]);
   const [mostrarModalOrcamento, setMostrarModalOrcamento] = useState(false);
   const [mostrarSegundaTabela, setMostrarSegundaTabela] = useState(false);
-  const editorToken = useEditorToken();
-  const canEdit = !!editorToken;
+  const { hasRole } = useAuth();
+  const canEdit = hasRole("editor", "admin");
 
   const id_imovel = window.location.pathname.split("/").pop();
 

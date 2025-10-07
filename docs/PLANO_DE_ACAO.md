@@ -52,9 +52,13 @@
 4.4 [x] Padronizar 400 em PATCH `/dashboard/lancamentos/:id` para datas inválidas e validações de payload (mensagem clara).
 
 5. Segurança (Fase 2 — login por usuário)
-5.1 [ ] Backend: criar `/auth/login`, `/auth/me`, `/auth/logout` (JWT), tabela `users` e papéis.
-5.2 [ ] Backend: aplicar `@requires_role('editor'|'admin')` nas rotas.
-5.3 [ ] Frontend: página de login, contexto de auth e guarda de ações.
+5.1 [x] Backend: criar `/auth/login`, `/auth/me`, `/auth/logout` (JWT), tabela `users` e papéis.
+5.2 [x] Backend: aplicar regras de papel (editor/admin) nas rotas sensíveis.
+5.3 [x] Frontend: página de login, contexto de auth e guarda de ações.
+5.4 [x] Backend: exigir autenticação também nas rotas de leitura sensíveis (`/dashboard/*`, `/lancamentos/*`, relatórios); expor apenas `/healthz` e landing pública sem token.
+5.5 [x] Frontend: redirecionar visitantes não autenticados para a tela de login antes de carregar dashboards; esconder dados até confirmar sessão válida (`/auth/me`).
+5.6 [x] DB/Infra: tabela `users` com hash, campos `role`, `is_active`, timestamps e script `backend/create_user.py` para bootstrap/admin.
+5.7 [x] Documentação: atualizar README, `.env.example` e `docs/` com variáveis (`JWT_SECRET`, expiração), fluxo de login e processo de provisionamento de usuários.
 
 6. Observabilidade e operação
 6.1 [x] Logs estruturados (auditoria básica em JSON nas escritas).
@@ -122,9 +126,9 @@
        2.9.2 [ ] Cache ou otimizar view conforme necessidade (avaliar após medição).
 
 3. Próximas (médio prazo)
-   3.1 [ ] Segurança (Fase 2 — login por usuário)
-       3.1.1 [ ] Backend: `/auth/login`, `/auth/me`, `/auth/logout` (JWT) e papéis
-       3.1.2 [ ] Frontend: tela de login e guarda de rotas/ações por papel
+   3.1 [x] Segurança (Fase 2 — login por usuário)
+       3.1.1 [x] Backend: `/auth/login`, `/auth/me`, `/auth/logout` (JWT) e papéis
+       3.1.2 [x] Frontend: tela de login e guarda de rotas/ações por papel
    3.2 [ ] Operação
        3.2.1 [ ] Política de rotação do `EDITOR_TOKEN` e checklist de troca segura
        3.2.2 [ ] Documentar procedimento de alternância `READ_ONLY` (manutenção/edição)

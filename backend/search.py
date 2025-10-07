@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from db_connection import conectar
 from ratelimit import limiter
 from config import RATE_LIMIT_SEARCH, ALLOWED_ORIGINS_LIST
+from security import requires_auth
 from flask_cors import CORS
 
 search_bp = Blueprint('search', __name__)
@@ -28,6 +29,7 @@ def _paginate_params():
 
 
 @search_bp.route('/imoveis/search', methods=['GET'])
+@requires_auth
 @limiter.limit(RATE_LIMIT_SEARCH)
 def search_imoveis():
     q = request.args.get('q', '').strip()
@@ -64,6 +66,7 @@ def search_imoveis():
 
 
 @search_bp.route('/categorias/search', methods=['GET'])
+@requires_auth
 @limiter.limit(RATE_LIMIT_SEARCH)
 def search_categorias():
     q = request.args.get('q', '').strip()
@@ -97,4 +100,3 @@ def search_categorias():
         return jsonify(itens), 200
     finally:
         conn.close()
-

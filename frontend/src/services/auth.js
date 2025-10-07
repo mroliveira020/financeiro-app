@@ -1,31 +1,50 @@
-const KEY = 'EDITOR_TOKEN';
+const ACCESS_TOKEN_KEY = 'financeiro:access-token';
+const USER_KEY = 'financeiro:auth-user';
 
-export function getEditorToken() {
+function safeJSONParse(value) {
+  if (!value) return null;
   try {
-    return sessionStorage.getItem(KEY) || '';
+    return JSON.parse(value);
+  } catch (_) {
+    return null;
+  }
+}
+
+export function getAccessToken() {
+  try {
+    return sessionStorage.getItem(ACCESS_TOKEN_KEY) || '';
   } catch (_) {
     return '';
   }
 }
 
-export function setEditorToken(token) {
+export function storeSession(token, user) {
   try {
-    if (token && token.trim()) {
-      sessionStorage.setItem(KEY, token.trim());
+    if (token) {
+      sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
     } else {
-      sessionStorage.removeItem(KEY);
+      sessionStorage.removeItem(ACCESS_TOKEN_KEY);
     }
-    window.dispatchEvent(new CustomEvent('editor-token-changed'));
+    if (user) {
+      sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+    } else {
+      sessionStorage.removeItem(USER_KEY);
+    }
+    window.dispatchEvent(new CustomEvent('auth-session-changed'));
   } catch (_) {
-    // ignore storage errors
+    // Ignora erros de armazenamento (ex.: navegação privada)
   }
 }
 
-export function clearEditorToken() {
-  setEditorToken('');
+export function clearSession() {
+  storeSession('', null);
 }
 
-export function hasEditorToken() {
-  return !!getEditorToken();
+export function getStoredUser() {
+  try {
+    const raw = sessionStorage.getItem(USER_KEY);
+    return safeJSONParse(raw);
+  } catch (_) {
+    return null;
+  }
 }
-

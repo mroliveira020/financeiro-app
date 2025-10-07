@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import api from "../../services/http";
 import LancamentosTable from "./LancamentosTable";
 import ModalEdicao from "./ModalEdicao";
-import useEditorToken from "../../hooks/useEditorToken";
+import { useAuth } from "../../context/AuthContext";
 
 function TransacoesCompletas() {
   const { id } = useParams();
@@ -12,8 +12,8 @@ function TransacoesCompletas() {
   const [formEdicao, setFormEdicao] = useState(null);
   const [categorias, setCategorias] = useState([]);
   const [imoveis, setImoveis] = useState([]);
-  const editorToken = useEditorToken();
-  const canEdit = !!editorToken;
+  const { hasRole } = useAuth();
+  const canEdit = hasRole("editor", "admin");
 
   const totais = useMemo(() => {
     if (!lancamentos.length) {

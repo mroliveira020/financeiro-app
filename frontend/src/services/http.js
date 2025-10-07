@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getEditorToken } from './auth';
+import { getAccessToken } from './auth';
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
 
@@ -14,15 +14,12 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Adiciona Authorization apenas para métodos de escrita quando houver token
+// Adiciona Authorization em todas as requisições quando houver token
 api.interceptors.request.use((config) => {
-  const method = (config.method || 'get').toLowerCase();
-  if (['post', 'put', 'patch', 'delete'].includes(method)) {
-    const token = getEditorToken();
-    if (token) {
-      config.headers = config.headers || {};
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
+  const token = getAccessToken();
+  if (token) {
+    config.headers = config.headers || {};
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
 });
@@ -35,6 +32,9 @@ api.interceptors.response.use(
     const message = error?.response?.data?.error || error.message || 'Erro na requisição';
     // eslint-disable-next-line no-console
     console.error(`[http] Erro ${status || ''}: ${message}`);
+    if (status === 401) {
+      window.dispatchEvent(new CustomEvent('auth-session-expired'));
+    }
     return Promise.reject(error);
   }
 );

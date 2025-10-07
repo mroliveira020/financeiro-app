@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../../services/http";
 import ModalSelecionarImovel from "./ModalSelecionarImovel";
 import ModalEditarImovel from "./ModalEditarImovel";
-import useEditorToken from "../../hooks/useEditorToken";
+import { useAuth } from "../../context/AuthContext";
 
 function DadosCadastrais() {
   const { id } = useParams();
@@ -13,8 +13,8 @@ function DadosCadastrais() {
   const [expandir, setExpandir] = useState(false);
   const [mostrarModalImoveis, setMostrarModalImoveis] = useState(false);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
-  const editorToken = useEditorToken();
-  const canEdit = !!editorToken;
+  const { hasRole } = useAuth();
+  const canEdit = hasRole("editor", "admin");
 
   useEffect(() => {
     fetchImovel();
