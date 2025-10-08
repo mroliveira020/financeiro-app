@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, Dict, Optional
+import json
 
 import jwt
 from flask import g, jsonify, request
@@ -17,6 +18,27 @@ class AuthError(Exception):
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+
+
+def _log_auth_failure(reason: str, status: int) -> None:
+    try:
+        ip = (
+            request.headers.get("X-Forwarded-For", request.remote_addr or "-")
+            .split(",")[0]
+            .strip()
+        )
+        log = {
+            "event": "auth_failure",
+            "path": request.path,
+            "method": request.method,
+            "status": status,
+            "reason": reason,
+            "ip": ip,
+            "user_agent": request.headers.get("User-Agent", "-"),
+        }
+        print(json.dumps(log, ensure_ascii=False))
+    except Exception:
+        pass
 
 
 def _get_authorization_token() -> str:
@@ -86,6 +108,7 @@ def requires_auth(fn):
         try:
             _ensure_user_loaded()
         except AuthError as exc:
+            _log_auth_failure(exc.message, exc.status_code)
             return jsonify({"error": exc.message}), exc.status_code
         return fn(*args, **kwargs)
 
@@ -99,9 +122,11 @@ def requires_role(*roles: str):
             try:
                 user = _ensure_user_loaded()
             except AuthError as exc:
+                _log_auth_failure(exc.message, exc.status_code)
                 return jsonify({"error": exc.message}), exc.status_code
 
             if user.get("role") not in roles:
+                _log_auth_failure("Permissão insuficiente", 403)
                 return jsonify({"error": "Permissão insuficiente"}), 403
             return fn(*args, **kwargs)
 
@@ -119,9 +144,11 @@ def requires_editor_token(fn):
         try:
             user = _ensure_user_loaded()
         except AuthError as exc:
+            _log_auth_failure(exc.message, exc.status_code)
             return jsonify({"error": exc.message}), exc.status_code
 
         if user.get("role") not in {"editor", "admin"}:
+            _log_auth_failure("Permissão insuficiente", 403)
             return jsonify({"error": "Permissão insuficiente"}), 403
 
         return fn(*args, **kwargs)
