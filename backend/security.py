@@ -105,6 +105,8 @@ def _ensure_user_loaded() -> Dict[str, Any]:
 def requires_auth(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
+        if request.method == "OPTIONS":
+            return ("", 204)
         try:
             _ensure_user_loaded()
         except AuthError as exc:
@@ -119,6 +121,8 @@ def requires_role(*roles: str):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
+            if request.method == "OPTIONS":
+                return ("", 204)
             try:
                 user = _ensure_user_loaded()
             except AuthError as exc:
@@ -138,6 +142,8 @@ def requires_role(*roles: str):
 def requires_editor_token(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
+        if request.method == "OPTIONS":
+            return ("", 204)
         if READ_ONLY:
             return jsonify({"error": "Somente leitura"}), 405
 
