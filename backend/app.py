@@ -93,7 +93,11 @@ def enforce_read_only():
     # Permite /sql mesmo com READ_ONLY (usado pelo GPT para SELECT)
     if READ_ONLY and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
         path = request.path.rstrip("/")
-        if path == "/sql" or path.startswith("/gpt/"):
+        if (
+            path == "/sql"
+            or path.startswith("/gpt/")
+            or path.startswith("/auth/")
+        ):
             return None
         return jsonify({"error": "Modo somente leitura"}), 405
 
