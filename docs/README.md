@@ -47,7 +47,7 @@
 - Variáveis:
   - Backend (copie `backend/.env.example` para `backend/.env`): `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` (padrão 5432)
     - Flags: `APP_ENV` (development|production), `READ_ONLY` (true|false), `ENABLE_SQL_ENDPOINT` (true|false), `ENABLE_SEARCH_API` (true|false), `ALLOWED_ORIGINS` (origens separadas por vírgula).
-    - Autenticação: `JWT_SECRET` (obrigatório em produção), `JWT_EXPIRES_MINUTES` (padrão 60 minutos), `EDITOR_TOKEN` (opcional, legado para automações), `ADMIN_TOKEN` (opcional para `/sql`).
+    - Autenticação: `JWT_SECRET` (obrigatório em produção), `JWT_EXPIRES_MINUTES` (padrão 60 minutos), `ADMIN_TOKEN` (opcional para `/sql`).
     - Rate limiting: `RATE_LIMIT_STORAGE_URI` (ex.: `memory://` ou `redis://...`), `RATE_LIMIT_EDIT` (ex.: `30/minute`), `RATE_LIMIT_ADMIN` (ex.: `10/minute`), `RATE_LIMIT_SEARCH` (ex.: `60/minute`), `RATE_LIMIT_GLOBAL` (opcional, ex.: `300/minute`), `TRUST_PROXY` (true em produção no Render).
     - GPT Write: `ENABLE_GPT_WRITE` (true|false), `GPT_TOKEN` (token do agente), `RATE_LIMIT_GPT_WRITE` (ex.: `20/minute`).
   - Frontend: `frontend/.env` (de `.env.example`) com `VITE_API_URL` (ex.: `http://127.0.0.1:5000`)
@@ -62,7 +62,7 @@
   - `editor`: leitura + edição (rotas protegidas por `requires_editor_token` agora aceitam JWT com papel editor/admin).
   - `admin`: inclui acesso a `/auth/users` (criação de novos usuários) e a recursos administrativos.
 - Rotas de leitura (`/imoveis`, `/categorias`, `/dashboard/*`, `/lancamentos`, buscas) exigem JWT válido. Rotas públicas permanecem: `/healthz`, `/openapi.json` e landing do frontend antes do login.
-- Legado: o cabeçalho `Authorization: Bearer <EDITOR_TOKEN>` ainda funciona para automações existentes, mas recomenda-se migrar para usuários com papel `editor`.
+- Todas as rotas de escrita exigem JWT válido com papel `editor` ou `admin`; tokens legados foram descontinuados.
 
 ## Ambientes e Serviços
 
@@ -116,7 +116,6 @@ Observações:
   - Usuário de banco somente leitura
 - Site Backend
   - `ENABLE_SQL_ENDPOINT=false`, `READ_ONLY=true` (1ª versão), `ALLOWED_ORIGINS=https://seu-dominio`
-  - `EDITOR_TOKEN` se optar por Fase 1 (token de editor)
 
 ### Considerações de Segurança
 
@@ -137,7 +136,7 @@ Observações:
 
 ### Editor Token (Fase 1)
 
-- Geração: crie um token forte (32+ chars) e defina `EDITOR_TOKEN` no backend.
+  - Perfis de usuário substituem a necessidade de tokens adicionais; gere usuários `editor`/`admin` via `/auth/users` ou script `create_user.py`.
 - Uso: o front oferece um campo “Entrar como Editor”. Ao informar o token, ações de escrita habilitam `Authorization: Bearer <token>`.
 - Distribuição: pode ser enviado por e‑mail a editores autorizados. Boas práticas:
   - Enviar individualmente, com orientação de sigilo; evitar encaminhamentos.
@@ -263,7 +262,6 @@ O plano priorizado está em `docs/PLANO_DE_ACAO.md`.
     - `ALLOWED_ORIGINS=https://financeiro-frontend-hg4w.onrender.com`
     - `DB_HOST=aws-0-sa-east-1.pooler.supabase.com`, `DB_NAME=postgres`, `DB_USER=postgres.thmekudlkuwjuddkyhpi`, `DB_PASSWORD` (definir no painel), `DB_PORT=5432`
     - `RATE_LIMIT_STORAGE_URI=memory://`, `RATE_LIMIT_EDIT=30/minute`, `RATE_LIMIT_GLOBAL=300/minute`, `TRUST_PROXY=true`
-    - `EDITOR_TOKEN` (opcional, definir no painel quando habilitar edição)
 - gpt-backend (web/python)
   - Build: `pip install -r requirements.txt`, Start: `gunicorn app:app`
   - Env:
@@ -281,7 +279,7 @@ O plano priorizado está em `docs/PLANO_DE_ACAO.md`.
 Checklist pós-deploy:
 - Validar `GET /healthz` nos dois backends; abrir o Frontend e navegar.
 - Testar CORS: chamadas da UI devem funcionar sem erros de origem.
-- Se edição for liberada no site, definir `EDITOR_TOKEN` e ajustar `READ_ONLY=false` no site-backend.
+- Quando habilitar edição no site, garanta que usuários adequados tenham papel `editor` e ajuste `READ_ONLY=false` no site-backend.
 
 ## Referências de Código (linhas relevantes)
 

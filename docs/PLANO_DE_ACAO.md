@@ -1,14 +1,14 @@
 # Plano de Ação — Prioridades (com status)
 
 1. Segurança e Acesso (Fase 1 — rápido e seguro)
-1.1 [x] Backend: adicionar flags `APP_ENV`, `READ_ONLY`, `ENABLE_SQL_ENDPOINT`, `ALLOWED_ORIGINS`, `EDITOR_TOKEN`.
+1.1 [x] Backend: adicionar flags `APP_ENV`, `READ_ONLY`, `ENABLE_SQL_ENDPOINT`, `ALLOWED_ORIGINS`, `EDITOR_TOKEN` (legado, removido após migração para papéis de usuário).
 1.2 [x] Backend: bloquear POST/PATCH/DELETE quando `READ_ONLY=true`.
-1.3 [x] Backend: proteger rotas de escrita com `requires_editor_token` (Authorization: Bearer ...).
+1.3 [x] Backend: proteger rotas de escrita exigindo login (JWT) de usuários com papel `editor`/`admin`; token dedicado removido.
 1.4 [x] Backend: desabilitar `/sql` e `/analise/*` quando `ENABLE_SQL_ENDPOINT=false`.
 1.5 [x] Backend: configurar CORS por `ALLOWED_ORIGINS` (sem wildcard em produção).
 1.6 [x] Backend: remover debug/prints; handlers de erro sem stack em produção.
 1.7 [x] Backend: rate limiting básico em rotas sensíveis; logs de auditoria para escritas.
-1.8 [x] Frontend: esconder botões de edição sem token; tela simples “Entrar como Editor”.
+1.8 [x] Frontend: esconder botões de edição para quem não estiver logado como editor/admin; fluxo único de login por e-mail.
 1.9 [x] Frontend: Axios adiciona `Authorization` apenas em rotas de escrita.
 
 2. Continuidade do Agente GPT (sem interrupção)
@@ -38,7 +38,7 @@
 3. Deploy (Render)
 3.0 [x] Criar blueprint `render.yaml` (site-backend, gpt-backend, frontend) com envs padrão.
 3.1 [x] Backend (serviço web): root `backend`, build `pip install -r requirements.txt`, start `gunicorn app:app`.
-3.2 [x] Backend (Site): configurar env (DB_*, APP_ENV, READ_ONLY, ENABLE_SQL_ENDPOINT=false, ALLOWED_ORIGINS, EDITOR_TOKEN).
+3.2 [x] Backend (Site): configurar env (DB_*, APP_ENV, READ_ONLY, ENABLE_SQL_ENDPOINT=false, ALLOWED_ORIGINS).
 3.3 [x] Backend (GPT): revisar env (DB_*, APP_ENV, READ_ONLY=true, ENABLE_SQL_ENDPOINT=true, ALLOWED_ORIGINS=*).
 3.4 [x] Frontend (static site): root `frontend`, build `npm ci && npm run build`, publish `dist`.
 3.5 [x] Frontend: definir `VITE_API_URL` para a URL pública do Site Backend e redeploy.
@@ -55,7 +55,7 @@
 5.1 [x] Backend: criar `/auth/login`, `/auth/me`, `/auth/logout` (JWT), tabela `users` e papéis.
 5.2 [x] Backend: aplicar regras de papel (editor/admin) nas rotas sensíveis.
 5.3 [x] Frontend: página de login, contexto de auth e guarda de ações.
-5.4 [x] Backend: exigir autenticação também nas rotas de leitura sensíveis (`/dashboard/*`, `/lancamentos/*`, relatórios); expor apenas `/healthz` e landing pública sem token.
+5.4 [x] Backend: exigir autenticação também nas rotas de leitura sensíveis (`/dashboard/*`, `/lancamentos/*`, relatórios); expor apenas `/healthz` e landing pública sem exigir login.
 5.5 [x] Frontend: redirecionar visitantes não autenticados para a tela de login antes de carregar dashboards; esconder dados até confirmar sessão válida (`/auth/me`).
 5.6 [x] DB/Infra: tabela `users` com hash, campos `role`, `is_active`, timestamps e script `backend/create_user.py` para bootstrap/admin.
 5.7 [x] Documentação: atualizar README, `.env.example` e `docs/` com variáveis (`JWT_SECRET`, expiração), fluxo de login e processo de provisionamento de usuários.
@@ -63,7 +63,7 @@
 6. Observabilidade e operação
 6.1 [x] Logs estruturados (auditoria básica em JSON nas escritas).
 6.2 [ ] Usuário de banco com menor privilégio (principalmente no GPT Backend).
-6.3 [ ] Política de rotação do `EDITOR_TOKEN` (mensal ou sob incidente) e revogação rápida.
+6.3 [ ] Política de revisão de acesso: revisar periodicamente usuários `editor`/`admin`, revogar logins inativos e monitorar delegações.
 6.4 [ ] Padronizar schema de erro (JSON) para 4xx/5xx com campos: `code`, `message`, `details`.
 6.5 [x] Implementar `GET /healthz` simples e, opcional, expor métricas (Prometheus) por ambiente.
 6.6 [ ] Sanitização de logs: evitar PII/tokens; truncar payloads grandes e remover campos sensíveis.
@@ -83,7 +83,7 @@
 
 1. Status atual
    1.1 [x] Site operacional em produção (deploy e CORS OK)
-   1.2 [x] Fluxo de edição via token de editor (habilitável por env)
+   1.2 [x] Fluxo de edição via login único (e-mail/senha) com papel de editor (habilitável por env)
 
 2. Prioridades (curto prazo)
    2.1 [ ] UX e validações no lote
@@ -124,16 +124,24 @@
    2.9 [ ] Resumo agregado performático
        2.9.1 [ ] Consolidar totais (efetivado, a investir, lucro) direto via SQL, evitando processamento em memória.
        2.9.2 [ ] Cache ou otimizar view conforme necessidade (avaliar após medição).
+   2.10 [ ] Revisão do fluxo de autenticação
+       2.10.1 [ ] Remover menções a "token de edição" na UI e na documentação do site
+       2.10.2 [ ] Garantir que permissões de edição dependam apenas do login com papel `editor`/`admin`
+   2.11 [ ] Revisão do Dashboard (transações)
+       2.11.1 [ ] Corrigir erro ao incluir transações incompletas via lote/edição manual
+       2.11.2 [ ] Garantir que as transações carreguem ao abrir a página (estado inicial)
+       2.11.3 [ ] Ajustar quadro de transações incompletas para respeitar o imóvel selecionado
+       2.11.4 [ ] Atualizar cards e resumos imediatamente após uma transação virar completa
 
 3. Próximas (médio prazo)
    3.1 [x] Segurança (Fase 2 — login por usuário)
        3.1.1 [x] Backend: `/auth/login`, `/auth/me`, `/auth/logout` (JWT) e papéis
        3.1.2 [x] Frontend: tela de login e guarda de rotas/ações por papel
    3.2 [ ] Operação
-       3.2.1 [ ] Política de rotação do `EDITOR_TOKEN` e checklist de troca segura
+       3.2.1 [ ] Atualizar checklist operacional para provisionamento/revogação de usuários `editor`/`admin` (login único)
        3.2.2 [ ] Documentar procedimento de alternância `READ_ONLY` (manutenção/edição)
    3.3 [ ] Documentação
-       3.3.1 [ ] Guia do Editor (como obter token, onde usar, formatos aceitos)
+       3.3.1 [ ] Guia do Editor (como solicitar acesso, papéis disponíveis, formatos aceitos)
        3.3.2 [ ] Troubleshooting rápido (CORS, 401/403/405/429, datas e valores)
 
 ## Checklist de Testes Manuais do Site
@@ -144,7 +152,7 @@
    1.3 [ ] `GET /dashboard/resumo-financeiro/:id`
    1.4 [ ] Rodapé mostra “Data de atualização” correta (último confirmado `<= hoje`)
    1.5 [ ] Clique no rodapé abre lista dos 10 últimos lançamentos (global)
-2. Edição (com token e `READ_ONLY=false`)
+2. Edição (usuário editor/admin e `READ_ONLY=false`)
    2.1 [ ] Lote: inclusões válidas, linhas inválidas, idempotência operacional (prevenir duplos cliques)
    2.2 [ ] PATCH de lançamento (datas válidas/ inválidas), DELETE lançamento
    2.3 [ ] Orçamentos: `GET/POST /orcamentos/:id_imovel`

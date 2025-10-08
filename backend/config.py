@@ -30,7 +30,6 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", _default_origins)
 ALLOWED_ORIGINS_LIST = [o.strip() for o in ALLOWED_ORIGINS.split(",") if o.strip()] if ALLOWED_ORIGINS else []
 
 # Tokens
-EDITOR_TOKEN = os.getenv("EDITOR_TOKEN", "")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
 
 # Integração Notion (se aplicável)

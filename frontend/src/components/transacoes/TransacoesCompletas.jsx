@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../services/http";
 import LancamentosTable from "./LancamentosTable";
 import ModalEdicao from "./ModalEdicao";
 import { useAuth } from "../../context/AuthContext";
 
-function TransacoesCompletas() {
+function TransacoesCompletas({ refreshKey = 0, onChanged }) {
   const { id } = useParams();
   const [lancamentos, setLancamentos] = useState([]);
   const [editandoLancamento, setEditandoLancamento] = useState(null);
@@ -39,21 +39,16 @@ function TransacoesCompletas() {
   const formatarMoeda = (valor) =>
     Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  useEffect(() => {
-    fetchLancamentos();
-    fetchCategoriasEImoveis();
-  }, [id]);
-
-  const fetchLancamentos = async () => {
+  const fetchLancamentos = useCallback(async () => {
     try {
       const { data } = await api.get(`/dashboard/lancamentos/completos/${id}`);
       setLancamentos(data);
     } catch (error) {
       console.error("Erro ao buscar lançamentos completos", error);
     }
-  };
+  }, [id]);
 
-  const fetchCategoriasEImoveis = async () => {
+  const fetchCategoriasEImoveis = useCallback(async () => {
     try {
       const resCategorias = await api.get(`/categorias`);
       const resImoveis = await api.get(`/imoveis`);
@@ -62,7 +57,12 @@ function TransacoesCompletas() {
     } catch (error) {
       console.error("Erro ao buscar categorias e imóveis", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchLancamentos();
+    fetchCategoriasEImoveis();
+  }, [fetchLancamentos, fetchCategoriasEImoveis, refreshKey]);
 
   const handleExcluir = async (id_lancamento) => {
     if (!window.confirm("Tem certeza que deseja excluir este lançamento?")) return;
@@ -70,6 +70,7 @@ function TransacoesCompletas() {
     try {
       await api.delete(`/dashboard/lancamentos/${id_lancamento}`);
       fetchLancamentos();
+      onChanged?.();
       alert("Lançamento excluído com sucesso!");
     } catch (error) {
       console.error("Erro ao excluir lançamento", error);
@@ -111,6 +112,7 @@ function TransacoesCompletas() {
       await api.patch(`/dashboard/lancamentos/${editandoLancamento}`, payload);
 
       fetchLancamentos();
+      onChanged?.();
       const modal = bootstrap.Modal.getInstance(document.getElementById("modalEdicaoCompleto"));
       modal.hide();
       setEditandoLancamento(null);

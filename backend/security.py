@@ -6,7 +6,6 @@ import jwt
 from flask import g, jsonify, request
 
 from config import (
-    EDITOR_TOKEN,
     JWT_EXPIRES_MINUTES,
     JWT_SECRET,
     READ_ONLY,
@@ -119,17 +118,12 @@ def requires_editor_token(fn):
 
         try:
             user = _ensure_user_loaded()
-            if user.get("role") in {"editor", "admin"}:
-                return fn(*args, **kwargs)
+        except AuthError as exc:
+            return jsonify({"error": exc.message}), exc.status_code
+
+        if user.get("role") not in {"editor", "admin"}:
             return jsonify({"error": "Permissão insuficiente"}), 403
-        except AuthError:
-            # Fallback para token legado
-            auth_header = request.headers.get("Authorization", "")
-            if not auth_header.startswith("Bearer "):
-                return jsonify({"error": "Token ausente"}), 401
-            provided = auth_header.split(" ", 1)[1].strip()
-            if not EDITOR_TOKEN or provided != EDITOR_TOKEN:
-                return jsonify({"error": "Token inválido"}), 403
-            return fn(*args, **kwargs)
+
+        return fn(*args, **kwargs)
 
     return wrapper

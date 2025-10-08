@@ -19,7 +19,7 @@ services:
       - key: ENABLE_GPT_WRITE
         value: "false"
       - key: READ_ONLY
-        # true = somente leitura; false = habilita escrita com EDITOR_TOKEN
+        # true = somente leitura; false = libera escrita para usuários com papel editor/admin
         value: "true"
       - key: ALLOWED_ORIGINS
         # Domínio público do frontend
@@ -43,9 +43,7 @@ services:
         sync: false
       - key: DB_PORT
         value: "5432"
-      # Se for permitir edição via site, defina EDITOR_TOKEN no painel
-      - key: EDITOR_TOKEN
-        sync: false
+      # Usuários editores são gerenciados via /auth/users (nenhum token extra necessário)
 
   # Backend para o Agente GPT (API programática)
   - type: web

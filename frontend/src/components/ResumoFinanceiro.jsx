@@ -1,30 +1,32 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import api from "../services/http";
 import ModalEditarOrcamento from "./ModalEditarOrcamento";
 import { useAuth } from "../context/AuthContext";
 
-function ResumoFinanceiro() {
+function ResumoFinanceiro({ refreshKey = 0 }) {
   const [resumo, setResumo] = useState([]);
   const [mostrarModalOrcamento, setMostrarModalOrcamento] = useState(false);
   const [mostrarSegundaTabela, setMostrarSegundaTabela] = useState(false);
   const { hasRole } = useAuth();
   const canEdit = hasRole("editor", "admin");
 
-  const id_imovel = window.location.pathname.split("/").pop();
+  const { id: idImovelParam } = useParams();
+  const id_imovel = idImovelParam;
 
-  useEffect(() => {
-    carregarResumo();
-  }, [id_imovel]);
-
-  const carregarResumo = async () => {
+  const carregarResumo = useCallback(async () => {
+    if (!id_imovel) return;
     try {
       const { data } = await api.get(`/dashboard/resumo-financeiro/${id_imovel}`);
       setResumo(data);
     } catch (error) {
       console.error("Erro ao buscar resumo financeiro", error);
-      // Considerar uma mensagem de erro na UI para o usuário
     }
-  };
+  }, [id_imovel]);
+
+  useEffect(() => {
+    carregarResumo();
+  }, [carregarResumo, refreshKey]);
 
   // Funções auxiliares
   const calcularEfetivadoMaisContratacao = (item) => {

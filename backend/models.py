@@ -626,9 +626,10 @@ def listar_lancamentos_completos_view(id_imovel):
 def listar_lancamentos_incompletos_view(id_imovel):
     conn, cur = conectar()
     cur.execute("""
-        SELECT * FROM vw_lancamentos_incompletos
+        SELECT *
+        FROM vw_lancamentos_incompletos
         ORDER BY data DESC
-    """, (id_imovel,))
+    """)
     resultados = cur.fetchall()
     conn.close()
 

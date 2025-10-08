@@ -1,5 +1,5 @@
 // TransacoesIncompletas.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../services/http";
 import LancamentosTable from "./LancamentosTable";
@@ -7,7 +7,30 @@ import ModalEdicao from "./ModalEdicao";
 import ModalLote from "./ModalLote";
 import { useAuth } from "../../context/AuthContext";
 
-function TransacoesIncompletas() {
+const normalizarValor = (valorBruto, linha) => {
+  const texto = `${valorBruto ?? ""}`.trim();
+  if (!texto) {
+    const label = typeof linha === "number" ? ` na linha ${linha}` : linha ? ` (${linha})` : "";
+    throw new Error(`Valor ausente${label}`);
+  }
+
+  const somenteNumeros = texto.replace(/[^0-9,.-]/g, "");
+  const usaVirgula = somenteNumeros.includes(",");
+  const semMilhar = usaVirgula
+    ? somenteNumeros.replace(/\./g, "")
+    : somenteNumeros;
+  const normalizado = semMilhar.replace(",", ".");
+  const numero = Number(normalizado);
+
+  if (!Number.isFinite(numero)) {
+    const label = typeof linha === "number" ? ` na linha ${linha}` : linha ? ` (${linha})` : "";
+    throw new Error(`Valor inválido${label}: "${valorBruto}"`);
+  }
+
+  return numero;
+};
+
+function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const { id } = useParams();
   const [lancamentos, setLancamentos] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -29,21 +52,16 @@ function TransacoesIncompletas() {
   const formatarMoeda = (valor) =>
     Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  useEffect(() => {
-    fetchLancamentosIncompletos();
-    fetchCategoriasEImoveis();
-  }, [id]);
-
-  const fetchLancamentosIncompletos = async () => {
+  const fetchLancamentosIncompletos = useCallback(async () => {
     try {
       const { data } = await api.get(`/dashboard/lancamentos/incompletos/${id}`);
       setLancamentos(data);
     } catch (error) {
       console.error("Erro ao buscar lançamentos incompletos", error);
     }
-  };
+  }, [id]);
 
-  const fetchCategoriasEImoveis = async () => {
+  const fetchCategoriasEImoveis = useCallback(async () => {
     try {
       const [resCategorias, resImoveis] = await Promise.all([
         api.get(`/categorias`),
@@ -54,7 +72,12 @@ function TransacoesIncompletas() {
     } catch (error) {
       console.error("Erro ao buscar categorias/imóveis", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchLancamentosIncompletos();
+    fetchCategoriasEImoveis();
+  }, [fetchLancamentosIncompletos, fetchCategoriasEImoveis, refreshKey]);
 
   const handleExcluir = async (lancamentoId) => {
     if (!window.confirm("Tem certeza que deseja excluir este lançamento?")) return;
@@ -62,6 +85,7 @@ function TransacoesIncompletas() {
     try {
       await api.delete(`/dashboard/lancamentos/${lancamentoId}`);
       fetchLancamentosIncompletos();
+      onChanged?.();
     } catch (error) {
       console.error("Erro ao excluir lançamento", error);
     }
@@ -69,10 +93,14 @@ function TransacoesIncompletas() {
 
   const iniciarEdicao = (lancamento) => {
     setEditandoLancamento(lancamento.id_lancamento);
+    const valorNumerico = Number(lancamento.valor || 0);
     setFormEdicao({
       data: lancamento.data,
       descricao: lancamento.descricao,
-      valor: lancamento.valor.toFixed(2).replace('.', ','),
+      valor: valorNumerico.toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
       id_categoria: lancamento.id_categoria || 0,
       id_imovel: lancamento.id_imovel,
       id_situacao: lancamento.id_situacao
@@ -99,20 +127,20 @@ function TransacoesIncompletas() {
 
       await api.patch(`/dashboard/lancamentos/${editandoLancamento}`, payload);
       fetchLancamentosIncompletos();
+      onChanged?.();
       const modal = bootstrap.Modal.getInstance(document.getElementById('modalEdicao'));
       modal.hide();
       setEditandoLancamento(null);
     } catch (error) {
       console.error("Erro ao atualizar lançamento", error);
-      alert("Erro ao salvar a edição.");
+      const mensagem = error?.response?.data?.error || error.message || "Erro ao salvar a edição.";
+      alert(mensagem);
     }
   };
 
   const tratarValor = (valorStr) => {
     if (!valorStr) return 0;
-    const valorLimpo = valorStr.trim().replace(/\./g, "").replace(",", ".");
-    const valorNumerico = parseFloat(valorLimpo);
-    return isNaN(valorNumerico) ? 0 : valorNumerico;
+    return normalizarValor(valorStr, "de edição");
   };
 
   const abrirModalLote = () => {
@@ -137,14 +165,15 @@ function TransacoesIncompletas() {
         }
 
         const [data, descricao, valor] = partes;
+        const valorNormalizado = normalizarValor(valor, index + 1);
 
         return {
           data: data.trim(),
           descricao: descricao.trim(),
-          valor: parseFloat(valor.replace(",", ".").trim()),
+          valor: valorNormalizado,
           id_imovel: parseInt(id),
           id_categoria: 0,
-          id_situacao: 1,
+          id_situacao: 0,
           ativo: 1
         };
       });
@@ -153,6 +182,7 @@ function TransacoesIncompletas() {
 
       alert('Lançamentos adicionados com sucesso!');
       fetchLancamentosIncompletos();
+      onChanged?.();
       const modal = bootstrap.Modal.getInstance(document.getElementById('modalLote'));
       modal.hide();
       setTextoLote('');

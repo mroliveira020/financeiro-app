@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -10,6 +10,11 @@ import TransacoesCompletas from "../components/transacoes/TransacoesCompletas";
 import "./Dashboard.css";
 
 function Dashboard() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const dispararAtualizacao = useCallback(() => {
+    setRefreshKey((prev) => prev + 1);
+  }, []);
+
   return (
     <div className="dashboard-page">
       <div className="dashboard-container">
@@ -27,12 +32,12 @@ function Dashboard() {
 
         <section className="dashboard-main">
           <DadosCadastrais />
-          <ResumoFinanceiro />
+          <ResumoFinanceiro refreshKey={refreshKey} />
         </section>
 
         <section className="dashboard-transactions">
-          <TransacoesIncompletas />
-          <TransacoesCompletas />
+          <TransacoesIncompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
+          <TransacoesCompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
         </section>
       </div>
     </div>
