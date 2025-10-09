@@ -1,153 +1,233 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 
-const LancamentosTable = ({
+function LancamentosTable({
   lancamentos,
   onEdit,
   onDelete,
   editable = false,
-  selectedIds = [],
-  onToggle,
-  onToggleAll,
-  allSelected = false,
-}) => {
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  categorias = [],
+  imoveis = [],
+  draftValues = {},
+  originalValues = {},
+  dirtyMap = {},
+  onFieldChange,
+  onApplyRow,
+  rowSaving = {},
+}) {
+  const [sortConfig, setSortConfig] = useState({ key: "data", direction: "desc" });
 
-  const ordenarLancamentos = () => {
-    let ordenados = [...lancamentos];
+  const getSituacaoIcone = (id_situacao) => (id_situacao === 1 ? "✅" : "🕒");
 
-    if (sortConfig.key !== null) {
-      ordenados.sort((a, b) => {
-        let valorA = a[sortConfig.key];
-        let valorB = b[sortConfig.key];
-
-        if (sortConfig.key === 'valor') {
-          valorA = parseFloat(valorA);
-          valorB = parseFloat(valorB);
-        } else if (sortConfig.key === 'data') {
-          const [diaA, mesA, anoA] = valorA.split('/');
-          const [diaB, mesB, anoB] = valorB.split('/');
-          valorA = new Date(`${anoA}-${mesA}-${diaA}`);
-          valorB = new Date(`${anoB}-${mesB}-${diaB}`);
-        } else {
-          valorA = valorA.toString().toLowerCase();
-          valorB = valorB.toString().toLowerCase();
-        }
-
-        if (valorA < valorB) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (valorA > valorB) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
+  const getSortableValue = (item, key) => {
+    if (key === "data") {
+      const [dia, mes, ano] = item.data.split("/");
+      return new Date(`${ano}-${mes}-${dia}`);
     }
-
-    return ordenados;
+    if (key === "valor") {
+      return Number(item.valor) || 0;
+    }
+    const raw = item[key];
+    if (raw === null || raw === undefined) {
+      return "";
+    }
+    return raw.toString().toLowerCase();
   };
 
+  const sortedLancamentos = useMemo(() => {
+    return [...lancamentos].sort((a, b) => {
+      const aVal = getSortableValue(a, sortConfig.key);
+      const bVal = getSortableValue(b, sortConfig.key);
+
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [lancamentos, sortConfig]);
+
   const handleSort = (key) => {
-    let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
     }
     setSortConfig({ key, direction });
   };
 
-  const getSortIcon = (key) => {
-    if (sortConfig.key !== key) return '';
-    return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
+  const getValorCampo = (lancamentoId, campo, fallback) => {
+    const draft = draftValues[lancamentoId];
+    if (draft && draft[campo] !== undefined) {
+      return draft[campo];
+    }
+    const original = originalValues[lancamentoId];
+    if (original && original[campo] !== undefined) {
+      return original[campo];
+    }
+    if (fallback === null || fallback === undefined) {
+      return "";
+    }
+    return String(fallback);
   };
 
-  const lancamentosOrdenados = ordenarLancamentos();
+  const renderCategoriaSelect = (lancamento) => {
+    if (!editable) {
+      return lancamento.nome_categoria || "—";
+    }
+    const valor = getValorCampo(lancamento.id_lancamento, "id_categoria", lancamento.id_categoria);
+    const disabled = !!rowSaving[lancamento.id_lancamento];
+    return (
+      <select
+        className="form-select form-select-sm"
+        value={valor}
+        onChange={(event) => onFieldChange?.(lancamento.id_lancamento, "id_categoria", event.target.value)}
+        disabled={disabled}
+      >
+        <option value="">-- manter atual --</option>
+        <option value="0">Sem categoria (pendente)</option>
+        {categorias.map((categoria) => (
+          <option key={categoria.id} value={String(categoria.id)}>
+            {categoria.categoria}
+          </option>
+        ))}
+      </select>
+    );
+  };
+
+  const renderImovelSelect = (lancamento) => {
+    if (!editable) {
+      return lancamento.nome_imovel || "—";
+    }
+    const valor = getValorCampo(lancamento.id_lancamento, "id_imovel", lancamento.id_imovel);
+    const disabled = !!rowSaving[lancamento.id_lancamento];
+    return (
+      <select
+        className="form-select form-select-sm"
+        value={valor}
+        onChange={(event) => onFieldChange?.(lancamento.id_lancamento, "id_imovel", event.target.value)}
+        disabled={disabled}
+      >
+        <option value="">-- manter atual --</option>
+        {imoveis.map((imovel) => (
+          <option key={imovel.id} value={String(imovel.id)}>
+            {imovel.nome}
+          </option>
+        ))}
+      </select>
+    );
+  };
+
+  const renderSituacaoSelect = (lancamento) => {
+    if (!editable) {
+      return lancamento.nome_situacao || "—";
+    }
+    const valor = getValorCampo(lancamento.id_lancamento, "id_situacao", lancamento.id_situacao ?? 0);
+    const disabled = !!rowSaving[lancamento.id_lancamento];
+    return (
+      <select
+        className="form-select form-select-sm"
+        value={valor}
+        onChange={(event) => onFieldChange?.(lancamento.id_lancamento, "id_situacao", event.target.value)}
+        disabled={disabled}
+      >
+        <option value="">-- manter atual --</option>
+        <option value="0">Pendente</option>
+        <option value="1">Confirmado</option>
+      </select>
+    );
+  };
 
   return (
     <div className="table-responsive small">
       <table className="table table-sm table-striped">
         <thead>
           <tr>
-            {editable && (
-              <th className="text-center" style={{ width: '36px' }}>
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  checked={allSelected}
-                  onChange={(event) => onToggleAll?.(event.target.checked)}
-                />
-              </th>
-            )}
             <th onClick={() => handleSort('data')} style={{ cursor: 'pointer' }}>
-              Data{getSortIcon('data')}
+              Data {sortConfig.key === "data" && (sortConfig.direction === "asc" ? "▲" : "▼")}
             </th>
             <th onClick={() => handleSort('descricao')} style={{ cursor: 'pointer' }}>
-              Descrição{getSortIcon('descricao')}
+              Descrição {sortConfig.key === "descricao" && (sortConfig.direction === "asc" ? "▲" : "▼")}
             </th>
-            <th
-              onClick={() => handleSort('valor')}
-              style={{ cursor: 'pointer' }}
-              className="text-end"
-            >
-              Valor{getSortIcon('valor')}
-            </th>
-            {editable && <th className="text-center">Ações</th>}
+            <th>Categoria</th>
+            <th>Imóvel</th>
+            <th>Situação</th>
+            <th className="text-end">Valor</th>
+            <th className="text-end" style={{ width: "160px" }}>Ações</th>
           </tr>
         </thead>
         <tbody>
-          {lancamentosOrdenados.length === 0 ? (
+          {sortedLancamentos.length === 0 ? (
             <tr>
-              <td colSpan={editable ? 5 : 3} className="text-center">Nenhum lançamento incompleto.</td>
+              <td colSpan={7} className="text-center">Nenhum lançamento incompleto.</td>
             </tr>
           ) : (
-            lancamentosOrdenados.map((lancamento) => (
-              <tr key={lancamento.id_lancamento}>
-                {editable && (
+            sortedLancamentos.map((lancamento) => {
+              const rowDirty = !!dirtyMap[lancamento.id_lancamento];
+              const saving = !!rowSaving[lancamento.id_lancamento];
+              const podeAplicar = rowDirty && !saving;
+              return (
+                <tr
+                  key={lancamento.id_lancamento}
+                  className={rowDirty ? "table-warning" : undefined}
+                >
+                  <td>{lancamento.data}</td>
+                  <td title={lancamento.descricao}>{lancamento.descricao}</td>
+                  <td>{renderCategoriaSelect(lancamento)}</td>
+                  <td>{renderImovelSelect(lancamento)}</td>
                   <td className="text-center">
-                    <input
-                      type="checkbox"
-                      className="form-check-input"
-                      checked={selectedIds.includes(lancamento.id_lancamento)}
-                      onChange={(event) => {
-                        event.stopPropagation();
-                        onToggle?.(lancamento.id_lancamento, event.target.checked);
-                      }}
-                    />
+                    <div className="d-flex align-items-center justify-content-center gap-2">
+                      {renderSituacaoSelect(lancamento)}
+                      <span title={lancamento.nome_situacao || ''}>
+                        {getSituacaoIcone(Number(getValorCampo(lancamento.id_lancamento, "id_situacao", lancamento.id_situacao ?? 0)))}
+                      </span>
+                    </div>
                   </td>
-                )}
-                <td>{lancamento.data}</td>
-                <td>{lancamento.descricao}</td>
-                <td className="text-end">
-                  {Number(lancamento.valor).toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL"
-                  })}
-                </td>
-                {editable && (
-                  <td className="text-center">
-                    <button
-                      className="btn btn-link btn-sm p-0 me-2"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onEdit(lancamento);
-                      }}
-                      title="Editar / Categorizar"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      className="btn btn-link btn-sm p-0"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onDelete(lancamento.id_lancamento);
-                      }}
-                      title="Excluir"
-                    >
-                      🗑️
-                    </button>
+                  <td className="text-end">
+                    {Number(lancamento.valor).toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
                   </td>
-                )}
-              </tr>
-            ))
+                  <td className="text-end">
+                    <div className="d-inline-flex align-items-center justify-content-end gap-2">
+                      {editable && (
+                        <button
+                          type="button"
+                          className="btn btn-link btn-sm p-0"
+                          onClick={() => onApplyRow?.(lancamento.id_lancamento)}
+                          disabled={!podeAplicar}
+                          title={rowDirty ? 'Aplicar alterações desta linha' : 'Nenhuma alteração nesta linha'}
+                        >
+                          {saving ? '⏳' : '💾'}
+                        </button>
+                      )}
+                      {editable && (
+                        <button
+                          type="button"
+                          className="btn btn-link btn-sm p-0"
+                          onClick={() => onEdit?.(lancamento)}
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                      )}
+                      {editable && (
+                        <button
+                          type="button"
+                          className="btn btn-link btn-sm p-0"
+                          onClick={() => onDelete?.(lancamento.id_lancamento)}
+                          title="Excluir"
+                        >
+                          🗑️
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
           )}
         </tbody>
       </table>
     </div>
   );
-};
+}
 
 export default LancamentosTable;

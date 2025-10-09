@@ -6,9 +6,9 @@ import api from "../../services/http";
 import LancamentosTable from "./LancamentosTable";
 import ModalEdicao from "./ModalEdicao";
 import ModalLote from "./ModalLote";
-import ModalEdicaoMassa from "./ModalEdicaoMassa";
 import { useAuth } from "../../context/AuthContext";
-import { atualizarLancamentosBatch } from "../../services/api";
+
+const CAMPOS_INLINE = ["id_categoria", "id_imovel", "id_situacao"];
 
 const normalizarValor = (valorBruto, linha) => {
   const texto = `${valorBruto ?? ""}`.trim();
@@ -33,6 +33,21 @@ const normalizarValor = (valorBruto, linha) => {
   return numero;
 };
 
+const snapshotFromLancamento = (lancamento) => ({
+  id_categoria:
+    lancamento.id_categoria === null || lancamento.id_categoria === undefined
+      ? ""
+      : String(lancamento.id_categoria),
+  id_imovel:
+    lancamento.id_imovel === null || lancamento.id_imovel === undefined
+      ? ""
+      : String(lancamento.id_imovel),
+  id_situacao:
+    lancamento.id_situacao === null || lancamento.id_situacao === undefined
+      ? ""
+      : String(lancamento.id_situacao),
+});
+
 function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const { id } = useParams();
   const [lancamentos, setLancamentos] = useState([]);
@@ -41,16 +56,13 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const [editandoLancamento, setEditandoLancamento] = useState(null);
   const [formEdicao, setFormEdicao] = useState({});
   const [textoLote, setTextoLote] = useState('');
-  const [formEdicaoMassa, setFormEdicaoMassa] = useState({
-    id_categoria: "",
-    id_imovel: "",
-    id_situacao: "",
-    data: "",
-    valor: "",
-    descricao: "",
-  });
-  const [submetendoMassa, setSubmetendoMassa] = useState(false);
-  const [selectedIds, setSelectedIds] = useState([]);
+
+  const [originals, setOriginals] = useState({});
+  const [drafts, setDrafts] = useState({});
+  const [dirtyMap, setDirtyMap] = useState({});
+  const [rowSaving, setRowSaving] = useState({});
+  const [savingAll, setSavingAll] = useState(false);
+
   const { hasRole } = useAuth();
   const canEdit = hasRole("editor", "admin");
 
@@ -64,18 +76,6 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
 
   const formatarMoeda = (valor) =>
     Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-  const selecionados = useMemo(() => {
-    if (!selectedIds.length) return [];
-    const mapa = new Set(selectedIds);
-    return lancamentos.filter((item) => mapa.has(item.id_lancamento));
-  }, [selectedIds, lancamentos]);
-
-  const totalSelecionado = useMemo(() => {
-    if (!selecionados.length) return null;
-    const soma = selecionados.reduce((acc, item) => acc + Number(item.valor || 0), 0);
-    return Number(soma).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  }, [selecionados]);
 
   const fetchLancamentosIncompletos = useCallback(async () => {
     try {
@@ -102,17 +102,165 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   useEffect(() => {
     fetchLancamentosIncompletos();
     fetchCategoriasEImoveis();
-    setSelectedIds([]);
   }, [fetchLancamentosIncompletos, fetchCategoriasEImoveis, refreshKey]);
+
+  useEffect(() => {
+    const baseOriginals = {};
+    const baseDrafts = {};
+
+    lancamentos.forEach((item) => {
+      const snapshot = snapshotFromLancamento(item);
+      baseOriginals[item.id_lancamento] = snapshot;
+      baseDrafts[item.id_lancamento] = { ...snapshot };
+    });
+
+    setOriginals(baseOriginals);
+    setDrafts(baseDrafts);
+    setDirtyMap({});
+    setRowSaving({});
+  }, [lancamentos]);
+
+  const dirtyIds = useMemo(
+    () => Object.keys(dirtyMap).map((key) => Number(key)),
+    [dirtyMap]
+  );
+
+  const handleFieldChange = useCallback(
+    (idLancamento, campo, valor) => {
+      setDrafts((prev) => {
+        const proximo = { ...prev };
+        const base = prev[idLancamento]
+          ? { ...prev[idLancamento] }
+          : { ...(originals[idLancamento] || { id_categoria: "", id_imovel: "", id_situacao: "" }) };
+        base[campo] = valor;
+        proximo[idLancamento] = base;
+
+        const original = originals[idLancamento] || { id_categoria: "", id_imovel: "", id_situacao: "" };
+        const sujo = CAMPOS_INLINE.some((campoChave) => (base[campoChave] ?? '') !== (original[campoChave] ?? ''));
+
+        setDirtyMap((prevDirty) => {
+          const proximoDirty = { ...prevDirty };
+          if (sujo) {
+            proximoDirty[idLancamento] = true;
+          } else {
+            delete proximoDirty[idLancamento];
+          }
+          return proximoDirty;
+        });
+
+        return proximo;
+      });
+    },
+    [originals]
+  );
+
+  const buildUpdates = useCallback(
+    (idLancamento) => {
+      const draft = drafts[idLancamento] || { id_categoria: "", id_imovel: "", id_situacao: "" };
+      const original = originals[idLancamento] || { id_categoria: "", id_imovel: "", id_situacao: "" };
+      const updates = {};
+
+      CAMPOS_INLINE.forEach((campo) => {
+        const novo = draft[campo] ?? '';
+        const antigo = original[campo] ?? '';
+        if (novo !== '' && novo !== antigo) {
+          updates[campo] = novo;
+        }
+      });
+
+      return updates;
+    },
+    [drafts, originals]
+  );
+
+  const salvarLinha = useCallback(
+    async (idLancamento, { silencioso = false } = {}) => {
+      const updates = buildUpdates(idLancamento);
+      if (!Object.keys(updates).length) {
+        setDirtyMap((prev) => {
+          const proximo = { ...prev };
+          delete proximo[idLancamento];
+          return proximo;
+        });
+        return true;
+      }
+
+      const payload = {};
+      if (updates.id_categoria !== undefined) {
+        payload.id_categoria = Number(updates.id_categoria);
+      }
+      if (updates.id_imovel !== undefined) {
+        payload.id_imovel = Number(updates.id_imovel);
+      }
+      if (updates.id_situacao !== undefined) {
+        payload.id_situacao = Number(updates.id_situacao);
+      }
+
+      setRowSaving((prev) => ({ ...prev, [idLancamento]: true }));
+
+      try {
+        await api.patch(`/dashboard/lancamentos/${idLancamento}`, payload);
+
+        setDirtyMap((prev) => {
+          const proximo = { ...prev };
+          delete proximo[idLancamento];
+          return proximo;
+        });
+
+        if (!silencioso) {
+          await fetchLancamentosIncompletos();
+          onChanged?.();
+        }
+
+        return true;
+      } catch (error) {
+        const mensagem = error?.response?.data?.error || error.message || "Falha ao atualizar lançamentos";
+        alert(mensagem);
+        return false;
+      } finally {
+        setRowSaving((prev) => {
+          const proximo = { ...prev };
+          delete proximo[idLancamento];
+          return proximo;
+        });
+      }
+    },
+    [buildUpdates, fetchLancamentosIncompletos, onChanged]
+  );
+
+  const aplicarLinha = useCallback(
+    async (idLancamento) => {
+      await salvarLinha(idLancamento);
+    },
+    [salvarLinha]
+  );
+
+  const aplicarTodos = useCallback(async () => {
+    if (!dirtyIds.length) return;
+
+    setSavingAll(true);
+    try {
+      for (const idLancamento of dirtyIds) {
+        const ok = await salvarLinha(idLancamento, { silencioso: true });
+        if (!ok) {
+          return;
+        }
+      }
+
+      await fetchLancamentosIncompletos();
+      onChanged?.();
+    } finally {
+      setSavingAll(false);
+    }
+  }, [dirtyIds, salvarLinha, fetchLancamentosIncompletos, onChanged]);
 
   const handleExcluir = async (lancamentoId) => {
     if (!window.confirm("Tem certeza que deseja excluir este lançamento?")) return;
 
     try {
       await api.delete(`/dashboard/lancamentos/${lancamentoId}`);
-      fetchLancamentosIncompletos();
+      await fetchLancamentosIncompletos();
       onChanged?.();
-      setSelectedIds((prev) => prev.filter((idSelecionado) => idSelecionado !== lancamentoId));
     } catch (error) {
       console.error("Erro ao excluir lançamento", error);
     }
@@ -130,10 +278,15 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       }),
       id_categoria: lancamento.id_categoria || 0,
       id_imovel: lancamento.id_imovel,
-      id_situacao: lancamento.id_situacao
+      id_situacao: lancamento.id_situacao,
     });
     const modal = new bootstrap.Modal(document.getElementById('modalEdicao'));
     modal.show();
+  };
+
+  const tratarValor = (valorStr) => {
+    if (!valorStr) return 0;
+    return normalizarValor(valorStr, "de edição");
   };
 
   const salvarEdicao = async () => {
@@ -147,13 +300,13 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
         data: formEdicao.data,
         descricao: formEdicao.descricao,
         valor: tratarValor(formEdicao.valor),
-        id_categoria: parseInt(formEdicao.id_categoria),
-        id_imovel: parseInt(formEdicao.id_imovel),
-        id_situacao: parseInt(formEdicao.id_situacao)
+        id_categoria: parseInt(formEdicao.id_categoria, 10),
+        id_imovel: parseInt(formEdicao.id_imovel, 10),
+        id_situacao: parseInt(formEdicao.id_situacao, 10),
       };
 
       await api.patch(`/dashboard/lancamentos/${editandoLancamento}`, payload);
-      fetchLancamentosIncompletos();
+      await fetchLancamentosIncompletos();
       onChanged?.();
       const modal = bootstrap.Modal.getInstance(document.getElementById('modalEdicao'));
       modal.hide();
@@ -163,11 +316,6 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       const mensagem = error?.response?.data?.error || error.message || "Erro ao salvar a edição.";
       alert(mensagem);
     }
-  };
-
-  const tratarValor = (valorStr) => {
-    if (!valorStr) return 0;
-    return normalizarValor(valorStr, "de edição");
   };
 
   const abrirModalLote = () => {
@@ -198,17 +346,17 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
           data: data.trim(),
           descricao: descricao.trim(),
           valor: valorNormalizado,
-          id_imovel: parseInt(id),
+          id_imovel: parseInt(id, 10),
           id_categoria: 0,
           id_situacao: 0,
-          ativo: 1
+          ativo: 1,
         };
       });
 
       await api.post('/dashboard/lancamentos/lote', novosLancamentos);
 
       alert('Lançamentos adicionados com sucesso!');
-      fetchLancamentosIncompletos();
+      await fetchLancamentosIncompletos();
       onChanged?.();
       const modal = bootstrap.Modal.getInstance(document.getElementById('modalLote'));
       modal.hide();
@@ -216,94 +364,6 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
     } catch (error) {
       console.error('Erro ao adicionar lançamentos em lote:', error);
       alert(`Erro: ${error.message}`);
-    }
-  };
-
-  const toggleSelecao = (idLancamento, marcado) => {
-    setSelectedIds((prev) => {
-      if (marcado) {
-        if (prev.includes(idLancamento)) {
-          return prev;
-        }
-        return [...prev, idLancamento];
-      }
-      return prev.filter((item) => item !== idLancamento);
-    });
-  };
-
-  const toggleSelecionarTodos = (marcado) => {
-    if (!marcado) {
-      setSelectedIds([]);
-      return;
-    }
-    setSelectedIds(lancamentos.map((item) => item.id_lancamento));
-  };
-
-  const abrirModalEdicaoMassa = () => {
-    if (!selectedIds.length) return;
-    setFormEdicaoMassa({
-      id_categoria: "",
-      id_imovel: "",
-      id_situacao: "",
-      data: "",
-      valor: "",
-      descricao: "",
-    });
-    const modal = new bootstrap.Modal(document.getElementById('modalEdicaoMassa'));
-    modal.show();
-  };
-
-  const fecharModalEdicaoMassa = () => {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('modalEdicaoMassa'));
-    modal?.hide();
-  };
-
-  const aplicarEdicaoMassa = async () => {
-    const updates = {};
-
-    if (formEdicaoMassa.id_categoria !== "") {
-      updates.id_categoria = Number(formEdicaoMassa.id_categoria);
-    }
-    if (formEdicaoMassa.id_imovel !== "") {
-      updates.id_imovel = Number(formEdicaoMassa.id_imovel);
-    }
-    if (formEdicaoMassa.id_situacao !== "") {
-      updates.id_situacao = Number(formEdicaoMassa.id_situacao);
-    }
-    if (formEdicaoMassa.data.trim()) {
-      updates.data = formEdicaoMassa.data.trim();
-    }
-    if (formEdicaoMassa.valor.trim()) {
-      try {
-        const valorNormalizado = normalizarValor(formEdicaoMassa.valor, "de edição em massa");
-        updates.valor = valorNormalizado;
-      } catch (error) {
-        alert(error.message);
-        return;
-      }
-    }
-    if (formEdicaoMassa.descricao.trim()) {
-      updates.descricao = formEdicaoMassa.descricao.trim();
-    }
-
-    if (Object.keys(updates).length === 0) {
-      alert("Preencha pelo menos um campo para aplicar em lote.");
-      return;
-    }
-
-    try {
-      setSubmetendoMassa(true);
-      await atualizarLancamentosBatch(selectedIds, updates);
-      fecharModalEdicaoMassa();
-      setSelectedIds([]);
-      fetchLancamentosIncompletos();
-      onChanged?.();
-      alert("Atualização aplicada nas transações selecionadas.");
-    } catch (error) {
-      const mensagem = error?.response?.data?.error || error.message || "Falha ao atualizar lançamentos";
-      alert(mensagem);
-    } finally {
-      setSubmetendoMassa(false);
     }
   };
 
@@ -324,12 +384,6 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
               <span>Valor total</span>
               <strong>{formatarMoeda(totais.soma)}</strong>
             </div>
-            {selecionados.length > 0 && (
-              <div className="transacoes-card__stat">
-                <span>Selecionadas</span>
-                <strong>{selecionados.length}</strong>
-              </div>
-            )}
             {canEdit && (
               <button
                 type="button"
@@ -343,11 +397,11 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
             {canEdit && (
               <button
                 type="button"
-                className="btn btn-primary btn-sm"
-                onClick={abrirModalEdicaoMassa}
-                disabled={selecionados.length === 0}
+                className="btn btn-success btn-sm"
+                onClick={aplicarTodos}
+                disabled={!dirtyIds.length || savingAll}
               >
-                ✨ Editar selecionadas
+                {savingAll ? 'Aplicando...' : `Aplicar todos (${dirtyIds.length})`}
               </button>
             )}
           </div>
@@ -359,10 +413,14 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
             onEdit={iniciarEdicao}
             onDelete={handleExcluir}
             editable={canEdit}
-            selectedIds={selectedIds}
-            onToggle={toggleSelecao}
-            onToggleAll={toggleSelecionarTodos}
-            allSelected={canEdit && lancamentos.length > 0 && selectedIds.length === lancamentos.length}
+            categorias={categorias}
+            imoveis={imoveis}
+            draftValues={drafts}
+            originalValues={originals}
+            dirtyMap={dirtyMap}
+            onFieldChange={handleFieldChange}
+            onApplyRow={aplicarLinha}
+            rowSaving={rowSaving}
           />
         </div>
       </section>
@@ -379,19 +437,6 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
         textoLote={textoLote}
         setTextoLote={setTextoLote}
         enviarLote={enviarLote}
-      />
-
-      <ModalEdicaoMassa
-        stats={{
-          count: selecionados.length,
-          totalSelecionado,
-        }}
-        formState={formEdicaoMassa}
-        setFormState={setFormEdicaoMassa}
-        onApply={aplicarEdicaoMassa}
-        categorias={categorias}
-        imoveis={imoveis}
-        disabled={submetendoMassa}
       />
     </>
   );

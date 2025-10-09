@@ -132,10 +132,11 @@
        2.11.2 [ ] Garantir que as transações carreguem ao abrir a página (estado inicial)
        2.11.3 [ ] Ajustar quadro de transações incompletas para respeitar o imóvel selecionado
        2.11.4 [ ] Atualizar cards e resumos imediatamente após uma transação virar completa
-   2.12 [ ] Edição em massa para transações incompletas
-       2.12.1 [ ] Adicionar seleção múltipla e formulário/resumo para aplicar campos em lote
-       2.12.2 [ ] Garantir validações (datas, valores, categorias) antes do envio em massa
-       2.12.3 [ ] Planejar testes com base produtiva mediante agendamento com operação
+   2.12 [ ] Edição rápida para transações incompletas (categoria/imóvel/situação)
+       2.12.1 [ ] Permitir alteração inline com combos por linha e sinalizar linhas editadas
+       2.12.2 [ ] Incluir botão "Aplicar todos" e opção para aplicar linha a linha
+       2.12.3 [ ] Garantir validações de categoria/imóvel/situação antes do envio
+       2.12.4 [ ] Planejar testes em produção com operação (janelas acordadas)
 
 3. Próximas (médio prazo)
    3.1 [x] Segurança (Fase 2 — login por usuário)
