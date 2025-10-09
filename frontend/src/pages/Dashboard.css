@@ -58,8 +58,8 @@
 }
 
 .dashboard-transactions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
 }
 
@@ -423,10 +423,12 @@
   border: 1px solid rgba(31, 42, 63, 0.08);
   border-radius: 16px;
   overflow: hidden;
+  background: #fff;
 }
 
 .transacoes-card .table-responsive {
-  max-height: 440px;
+  max-height: 540px;
+  overflow-y: auto;
   background: #fff;
 }
 
@@ -518,10 +520,6 @@
 }
 
 @media (max-width: 992px) {
-  .dashboard-transactions {
-    grid-template-columns: 1fr;
-  }
-
   .transacoes-card .table-responsive {
     max-height: unset;
   }

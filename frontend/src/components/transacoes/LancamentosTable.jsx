@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", editable = false }) {
-  const [sortConfig, setSortConfig] = useState({ key: "data", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({ key: "data", direction: "desc" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
 
@@ -15,9 +15,13 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
       return new Date(`${ano}-${mes}-${dia}`);
     }
     if (key === "valor") {
-      return parseFloat(item.valor) || 0;
+      return Number(item.valor) || 0;
     }
-    return item[key]?.toString().toLowerCase();
+    const raw = item[key];
+    if (raw === null || raw === undefined) {
+      return "";
+    }
+    return raw.toString().toLowerCase();
   };
 
   const sortedLancamentos = useMemo(() => {
@@ -31,7 +35,7 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
     });
   }, [lancamentos, sortConfig]);
 
-  const totalPages = Math.ceil(sortedLancamentos.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(sortedLancamentos.length / itemsPerPage));
   const paginatedLancamentos = sortedLancamentos.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -43,6 +47,7 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
       direction = "desc";
     }
     setSortConfig({ key, direction });
+    setCurrentPage(1);
   };
 
   const handlePrevPage = () => {
@@ -52,6 +57,16 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [lancamentos]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <>
@@ -176,7 +191,7 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
       {/* Paginação */}
       <div className="transacoes-table__pagination d-flex justify-content-between align-items-center mt-2">
         <small className="text-muted">
-          Página {currentPage} de {totalPages || 1}
+          Página {currentPage} de {totalPages}
         </small>
 
         <div className="transacoes-table__pagination-actions">
@@ -190,7 +205,7 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
           <button
             className="btn btn-outline-secondary btn-sm"
             onClick={handleNextPage}
-            disabled={currentPage === totalPages || totalPages === 0}
+            disabled={currentPage === totalPages || sortedLancamentos.length === 0}
           >
             Próxima ▶
           </button>
