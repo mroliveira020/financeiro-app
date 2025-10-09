@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../services/http";
+import { atualizarLancamentosBatch } from "../../services/api";
 import LancamentosTable from "./LancamentosTable";
 import ModalEdicao from "./ModalEdicao";
 import ModalLote from "./ModalLote";
@@ -73,6 +74,14 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
     const soma = lancamentos.reduce((acc, item) => acc + Number(item.valor || 0), 0);
     return { quantidade: lancamentos.length, soma };
   }, [lancamentos]);
+
+  const categoriasOrdenadas = useMemo(() => {
+    return [...categorias].sort((a, b) => a.categoria.localeCompare(b.categoria, 'pt-BR'));
+  }, [categorias]);
+
+  const imoveisOrdenados = useMemo(() => {
+    return [...imoveis].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [imoveis]);
 
   const formatarMoeda = (valor) =>
     Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -185,21 +194,21 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
         return true;
       }
 
-      const payload = {};
-      if (updates.id_categoria !== undefined) {
-        payload.id_categoria = Number(updates.id_categoria);
-      }
-      if (updates.id_imovel !== undefined) {
-        payload.id_imovel = Number(updates.id_imovel);
-      }
-      if (updates.id_situacao !== undefined) {
-        payload.id_situacao = Number(updates.id_situacao);
-      }
-
       setRowSaving((prev) => ({ ...prev, [idLancamento]: true }));
 
       try {
-        await api.patch(`/dashboard/lancamentos/${idLancamento}`, payload);
+        const updatesNormalizados = {};
+        if (updates.id_categoria !== undefined) {
+          updatesNormalizados.id_categoria = Number(updates.id_categoria);
+        }
+        if (updates.id_imovel !== undefined) {
+          updatesNormalizados.id_imovel = Number(updates.id_imovel);
+        }
+        if (updates.id_situacao !== undefined) {
+          updatesNormalizados.id_situacao = Number(updates.id_situacao);
+        }
+
+        await atualizarLancamentosBatch([idLancamento], updatesNormalizados);
 
         setDirtyMap((prev) => {
           const proximo = { ...prev };
@@ -413,8 +422,8 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
             onEdit={iniciarEdicao}
             onDelete={handleExcluir}
             editable={canEdit}
-            categorias={categorias}
-            imoveis={imoveis}
+            categorias={categoriasOrdenadas}
+            imoveis={imoveisOrdenados}
             draftValues={drafts}
             originalValues={originals}
             dirtyMap={dirtyMap}
