@@ -8,6 +8,7 @@ from models import (
     listar_lancamentos_incompletos_view,
     listar_lancamentos_completos_view,
     adicionar_lancamentos_em_lote,
+    atualizar_lancamentos_em_lote,
     obter_data_ultima_atualizacao,
     listar_ultimos_lancamentos_confirmados,
     listar_totais_mensais_por_imovel,
@@ -69,6 +70,37 @@ def adicionar_lote_lancamentos():
     except Exception as e:
         print(f"Erro ao adicionar lançamentos em lote: {e}")
         return jsonify({"error": "Erro ao adicionar lançamentos"}), 500
+
+
+# ==========================================================
+# 🔹 Atualizar lançamentos em lote
+# ==========================================================
+@dashboard_bp.route('/dashboard/lancamentos/batch', methods=['PATCH', 'OPTIONS'])
+@cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
+@requires_editor_token
+@limiter.limit(RATE_LIMIT_EDIT)
+def atualizar_lancamentos_batch():
+    if request.method == 'OPTIONS':
+        return jsonify({}), 204
+
+    payload = request.get_json(silent=True) or {}
+    ids = payload.get('ids')
+    updates = payload.get('updates') or {}
+
+    if not isinstance(ids, list) or not ids:
+        return jsonify({"error": "Selecione ao menos um lançamento"}), 400
+
+    try:
+        total = atualizar_lancamentos_em_lote(ids, updates)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        print(f"Erro ao atualizar lançamentos em lote: {exc}")
+        return jsonify({"error": "Erro ao atualizar lançamentos"}), 500
+
+    return jsonify({"updated": total}), 200
 
 # ==========================================================
 # 🔹 Excluir lançamento (completo ou incompleto)

@@ -122,3 +122,12 @@ export async function fetchResumoImoveis(includeVendidos = true) {
   const { data } = await api.get(`/dashboard/resumo-imoveis${query ? `?${query}` : ''}`);
   return data;
 }
+
+export async function atualizarLancamentosBatch(ids, updates) {
+  const payload = {
+    ids,
+    updates,
+  };
+  const { data } = await api.patch('/dashboard/lancamentos/batch', payload);
+  return data;
+}

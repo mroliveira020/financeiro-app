@@ -1,3 +1,4 @@
+/* global bootstrap */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../services/http";

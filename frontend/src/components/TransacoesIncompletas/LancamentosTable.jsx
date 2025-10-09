@@ -1,6 +1,15 @@
 import React, { useState } from "react";
 
-const LancamentosTable = ({ lancamentos, onEdit, onDelete, editable = false }) => {
+const LancamentosTable = ({
+  lancamentos,
+  onEdit,
+  onDelete,
+  editable = false,
+  selectedIds = [],
+  onToggle,
+  onToggleAll,
+  allSelected = false,
+}) => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   const ordenarLancamentos = () => {
@@ -53,6 +62,16 @@ const LancamentosTable = ({ lancamentos, onEdit, onDelete, editable = false }) =
       <table className="table table-sm table-striped">
         <thead>
           <tr>
+            {editable && (
+              <th className="text-center" style={{ width: '36px' }}>
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={allSelected}
+                  onChange={(event) => onToggleAll?.(event.target.checked)}
+                />
+              </th>
+            )}
             <th onClick={() => handleSort('data')} style={{ cursor: 'pointer' }}>
               Data{getSortIcon('data')}
             </th>
@@ -72,11 +91,24 @@ const LancamentosTable = ({ lancamentos, onEdit, onDelete, editable = false }) =
         <tbody>
           {lancamentosOrdenados.length === 0 ? (
             <tr>
-              <td colSpan={editable ? 4 : 3} className="text-center">Nenhum lançamento incompleto.</td>
+              <td colSpan={editable ? 5 : 3} className="text-center">Nenhum lançamento incompleto.</td>
             </tr>
           ) : (
             lancamentosOrdenados.map((lancamento) => (
               <tr key={lancamento.id_lancamento}>
+                {editable && (
+                  <td className="text-center">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      checked={selectedIds.includes(lancamento.id_lancamento)}
+                      onChange={(event) => {
+                        event.stopPropagation();
+                        onToggle?.(lancamento.id_lancamento, event.target.checked);
+                      }}
+                    />
+                  </td>
+                )}
                 <td>{lancamento.data}</td>
                 <td>{lancamento.descricao}</td>
                 <td className="text-end">
@@ -89,14 +121,20 @@ const LancamentosTable = ({ lancamentos, onEdit, onDelete, editable = false }) =
                   <td className="text-center">
                     <button
                       className="btn btn-link btn-sm p-0 me-2"
-                      onClick={() => onEdit(lancamento)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onEdit(lancamento);
+                      }}
                       title="Editar / Categorizar"
                     >
                       ✏️
                     </button>
                     <button
                       className="btn btn-link btn-sm p-0"
-                      onClick={() => onDelete(lancamento.id_lancamento)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onDelete(lancamento.id_lancamento);
+                      }}
                       title="Excluir"
                     >
                       🗑️

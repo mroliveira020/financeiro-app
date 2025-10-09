@@ -5,7 +5,7 @@ function safeJSONParse(value) {
   if (!value) return null;
   try {
     return JSON.parse(value);
-  } catch (_) {
+  } catch {
     return null;
   }
 }
@@ -13,7 +13,7 @@ function safeJSONParse(value) {
 export function getAccessToken() {
   try {
     return sessionStorage.getItem(ACCESS_TOKEN_KEY) || '';
-  } catch (_) {
+  } catch {
     return '';
   }
 }
@@ -31,7 +31,7 @@ export function storeSession(token, user) {
       sessionStorage.removeItem(USER_KEY);
     }
     window.dispatchEvent(new CustomEvent('auth-session-changed'));
-  } catch (_) {
+  } catch {
     // Ignora erros de armazenamento (ex.: navegação privada)
   }
 }
@@ -44,7 +44,7 @@ export function getStoredUser() {
   try {
     const raw = sessionStorage.getItem(USER_KEY);
     return safeJSONParse(raw);
-  } catch (_) {
+  } catch {
     return null;
   }
 }

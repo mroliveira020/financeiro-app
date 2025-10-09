@@ -132,6 +132,10 @@
        2.11.2 [ ] Garantir que as transações carreguem ao abrir a página (estado inicial)
        2.11.3 [ ] Ajustar quadro de transações incompletas para respeitar o imóvel selecionado
        2.11.4 [ ] Atualizar cards e resumos imediatamente após uma transação virar completa
+   2.12 [ ] Edição em massa para transações incompletas
+       2.12.1 [ ] Adicionar seleção múltipla e formulário/resumo para aplicar campos em lote
+       2.12.2 [ ] Garantir validações (datas, valores, categorias) antes do envio em massa
+       2.12.3 [ ] Planejar testes com base produtiva mediante agendamento com operação
 
 3. Próximas (médio prazo)
    3.1 [x] Segurança (Fase 2 — login por usuário)

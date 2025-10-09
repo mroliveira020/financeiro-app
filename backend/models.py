@@ -1044,3 +1044,124 @@ def converter_data(data_str):
     except Exception:
         print(f"Erro ao converter data: {data_str}")
         raise
+
+
+def atualizar_lancamentos_em_lote(ids, updates):
+    if not isinstance(ids, list) or not ids:
+        raise ValueError("Selecione pelo menos um lançamento")
+
+    try:
+        ids_normalizados = sorted({int(i) for i in ids})
+    except Exception as exc:
+        raise ValueError("IDs inválidos") from exc
+
+    campos_permitidos = {"id_categoria", "id_imovel", "id_situacao", "data", "valor", "descricao"}
+    if not isinstance(updates, dict) or not any(chave in campos_permitidos for chave in updates.keys()):
+        raise ValueError("Informe pelo menos um campo para atualização")
+
+    set_clauses = []
+    valores = []
+
+    conn, cur = conectar()
+
+    try:
+        cur.execute("SELECT id FROM lancamentos WHERE id = ANY(%s)", (ids_normalizados,))
+        encontrados = [row[0] if not isinstance(row, dict) else row["id"] for row in cur.fetchall()]
+        if not encontrados:
+            raise LookupError("Nenhum lançamento encontrado")
+
+        if "id_categoria" in updates:
+            categoria_raw = updates.get("id_categoria")
+            if categoria_raw in (None, ""):
+                raise ValueError("Categoria inválida")
+            try:
+                categoria_id = int(categoria_raw)
+            except Exception as exc:
+                raise ValueError("Categoria inválida") from exc
+            if categoria_id < 0:
+                raise ValueError("Categoria inválida")
+            if categoria_id != 0:
+                cur.execute("SELECT 1 FROM categorias WHERE id = %s", (categoria_id,))
+                if not cur.fetchone():
+                    raise ValueError("Categoria não encontrada")
+            set_clauses.append("id_categoria = %s")
+            valores.append(categoria_id)
+
+        if "id_imovel" in updates:
+            imovel_raw = updates.get("id_imovel")
+            if imovel_raw in (None, ""):
+                raise ValueError("Imóvel inválido")
+            try:
+                imovel_id = int(imovel_raw)
+            except Exception as exc:
+                raise ValueError("Imóvel inválido") from exc
+            cur.execute("SELECT 1 FROM imoveis WHERE id = %s", (imovel_id,))
+            if not cur.fetchone():
+                raise ValueError("Imóvel não encontrado")
+            set_clauses.append("id_imovel = %s")
+            valores.append(imovel_id)
+
+        if "id_situacao" in updates:
+            situacao_raw = updates.get("id_situacao")
+            if situacao_raw in (None, ""):
+                raise ValueError("Situação inválida")
+            try:
+                situacao = int(situacao_raw)
+            except Exception as exc:
+                raise ValueError("Situação inválida") from exc
+            if situacao not in {0, 1}:
+                raise ValueError("Situação inválida")
+            set_clauses.append("id_situacao = %s")
+            valores.append(situacao)
+
+        if "data" in updates:
+            data_raw = (updates.get("data") or "").strip()
+            if not data_raw:
+                raise ValueError("Data inválida")
+            data_formatada = converter_data(data_raw)
+            set_clauses.append("data = %s")
+            valores.append(data_formatada)
+
+        if "valor" in updates:
+            valor_raw = updates.get("valor")
+            if valor_raw in (None, ""):
+                raise ValueError("Valor inválido")
+            try:
+                valor_num = float(valor_raw)
+            except Exception as exc:
+                raise ValueError("Valor inválido") from exc
+            set_clauses.append("valor = %s")
+            valores.append(valor_num)
+
+        if "descricao" in updates:
+            descricao_raw = (updates.get("descricao") or "").strip()
+            if not descricao_raw:
+                raise ValueError("Descrição inválida")
+            set_clauses.append("descricao = %s")
+            valores.append(descricao_raw)
+
+        if not set_clauses:
+            raise ValueError("Nenhum campo válido para atualizar")
+
+        valores.append(ids_normalizados)
+        cur.execute(
+            f"""
+            UPDATE lancamentos
+               SET {', '.join(set_clauses)}
+             WHERE id = ANY(%s)
+            """,
+            tuple(valores),
+        )
+        conn.commit()
+        return cur.rowcount
+    except LookupError:
+        conn.rollback()
+        raise
+    except ValueError:
+        conn.rollback()
+        raise
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()

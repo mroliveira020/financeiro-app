@@ -4,7 +4,6 @@ import { getAccessToken } from './auth';
 const baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
 
 if (!import.meta.env.VITE_API_URL) {
-  // eslint-disable-next-line no-console
   console.warn('[http] VITE_API_URL não definida. Usando padrão http://127.0.0.1:5000');
 }
 
@@ -30,7 +29,6 @@ api.interceptors.response.use(
     // Normaliza erros para os componentes
     const status = error?.response?.status;
     const message = error?.response?.data?.error || error.message || 'Erro na requisição';
-    // eslint-disable-next-line no-console
     console.error(`[http] Erro ${status || ''}: ${message}`);
     if (status === 401) {
       window.dispatchEvent(new CustomEvent('auth-session-expired'));
