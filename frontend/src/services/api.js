@@ -151,3 +151,39 @@ export async function fetchLancamentosIncompletos({ imovelId = 0, page = 1, page
   const { data } = await api.get(caminho);
   return data;
 }
+
+export async function fetchDetalhesGastosMensais({
+  imovelId,
+  mes,
+  categoriasExcluidas = [],
+} = {}) {
+  if (!imovelId || !mes) {
+    throw new Error('Parâmetros imovelId e mes são obrigatórios.');
+  }
+
+  const params = new URLSearchParams();
+  params.append('imovelId', imovelId);
+  params.append('mes', mes);
+  if (categoriasExcluidas.length) {
+    params.append('excluir', categoriasExcluidas.join(','));
+  }
+
+  const { data } = await api.get(`/dashboard/gastos-mensais/detalhes?${params.toString()}`);
+  return data;
+}
+
+export async function fetchTransacoesMensais({ imovelId, mes, categoriaId } = {}) {
+  if (!imovelId || !mes) {
+    throw new Error('Parâmetros imovelId e mes são obrigatórios.');
+  }
+
+  const params = new URLSearchParams();
+  params.append('imovelId', imovelId);
+  params.append('mes', mes);
+  if (categoriaId !== undefined && categoriaId !== null) {
+    params.append('categoriaId', categoriaId);
+  }
+
+  const { data } = await api.get(`/dashboard/gastos-mensais/transacoes?${params.toString()}`);
+  return data;
+}

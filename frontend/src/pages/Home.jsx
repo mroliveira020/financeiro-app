@@ -9,18 +9,25 @@ import {
   fetchGastosMensais,
   fetchCategorias,
   fetchResumoImoveis,
+  fetchDetalhesGastosMensais,
+  fetchTransacoesMensais,
 } from "../services/api";
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useAuth } from "../context/AuthContext";
 import "./Home.css";
 import GastosMensaisChart from "../components/GastosMensaisChart";
 import ImovelGrupoPieChart from "../components/ImovelGrupoPieChart";
+import GastosMensaisDetalhesModal from "../components/GastosMensaisDetalhesModal";
 import { invalidateCatalogo } from "../hooks/useCatalogos";
 
 const GRAFICO_PREF_KEY = "financeiro:gastos-pref";
 const DEFAULT_CHART_PREF = { meses: 6, excluir: [8, 15, 18] };
 const MES_ANO_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   month: "2-digit",
+  year: "numeric",
+});
+const MES_EXTENSO_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  month: "long",
   year: "numeric",
 });
 const IMOVEIS_MAX_RETRIES = 2;
@@ -72,6 +79,21 @@ const formatarPercentual = (valorFracionario) =>
     maximumFractionDigits: 2,
   })}%`;
 
+const formatarMesExtenso = (mesISO) => {
+  if (!mesISO) return "";
+  const normalizado = `${mesISO}`.slice(0, 7);
+  try {
+    const data = new Date(`${normalizado}-01T00:00:00`);
+    if (Number.isNaN(data.getTime())) {
+      return normalizado;
+    }
+    const texto = MES_EXTENSO_FORMATTER.format(data);
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  } catch {
+    return normalizado;
+  }
+};
+
 const toNumber = (valor, padrao = 0) => {
   const numero = Number(valor);
   return Number.isFinite(numero) ? numero : padrao;
@@ -116,6 +138,18 @@ function Home() {
   const [categoriasDisponiveis, setCategoriasDisponiveis] = useState([]);
   const [categoriasLoading, setCategoriasLoading] = useState(false);
   const [categoriasErro, setCategoriasErro] = useState(false);
+  const [detalhesMensaisModal, setDetalhesMensaisModal] = useState({
+    aberto: false,
+    carregando: false,
+    mesISO: null,
+    mesRotulo: "",
+    imovelId: null,
+    nomeImovel: "",
+    valorSegmento: 0,
+    dados: null,
+    erro: null,
+    transacoesPorCategoria: {},
+  });
   const [imoveisRetryState, setImoveisRetryState] = useState({
     status: "idle",
     attempt: 1,
@@ -448,6 +482,119 @@ function Home() {
     setShowConfigChart(false);
   };
 
+  const handleAbrirDetalhesMensais = useCallback(
+    ({ imovelId, nomeImovel, mes, valor }) => {
+      if (!imovelId || !mes) {
+        return;
+      }
+      const mesLabel = formatarMesExtenso(mes);
+      setDetalhesMensaisModal({
+        aberto: true,
+        carregando: true,
+        mesISO: mes,
+        mesRotulo: mesLabel,
+        imovelId,
+        nomeImovel,
+        valorSegmento: Number(valor || 0),
+        dados: null,
+        erro: null,
+        transacoesPorCategoria: {},
+      });
+
+      const categoriasExcluidas = chartPref.excluir || [];
+      fetchDetalhesGastosMensais({
+        imovelId,
+        mes: `${mes}`.slice(0, 7),
+        categoriasExcluidas,
+      })
+        .then((resposta) => {
+          setDetalhesMensaisModal((prev) => ({
+            ...prev,
+            carregando: false,
+            dados: resposta,
+            mesRotulo: formatarMesExtenso(resposta?.mes || mes) || prev.mesRotulo,
+            valorSegmento: Number(resposta?.total ?? prev.valorSegmento),
+            transacoesPorCategoria: {},
+          }));
+        })
+        .catch((error) => {
+          const mensagem =
+            error?.response?.data?.error || "Não foi possível carregar os detalhes deste mês.";
+          setDetalhesMensaisModal((prev) => ({
+            ...prev,
+            carregando: false,
+            erro: mensagem,
+            transacoesPorCategoria: {},
+          }));
+        });
+    },
+    [chartPref.excluir]
+  );
+
+  const handleFecharDetalhesMensais = useCallback(() => {
+    setDetalhesMensaisModal((prev) => ({ ...prev, aberto: false }));
+  }, []);
+
+  const handleCarregarTransacoesCategoria = useCallback(
+    ({ categoriaId }) => {
+      if (!detalhesMensaisModal.aberto) {
+        return;
+      }
+      const chave = String(categoriaId ?? "sem");
+      setDetalhesMensaisModal((prev) => {
+        const atual = prev.transacoesPorCategoria[chave];
+        if (atual?.carregando) {
+          return prev;
+        }
+        return {
+          ...prev,
+          transacoesPorCategoria: {
+            ...prev.transacoesPorCategoria,
+            [chave]: {
+              itens: atual?.itens,
+              carregando: true,
+              erro: null,
+            },
+          },
+        };
+      });
+
+      const imovelId = detalhesMensaisModal.imovelId;
+      const mesConsulta = (detalhesMensaisModal.dados?.mes || detalhesMensaisModal.mesISO || "").slice(0, 7);
+
+      fetchTransacoesMensais({ imovelId, mes: mesConsulta, categoriaId })
+        .then((itens) => {
+          setDetalhesMensaisModal((prev) => ({
+            ...prev,
+            transacoesPorCategoria: {
+              ...prev.transacoesPorCategoria,
+              [chave]: {
+                itens: itens || [],
+                carregando: false,
+                erro: null,
+              },
+            },
+          }));
+        })
+        .catch((error) => {
+          const mensagem =
+            error?.response?.data?.error || "Não foi possível carregar as transações.";
+          setDetalhesMensaisModal((prev) => ({
+            ...prev,
+            transacoesPorCategoria: {
+              ...prev.transacoesPorCategoria,
+              [chave]: {
+                itens: [],
+                carregando: false,
+                erro: mensagem,
+              },
+            },
+          }));
+        });
+    },
+    [detalhesMensaisModal.aberto, detalhesMensaisModal.dados, detalhesMensaisModal.imovelId, detalhesMensaisModal.mesISO]
+  );
+
   return (
     <div className="container py-4">
       <header className="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 gap-3">
@@ -685,7 +832,7 @@ function Home() {
               </button>
             </div>
           ) : (
-            <GastosMensaisChart dados={gastosMensais} />
+            <GastosMensaisChart dados={gastosMensais} onSegmentClick={handleAbrirDetalhesMensais} />
           )}
         </div>
       </section>
@@ -923,6 +1070,20 @@ function Home() {
           Ver últimos 10 lançamentos
         </button>
       </div>
+
+      <GastosMensaisDetalhesModal
+        show={detalhesMensaisModal.aberto}
+        onClose={handleFecharDetalhesMensais}
+        carregando={detalhesMensaisModal.carregando}
+        erro={detalhesMensaisModal.erro}
+        detalhes={detalhesMensaisModal.dados}
+        mesLabel={detalhesMensaisModal.mesRotulo || formatarMesExtenso(detalhesMensaisModal.mesISO)}
+        nomeImovel={detalhesMensaisModal.nomeImovel}
+        valorSegmento={detalhesMensaisModal.valorSegmento}
+        mesISO={detalhesMensaisModal.mesISO}
+        onCarregarTransacoes={handleCarregarTransacoesCategoria}
+        transacoesPorCategoria={detalhesMensaisModal.transacoesPorCategoria}
+      />
 
       {/* Modal simples para últimos lançamentos */}
       {showUltimos && (

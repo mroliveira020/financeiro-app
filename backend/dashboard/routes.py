@@ -12,6 +12,8 @@ from models import (
     obter_data_ultima_atualizacao,
     listar_ultimos_lancamentos_confirmados,
     listar_totais_mensais_por_imovel,
+    listar_detalhes_gastos_mensais,
+    listar_transacoes_mensais,
 )
 
 
@@ -230,3 +232,56 @@ def get_gastos_mensais():
     except Exception as e:
         print(f"Erro ao listar gastos mensais: {e}")
         return jsonify({"error": "Erro ao listar gastos mensais"}), 500
+
+
+@dashboard_bp.route('/dashboard/gastos-mensais/detalhes', methods=['GET'])
+@requires_auth
+@cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
+def get_gastos_mensais_detalhes():
+    try:
+        imovel_id = request.args.get('imovelId', type=int)
+        mes = request.args.get('mes', '').strip()
+        if not imovel_id or not mes:
+            return jsonify({"error": "Parâmetros 'imovelId' e 'mes' são obrigatórios"}), 400
+
+        excluir_raw = request.args.get('excluir', '').strip()
+        categorias_excluidas = None
+        if excluir_raw:
+            categorias_excluidas = []
+            for parte in excluir_raw.split(','):
+                parte = parte.strip()
+                if not parte:
+                    continue
+                try:
+                    categorias_excluidas.append(int(parte))
+                except Exception:
+                    continue
+
+        detalhes = listar_detalhes_gastos_mensais(imovel_id, mes, categorias_excluidas)
+        return jsonify(detalhes), 200
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        print(f"Erro ao detalhar gastos mensais: {exc}")
+        return jsonify({"error": "Erro ao detalhar gastos mensais"}), 500
+
+
+@dashboard_bp.route('/dashboard/gastos-mensais/transacoes', methods=['GET'])
+@requires_auth
+@cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
+def get_gastos_mensais_transacoes():
+    try:
+        imovel_id = request.args.get('imovelId', type=int)
+        mes = request.args.get('mes', '').strip()
+        categoria_id = request.args.get('categoriaId', type=int)
+
+        if not imovel_id or not mes:
+            return jsonify({"error": "Parâmetros 'imovelId' e 'mes' são obrigatórios"}), 400
+
+        transacoes = listar_transacoes_mensais(imovel_id, mes, categoria_id)
+        return jsonify(transacoes), 200
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        print(f"Erro ao listar transações mensais: {exc}")
+        return jsonify({"error": "Erro ao listar transações"}), 500

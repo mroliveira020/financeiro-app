@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { Bar } from "react-chartjs-2";
 import "chart.js/auto";
 import palette from "../utils/chartPalette";
@@ -38,8 +38,10 @@ function normalizarMesLabel(mesISO) {
   return formatter.format(dataLocal).replace(" de ", "/");
 }
 
-export default function GastosMensaisChart({ dados = [] }) {
-  const chartConfig = useMemo(() => {
+export default function GastosMensaisChart({ dados = [], onSegmentClick }) {
+  const chartRef = useRef(null);
+
+  const chartData = useMemo(() => {
     if (!dados.length) {
       return null;
     }
@@ -63,6 +65,7 @@ export default function GastosMensaisChart({ dados = [] }) {
     dados.forEach((item) => {
       if (!gruposPorImovel.has(item.id_imovel)) {
         gruposPorImovel.set(item.id_imovel, {
+          id: item.id_imovel,
           label: item.nome_imovel,
           data: new Array(mesesOrdenados.length).fill(0),
         });
@@ -82,57 +85,98 @@ export default function GastosMensaisChart({ dados = [] }) {
       stack: "desembolsos",
       borderRadius: 4,
       borderWidth: 1,
+      meta: {
+        idImovel: dataset.id,
+        nomeImovel: dataset.label,
+      },
     }));
 
     return {
+      mesesOrdenados,
       data: {
         labels: mesesOrdenados.map((mes) => normalizarMesLabel(mes)),
         datasets,
       },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: "bottom",
-            labels: {
-              boxWidth: 12,
-              boxHeight: 12,
-            },
-          },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const valor = context.parsed.y || 0;
-                return `${context.dataset.label}: ${valor.toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                  minimumFractionDigits: 2,
-                })}`;
-              },
-            },
+    };
+  }, [dados]);
+
+  const options = useMemo(() => {
+    if (!chartData) {
+      return null;
+    }
+
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
           },
         },
-        scales: {
-          x: {
-            stacked: true,
-          },
-          y: {
-            stacked: true,
-            ticks: {
-              callback: (value) =>
-                Number(value).toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                }),
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const valor = context.parsed.y || 0;
+              return `${context.dataset.label}: ${valor.toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+                minimumFractionDigits: 2,
+              })}`;
             },
           },
         },
       },
+      scales: {
+        x: {
+          stacked: true,
+        },
+        y: {
+          stacked: true,
+          ticks: {
+            callback: (value) =>
+              Number(value).toLocaleString("pt-BR", {
+                style: "currency",
+                currency: "BRL",
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              }),
+          },
+        },
+      },
+      onHover: (event, elements) => {
+        if (!event?.native) return;
+        event.native.target.style.cursor = elements.length && onSegmentClick ? "pointer" : "default";
+      },
+      onClick: (event, elements) => {
+        if (!onSegmentClick || !elements.length || !chartRef.current) {
+          return;
+        }
+        const element = elements[0];
+        const chart = chartRef.current;
+        const dataset = chart.data.datasets[element.datasetIndex] || {};
+        const meta = dataset.meta || {};
+        const idImovel = meta.idImovel;
+        const nomeImovel = meta.nomeImovel || dataset.label;
+        const mesISO = chartData.mesesOrdenados[element.index];
+        const valorSegmento = dataset.data?.[element.index] ?? 0;
+
+        if (!idImovel || !mesISO) {
+          return;
+        }
+
+        onSegmentClick({
+          imovelId: idImovel,
+          nomeImovel,
+          mes: mesISO,
+          label: chart.data.labels?.[element.index],
+          valor: valorSegmento,
+        });
+      },
     };
-  }, [dados]);
+  }, [chartData, onSegmentClick]);
 
   if (!dados.length) {
     return (
@@ -143,13 +187,13 @@ export default function GastosMensaisChart({ dados = [] }) {
     );
   }
 
-  if (!chartConfig) {
+  if (!chartData || !options) {
     return null;
   }
 
   return (
     <div style={{ minHeight: 320 }}>
-      <Bar data={chartConfig.data} options={chartConfig.options} />
+      <Bar ref={chartRef} data={chartData.data} options={options} />
     </div>
   );
 }

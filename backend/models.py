@@ -5,6 +5,7 @@ import os
 import uuid
 from collections import defaultdict
 from functools import lru_cache
+from datetime import datetime
 from db_connection import conectar
 import json
 from werkzeug.security import generate_password_hash
@@ -934,6 +935,205 @@ def listar_totais_mensais_por_imovel(meses=6, categorias_excluidas=None, incluir
         return resultados
     finally:
         conn.close()
+
+
+def listar_detalhes_gastos_mensais(id_imovel, mes, categorias_excluidas=None):
+    if not id_imovel:
+        raise ValueError("ID do imóvel é obrigatório")
+    if not mes:
+        raise ValueError("Parâmetro 'mes' é obrigatório no formato AAAA-MM")
+
+    mes = str(mes).strip()
+    if len(mes) >= 10:
+        mes = mes[:7]
+
+    try:
+        inicio = datetime.strptime(mes, "%Y-%m").replace(day=1)
+    except ValueError as exc:
+        raise ValueError("Formato de mês inválido. Use AAAA-MM") from exc
+
+    if inicio.month == 12:
+        fim = inicio.replace(year=inicio.year + 1, month=1)
+    else:
+        fim = inicio.replace(month=inicio.month + 1)
+
+    if categorias_excluidas is None:
+        categorias_excluidas = [8, 15, 18]
+    else:
+        filtradas = []
+        for item in categorias_excluidas:
+            try:
+                filtradas.append(int(item))
+            except Exception:
+                continue
+        categorias_excluidas = filtradas
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            "SELECT nome FROM imoveis WHERE id = %s",
+            (id_imovel,),
+        )
+        row_imovel = cur.fetchone()
+        if not row_imovel:
+            raise ValueError("Imóvel não encontrado")
+        nome_imovel = row_imovel[0]
+
+        params = [id_imovel, inicio.date(), fim.date()]
+        filtros_categoria = ""
+        if categorias_excluidas:
+            filtros_categoria = " AND (l.id_categoria IS NULL OR l.id_categoria NOT IN %s)"
+            params.append(tuple(sorted(set(categorias_excluidas))))
+
+        cur.execute(
+            f"""
+            SELECT
+                g.id AS id_grupo,
+                COALESCE(g.grupo, 'Sem grupo') AS nome_grupo,
+                c.id AS id_categoria,
+                COALESCE(c.categoria, 'Sem categoria') AS nome_categoria,
+                SUM(l.valor) AS total
+            FROM lancamentos l
+            LEFT JOIN categorias c ON c.id = l.id_categoria
+            LEFT JOIN grupos g ON g.id = c.id_grupo
+            WHERE l.id_imovel = %s
+              AND l.id_situacao = 1
+              AND (l.ativo IS DISTINCT FROM FALSE)
+              AND l.data >= %s AND l.data < %s
+              {filtros_categoria}
+            GROUP BY g.id, nome_grupo, c.id, nome_categoria
+            ORDER BY nome_grupo ASC, nome_categoria ASC
+            """,
+            tuple(params),
+        )
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    grupos = {}
+    total_geral = 0.0
+
+    for row in rows:
+        id_grupo = row["id_grupo"] if isinstance(row, dict) else row[0]
+        nome_grupo = row["nome_grupo"] if isinstance(row, dict) else row[1]
+        id_categoria = row["id_categoria"] if isinstance(row, dict) else row[2]
+        nome_categoria = row["nome_categoria"] if isinstance(row, dict) else row[3]
+        total_cat = float(row["total"] if isinstance(row, dict) else row[4] or 0)
+
+        chave_grupo = id_grupo if id_grupo is not None else 0
+        if chave_grupo not in grupos:
+            grupos[chave_grupo] = {
+                "id_grupo": id_grupo,
+                "grupo": nome_grupo,
+                "total_grupo": 0.0,
+                "categorias": [],
+            }
+
+        grupos[chave_grupo]["categorias"].append(
+            {
+                "id_categoria": id_categoria,
+                "categoria": nome_categoria,
+                "total": total_cat,
+            }
+        )
+        grupos[chave_grupo]["total_grupo"] += total_cat
+        total_geral += total_cat
+
+    detalhes = sorted(grupos.values(), key=lambda item: (-item["total_grupo"], item["grupo"]))
+    for grupo in detalhes:
+        grupo["categorias"] = sorted(
+            grupo["categorias"],
+            key=lambda item: (-item["total"], item["categoria"]),
+        )
+
+    return {
+        "mes": inicio.strftime("%Y-%m-01"),
+        "imovel": {
+            "id": id_imovel,
+            "nome": nome_imovel,
+        },
+        "total": total_geral,
+        "grupos": detalhes,
+    }
+
+
+def listar_transacoes_mensais(id_imovel, mes, categoria_id=None):
+    if not id_imovel:
+        raise ValueError("ID do imóvel é obrigatório")
+    if not mes:
+        raise ValueError("Parâmetro 'mes' é obrigatório no formato AAAA-MM")
+
+    mes = str(mes).strip()
+    if len(mes) >= 10:
+        mes = mes[:7]
+
+    try:
+        inicio = datetime.strptime(mes, "%Y-%m").replace(day=1)
+    except ValueError as exc:
+        raise ValueError("Formato de mês inválido. Use AAAA-MM") from exc
+
+    if inicio.month == 12:
+        fim = inicio.replace(year=inicio.year + 1, month=1)
+    else:
+        fim = inicio.replace(month=inicio.month + 1)
+
+    conn, cur = conectar()
+    try:
+        params = [id_imovel, inicio.date(), fim.date()]
+        filtro_categoria = ""
+        if categoria_id is not None:
+            filtro_categoria = " AND c.id = %s"
+            params.append(int(categoria_id))
+
+        cur.execute(
+            f"""
+            SELECT
+                l.id,
+                l.data,
+                l.descricao,
+                l.valor,
+                c.id AS id_categoria,
+                COALESCE(c.categoria, 'Sem categoria') AS categoria,
+                g.id AS id_grupo,
+                COALESCE(g.grupo, 'Sem grupo') AS grupo
+            FROM lancamentos l
+            LEFT JOIN categorias c ON c.id = l.id_categoria
+            LEFT JOIN grupos g ON g.id = c.id_grupo
+            WHERE l.id_imovel = %s
+              AND l.id_situacao = 1
+              AND (l.ativo IS DISTINCT FROM FALSE)
+              AND l.data >= %s AND l.data < %s
+              {filtro_categoria}
+            ORDER BY l.data DESC, l.id DESC
+            """,
+            tuple(params),
+        )
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    transacoes = []
+    for row in rows:
+        data_valor = row["data"]
+        if hasattr(data_valor, "strftime"):
+            data_formatada = data_valor.strftime("%d/%m/%Y")
+        else:
+            data_formatada = str(data_valor)
+
+        transacoes.append(
+            {
+                "id": row["id"],
+                "data": data_formatada,
+                "descricao": row["descricao"],
+                "valor": float(row["valor"] or 0),
+                "id_categoria": row["id_categoria"],
+                "categoria": row["categoria"],
+                "id_grupo": row["id_grupo"],
+                "grupo": row["grupo"],
+            }
+        )
+
+    return transacoes
 
 # ======================================================
 # 🔹 Resumo agregado dos imóveis
