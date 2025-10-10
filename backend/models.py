@@ -696,7 +696,7 @@ def listar_lancamentos_incompletos_view(id_imovel=None, *, limit=50, page=1):
         base_params = []
         filtros = []
         if id_imovel is not None:
-            filtros.append("id_imovel = %s")
+            filtros.append("v.id_imovel = %s")
             base_params.append(id_imovel)
 
         where_clause = ""
@@ -706,20 +706,21 @@ def listar_lancamentos_incompletos_view(id_imovel=None, *, limit=50, page=1):
         cur.execute(
             f"""
             SELECT
-                id_lancamento,
-                data,
-                descricao,
-                valor,
-                id_imovel,
-                id_categoria,
-                id_situacao,
-                nome_imovel,
-                nome_categoria,
-                nome_situacao,
+                v.id_lancamento,
+                v.data,
+                v.descricao,
+                v.valor,
+                v.id_imovel,
+                v.id_categoria,
+                v.id_situacao,
+                v.nome_imovel,
+                COALESCE(c.categoria, 'Sem categoria') AS nome_categoria,
+                v.nome_situacao,
                 COUNT(*) OVER () AS total_registros
-            FROM vw_lancamentos_incompletos
+            FROM vw_lancamentos_incompletos v
+            LEFT JOIN categorias c ON c.id = v.id_categoria
             {where_clause}
-            ORDER BY data DESC, id_lancamento DESC
+            ORDER BY v.data DESC, v.id_lancamento DESC
             LIMIT %s OFFSET %s
             """,
             (*base_params, limit_val, offset_val),
@@ -730,8 +731,8 @@ def listar_lancamentos_incompletos_view(id_imovel=None, *, limit=50, page=1):
             f"""
             SELECT
                 COUNT(*) AS total_registros,
-                COALESCE(SUM(valor), 0) AS soma_valores
-            FROM vw_lancamentos_incompletos
+                COALESCE(SUM(v.valor), 0) AS soma_valores
+            FROM vw_lancamentos_incompletos v
             {where_clause}
             """,
             tuple(base_params),
