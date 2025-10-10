@@ -299,14 +299,14 @@
 }
 
 .gastos-detalhes__total span {
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #0f172a;
 }
 
 .gastos-detalhes__total strong {
-  font-size: 1.1rem;
+  font-size: 0.98rem;
   color: #0f172a;
 }
 
@@ -329,9 +329,20 @@
   color: #1f2933;
 }
 
+.gastos-detalhes__group-header h6 {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
 .gastos-detalhes__group-header span {
   font-size: 0.95rem;
   color: #0f172a;
+}
+
+.gastos-detalhes__group table td {
+  font-size: 0.9rem;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
 }
 
 .gastos-detalhes__group table tbody tr td:first-child {
