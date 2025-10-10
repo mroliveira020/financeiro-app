@@ -81,14 +81,14 @@ export default function AppLayout() {
       </aside>
       <div className="app-shell__content">
         <header className="app-shell__topbar">
-          <div>
-            <h1 className="app-shell__title">Financeiro</h1>
-            <p className="app-shell__subtitle mb-0">Gerencie investimentos e lançamentos com rapidez.</p>
+          <div className="app-shell__headline">
+            <div>
+              <h1 className="app-shell__title">Financeiro</h1>
+              <p className="app-shell__subtitle mb-0">Painel executivo dos investimentos imobiliários.</p>
+            </div>
+            <span className="app-shell__env-pill" aria-label="Ambiente atual">Produção</span>
           </div>
-          <div className="d-flex align-items-center gap-3">
-            <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Produção</span>
-            <EditorBar />
-          </div>
+          <EditorBar className="app-shell__session" />
         </header>
         <main className="app-shell__main">
           <Outlet />

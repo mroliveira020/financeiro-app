@@ -1,5 +1,15 @@
 import React, { useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
+import "./EditorBar.css";
+
+const initialsFromEmail = (email = "") => {
+  if (!email) return "?";
+  const [namePart] = email.split("@");
+  if (!namePart) return email.slice(0, 2).toUpperCase();
+  const pieces = namePart.split(/[._-]/).filter(Boolean);
+  const chars = pieces.length >= 2 ? pieces[0][0] + pieces[1][0] : namePart.slice(0, 2);
+  return chars.toUpperCase();
+};
 
 export default function EditorBar({ className = "" }) {
   const { user, logout } = useAuth();
@@ -10,16 +20,20 @@ export default function EditorBar({ className = "" }) {
     return "Leitor";
   }, [user]);
 
+  const initials = initialsFromEmail(user?.email);
+
   return (
-    <div className={`d-flex align-items-center gap-2 ${className}`}>
-      <span className="text-muted small text-uppercase fw-semibold">Sessão</span>
-      <div className="d-flex flex-column">
-        <strong className="small">{user?.email}</strong>
-        <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle align-self-start">
-          {roleLabel}
-        </span>
+    <div className={`editor-bar ${className}`}>
+      <div className="editor-bar__avatar" aria-hidden="true">
+        {initials}
       </div>
-      <button className="btn btn-sm btn-outline-secondary" onClick={logout}>
+      <div className="editor-bar__info">
+        <span className="editor-bar__email" title={user?.email || "Sessão não iniciada"}>
+          {user?.email || "Sessão não iniciada"}
+        </span>
+        <span className="editor-bar__role">{roleLabel}</span>
+      </div>
+      <button type="button" className="editor-bar__logout" onClick={logout}>
         Sair
       </button>
     </div>
