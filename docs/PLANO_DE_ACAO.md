@@ -126,7 +126,7 @@
        2.9.2 [ ] Cache ou otimizar view conforme necessidade (avaliar após medição).
    2.10 [ ] Revisão do fluxo de autenticação
        2.10.1 [ ] Remover menções a "token de edição" na UI e na documentação do site
-       2.10.2 [ ] Garantir que permissões de edição dependam apenas do login com papel `editor`/`admin`
+       2.10.2 [ ] Garantir que permissões de edição dependam apenas da autenticação do usuário (validação direta, sem modo editor)
    2.11 [ ] Revisão do Dashboard (transações)
        2.11.1 [ ] Corrigir erro ao incluir transações incompletas via lote/edição manual
        2.11.2 [ ] Garantir que as transações carreguem ao abrir a página (estado inicial)
@@ -137,6 +137,9 @@
        2.12.2 [ ] Incluir botão "Aplicar todos" e opção para aplicar linha a linha
        2.12.3 [ ] Garantir validações de categoria/imóvel/situação antes do envio
        2.12.4 [ ] Planejar testes em produção com operação (janelas acordadas)
+   2.13 [ ] Ajustes pós-modo editor
+       2.13.1 [ ] Remover referências ao modo editor nas telas e mensagens
+       2.13.2 [ ] Confirmar se fluxos de edição exibem validações no nível do usuário ativo
 
 3. Próximas (médio prazo)
    3.1 [x] Segurança (Fase 2 — login por usuário)

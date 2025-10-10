@@ -29,6 +29,18 @@
   gap: 16px;
 }
 
+.add-imovel-trigger {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  line-height: 1;
+  padding: 0;
+}
+
 .property-card__icon {
   width: 26px;
   height: 26px;

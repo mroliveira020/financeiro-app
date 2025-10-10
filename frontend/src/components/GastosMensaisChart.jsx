@@ -8,16 +8,34 @@ const formatter = new Intl.DateTimeFormat("pt-BR", {
   year: "2-digit",
 });
 
-function normalizarMesLabel(mesISO) {
-  try {
-    const data = new Date(mesISO);
-    if (!Number.isNaN(data.getTime())) {
-      return formatter.format(data).replace(" de ", "/");
-    }
-  } catch {
-    /* ignore */
+function extrairAnoMes(mesISO) {
+  if (!mesISO) return null;
+  const partes = String(mesISO).split("-");
+  if (partes.length < 2) return null;
+
+  const ano = Number(partes[0]);
+  const mes = Number(partes[1]);
+
+  if (!Number.isFinite(ano) || !Number.isFinite(mes)) {
+    return null;
   }
-  return mesISO;
+
+  const mesNormalizado = Math.min(12, Math.max(1, mes));
+  return { ano, mes: mesNormalizado };
+}
+
+function normalizarMesLabel(mesISO) {
+  const parsed = extrairAnoMes(mesISO);
+  if (!parsed) {
+    return mesISO;
+  }
+
+  const dataLocal = new Date(parsed.ano, parsed.mes - 1, 1);
+  if (Number.isNaN(dataLocal.getTime())) {
+    return mesISO;
+  }
+
+  return formatter.format(dataLocal).replace(" de ", "/");
 }
 
 export default function GastosMensaisChart({ dados = [] }) {
@@ -26,9 +44,19 @@ export default function GastosMensaisChart({ dados = [] }) {
       return null;
     }
 
-    const mesesOrdenados = Array.from(
-      new Set(dados.map((item) => item.mes))
-    ).sort();
+    const mesesOrdenados = Array.from(new Set(dados.map((item) => item.mes))).sort((a, b) => {
+      const parsedA = extrairAnoMes(a);
+      const parsedB = extrairAnoMes(b);
+
+      if (parsedA && parsedB) {
+        if (parsedA.ano !== parsedB.ano) {
+          return parsedA.ano - parsedB.ano;
+        }
+        return parsedA.mes - parsedB.mes;
+      }
+
+      return String(a).localeCompare(String(b));
+    });
 
     const gruposPorImovel = new Map();
 
@@ -42,7 +70,8 @@ export default function GastosMensaisChart({ dados = [] }) {
       const dataset = gruposPorImovel.get(item.id_imovel);
       const mesIndex = mesesOrdenados.indexOf(item.mes);
       if (mesIndex >= 0) {
-        dataset.data[mesIndex] = Number(item.total || 0);
+        const valor = Number(item.total ?? 0);
+        dataset.data[mesIndex] += Number.isFinite(valor) ? valor : 0;
       }
     });
 

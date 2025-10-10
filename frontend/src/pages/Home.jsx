@@ -89,6 +89,8 @@ function Home() {
   const [loadingImoveis, setLoadingImoveis] = useState(true);
   const [erroImoveis, setErroImoveis] = useState(false);
   const [newImovel, setNewImovel] = useState({ nome: "", vendido: false });
+  const [showAddImovelModal, setShowAddImovelModal] = useState(false);
+  const [addingImovel, setAddingImovel] = useState(false);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState(null);
   const [showUltimos, setShowUltimos] = useState(false);
   const [ultimos, setUltimos] = useState([]);
@@ -333,8 +335,19 @@ function Home() {
     localStorage.setItem(GRAFICO_PREF_KEY, JSON.stringify(chartPref));
   }, [chartPref, prefReady]);
 
-  const handleAddImovel = async () => {
+  const closeAddImovelModal = useCallback(() => {
+    if (addingImovel) {
+      return;
+    }
+    setShowAddImovelModal(false);
+    setNewImovel({ nome: "", vendido: false });
+  }, [addingImovel]);
+
+  const handleAddImovel = async (event) => {
+    event?.preventDefault();
     if (!newImovel.nome.trim()) return;
+
+    setAddingImovel(true);
 
     try {
       const novoImovel = await addImovel(newImovel);
@@ -348,9 +361,12 @@ function Home() {
           periodoFim: null,
         },
       ]);
-      setNewImovel({ nome: "", vendido: false }); // Limpa o formulário após cadastro
+      setShowAddImovelModal(false);
+      setNewImovel({ nome: "", vendido: false });
     } catch (error) {
       console.error("Erro ao cadastrar imóvel:", error);
+    } finally {
+      setAddingImovel(false);
     }
   };
 
@@ -437,10 +453,96 @@ function Home() {
           <h1 className="fs-3 fw-bold mb-1">Painel de Imóveis</h1>
           <p className="text-muted mb-0">Acompanhe os resultados e acesse os dashboards de cada operação.</p>
         </div>
-        <div className="badge bg-light text-uppercase text-primary fw-semibold px-3 py-2 align-self-start align-self-md-center">
-          {canEdit ? "Modo editor ativo" : "Visualização somente leitura"}
-        </div>
+        {canEdit && (
+          <button
+            type="button"
+            className="btn btn-primary add-imovel-trigger align-self-start align-self-md-center"
+            onClick={() => {
+              setShowAddImovelModal(true);
+              setNewImovel({ nome: "", vendido: false });
+            }}
+            title="Cadastrar novo imóvel"
+          >
+            <span aria-hidden="true">＋</span>
+            <span className="visually-hidden">Cadastrar novo imóvel</span>
+          </button>
+        )}
       </header>
+
+      {showAddImovelModal && (
+        <>
+          <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true">
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Cadastrar imóvel</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={closeAddImovelModal}
+                    aria-label="Fechar"
+                    disabled={addingImovel}
+                  />
+                </div>
+                <form onSubmit={handleAddImovel}>
+                  <div className="modal-body d-flex flex-column gap-3">
+                    <div>
+                      <label className="form-label small text-muted text-uppercase" htmlFor="novo-imovel-nome">
+                        Nome do imóvel
+                      </label>
+                      <input
+                        id="novo-imovel-nome"
+                        type="text"
+                        className="form-control form-control-sm"
+                        placeholder="Ex.: Apartamento Bela Vista"
+                        value={newImovel.nome}
+                        onChange={(e) => setNewImovel((prev) => ({ ...prev, nome: e.target.value }))}
+                        disabled={addingImovel}
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="form-label small text-muted text-uppercase" htmlFor="novo-imovel-status">
+                        Status
+                      </label>
+                      <select
+                        id="novo-imovel-status"
+                        className="form-select form-select-sm"
+                        value={newImovel.vendido ? "true" : "false"}
+                        onChange={(e) =>
+                          setNewImovel((prev) => ({ ...prev, vendido: e.target.value === "true" }))
+                        }
+                        disabled={addingImovel}
+                      >
+                        <option value="false">Disponível</option>
+                        <option value="true">Vendido</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={closeAddImovelModal}
+                      disabled={addingImovel}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={addingImovel || !newImovel.nome.trim()}
+                    >
+                      {addingImovel ? "Salvando..." : "Cadastrar"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div className="modal-backdrop fade show" />
+        </>
+      )}
 
       <div className="home-filter-bar card border-0 shadow-sm mb-4">
         <div className="card-body d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
@@ -627,33 +729,6 @@ function Home() {
           )}
         </div>
       </section>
-
-      {/* Formulário para adicionar novo imóvel (apenas Editor) */}
-      {canEdit && (
-      <div className="card border-0 shadow-sm mb-4">
-        <div className="card-body">
-          <h2 className="fs-6 fw-semibold text-uppercase text-muted">Adicionar novo imóvel</h2>
-        <input
-          type="text"
-          placeholder="Nome do imóvel"
-          value={newImovel.nome}
-          onChange={(e) => setNewImovel({ ...newImovel, nome: e.target.value })}
-          className="form-control form-control-sm mb-2"
-        />
-        <select
-          className="form-select form-select-sm mb-2"
-          value={newImovel.vendido}
-          onChange={(e) => setNewImovel({ ...newImovel, vendido: JSON.parse(e.target.value) })}
-        >
-          <option value="false">Disponível</option>
-          <option value="true">Vendido</option>
-        </select>
-        <button className="btn btn-primary btn-sm" onClick={handleAddImovel} disabled={!newImovel.nome.trim()}>
-          Cadastrar imóvel
-        </button>
-        </div>
-      </div>
-      )}
 
       {/* Lista de imóveis */}
       {imoveisRetryState.status === "retrying" && (

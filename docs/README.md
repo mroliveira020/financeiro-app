@@ -15,7 +15,7 @@
 - Backend
   - App Flask em `backend/app.py`: define rotas de imóveis, categorias, lançamentos, resumo financeiro e orçamentos; registra `dashboard_bp` e `analytics_bp`.
   - Autenticação: `backend/auth.py` expõe `/auth/login`, `/auth/me`, `/auth/logout` e `/auth/users`; tokens JWT emitidos por `backend/security.py` com expiração configurável.
-  - Blueprint Dashboard: `backend/dashboard/__init__.py` e `backend/dashboard/routes.py` — lista completos/incompletos, PATCH/DELETE, POST em lote.
+  - Blueprint Dashboard: `backend/dashboard/__init__.py` e `backend/dashboard/routes.py` — lista completos/incompletos, PATCH/DELETE, POST e PATCH em lote (categoria/imóvel/situação). Lançamentos são considerados “incompletos” quando `id_categoria = 0` (mesmo que `id_situacao = 1`).
   - Camada de dados: `backend/models.py` — CRUD, consultas às views e upsert de orçamentos.
   - Conexão DB: `backend/db_connection.py` — usa variáveis de ambiente do `.env` (PostgreSQL).
   - Analytics (admin): `backend/analytics.py` — rota de SELECT seguro e endpoint de lançamentos consolidados.
@@ -26,7 +26,7 @@
   - Dashboard: `frontend/src/pages/Dashboard.jsx` — compõe Dados Cadastrais, Resumo Financeiro, Transações Incompletas e Completas.
   - Dados cadastrais: `frontend/src/components/dadosCadastrais/DadosCadastrais.jsx` — GET `/imoveis/:id`, exibe mapa, edição via modal.
   - Resumo financeiro: `frontend/src/components/ResumoFinanceiro.jsx` — GET `/dashboard/resumo-financeiro/:id`, calcula totais e ROI; edição de orçamentos via `ModalEditarOrcamento`.
-  - Transações Incompletas: `frontend/src/components/TransacoesIncompletas/TransacoesIncompletas.jsx` — GET incompletos, PATCH/DELETE, POST lote; tabela e modais (edição e lote).
+  - Transações Incompletas: `frontend/src/components/TransacoesIncompletas/TransacoesIncompletas.jsx` — GET incompletos, atualização inline de categoria/imóvel/situação (com destaque de linhas alteradas e botões 💾/“Aplicar todos”), PATCH individual, POST lote.
   - Transações Completas: `frontend/src/components/transacoes/TransacoesCompletas.jsx` — GET completos, PATCH/DELETE; tabela e modal.
   - Tabelas: completas em `frontend/src/components/transacoes/LancamentosTable.jsx` (ordenação/paginação); incompletas em `frontend/src/components/TransacoesIncompletas/LancamentosTable.jsx` (ordenação).
   - Cliente HTTP: centralizado em `frontend/src/services/http.js` (Axios) usando `VITE_API_URL`.
@@ -162,7 +162,8 @@ Observações:
   - GET `/dashboard/lancamentos/incompletos/:id_imovel` — `backend/dashboard/routes.py:18`.
   - GET `/dashboard/lancamentos/completos/:id_imovel` — `backend/dashboard/routes.py:31`.
   - POST `/dashboard/lancamentos/lote` — insere lista (editor) — `backend/dashboard/routes.py:44`.
-  - PATCH `/dashboard/lancamentos/:id_lancamento` — altera lançamento — `backend/dashboard/routes.py:96`.
+  - PATCH `/dashboard/lancamentos/:id_lancamento` — altera lançamento completo/incompleto (payload completo) — `backend/dashboard/routes.py:96`.
+  - PATCH `/dashboard/lancamentos/batch` — aplica categoria/imóvel/situação para múltiplos lançamentos — `backend/dashboard/routes.py`.
   - DELETE `/dashboard/lancamentos/:id_lancamento` — exclui lançamento — `backend/dashboard/routes.py:73`.
 - Resumo e Orçamentos
   - GET `/dashboard/resumo-financeiro/:id_imovel` — resumo consolidado — `backend/app.py:256`.
@@ -214,7 +215,7 @@ Com base nas páginas Home e Dashboard, as rotas efetivamente utilizadas pelo fr
 
 - Imóveis: `GET /imoveis`, `GET /imoveis/:id`, `POST /imoveis`, `PATCH /imoveis/:id`, `DELETE /imoveis/:id`.
 - Categorias: `GET /categorias` (para popular selects).
-- Dashboard/Lançamentos: `GET /dashboard/lancamentos/incompletos/:id_imovel`, `GET /dashboard/lancamentos/completos/:id_imovel`, `PATCH /dashboard/lancamentos/:id_lancamento`, `DELETE /dashboard/lancamentos/:id_lancamento`, `POST /dashboard/lancamentos/lote`.
+- Dashboard/Lançamentos: `GET /dashboard/lancamentos/incompletos/:id_imovel`, `GET /dashboard/lancamentos/completos/:id_imovel`, `PATCH /dashboard/lancamentos/:id_lancamento`, `PATCH /dashboard/lancamentos/batch`, `DELETE /dashboard/lancamentos/:id_lancamento`, `POST /dashboard/lancamentos/lote`.
 - Resumo/Orçamentos: `GET /dashboard/resumo-financeiro/:id_imovel`, `GET /orcamentos/:id_imovel`, `POST /orcamentos/:id_imovel`.
 - Rodapé/Home: `GET /dashboard/ultima_atualizacao`, `GET /dashboard/ultimos_lancamentos`.
 - Indicadores/Home: `GET /dashboard/gastos-mensais?meses=6&excluir=8,15,18`.
