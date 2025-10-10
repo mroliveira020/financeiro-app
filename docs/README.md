@@ -50,6 +50,7 @@
     - Autenticação: `JWT_SECRET` (obrigatório em produção), `JWT_EXPIRES_MINUTES` (padrão 60 minutos), `ADMIN_TOKEN` (opcional para `/sql`).
     - Rate limiting: `RATE_LIMIT_STORAGE_URI` (ex.: `memory://` ou `redis://...`), `RATE_LIMIT_EDIT` (ex.: `30/minute`), `RATE_LIMIT_ADMIN` (ex.: `10/minute`), `RATE_LIMIT_SEARCH` (ex.: `60/minute`), `RATE_LIMIT_GLOBAL` (opcional, ex.: `300/minute`), `TRUST_PROXY` (true em produção no Render).
     - GPT Write: `ENABLE_GPT_WRITE` (true|false), `GPT_TOKEN` (token do agente), `RATE_LIMIT_GPT_WRITE` (ex.: `20/minute`).
+    - Performance: `DB_POOL_MIN`/`DB_POOL_MAX` (pool de conexões), `PERF_WARN_THRESHOLD_MS` (padrão 700ms para log de requisições lentas).
   - Frontend: `frontend/.env` (de `.env.example`) com `VITE_API_URL` (ex.: `http://127.0.0.1:5000`)
 - Portas: API `http://127.0.0.1:5000`, Vite `http://127.0.0.1:5173`
 
@@ -297,3 +298,12 @@ Checklist pós-deploy:
 - As views do banco são parte central da lógica agregada (resumo e listas); certifique-se de tê-las criadas no banco usado pelo `.env`.
 - O front mistura `localhost` e `127.0.0.1`; alinhar a origem do navegador com a configuração de CORS para evitar problemas quando CORS global for restringido.
 - A inserção em lote assume datas no formato `DD/MM/AAAA`; se o Excel eventualmente exportar ISO (`YYYY-MM-DD`), detecte e trate para não reverter erroneamente.
+
+
+### Gráficos e métricas
+
+#### Drilldown mensal
+- O frontend armazena catálogos (imóveis/categorias) em cache via `useCatalogos`, evitando refetch em cadastros e no login.
+- Novo endpoint `/dashboard/gastos-mensais/detalhes` agrega valores por grupo e categoria para o mês selecionado (filtros respeitam categorias ocultas).
+- Endpoint `/dashboard/gastos-mensais/transacoes` retorna o nível de transação (data, descrição, valor) por imóvel/mês e categoria.
+- No front, o gráfico de desembolsos mensais passou a ser clicável: cada barra abre um modal com totals e permite expandir categorias para ver as transações confirmadas daquele mês.

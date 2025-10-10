@@ -33,6 +33,7 @@ from config import (
     RATE_LIMIT_GLOBAL,
     RATE_LIMIT_EDIT,
     TRUST_PROXY,
+    PERF_WARN_THRESHOLD_MS,
 )
 from security import requires_auth, requires_editor_token
 from ratelimit import limiter
@@ -114,12 +115,14 @@ def audit_log(response):
         path = request.path
         is_write = method in {"POST", "PUT", "PATCH", "DELETE"}
         is_admin = path.startswith("/sql") or path.startswith("/analise/")
+
+        duration_ms = None
+        try:
+            duration_ms = round((time.perf_counter() - getattr(g, "_start_time", time.perf_counter())) * 1000, 2)
+        except Exception:
+            pass
+
         if is_write or is_admin:
-            duration_ms = None
-            try:
-                duration_ms = round((time.perf_counter() - getattr(g, "_start_time", time.perf_counter())) * 1000, 2)
-            except Exception:
-                pass
             hdr_auth = request.headers.get("Authorization", "")
             has_editor = hdr_auth.startswith("Bearer ")
             ip = request.headers.get("X-Forwarded-For", request.remote_addr or "-").split(",")[0].strip()
@@ -148,6 +151,15 @@ def audit_log(response):
                 "body_size": body_size,
                 "json_keys": keys,
                 "editor_token_present": has_editor,
+            }
+            print(json.dumps(log, ensure_ascii=False))
+        elif duration_ms is not None and duration_ms >= PERF_WARN_THRESHOLD_MS:
+            log = {
+                "event": "perf",
+                "method": method,
+                "path": path,
+                "status": response.status_code,
+                "duration_ms": duration_ms,
             }
             print(json.dumps(log, ensure_ascii=False))
     except Exception:

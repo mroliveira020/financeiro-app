@@ -57,3 +57,6 @@ RATE_LIMIT_SEARCH = os.getenv("RATE_LIMIT_SEARCH", "60/minute")
 # Autenticação de usuários
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me")
 JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES", "60"))
+
+# Observabilidade / performance
+PERF_WARN_THRESHOLD_MS = int(os.getenv("PERF_WARN_THRESHOLD_MS", "700"))

@@ -140,11 +140,11 @@
    2.13 [ ] Ajustes pós-modo editor
        2.13.1 [ ] Remover referências ao modo editor nas telas e mensagens
        2.13.2 [ ] Confirmar se fluxos de edição exibem validações no nível do usuário ativo
-   2.14 [ ] Revisão abrangente de performance
-       2.14.1 [ ] Paginar consultas pesadas (dashboard e analytics) e retornar apenas colunas essenciais.
-       2.14.2 [ ] Reaproveitar conexões com pool e revisar índices críticos (lancamentos/imoveis).
-       2.14.3 [ ] Implementar cache/client-side caching e etapas de carregamento escalonadas no frontend.
-       2.14.4 [ ] Adotar monitoramento contínuo de latência (p95/p99) e alarmes pós-ajuste.
+   2.14 [x] Revisão abrangente de performance
+       2.14.1 [x] Paginar consultas pesadas (dashboard e analytics) e retornar apenas colunas essenciais.
+       2.14.2 [x] Reaproveitar conexões com pool e revisar índices críticos (lancamentos/imoveis).
+       2.14.3 [x] Implementar cache/client-side caching e etapas de carregamento escalonadas no frontend.
+       2.14.4 [x] Adotar monitoramento contínuo de latência (p95/p99) e alarmes pós-ajuste.
 
 3. Próximas
 3. Próximas (médio prazo)
