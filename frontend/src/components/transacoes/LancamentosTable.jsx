@@ -1,9 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", editable = false }) {
+function LancamentosTable({
+  lancamentos,
+  onEdit,
+  onDelete,
+  tipo = "completo",
+  editable = false,
+  serverPagination = null,
+  loading = false,
+  enableSorting = true,
+}) {
   const [sortConfig, setSortConfig] = useState({ key: "data", direction: "desc" });
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 30;
+
+  const isServerMode = Boolean(serverPagination);
+  const effectivePage = isServerMode ? (serverPagination.page || 1) : currentPage;
+  const pageSize = isServerMode ? (serverPagination.pageSize || itemsPerPage) : itemsPerPage;
 
   const getSituacaoIcone = (id_situacao) => {
     return id_situacao === 1 ? "✅" : "🕒";
@@ -25,6 +38,9 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
   };
 
   const sortedLancamentos = useMemo(() => {
+    if (!enableSorting) {
+      return lancamentos;
+    }
     return [...lancamentos].sort((a, b) => {
       const aVal = getSortableValue(a, sortConfig.key);
       const bVal = getSortableValue(b, sortConfig.key);
@@ -33,40 +49,69 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
       if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
       return 0;
     });
-  }, [lancamentos, sortConfig]);
+  }, [lancamentos, sortConfig, enableSorting]);
 
-  const totalPages = Math.max(1, Math.ceil(sortedLancamentos.length / itemsPerPage));
-  const paginatedLancamentos = sortedLancamentos.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const paginatedLancamentos = useMemo(() => {
+    if (isServerMode) {
+      return sortedLancamentos;
+    }
+    return sortedLancamentos.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage,
+    );
+  }, [sortedLancamentos, currentPage, isServerMode]);
+
+  const totalRegistros = isServerMode
+    ? serverPagination.total ?? 0
+    : sortedLancamentos.length;
+
+  const totalPages = Math.max(1, Math.ceil(totalRegistros / pageSize));
 
   const handleSort = (key) => {
+    if (!enableSorting) {
+      return;
+    }
     let direction = "asc";
     if (sortConfig.key === key && sortConfig.direction === "asc") {
       direction = "desc";
     }
     setSortConfig({ key, direction });
-    setCurrentPage(1);
+    if (!isServerMode) {
+      setCurrentPage(1);
+    }
   };
 
   const handlePrevPage = () => {
+    if (isServerMode) {
+      if (effectivePage > 1) {
+        serverPagination.onPageChange?.(effectivePage - 1);
+      }
+      return;
+    }
     if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
 
   const handleNextPage = () => {
+    if (isServerMode) {
+      if (effectivePage < totalPages) {
+        serverPagination.onPageChange?.(effectivePage + 1);
+      }
+      return;
+    }
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
   };
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [lancamentos]);
+    if (!isServerMode) {
+      setCurrentPage(1);
+    }
+  }, [lancamentos, isServerMode]);
 
   useEffect(() => {
-    if (currentPage > totalPages) {
+    if (!isServerMode && currentPage > totalPages) {
       setCurrentPage(totalPages);
     }
-  }, [currentPage, totalPages]);
+  }, [currentPage, totalPages, isServerMode]);
 
   return (
     <>
@@ -74,29 +119,29 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
         <thead>
           <tr>
             <th
-              className="cursor-pointer"
-              onClick={() => handleSort("data")}
+              className={enableSorting ? "cursor-pointer" : undefined}
+              onClick={enableSorting ? () => handleSort("data") : undefined}
             >
               Data {sortConfig.key === "data" && (sortConfig.direction === "asc" ? "▲" : "▼")}
             </th>
             <th
-              className="cursor-pointer"
-              onClick={() => handleSort("descricao")}
+              className={enableSorting ? "cursor-pointer" : undefined}
+              onClick={enableSorting ? () => handleSort("descricao") : undefined}
             >
               Descrição {sortConfig.key === "descricao" && (sortConfig.direction === "asc" ? "▲" : "▼")}
             </th>
             {tipo === "completo" && (
               <th
-                className="cursor-pointer"
-                onClick={() => handleSort("nome_categoria")}
+                className={enableSorting ? "cursor-pointer" : undefined}
+                onClick={enableSorting ? () => handleSort("nome_categoria") : undefined}
               >
                 Categoria {sortConfig.key === "nome_categoria" && (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
             )}
             {tipo === "completo" && (
               <th
-                className="cursor-pointer text-end"
-                onClick={() => handleSort("valor")}
+                className={enableSorting ? "cursor-pointer text-end" : "text-end"}
+                onClick={enableSorting ? () => handleSort("valor") : undefined}
               >
                 Valor {sortConfig.key === "valor" && (sortConfig.direction === "asc" ? "▲" : "▼")}
               </th>
@@ -106,7 +151,13 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
         </thead>
 
         <tbody>
-          {paginatedLancamentos.length === 0 ? (
+          {loading ? (
+            <tr>
+              <td colSpan={tipo === "completo" ? 5 : 4} className="text-center">
+                Carregando...
+              </td>
+            </tr>
+          ) : !loading && paginatedLancamentos.length === 0 ? (
             <tr>
               <td colSpan={tipo === "completo" ? 5 : 4} className="text-center">
                 Nenhuma transação encontrada.
@@ -191,21 +242,21 @@ function LancamentosTable({ lancamentos, onEdit, onDelete, tipo = "completo", ed
       {/* Paginação */}
       <div className="transacoes-table__pagination d-flex justify-content-between align-items-center mt-2">
         <small className="text-muted">
-          Página {currentPage} de {totalPages}
+          Página {totalPages === 0 ? 0 : effectivePage} de {totalPages}
         </small>
 
         <div className="transacoes-table__pagination-actions">
           <button
             className="btn btn-outline-secondary btn-sm me-2"
             onClick={handlePrevPage}
-            disabled={currentPage === 1}
+            disabled={loading || effectivePage === 1}
           >
             ◀ Anterior
           </button>
           <button
             className="btn btn-outline-secondary btn-sm"
             onClick={handleNextPage}
-            disabled={currentPage === totalPages || sortedLancamentos.length === 0}
+            disabled={loading || effectivePage === totalPages || totalPages === 0}
           >
             Próxima ▶
           </button>

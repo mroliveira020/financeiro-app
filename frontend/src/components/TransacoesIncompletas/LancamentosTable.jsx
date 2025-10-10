@@ -13,8 +13,15 @@ function LancamentosTable({
   onFieldChange,
   onApplyRow,
   rowSaving = {},
+  serverPagination = null,
+  loading = false,
 }) {
   const [sortConfig, setSortConfig] = useState({ key: "data", direction: "desc" });
+  const isServerMode = Boolean(serverPagination);
+  const totalRegistros = isServerMode ? serverPagination.total ?? 0 : lancamentos.length;
+  const pageSize = isServerMode ? serverPagination.pageSize || 50 : totalRegistros || 1;
+  const totalPages = Math.max(1, Math.ceil(totalRegistros / pageSize));
+  const currentPage = isServerMode ? serverPagination.page || 1 : 1;
 
   const getSituacaoIcone = (id_situacao) => (id_situacao === 1 ? "✅" : "🕒");
 
@@ -153,7 +160,11 @@ function LancamentosTable({
           </tr>
         </thead>
         <tbody>
-          {sortedLancamentos.length === 0 ? (
+          {loading ? (
+            <tr>
+              <td colSpan={7} className="text-center">Carregando...</td>
+            </tr>
+          ) : !loading && sortedLancamentos.length === 0 ? (
             <tr>
               <td colSpan={7} className="text-center">Nenhum lançamento incompleto.</td>
             </tr>
@@ -226,6 +237,31 @@ function LancamentosTable({
           )}
         </tbody>
       </table>
+      <div className="d-flex justify-content-between align-items-center small mt-2">
+        <span className="text-muted">
+          Página {totalPages === 0 ? 0 : currentPage} de {totalPages}
+        </span>
+        {isServerMode && (
+          <div className="d-inline-flex gap-2">
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm"
+              onClick={() => serverPagination.onPageChange?.(Math.max(1, currentPage - 1))}
+              disabled={loading || currentPage <= 1}
+            >
+              ◀ Anterior
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm"
+              onClick={() => serverPagination.onPageChange?.(Math.min(totalPages, currentPage + 1))}
+              disabled={loading || currentPage >= totalPages}
+            >
+              Próxima ▶
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -603,45 +603,163 @@ def excluir_lancamento(id_lancamento):
 # 🔹 Funções para Dashboard - Lançamentos Views
 # ======================================================
 
-def listar_lancamentos_completos_view(id_imovel):
+def _normalizar_paginacao(limit, page, limit_padrao=50, limit_maximo=200):
+    try:
+        limit_val = int(limit)
+    except (TypeError, ValueError):
+        limit_val = limit_padrao
+    limit_val = max(1, min(limit_maximo, limit_val))
+
+    try:
+        page_val = int(page)
+    except (TypeError, ValueError):
+        page_val = 1
+    page_val = max(1, page_val)
+
+    offset_val = (page_val - 1) * limit_val
+    return limit_val, page_val, offset_val
+
+
+def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
+    limit_val, page_val, offset_val = _normalizar_paginacao(limit, page)
+
     conn, cur = conectar()
-    cur.execute("""
-        SELECT * FROM vw_lancamentos_completos
-        WHERE id_imovel = %s
-        ORDER BY data DESC
-    """, (id_imovel,))
-    resultados = cur.fetchall()
-    conn.close()
+    try:
+        cur.execute(
+            """
+            SELECT
+                id_lancamento,
+                data,
+                descricao,
+                valor,
+                id_imovel,
+                id_categoria,
+                id_situacao,
+                nome_imovel,
+                nome_categoria,
+                nome_situacao,
+                COUNT(*) OVER () AS total_registros
+            FROM vw_lancamentos_completos
+            WHERE id_imovel = %s
+            ORDER BY data DESC, id_lancamento DESC
+            LIMIT %s OFFSET %s
+            """,
+            (id_imovel, limit_val, offset_val),
+        )
+        rows = cur.fetchall()
 
-    lista_tratada = []
-    for row in resultados:
+        cur.execute(
+            """
+            SELECT
+                COUNT(*) AS total_registros,
+                COALESCE(SUM(valor), 0) AS soma_valores,
+                COUNT(DISTINCT nome_categoria) AS categorias_distintas
+            FROM vw_lancamentos_completos
+            WHERE id_imovel = %s
+            """,
+            (id_imovel,),
+        )
+        resumo = cur.fetchone() or {}
+    finally:
+        conn.close()
+
+    total_registros = int(rows[0]["total_registros"]) if rows else int(resumo.get("total_registros") or 0)
+
+    itens = []
+    for row in rows:
         linha = dict(row)
-        data_obj = linha.get('data')
+        data_obj = linha.get("data")
         if data_obj:
-            linha['data'] = data_obj.strftime('%d/%m/%Y')
-        lista_tratada.append(linha)
+            linha["data"] = data_obj.strftime("%d/%m/%Y")
+        linha.pop("total_registros", None)
+        itens.append(linha)
 
-    return lista_tratada
+    return {
+        "items": itens,
+        "total": total_registros,
+        "summary": {
+            "total": int(resumo.get("total_registros") or 0),
+            "soma": float(resumo.get("soma_valores") or 0),
+            "categorias": int(resumo.get("categorias_distintas") or 0),
+        },
+        "page": page_val,
+        "pageSize": limit_val,
+    }
 
-def listar_lancamentos_incompletos_view(id_imovel):
+
+def listar_lancamentos_incompletos_view(id_imovel=None, *, limit=50, page=1):
+    limit_val, page_val, offset_val = _normalizar_paginacao(limit, page)
+
     conn, cur = conectar()
-    cur.execute("""
-        SELECT *
-        FROM vw_lancamentos_incompletos
-        ORDER BY data DESC
-    """)
-    resultados = cur.fetchall()
-    conn.close()
+    try:
+        base_params = []
+        filtros = []
+        if id_imovel is not None:
+            filtros.append("id_imovel = %s")
+            base_params.append(id_imovel)
 
-    lista_tratada = []
-    for row in resultados:
+        where_clause = ""
+        if filtros:
+            where_clause = "WHERE " + " AND ".join(filtros)
+
+        cur.execute(
+            f"""
+            SELECT
+                id_lancamento,
+                data,
+                descricao,
+                valor,
+                id_imovel,
+                id_categoria,
+                id_situacao,
+                nome_imovel,
+                nome_categoria,
+                nome_situacao,
+                COUNT(*) OVER () AS total_registros
+            FROM vw_lancamentos_incompletos
+            {where_clause}
+            ORDER BY data DESC, id_lancamento DESC
+            LIMIT %s OFFSET %s
+            """,
+            (*base_params, limit_val, offset_val),
+        )
+        rows = cur.fetchall()
+
+        cur.execute(
+            f"""
+            SELECT
+                COUNT(*) AS total_registros,
+                COALESCE(SUM(valor), 0) AS soma_valores
+            FROM vw_lancamentos_incompletos
+            {where_clause}
+            """,
+            tuple(base_params),
+        )
+        resumo = cur.fetchone() or {}
+    finally:
+        conn.close()
+
+    total_registros = int(rows[0]["total_registros"]) if rows else int(resumo.get("total_registros") or 0)
+
+    itens = []
+    for row in rows:
         linha = dict(row)
-        data_obj = linha.get('data')
+        data_obj = linha.get("data")
         if data_obj:
-            linha['data'] = data_obj.strftime('%d/%m/%Y')
-        lista_tratada.append(linha)
+            linha["data"] = data_obj.strftime("%d/%m/%Y")
+        linha.pop("total_registros", None)
+        itens.append(linha)
 
-    return lista_tratada
+    return {
+        "items": itens,
+        "total": total_registros,
+        "summary": {
+            "total": int(resumo.get("total_registros") or 0),
+            "soma": float(resumo.get("soma_valores") or 0),
+        },
+        "page": page_val,
+        "pageSize": limit_val,
+    }
 
 # ======================================================
 # 🔹 Funções Resumo Financeiro

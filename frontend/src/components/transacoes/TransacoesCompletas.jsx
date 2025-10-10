@@ -5,72 +5,93 @@ import api from "../../services/http";
 import LancamentosTable from "./LancamentosTable";
 import ModalEdicao from "./ModalEdicao";
 import { useAuth } from "../../context/AuthContext";
+import { fetchLancamentosCompletos } from "../../services/api";
+import { useCatalogos } from "../../hooks/useCatalogos";
+
+const PAGE_SIZE = 30;
 
 function TransacoesCompletas({ refreshKey = 0, onChanged }) {
   const { id } = useParams();
   const [lancamentos, setLancamentos] = useState([]);
   const [editandoLancamento, setEditandoLancamento] = useState(null);
   const [formEdicao, setFormEdicao] = useState(null);
-  const [categorias, setCategorias] = useState([]);
-  const [imoveis, setImoveis] = useState([]);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const [summary, setSummary] = useState({ total: 0, soma: 0, categorias: 0 });
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
   const { hasRole } = useAuth();
   const canEdit = hasRole("editor", "admin");
+  const { categorias, imoveis } = useCatalogos();
+
+  const categoriasOrdenadas = useMemo(
+    () => [...categorias].sort((a, b) => a.categoria.localeCompare(b.categoria, "pt-BR")),
+    [categorias],
+  );
+  const imoveisOrdenados = useMemo(
+    () => [...imoveis].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+    [imoveis],
+  );
 
   const totais = useMemo(() => {
-    if (!lancamentos.length) {
-      return {
-        quantidade: 0,
-        soma: 0,
-        categorias: 0,
-      };
-    }
-    const soma = lancamentos.reduce((acc, item) => acc + Number(item.valor || 0), 0);
-    const categorias = new Set(
-      lancamentos
-        .map((item) => item.nome_categoria)
-        .filter((categoria) => categoria && categoria.trim() !== "")
-    ).size;
     return {
-      quantidade: lancamentos.length,
-      soma,
-      categorias,
+      quantidade: summary.total || 0,
+      soma: summary.soma || 0,
+      categorias: summary.categorias || 0,
     };
-  }, [lancamentos]);
+  }, [summary]);
 
   const formatarMoeda = (valor) =>
     Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const fetchLancamentos = useCallback(async () => {
-    try {
-      const { data } = await api.get(`/dashboard/lancamentos/completos/${id}`);
-      setLancamentos(data);
-    } catch (error) {
-      console.error("Erro ao buscar lançamentos completos", error);
-    }
-  }, [id]);
+  const carregarLancamentos = useCallback(
+    async (paginaSolicitada = 1) => {
+      setLoading(true);
+      try {
+        const resposta = await fetchLancamentosCompletos({
+          imovelId: id,
+          page: paginaSolicitada,
+          pageSize: PAGE_SIZE,
+        });
 
-  const fetchCategoriasEImoveis = useCallback(async () => {
-    try {
-      const resCategorias = await api.get(`/categorias`);
-      const resImoveis = await api.get(`/imoveis`);
-      setCategorias(resCategorias.data);
-      setImoveis(resImoveis.data);
-    } catch (error) {
-      console.error("Erro ao buscar categorias e imóveis", error);
-    }
-  }, []);
+        const itens = resposta?.items || [];
+        const total = resposta?.summary?.total ?? resposta?.total ?? itens.length;
+        const soma = resposta?.summary?.soma ?? 0;
+        const categoriasDistinct = resposta?.summary?.categorias ?? 0;
+        const paginaRetornada = resposta?.page || paginaSolicitada;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+        if (paginaRetornada > totalPages && totalPages >= 1) {
+          setPage(totalPages);
+          return;
+        }
+
+        setLancamentos(itens);
+        setTotalRegistros(total);
+        setSummary({ total, soma, categorias: categoriasDistinct });
+        setPage(paginaRetornada);
+      } catch (error) {
+        console.error("Erro ao buscar lançamentos completos", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [id],
+  );
 
   useEffect(() => {
-    fetchLancamentos();
-    fetchCategoriasEImoveis();
-  }, [fetchLancamentos, fetchCategoriasEImoveis, refreshKey]);
+    setPage(1);
+  }, [id]);
+
+  useEffect(() => {
+    carregarLancamentos(page);
+  }, [carregarLancamentos, page, refreshKey]);
 
   const handleExcluir = async (id_lancamento) => {
     if (!window.confirm("Tem certeza que deseja excluir este lançamento?")) return;
 
     try {
       await api.delete(`/dashboard/lancamentos/${id_lancamento}`);
-      fetchLancamentos();
+      carregarLancamentos(page);
       onChanged?.();
       alert("Lançamento excluído com sucesso!");
     } catch (error) {
@@ -112,7 +133,7 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
 
       await api.patch(`/dashboard/lancamentos/${editandoLancamento}`, payload);
 
-      fetchLancamentos();
+      carregarLancamentos(page);
       onChanged?.();
       const modal = bootstrap.Modal.getInstance(document.getElementById("modalEdicaoCompleto"));
       modal.hide();
@@ -157,6 +178,14 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
             onDelete={handleExcluir}
             tipo="completo"
             editable={canEdit}
+            serverPagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total: totalRegistros,
+              onPageChange: setPage,
+            }}
+            loading={loading}
+            enableSorting={false}
           />
         </div>
       </section>
@@ -166,8 +195,8 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
         formEdicao={formEdicao}
         setFormEdicao={setFormEdicao}
         salvarEdicao={salvarEdicao}
-        categorias={categorias}
-        imoveis={imoveis}
+        categorias={categoriasOrdenadas}
+        imoveis={imoveisOrdenados}
       />
     </>
   );

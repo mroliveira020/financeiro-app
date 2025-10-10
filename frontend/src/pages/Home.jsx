@@ -15,6 +15,7 @@ import { useAuth } from "../context/AuthContext";
 import "./Home.css";
 import GastosMensaisChart from "../components/GastosMensaisChart";
 import ImovelGrupoPieChart from "../components/ImovelGrupoPieChart";
+import { invalidateCatalogo } from "../hooks/useCatalogos";
 
 const GRAFICO_PREF_KEY = "financeiro:gastos-pref";
 const DEFAULT_CHART_PREF = { meses: 6, excluir: [8, 15, 18] };
@@ -363,6 +364,7 @@ function Home() {
       ]);
       setShowAddImovelModal(false);
       setNewImovel({ nome: "", vendido: false });
+      invalidateCatalogo("imoveis");
     } catch (error) {
       console.error("Erro ao cadastrar imóvel:", error);
     } finally {

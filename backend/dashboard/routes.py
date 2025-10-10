@@ -14,6 +14,13 @@ from models import (
     listar_totais_mensais_por_imovel,
 )
 
+
+def _obter_parametros_paginacao():
+    page_size = request.args.get('pageSize', request.args.get('limit', 50))
+    page = request.args.get('page', 1)
+    return page_size, page
+
+
 # ==========================================================
 # 🔹 Lista de lançamentos incompletos para um imóvel
 # ==========================================================
@@ -22,7 +29,12 @@ from models import (
 @cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
 def get_lancamentos_incompletos(id_imovel):
     try:
-        resultados = listar_lancamentos_incompletos_view(id_imovel)
+        page_size, page = _obter_parametros_paginacao()
+        resultados = listar_lancamentos_incompletos_view(
+            id_imovel=None,
+            limit=page_size,
+            page=page,
+        )
         return jsonify(resultados), 200
     except Exception as e:
         print(f"Erro ao listar incompletos: {e}")
@@ -36,7 +48,12 @@ def get_lancamentos_incompletos(id_imovel):
 @cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
 def get_lancamentos_completos(id_imovel):
     try:
-        resultados = listar_lancamentos_completos_view(id_imovel)
+        page_size, page = _obter_parametros_paginacao()
+        resultados = listar_lancamentos_completos_view(
+            id_imovel,
+            limit=page_size,
+            page=page,
+        )
         return jsonify(resultados), 200
     except Exception as e:
         print(f"Erro ao listar completos: {e}")

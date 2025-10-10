@@ -3,13 +3,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../services/http";
-import { atualizarLancamentosBatch } from "../../services/api";
+import { atualizarLancamentosBatch, fetchLancamentosIncompletos } from "../../services/api";
 import LancamentosTable from "./LancamentosTable";
 import ModalEdicao from "./ModalEdicao";
 import ModalLote from "./ModalLote";
 import { useAuth } from "../../context/AuthContext";
+import { useCatalogos } from "../../hooks/useCatalogos";
 
 const CAMPOS_INLINE = ["id_categoria", "id_imovel", "id_situacao"];
+const PAGE_SIZE = 50;
 
 const normalizarValor = (valorBruto, linha) => {
   const texto = `${valorBruto ?? ""}`.trim();
@@ -52,8 +54,10 @@ const snapshotFromLancamento = (lancamento) => ({
 function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const { id } = useParams();
   const [lancamentos, setLancamentos] = useState([]);
-  const [categorias, setCategorias] = useState([]);
-  const [imoveis, setImoveis] = useState([]);
+  const [totalRegistros, setTotalRegistros] = useState(0);
+  const [summary, setSummary] = useState({ total: 0, soma: 0 });
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [editandoLancamento, setEditandoLancamento] = useState(null);
   const [formEdicao, setFormEdicao] = useState({});
   const [textoLote, setTextoLote] = useState('');
@@ -66,52 +70,65 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
 
   const { hasRole } = useAuth();
   const canEdit = hasRole("editor", "admin");
+  const { categorias, imoveis } = useCatalogos();
 
-  const totais = useMemo(() => {
-    if (!lancamentos.length) {
-      return { quantidade: 0, soma: 0 };
-    }
-    const soma = lancamentos.reduce((acc, item) => acc + Number(item.valor || 0), 0);
-    return { quantidade: lancamentos.length, soma };
-  }, [lancamentos]);
+  const totais = useMemo(() => ({
+    quantidade: summary.total || 0,
+    soma: summary.soma || 0,
+  }), [summary]);
 
-  const categoriasOrdenadas = useMemo(() => {
-    return [...categorias].sort((a, b) => a.categoria.localeCompare(b.categoria, 'pt-BR'));
-  }, [categorias]);
+  const categoriasOrdenadas = useMemo(() => (
+    [...categorias].sort((a, b) => a.categoria.localeCompare(b.categoria, "pt-BR"))
+  ), [categorias]);
 
-  const imoveisOrdenados = useMemo(() => {
-    return [...imoveis].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  }, [imoveis]);
+  const imoveisOrdenados = useMemo(() => (
+    [...imoveis].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+  ), [imoveis]);
 
   const formatarMoeda = (valor) =>
     Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const fetchLancamentosIncompletos = useCallback(async () => {
-    try {
-      const { data } = await api.get(`/dashboard/lancamentos/incompletos/${id}`);
-      setLancamentos(data);
-    } catch (error) {
-      console.error("Erro ao buscar lançamentos incompletos", error);
-    }
-  }, [id]);
+  const carregarLancamentos = useCallback(
+    async (paginaSolicitada = 1) => {
+      setLoading(true);
+      try {
+        const resposta = await fetchLancamentosIncompletos({
+          imovelId: id,
+          page: paginaSolicitada,
+          pageSize: PAGE_SIZE,
+        });
 
-  const fetchCategoriasEImoveis = useCallback(async () => {
-    try {
-      const [resCategorias, resImoveis] = await Promise.all([
-        api.get(`/categorias`),
-        api.get(`/imoveis`),
-      ]);
-      setCategorias(resCategorias.data);
-      setImoveis(resImoveis.data);
-    } catch (error) {
-      console.error("Erro ao buscar categorias/imóveis", error);
-    }
-  }, []);
+        const itens = resposta?.items || [];
+        const total = resposta?.summary?.total ?? resposta?.total ?? itens.length;
+        const soma = resposta?.summary?.soma ?? 0;
+        const paginaRetornada = resposta?.page || paginaSolicitada;
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+        if (paginaRetornada > totalPages && totalPages >= 1) {
+          setPage(totalPages);
+          return;
+        }
+
+        setLancamentos(itens);
+        setTotalRegistros(total);
+        setSummary({ total, soma });
+        setPage(paginaRetornada);
+      } catch (error) {
+        console.error("Erro ao buscar lançamentos incompletos", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [id],
+  );
 
   useEffect(() => {
-    fetchLancamentosIncompletos();
-    fetchCategoriasEImoveis();
-  }, [fetchLancamentosIncompletos, fetchCategoriasEImoveis, refreshKey]);
+    setPage(1);
+  }, [id]);
+
+  useEffect(() => {
+    carregarLancamentos(page);
+  }, [carregarLancamentos, page, refreshKey]);
 
   useEffect(() => {
     const baseOriginals = {};
@@ -217,7 +234,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
         });
 
         if (!silencioso) {
-          await fetchLancamentosIncompletos();
+          await carregarLancamentos(page);
           onChanged?.();
         }
 
@@ -234,7 +251,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
         });
       }
     },
-    [buildUpdates, fetchLancamentosIncompletos, onChanged]
+    [buildUpdates, carregarLancamentos, onChanged, page]
   );
 
   const aplicarLinha = useCallback(
@@ -256,19 +273,19 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
         }
       }
 
-      await fetchLancamentosIncompletos();
+      await carregarLancamentos(page);
       onChanged?.();
     } finally {
       setSavingAll(false);
     }
-  }, [dirtyIds, salvarLinha, fetchLancamentosIncompletos, onChanged]);
+  }, [dirtyIds, salvarLinha, carregarLancamentos, onChanged, page]);
 
   const handleExcluir = async (lancamentoId) => {
     if (!window.confirm("Tem certeza que deseja excluir este lançamento?")) return;
 
     try {
       await api.delete(`/dashboard/lancamentos/${lancamentoId}`);
-      await fetchLancamentosIncompletos();
+      await carregarLancamentos(page);
       onChanged?.();
     } catch (error) {
       console.error("Erro ao excluir lançamento", error);
@@ -315,7 +332,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       };
 
       await api.patch(`/dashboard/lancamentos/${editandoLancamento}`, payload);
-      await fetchLancamentosIncompletos();
+      await carregarLancamentos(page);
       onChanged?.();
       const modal = bootstrap.Modal.getInstance(document.getElementById('modalEdicao'));
       modal.hide();
@@ -365,7 +382,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       await api.post('/dashboard/lancamentos/lote', novosLancamentos);
 
       alert('Lançamentos adicionados com sucesso!');
-      await fetchLancamentosIncompletos();
+      await carregarLancamentos(page);
       onChanged?.();
       const modal = bootstrap.Modal.getInstance(document.getElementById('modalLote'));
       modal.hide();
@@ -430,6 +447,13 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
             onFieldChange={handleFieldChange}
             onApplyRow={aplicarLinha}
             rowSaving={rowSaving}
+            serverPagination={{
+              page,
+              pageSize: PAGE_SIZE,
+              total: totalRegistros,
+              onPageChange: setPage,
+            }}
+            loading={loading}
           />
         </div>
       </section>
@@ -438,8 +462,8 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
         formEdicao={formEdicao}
         setFormEdicao={setFormEdicao}
         salvarEdicao={salvarEdicao}
-        categorias={categorias}
-        imoveis={imoveis}
+        categorias={categoriasOrdenadas}
+        imoveis={imoveisOrdenados}
       />
 
       <ModalLote

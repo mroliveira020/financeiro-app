@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import api from "../services/http";
 import { clearSession, getAccessToken, getStoredUser, storeSession } from "../services/auth";
 
@@ -13,6 +13,11 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => getStoredUser());
   const [loading, setLoading] = useState(!!token);
   const [authError, setAuthError] = useState(null);
+  const userRef = useRef(user);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     if (!token) {
@@ -22,7 +27,12 @@ export function AuthProvider({ children }) {
     }
 
     let ativo = true;
-    setLoading(true);
+    const shouldBlock = !userRef.current;
+    if (shouldBlock) {
+      setLoading(true);
+    } else {
+      setLoading(false);
+    }
     setAuthError(null);
 
     api
@@ -41,7 +51,8 @@ export function AuthProvider({ children }) {
         setAuthError("Sessão expirada. Faça login novamente.");
       })
       .finally(() => {
-        if (ativo) {
+        if (!ativo) return;
+        if (shouldBlock) {
           setLoading(false);
         }
       });

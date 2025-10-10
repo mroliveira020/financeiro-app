@@ -131,3 +131,23 @@ export async function atualizarLancamentosBatch(ids, updates) {
   const { data } = await api.patch('/dashboard/lancamentos/batch', payload);
   return data;
 }
+
+export async function fetchLancamentosCompletos({ imovelId, page = 1, pageSize = 30 } = {}) {
+  if (!imovelId) {
+    throw new Error('fetchLancamentosCompletos requer o id do imóvel.');
+  }
+  const params = new URLSearchParams();
+  params.append('page', page);
+  params.append('pageSize', pageSize);
+  const { data } = await api.get(`/dashboard/lancamentos/completos/${imovelId}?${params.toString()}`);
+  return data;
+}
+
+export async function fetchLancamentosIncompletos({ imovelId = 0, page = 1, pageSize = 50 } = {}) {
+  const params = new URLSearchParams();
+  params.append('page', page);
+  params.append('pageSize', pageSize);
+  const caminho = `/dashboard/lancamentos/incompletos/${imovelId}?${params.toString()}`;
+  const { data } = await api.get(caminho);
+  return data;
+}
