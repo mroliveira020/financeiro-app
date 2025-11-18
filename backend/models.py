@@ -149,6 +149,20 @@ def _garantir_tabela_usuarios():
     try:
         cur.execute(
             """
+            SELECT to_regclass('public.users') AS tabela
+            """
+        )
+        resultado = cur.fetchone()
+        # Em ambientes somente leitura (prod), evitar DDL desnecessário quando a tabela já existe.
+        if resultado and resultado.get("tabela"):
+            return
+    finally:
+        conn.close()
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,
