@@ -190,8 +190,8 @@ export default function Prospeccoes() {
       }
     };
     carregar();
-    }, [filtroStatusSel, filtroUfSel, filtroUfCap, filtroModalidadeCap, filtroStatusCap, limitCap]);
-  }, [filtroStatusCap, filtroUfCap, filtroModalidadeCap, filtroFinanciaCap, limitCap]);
+  }, [filtroUfCap, filtroModalidadeCap, filtroStatusCap, filtroFinanciaCap, limitCap]);
+
   useEffect(() => {
     fetchProspecMeta()
       .then((resp) => setMeta(resp))
