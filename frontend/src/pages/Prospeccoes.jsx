@@ -157,6 +157,11 @@ export default function Prospeccoes() {
   const [meta, setMeta] = useState({ ufs: [], modalidades: [], financia: [] });
   const [expanded, setExpanded] = useState(new Set());
 
+  const handleMultiSelect = (event, setter) => {
+    const values = Array.from(event.target.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
+    setter(values);
+  };
+
   useEffect(() => {
     const carregar = async () => {
       setLoadingSel(true);
@@ -246,11 +251,6 @@ export default function Prospeccoes() {
       next.add(codigo);
     }
     setExpanded(next);
-  };
-
-  const handleMultiSelect = (event, setter) => {
-    const values = Array.from(event.target.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
-    setter(values);
   };
 
   return (
