@@ -1486,6 +1486,8 @@ def inserir_prospeccao_selecionado(numero_bem, status="candidato", valor_maximo=
             prioridade_val = 2
     elif isinstance(prioridade, (int, float)):
         prioridade_val = int(prioridade)
+    if prioridade_val is None:
+        prioridade_val = 2  # padrão: média
 
     cur.execute(
         """

@@ -78,5 +78,10 @@ export async function adicionarSelecionado(payload) {
 
 export async function fetchProspecMeta() {
   const { data } = await api.get("/prospeccoes/meta");
-  return data || { ufs: [], modalidades: [], financia: [] };
+  return {
+    ufs: data?.ufs || [],
+    modalidades: data?.modalidades || [],
+    financia: data?.financia || [],
+    cidades_por_uf: data?.cidades_por_uf || {},
+  };
 }
