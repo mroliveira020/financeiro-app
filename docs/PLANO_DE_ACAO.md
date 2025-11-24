@@ -143,8 +143,13 @@
    2.14 [x] Revisão abrangente de performance
        2.14.1 [x] Paginar consultas pesadas (dashboard e analytics) e retornar apenas colunas essenciais.
        2.14.2 [x] Reaproveitar conexões com pool e revisar índices críticos (lancamentos/imoveis).
-       2.14.3 [x] Implementar cache/client-side caching e etapas de carregamento escalonadas no frontend.
-       2.14.4 [x] Adotar monitoramento contínuo de latência (p95/p99) e alarmes pós-ajuste.
+   2.14.3 [x] Implementar cache/client-side caching e etapas de carregamento escalonadas no frontend.
+   2.14.4 [x] Adotar monitoramento contínuo de latência (p95/p99) e alarmes pós-ajuste.
+   2.15 [ ] Prospecções / Supabase
+       2.15.1 [x] Adicionar rota/tela `/prospeccoes` no frontend (sidebar) com tabelas de Selecionados e Capturados (mock).
+       2.15.2 [x] Garimpo envia direto para Supabase (`imoveis_prospeccao`), sem gerar planilhas, com filtro por janela (horas) e chunk de envio.
+       2.15.3 [ ] Integrar a tela de Prospecções aos dados reais do Supabase (lista de capturados e view de selecionados), com paginação/filtros.
+       2.15.4 [ ] Adicionar export CSV/“Nova coleta” acionando fluxo real (ou link para Supabase/garimpo).
 
 3. Próximas
 3. Próximas (médio prazo)

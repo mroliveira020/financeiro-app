@@ -1,0 +1,187 @@
+.prospects-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px;
+}
+
+.prospects-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  background: #fff;
+  border: 1px solid #e7e9f0;
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(23, 43, 77, 0.06);
+}
+
+.prospects-hero {
+  margin: 4px 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: #1b1f33;
+}
+
+.prospects-eyebrow {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5d6b8a;
+  font-weight: 700;
+}
+
+.prospects-subtitle {
+  margin: 0;
+  color: #4a5268;
+}
+
+.prospects-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.prospects-btn {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.2s ease;
+}
+
+.prospects-btn.primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+}
+
+.prospects-btn.secondary {
+  background: #f8f9fb;
+  border-color: #d6d9e3;
+  color: #1b1f33;
+}
+
+.prospects-btn:hover {
+  transform: translateY(-1px);
+}
+
+.prospects-card {
+  background: #fff;
+  border: 1px solid #e7e9f0;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 10px 24px rgba(23, 43, 77, 0.05);
+}
+
+.prospects-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.prospects-title {
+  margin: 0;
+  font-size: 20px;
+  color: #1b1f33;
+}
+
+.prospects-pill {
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.prospects-table-wrap {
+  overflow: auto;
+}
+
+.prospects-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.prospects-table th,
+.prospects-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #eef0f6;
+  text-align: left;
+}
+
+.prospects-table th {
+  color: #4a5268;
+  font-weight: 700;
+  background: #f9fafc;
+}
+
+.prospects-table tr:hover td {
+  background: #f6f8fb;
+}
+
+.mono {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.prospects-chip {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 12px;
+  background: #eef0f6;
+  color: #1b1f33;
+}
+
+.status-aprovado {
+  background: #e8f6ef;
+  color: #1f7a4d;
+}
+
+.status-candidato {
+  background: #fff7e6;
+  color: #a86200;
+}
+
+.priority-alta {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.priority-média,
+.priority-media {
+  background: #fff7e6;
+  color: #a86200;
+}
+
+.priority-baixa {
+  background: #e0f2fe;
+  color: #0c4a6e;
+}
+
+.prospects-gap {
+  height: 4px;
+}
+
+@media (max-width: 900px) {
+  .prospects-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .prospects-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}

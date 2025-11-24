@@ -4,22 +4,24 @@ from __future__ import annotations
 
 import warnings
 from datetime import datetime
-from typing import Dict, Iterable, List
+from typing import Dict, List
 
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from config import get_http_settings, get_input_path, get_output_dir, load_config
+from config import get_http_settings, get_output_dir, load_config
+from input_loader import load_base_dataframe
 from localiza_informacoes import localiza_informacoes
+from supabase_client import init_supabase_client
 
 warnings.filterwarnings("ignore")
 
 CONFIG = load_config()
-INPUT_PATH = get_input_path(CONFIG)
 OUTPUT_DIR = get_output_dir(CONFIG)
 EXTRA_CFG: Dict[str, object] = CONFIG.get("extrajudicial", {})
 HTTP_SETTINGS = get_http_settings(CONFIG)
+SUPABASE_CLIENT = init_supabase_client(CONFIG)
 headers = HTTP_SETTINGS["headers"]
 cookies = HTTP_SETTINGS["cookies"]
 timeout = HTTP_SETTINGS["timeout"]
@@ -34,34 +36,68 @@ def extract_data(url: str, session: requests.Session) -> BeautifulSoup | None:
         print(f"Erro na solicitação HTTP ({url}): {exc}")
     return None
 
-def main() -> None:
-    if not INPUT_PATH.exists():
-        raise FileNotFoundError(f"Planilha base não encontrada em {INPUT_PATH}")
 
-    df = pd.read_excel(INPUT_PATH)
+def prompt_recent_hours() -> int:
+    while True:
+        raw = input(
+            "\nIgnorar códigos já coletados nas últimas quantas horas? (0 para ignorar nada): "
+        ).strip()
+        if raw == "":
+            return 0
+        if raw.isdigit():
+            return max(int(raw), 0)
+        print("Informe um número inteiro (ex.: 10).")
+
+
+def prompt_chunk_size(default_chunk: int = 0) -> int:
+    print("\nEnviar para o Supabase a cada quantos registros?")
+    print("Informe 0 para enviar apenas ao final da execução.")
+    while True:
+        raw = input(f"Chunk atual ({default_chunk}): ").strip()
+        if not raw:
+            return default_chunk
+        if raw.isdigit():
+            return max(int(raw), 0)
+        print("Valor inválido. Informe um número inteiro.")
+
+def main() -> None:
+    df, source_label = load_base_dataframe(CONFIG)
+    print(f"Base carregada de {source_label} ({len(df)} registros).")
 
     venda_tipos = EXTRA_CFG.get("venda_tipos") or []
     if venda_tipos:
         df = df[df["Tipo de Venda"].isin(venda_tipos)]
+    if df.empty:
+        print("Nenhum registro encontrado após aplicar filtros de venda.")
+        return
+    if not SUPABASE_CLIENT.is_configured():
+        print("Supabase desabilitado ou incompleto. Configure SUPABASE_URL/SUPABASE_SERVICE_KEY e habilite supabase.enabled.")
+        return
 
-    output_path = OUTPUT_DIR / EXTRA_CFG.get("output_filename", "output.xlsx")
-    output_financiado_path = OUTPUT_DIR / EXTRA_CFG.get(
-        "output_financiado_filename", "output_financiado.xlsx"
-    )
+    horas_recente = prompt_recent_hours()
+    supabase_existentes: set[str] = set()
+    if horas_recente > 0:
+        supabase_existentes = SUPABASE_CLIENT.fetch_recent_numeros(horas_recente)
+        if supabase_existentes:
+            print(
+                f"Encontrados {len(supabase_existentes)} códigos no Supabase nas últimas {horas_recente}h. "
+                "Eles serão ignorados."
+            )
+        else:
+            print("Nenhum código recente encontrado no Supabase para ignorar.")
 
-    existing_numbers: Iterable[str] = []
-    if output_path.exists():
-        existing_df = pd.read_excel(output_path)
-        if "Número do Bem" in existing_df.columns:
-            existing_numbers = existing_df["Número do Bem"].unique().tolist()
+    chunk_size = prompt_chunk_size()
 
     session = requests.Session()
     df_filtered = pd.DataFrame()
     errors: List[Dict[str, object]] = []
+    supabase_rows: List[Dict[str, object]] = []
+    enviados = 0
 
     for _, row in df.iterrows():
         codigo_imovel = row["Número do Bem"]
-        if codigo_imovel in existing_numbers:
+        if supabase_existentes and codigo_imovel in supabase_existentes:
+            print(f"Código {codigo_imovel} já no Supabase (janela escolhida). Pulando...")
             continue
 
         endereco_web = (
@@ -90,26 +126,17 @@ def main() -> None:
         combined = dict(row)
         combined.update(specific_data)
         df_filtered = pd.concat([df_filtered, pd.DataFrame([combined])], ignore_index=True)
+        supabase_rows.append(combined)
+        enviados += 1
 
         if len(df_filtered) % 50 == 0:
             print(f"Consultados {len(df_filtered)} registros até agora...")
 
-    if df_filtered.empty:
-        print("Nenhum dado coletado. Nada a salvar.")
-        return
+        if chunk_size > 0 and len(supabase_rows) >= chunk_size:
+            SUPABASE_CLIENT.upsert_prospeccao(supabase_rows, fonte="extrajudicial")
+            supabase_rows.clear()
 
-    if "Número do Bem" in df_filtered.columns:
-        df_filtered = df_filtered.drop_duplicates(subset=["Número do Bem"], keep="last")
-
-    df_filtered.to_excel(output_path, index=False)
-    print(f"Dados salvos em {output_path}")
-
-    df_financiado = df_filtered[
-        (df_filtered["Financiamento"] == "Sim")
-        & (df_filtered["Disponível"] == "Sim")
-    ]
-    df_financiado.to_excel(output_financiado_path, index=False)
-    print(f"Dados financiáveis salvos em {output_financiado_path}")
+    SUPABASE_CLIENT.upsert_prospeccao(supabase_rows, fonte="extrajudicial")
 
     if errors:
         error_df = pd.DataFrame(errors)
@@ -117,6 +144,9 @@ def main() -> None:
         error_path = OUTPUT_DIR / f"erros_extrajudicial_{timestamp}.csv"
         error_df.to_csv(error_path, index=False)
         print(f"Ocorreram {len(errors)} erros. Consulte {error_path}")
+    else:
+        print("Execução concluída sem erros.")
+    print(f"Enviados ao Supabase: {enviados}")
 
 
 if __name__ == "__main__":

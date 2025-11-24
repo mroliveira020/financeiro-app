@@ -5,6 +5,7 @@ import AppLayout from "./components/layout/AppLayout";
 import Login from "./pages/Login";
 import RequireAuth from "./components/auth/RequireAuth";
 import { AuthProvider } from "./context/AuthContext";
+import Prospeccoes from "./pages/Prospeccoes";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route path="/" element={<Home />} />
+            <Route path="/prospeccoes" element={<Prospeccoes />} />
             <Route path="/dashboard/:id" element={<Dashboard />} />
           </Route>
         </Route>

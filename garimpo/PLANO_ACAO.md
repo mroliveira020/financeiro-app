@@ -51,6 +51,29 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 - Documentação alinhada e instruções de execução/validação revisadas.
 
 ## Pendências/Oportunidades
-- Avaliar adoção de headless browser (Playwright/Selenium) se a CAIXA bloquear requests simples.
-- Considerar exportar planilhas finais em CSV/Parquet para integração futura.
-- Investigar automação parcial de ingestão via API interna quando o fluxo estiver estável.
+1. [ ] Avaliar adoção de headless browser (Playwright/Selenium) se a CAIXA bloquear requests simples.
+2. [ ] Considerar exportar planilhas finais em CSV/Parquet para integração futura.
+3. [ ] Investigar automação parcial de ingestão via API interna quando o fluxo estiver estável.
+4. [ ] Supabase: integrar persistência e reprocesso de resultados.
+
+## Próximas Etapas — Supabase
+1. [x] **Modelo de dados**
+   1.1. [x] Criar tabela dedicada para prospecção (ex.: `imoveis_prospeccao`) no Supabase, separada da tabela existente de imóveis adquiridos. Chave primária `numero_bem` (text), permitir versionamento via `coletado_em` (timestamp). Campos principais (tipos sugeridos):
+        - `numero_bem` (text, PK), `tipo_venda` (text), `tipo_imovel` (text), `uf` (text(2)), `cidade` (text), `bairro` (text), `endereco` (text)
+        - `valor_avaliacao` (numeric), `valor_venda` (numeric), `desconto` (numeric), `detalhes` (text)
+        - Scraping: `disponivel` (boolean), `financia` (boolean), `valor_leilao_1`/`valor_leilao_2` (numeric), `data_leilao_1`/`data_leilao_2`/`data_licitacao_aberta` (timestamp), `data_hora_encerramento` (timestamp), `lance_atual` (numeric), `link_consulta` (text)
+        - Auditoria: `coletado_em` (timestamp), `fonte` (text), `hash_linha` (text) para rastrear mudanças
+        - Normalização antes do upsert: `numero_bem` limpo para apenas dígitos (remove espaços/caracteres não numéricos); descartar IDs vazios.
+   1.2. [x] Criar tabela de seleção de leilão (ex.: `imoveis_selecionados`) para decisão única por imóvel:
+        - `numero_bem` (text, PK, FK para `imoveis_prospeccao`), `status` (enum/text: candidato, aprovado, descartado, em_leilao, arrematado), `valor_maximo` (numeric), `observacoes` (text), `prioridade` (int), `created_at`/`updated_at` (timestamp)
+        - Garantir que marcações de participação em leilão fiquem isoladas desta tabela, sem afetar os adquiridos.
+2. [x] **Configuração**
+   2.1. [x] Adicionado bloco `supabase` em `garimpo/config.yaml` / `garimpo/config.yaml.example` com `enabled`, `url`, `anon_key`, `service_role_key`, `chunk_size`, `timeout`, retentativas e `error_log`; preencher via envs (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`) antes de enviar dados.
+3. [x] **Cliente**
+   3.1. [x] Implementado `src/supabase_client.py` via REST (`requests`) com upsert por `numero_bem, coletado_em`, chunking configurável e retentativas.
+4. [x] **Integração de escrita**
+   4.1. [x] `principal.py` e `extrajudicial_caixa.py` agora enviam direto para o Supabase (sem gerar Excel), com flush por chunk configurável e filtro para ignorar códigos coletados nas últimas N horas (lidos da tabela).
+   4.2. [x] Falhas registradas em `data/output/erros_supabase.csv` com payload para reprocesso.
+5. [ ] **Conversões e validação**
+   5.1. [x] Normalização implementada (datas → ISO, monetários → decimal, booleanos `Disponível`/`Financia`).
+   5.2. [ ] Validar amostra no painel do Supabase.

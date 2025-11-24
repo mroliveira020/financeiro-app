@@ -12,3 +12,5 @@ Repositório do sistema financeiro para gestão de imóveis. Para visão geral d
 - Documentação detalhada: `docs/README.md`
 - Guia para scripts de garimpo: `garimpo/README.md`
 - Referência do frontend: `frontend/README.md`
+- Nova rota no front: `/prospeccoes` (tabela de selecionados/capturados; hoje com dados mockados aguardando ligação ao Supabase).
+- Garimpo agora envia diretamente ao Supabase (`imoveis_prospeccao`) com filtros por janela de horas e chunk de envio; não gera mais planilhas locais.

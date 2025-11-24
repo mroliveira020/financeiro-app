@@ -21,9 +21,10 @@
   - Analytics (admin): `backend/analytics.py` — rota de SELECT seguro e endpoint de lançamentos consolidados.
   - Notion helper: `backend/notion_service.py` — cliente utilitário não exposto em rotas públicas.
 - Frontend
-  - Rotas: `frontend/src/App.jsx` com `/login`, `/` (Home) e `/dashboard/:id`; `RequireAuth` garante login antes de renderizar layout.
+  - Rotas: `frontend/src/App.jsx` com `/login`, `/` (Home), `/dashboard/:id` e `/prospeccoes`; `RequireAuth` garante login antes de renderizar layout.
   - Home: `frontend/src/pages/Home.jsx` — lista/adiciona imóveis; usa `frontend/src/services/api.js`.
   - Dashboard: `frontend/src/pages/Dashboard.jsx` — compõe Dados Cadastrais, Resumo Financeiro, Transações Incompletas e Completas.
+  - Prospecções: `frontend/src/pages/Prospeccoes.jsx` — nova tela na barra lateral com duas tabelas (Selecionados e Capturados). Hoje usa mocks; próxima etapa é ligar aos dados do Supabase (`imoveis_prospeccao`).
   - Dados cadastrais: `frontend/src/components/dadosCadastrais/DadosCadastrais.jsx` — GET `/imoveis/:id`, exibe mapa, edição via modal.
   - Resumo financeiro: `frontend/src/components/ResumoFinanceiro.jsx` — GET `/dashboard/resumo-financeiro/:id`, calcula totais e ROI; edição de orçamentos via `ModalEditarOrcamento`.
   - Transações Incompletas: `frontend/src/components/TransacoesIncompletas/TransacoesIncompletas.jsx` — GET incompletos, atualização inline de categoria/imóvel/situação (com destaque de linhas alteradas e botões 💾/“Aplicar todos”), PATCH individual, POST lote.
@@ -32,10 +33,10 @@
   - Cliente HTTP: centralizado em `frontend/src/services/http.js` (Axios) usando `VITE_API_URL`.
 - Garimpo
   - Scripts: `garimpo/src/principal.py` (filtro por UF), `garimpo/src/localiza_informacoes.py` (parser HTML) e `garimpo/src/extrajudicial_caixa.py` (vendas diretas).
-  - Entrada/saída: consome `garimpo/data/input/base.xlsx` e grava planilhas (`data/output/saida_<UF>.xlsx`, `output.xlsx`, `output_financiado.xlsx`). Execute dentro do venv do backend para garantir `pandas`, `requests`, `beautifulsoup4`.
-  - Execução: configure `garimpo/config.yaml` e rode `python garimpo/src/principal.py` ou `python garimpo/src/extrajudicial_caixa.py` após `source backend/venv/bin/activate`.
-  - Integração: resultados alimentam prospecção manual; não há importação automática nas rotas do backend.
-  - Logs: falhas de scraping são registradas em `data/output/erros_<script>_<data>.csv`.
+  - Entrada/saída: consome `garimpo/data/input/base.xlsx` (ou CSV por UF) e envia diretamente para o Supabase (`imoveis_prospeccao`). Não gera mais planilhas locais.
+  - Execução: configure `garimpo/config.yaml` (`supabase.enabled=true`) e exporte envs `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`; rode `python garimpo/src/principal.py` ou `python garimpo/src/extrajudicial_caixa.py` após `source backend/venv/bin/activate`.
+  - Comportamento: pergunta quantas horas recentes ignorar (pula códigos já presentes no Supabase nesse intervalo) e o `chunk_size` de envio. Envia em lotes durante a coleta; erros de integração são salvos em `data/output/erros_supabase.csv`.
+  - Logs: falhas de scraping continuam em `data/output/erros_<script>_<data>.csv`.
 
 ## Desenvolvimento (Quickstart)
 

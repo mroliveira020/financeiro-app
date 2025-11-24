@@ -4,6 +4,10 @@
 data:
   input: data/input/base.xlsx
   output_dir: data/output
+  # Modo de entrada: excel (planilha única), csv (arquivos por UF), auto (pergunta se CSVs existirem)
+  input_mode: auto
+  # Padrão de arquivos CSV por UF (se usado input_mode=csv ou auto)
+  csv_pattern: data/input/Lista_imoveis_*.csv
 
 principal:
   # Lista de UFs que devem ser buscadas no script principal
@@ -36,3 +40,15 @@ email:
   username: ""
   password: ""
   from_address: ""
+
+supabase:
+  enabled: true
+  url: ""
+  anon_key: ""
+  service_role_key: ""
+  chunk_size: 500
+  timeout: 10
+  retry:
+    attempts: 3
+    backoff_seconds: 2
+  error_log: data/output/erros_supabase.csv

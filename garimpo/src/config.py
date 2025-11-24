@@ -28,6 +28,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "data": {
         "input": "data/input/base.xlsx",
         "output_dir": "data/output",
+        "csv_pattern": "data/input/Lista_imoveis_*.csv",
+        "input_mode": "auto",
     },
     "principal": {
         "ufs": ["GO", "SC"],
@@ -53,6 +55,19 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "username": "",
         "password": "",
         "from_address": "",
+    },
+    "supabase": {
+        "enabled": False,
+        "url": "",
+        "anon_key": "",
+        "service_role_key": "",
+        "chunk_size": 500,
+        "timeout": 10,
+        "retry": {
+            "attempts": 3,
+            "backoff_seconds": 2,
+        },
+        "error_log": "data/output/erros_supabase.csv",
     },
 }
 
@@ -125,3 +140,20 @@ def get_email_settings(config: Dict[str, Any]) -> Dict[str, Any]:
     combined = defaults.copy()
     combined.update(email_config)
     return combined
+
+
+def get_supabase_settings(config: Dict[str, Any]) -> Dict[str, Any]:
+    supabase_cfg: Dict[str, Any] = deepcopy(DEFAULT_CONFIG["supabase"])
+    provided = config.get("supabase", {})
+    _deep_update(supabase_cfg, provided)
+
+    supabase_cfg["url"] = os.getenv("SUPABASE_URL", supabase_cfg.get("url") or "")
+    supabase_cfg["anon_key"] = os.getenv(
+        "SUPABASE_ANON_KEY",
+        supabase_cfg.get("anon_key") or "",
+    )
+    supabase_cfg["service_role_key"] = os.getenv(
+        "SUPABASE_SERVICE_KEY",
+        supabase_cfg.get("service_role_key") or "",
+    )
+    return supabase_cfg
