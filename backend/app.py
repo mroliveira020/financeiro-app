@@ -18,7 +18,9 @@ from models import (
     listar_resumo_financeiro,
     listar_resumo_imoveis,
     listar_orcamentos_por_imovel,
-    atualizar_inserir_orcamentos
+    atualizar_inserir_orcamentos,
+    listar_prospeccoes_capturados,
+    listar_prospeccoes_selecionados,
 )
 from analytics import analytics_bp
 from gpt import gpt_bp
@@ -197,6 +199,33 @@ def get_imovel_by_id(imovel_id):
     if not imovel:
         return jsonify({"error": "Imóvel não encontrado"}), 404
     return jsonify(imovel)
+
+
+# =====================================================
+# 🔹 PROSPECÇÕES (Supabase)
+# =====================================================
+
+
+@app.route("/prospeccoes/capturados", methods=["GET"])
+@requires_auth
+def get_prospeccoes_capturados():
+    try:
+        limit = int(request.args.get("limit", 20))
+        offset = int(request.args.get("offset", 0))
+    except ValueError:
+        return jsonify({"error": "Parâmetros inválidos"}), 400
+
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    dados = listar_prospeccoes_capturados(limit=limit, offset=offset)
+    return jsonify({"data": dados, "limit": limit, "offset": offset})
+
+
+@app.route("/prospeccoes/selecionados", methods=["GET"])
+@requires_auth
+def get_prospeccoes_selecionados():
+    dados = listar_prospeccoes_selecionados()
+    return jsonify({"data": dados})
 
 @app.route("/imoveis/<int:imovel_id>", methods=["PATCH"])
 @requires_editor_token

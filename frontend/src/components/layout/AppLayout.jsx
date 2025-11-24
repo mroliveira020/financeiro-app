@@ -35,30 +35,10 @@ const icons = {
   ),
   prospects: (
     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path
-        d="M12 13c2.76 0 5-2.35 5-5.25S14.76 2.5 12 2.5 7 4.85 7 7.75 9.24 13 12 13Z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M4.5 20.5a7.5 7.5 0 0 1 15 0"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m16.5 15.5 2 2 3-3"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="m15.5 8.5 1.5-1.5M7 17l1.5-1.5M8.5 8.5 7 7M17 17l-1.5-1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
   settings: (
@@ -102,7 +82,7 @@ export default function AppLayout() {
         </div>
         <nav className="app-shell__nav">
           <SidebarLink to="/" icon={icons.home} label="Home" />
-          <SidebarLink to="/prospeccoes" icon={icons.prospects} label="Prospecções" />
+          <SidebarLink to="/prospeccoes" icon={icons.prospects} label="Prospec." />
           <SidebarButton icon={icons.dashboard} label="Dash" />
           <SidebarButton icon={icons.settings} label="Soon" />
         </nav>

@@ -148,8 +148,8 @@
    2.15 [ ] Prospecções / Supabase
        2.15.1 [x] Adicionar rota/tela `/prospeccoes` no frontend (sidebar) com tabelas de Selecionados e Capturados (mock).
        2.15.2 [x] Garimpo envia direto para Supabase (`imoveis_prospeccao`), sem gerar planilhas, com filtro por janela (horas) e chunk de envio.
-       2.15.3 [ ] Integrar a tela de Prospecções aos dados reais do Supabase (lista de capturados e view de selecionados), com paginação/filtros.
-       2.15.4 [ ] Adicionar export CSV/“Nova coleta” acionando fluxo real (ou link para Supabase/garimpo).
+       2.15.3 [x] Integrar a tela de Prospecções aos dados reais do Supabase (lista de capturados e view de selecionados), com paginação/filtros e link por imóvel para o site oficial.
+       2.15.4 [ ] Acionar “Nova coleta” (fluxo real ou instrução). Export CSV removido do escopo.
 
 3. Próximas
 3. Próximas (médio prazo)

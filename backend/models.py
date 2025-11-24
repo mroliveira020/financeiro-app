@@ -1291,6 +1291,120 @@ def listar_orcamentos_por_imovel(id_imovel):
 
     return lista_orcamentos
 
+
+# ======================================================
+# 🔹 PROSPECÇÕES (Supabase)
+# ======================================================
+
+
+def listar_prospeccoes_capturados(limit=20, offset=0):
+    conn, cur = conectar()
+    query = """
+        SELECT
+            numero_bem,
+            coletado_em,
+            tipo_venda,
+            tipo_imovel,
+            uf,
+            cidade,
+            bairro,
+            endereco,
+            valor_venda,
+            valor_avaliacao,
+            desconto,
+            detalhes,
+            disponivel,
+            financia,
+            valor_leilao_1,
+            valor_leilao_2,
+            data_leilao_1,
+            data_leilao_2,
+            data_licitacao_aberta,
+            data_hora_encerramento,
+            lance_atual,
+            link_consulta,
+            fonte
+        FROM vw_imoveis_prospeccao_latest
+        ORDER BY coletado_em DESC
+        LIMIT %s OFFSET %s
+    """
+    cur.execute(query, (limit, offset))
+    rows = cur.fetchall()
+    conn.close()
+
+    result = []
+    for row in rows:
+        result.append({
+            "numero_bem": row[0],
+            "coletado_em": row[1],
+            "tipo_venda": row[2],
+            "tipo_imovel": row[3],
+            "uf": row[4],
+            "cidade": row[5],
+            "bairro": row[6],
+            "endereco": row[7],
+            "valor_venda": float(row[8]) if row[8] is not None else None,
+            "valor_avaliacao": float(row[9]) if row[9] is not None else None,
+            "desconto": float(row[10]) if row[10] is not None else None,
+            "detalhes": row[11],
+            "disponivel": row[12],
+            "financia": row[13],
+            "valor_leilao_1": float(row[14]) if row[14] is not None else None,
+            "valor_leilao_2": float(row[15]) if row[15] is not None else None,
+            "data_leilao_1": row[16],
+            "data_leilao_2": row[17],
+            "data_licitacao_aberta": row[18],
+            "data_hora_encerramento": row[19],
+            "lance_atual": float(row[20]) if row[20] is not None else None,
+            "link_consulta": row[21],
+            "fonte": row[22],
+        })
+    return result
+
+
+def listar_prospeccoes_selecionados():
+    conn, cur = conectar()
+    query = """
+        SELECT
+            s.numero_bem,
+            s.status,
+            s.valor_maximo,
+            s.prioridade,
+            s.observacoes,
+            v.cidade,
+            v.uf,
+            v.valor_venda,
+            v.valor_avaliacao,
+            v.link_consulta,
+            v.tipo_venda,
+            v.disponivel
+        FROM imoveis_selecionados s
+        LEFT JOIN vw_imoveis_prospeccao_latest v
+            ON v.numero_bem = s.numero_bem
+        ORDER BY s.updated_at DESC NULLS LAST, s.created_at DESC NULLS LAST
+    """
+    cur.execute(query)
+    rows = cur.fetchall()
+    conn.close()
+
+    result = []
+    for row in rows:
+        result.append({
+            "numero_bem": row[0],
+            "status": row[1],
+            "valor_maximo": float(row[2]) if row[2] is not None else None,
+            "prioridade": row[3],
+            "observacoes": row[4],
+            "cidade": row[5],
+            "uf": row[6],
+            "valor_venda": float(row[7]) if row[7] is not None else None,
+            "valor_avaliacao": float(row[8]) if row[8] is not None else None,
+            "link_consulta": row[9],
+            "tipo_venda": row[10],
+            "disponivel": row[11],
+        })
+    return result
+
 def atualizar_inserir_orcamentos(id_imovel, orcamentos):
     conn, cur = conectar()
 

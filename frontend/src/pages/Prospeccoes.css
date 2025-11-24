@@ -169,6 +169,22 @@
   color: #0c4a6e;
 }
 
+.prospects-link {
+  color: #1d4ed8;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.prospects-link:hover {
+  text-decoration: underline;
+}
+
+.prospects-empty {
+  padding: 16px;
+  color: #4a5268;
+  font-weight: 600;
+}
+
 .prospects-gap {
   height: 4px;
 }
