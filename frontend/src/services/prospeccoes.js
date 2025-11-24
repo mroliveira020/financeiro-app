@@ -6,9 +6,9 @@ const normalizeLink = (numeroBem, linkConsulta) => {
   return `https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnOrigem=index&hdnimovel=${numeroBem}`;
 };
 
-export async function fetchCapturados({ limit = 20, offset = 0, uf, modalidade, status, financia } = {}) {
+export async function fetchCapturados({ limit = 20, offset = 0, uf, modalidade, status, financia, cidade } = {}) {
   const { data } = await api.get("/prospeccoes/capturados", {
-    params: { limit, offset, uf, modalidade, status, financia },
+    params: { limit, offset, uf, modalidade, status, financia, cidade },
   });
   return (data?.data || []).map((row) => ({
     codigo: row.numero_bem,
@@ -21,6 +21,8 @@ export async function fetchCapturados({ limit = 20, offset = 0, uf, modalidade, 
     coletadoEm: row.coletado_em,
     descricao: row.detalhes,
     financia: row.financia,
+    endereco: row.endereco,
+    bairro: row.bairro,
   }));
 }
 

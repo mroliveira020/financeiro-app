@@ -1297,7 +1297,7 @@ def listar_orcamentos_por_imovel(id_imovel):
 # ======================================================
 
 
-def listar_prospeccoes_capturados(limit=20, offset=0, uf=None, modalidade=None, status=None, financia=None):
+def listar_prospeccoes_capturados(limit=20, offset=0, ufs=None, modalidades=None, status=None, financia=None, cidades=None):
     conn, cur = conectar()
     base_query = """
         SELECT
@@ -1329,22 +1329,48 @@ def listar_prospeccoes_capturados(limit=20, offset=0, uf=None, modalidade=None, 
     conditions = []
     params = []
 
-    if uf:
-        conditions.append("LOWER(uf) = LOWER(%s)")
-        params.append(uf)
-    if modalidade:
-        conditions.append("LOWER(tipo_venda) = LOWER(%s)")
-        params.append(modalidade)
-    if status is not None:
-        # status esperado: "disponivel" ou "indisponivel"
-        if status.lower() in {"disponivel", "indisponivel"}:
-            conditions.append("disponivel = %s")
-            params.append(status.lower() == "disponivel")
-    if financia is not None:
-        if financia.lower() in {"sim", "true", "1"}:
-            conditions.append("financia = TRUE")
-        elif financia.lower() in {"nao", "não", "false", "0"}:
-            conditions.append("financia = FALSE")
+    if ufs:
+        placeholders = ",".join(["LOWER(%s)"] * len(ufs))
+        conditions.append(f"LOWER(uf) IN ({placeholders})")
+        params.extend([item.lower() for item in ufs])
+    if modalidades:
+        placeholders = ",".join(["LOWER(%s)"] * len(modalidades))
+        conditions.append(f"LOWER(tipo_venda) IN ({placeholders})")
+        params.extend([item.lower() for item in modalidades])
+    if status:
+        if isinstance(status, (list, tuple)):
+            values = []
+            for s in status:
+                if isinstance(s, str) and s.lower() == "disponivel":
+                    values.append(True)
+                elif isinstance(s, str) and s.lower() == "indisponivel":
+                    values.append(False)
+            if values:
+                placeholders = ",".join(["%s"] * len(values))
+                conditions.append(f"disponivel IN ({placeholders})")
+                params.extend(values)
+        elif isinstance(status, str):
+            if status.lower() == "disponivel":
+                conditions.append("disponivel = TRUE")
+            elif status.lower() == "indisponivel":
+                conditions.append("disponivel = FALSE")
+    if financia:
+        if isinstance(financia, (list, tuple)):
+            values = []
+            for f in financia:
+                if isinstance(f, str) and f.lower() in {"sim", "true", "1"}:
+                    values.append(True)
+                elif isinstance(f, str) and f.lower() in {"nao", "não", "false", "0"}:
+                    values.append(False)
+            if values:
+                placeholders = ",".join(["%s"] * len(values))
+                conditions.append(f"financia IN ({placeholders})")
+                params.extend(values)
+        elif isinstance(financia, str):
+            if financia.lower() in {"sim", "true", "1"}:
+                conditions.append("financia = TRUE")
+            elif financia.lower() in {"nao", "não", "false", "0"}:
+                conditions.append("financia = FALSE")
 
     if conditions:
         base_query += " WHERE " + " AND ".join(conditions)
@@ -1448,6 +1474,19 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
 
 def inserir_prospeccao_selecionado(numero_bem, status="candidato", valor_maximo=None, prioridade=None, observacoes=None):
     conn, cur = conectar()
+
+    prioridade_val = None
+    if isinstance(prioridade, str):
+        normalized = prioridade.lower().replace("é", "e")
+        if "alta" in normalized:
+            prioridade_val = 3
+        elif "baixa" in normalized:
+            prioridade_val = 1
+        elif "media" in normalized:
+            prioridade_val = 2
+    elif isinstance(prioridade, (int, float)):
+        prioridade_val = int(prioridade)
+
     cur.execute(
         """
         INSERT INTO imoveis_selecionados (numero_bem, status, valor_maximo, prioridade, observacoes)
@@ -1459,7 +1498,7 @@ def inserir_prospeccao_selecionado(numero_bem, status="candidato", valor_maximo=
             observacoes = EXCLUDED.observacoes,
             updated_at = now()
         """,
-        (numero_bem, status or "candidato", valor_maximo, prioridade, observacoes),
+        (numero_bem, status or "candidato", valor_maximo, prioridade_val, observacoes),
     )
     conn.commit()
     conn.close()
@@ -1477,8 +1516,17 @@ def listar_prospeccoes_meta():
     cur.execute("SELECT DISTINCT financia FROM vw_imoveis_prospeccao_latest WHERE financia IS NOT NULL")
     financia = sorted({ "sim" if row[0] else "nao" for row in cur.fetchall() })
 
+    cur.execute("SELECT uf, cidade FROM vw_imoveis_prospeccao_latest WHERE uf IS NOT NULL AND cidade IS NOT NULL")
+    cidades_por_uf = {}
+    for uf, cidade in cur.fetchall():
+        uf_key = uf.strip()
+        if not uf_key:
+            continue
+        cidades_por_uf.setdefault(uf_key, set()).add(cidade.strip())
+    cidades_por_uf = {uf: sorted(list(cidades)) for uf, cidades in cidades_por_uf.items()}
+
     conn.close()
-    return {"ufs": ufs, "modalidades": modalidades, "financia": financia}
+    return {"ufs": ufs, "modalidades": modalidades, "financia": financia, "cidades_por_uf": cidades_por_uf}
 
 def atualizar_inserir_orcamentos(id_imovel, orcamentos):
     conn, cur = conectar()
@@ -1687,3 +1735,7 @@ def atualizar_lancamentos_em_lote(ids, updates):
         raise
     finally:
         conn.close()
+    if cidades:
+        placeholders = ",".join(["LOWER(%s)"] * len(cidades))
+        conditions.append(f"LOWER(cidade) IN ({placeholders})")
+        params.extend([item.lower() for item in cidades])

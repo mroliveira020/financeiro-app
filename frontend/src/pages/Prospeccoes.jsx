@@ -24,7 +24,6 @@ function TabelaSelecionados({ dados, loading, erro }) {
           <thead>
             <tr>
               <th>Código</th>
-              <th>Link</th>
               <th>Cidade</th>
               <th>UF</th>
               <th>Status</th>
@@ -37,8 +36,7 @@ function TabelaSelecionados({ dados, loading, erro }) {
           <tbody>
             {dados.map((item) => (
               <tr key={item.codigo}>
-                <td className="mono">{item.codigo}</td>
-                <td>
+                <td className="mono">
                   <a className="prospects-link" href={item.link} target="_blank" rel="noreferrer">
                     {item.codigo}
                   </a>
@@ -148,10 +146,11 @@ export default function Prospeccoes() {
   const [loadingCap, setLoadingCap] = useState(false);
   const [erroSel, setErroSel] = useState("");
   const [erroCap, setErroCap] = useState("");
-  const [filtroUfCap, setFiltroUfCap] = useState("");
-  const [filtroModalidadeCap, setFiltroModalidadeCap] = useState("");
-  const [filtroStatusCap, setFiltroStatusCap] = useState("");
-  const [filtroFinanciaCap, setFiltroFinanciaCap] = useState("");
+  const [filtroUfCap, setFiltroUfCap] = useState([]);
+  const [filtroCidadesCap, setFiltroCidadesCap] = useState([]);
+  const [filtroModalidadeCap, setFiltroModalidadeCap] = useState([]);
+  const [filtroStatusCap, setFiltroStatusCap] = useState([]);
+  const [filtroFinanciaCap, setFiltroFinanciaCap] = useState([]);
   const [limitCap, setLimitCap] = useState(20);
   const [includeLoadingIds, setIncludeLoadingIds] = useState(new Set());
   const [mensagem, setMensagem] = useState("");
@@ -176,6 +175,7 @@ export default function Prospeccoes() {
             modalidade: filtroModalidadeCap,
             status: filtroStatusCap,
             financia: filtroFinanciaCap,
+            cidade: filtroCidadesCap,
           }),
         ]);
         setSelecionados(sel || []);
@@ -190,7 +190,7 @@ export default function Prospeccoes() {
       }
     };
     carregar();
-  }, [filtroUfCap, filtroModalidadeCap, filtroStatusCap, filtroFinanciaCap, limitCap]);
+  }, [filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroStatusCap, filtroFinanciaCap, limitCap]);
 
   useEffect(() => {
     fetchProspecMeta()
@@ -200,12 +200,23 @@ export default function Prospeccoes() {
 
   const ufOptions = useMemo(() => meta.ufs || [], [meta]);
   const modalidadeOptions = useMemo(() => meta.modalidades || [], [meta]);
+  const cidadesOptions = useMemo(() => {
+    if (!meta.cidades_por_uf) return [];
+    const selectedUfs = filtroUfCap.length ? filtroUfCap : Object.keys(meta.cidades_por_uf);
+    const set = new Set();
+    selectedUfs.forEach((uf) => {
+      (meta.cidades_por_uf[uf] || []).forEach((cidade) => set.add(cidade));
+    });
+    return Array.from(set).sort();
+  }, [meta, filtroUfCap]);
 
   const handleIncluir = async (item) => {
     setMensagem("");
-    const next = new Set(includeLoadingIds);
-    next.add(item.codigo);
-    setIncludeLoadingIds(next);
+    setIncludeLoadingIds((prev) => {
+      const next = new Set(prev);
+      next.add(item.codigo);
+      return next;
+    });
     try {
       await adicionarSelecionado({
         numero_bem: item.codigo,
@@ -222,9 +233,11 @@ export default function Prospeccoes() {
       const message = err instanceof Error ? err.message : "Erro ao incluir";
       setMensagem(message);
     } finally {
-      const updated = new Set(includeLoadingIds);
-      updated.delete(item.codigo);
-      setIncludeLoadingIds(updated);
+      setIncludeLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.codigo);
+        return next;
+      });
     }
   };
 
@@ -254,30 +267,32 @@ export default function Prospeccoes() {
       <div className="prospects-filters">
         <div className="prospects-filter-group">
           <label>UF (capturados)</label>
-          <select value={filtroUfCap} onChange={(e) => setFiltroUfCap(e.target.value)}>
-            <option value="">Todas</option>
+          <select multiple value={filtroUfCap} onChange={(e) => handleMultiSelect(e, setFiltroUfCap)}>
             {ufOptions.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
           </select>
         </div>
         <div className="prospects-filter-group">
+          <label>Cidade</label>
+          <select multiple value={filtroCidadesCap} onChange={(e) => handleMultiSelect(e, setFiltroCidadesCap)}>
+            {cidadesOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="prospects-filter-group">
           <label>Modalidade</label>
-          <select value={filtroModalidadeCap} onChange={(e) => setFiltroModalidadeCap(e.target.value)}>
-            <option value="">Todas</option>
+          <select multiple value={filtroModalidadeCap} onChange={(e) => handleMultiSelect(e, setFiltroModalidadeCap)}>
             {modalidadeOptions.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
         <div className="prospects-filter-group">
           <label>Status (capturados)</label>
-          <select value={filtroStatusCap} onChange={(e) => setFiltroStatusCap(e.target.value)}>
-            <option value="">Todos</option>
+          <select multiple value={filtroStatusCap} onChange={(e) => handleMultiSelect(e, setFiltroStatusCap)}>
             <option value="disponivel">Disponível</option>
             <option value="indisponivel">Indisponível</option>
           </select>
         </div>
         <div className="prospects-filter-group">
           <label>Financia</label>
-          <select value={filtroFinanciaCap} onChange={(e) => setFiltroFinanciaCap(e.target.value)}>
-            <option value="">Todos</option>
+          <select multiple value={filtroFinanciaCap} onChange={(e) => handleMultiSelect(e, setFiltroFinanciaCap)}>
             <option value="sim">Sim</option>
             <option value="nao">Não</option>
           </select>
@@ -310,3 +325,7 @@ export default function Prospeccoes() {
     </div>
   );
 }
+  const handleMultiSelect = (event, setter) => {
+    const values = Array.from(event.target.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
+    setter(values);
+  };

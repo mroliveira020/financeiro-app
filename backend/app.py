@@ -214,10 +214,11 @@ def get_prospeccoes_capturados():
     try:
         limit = int(request.args.get("limit", 20))
         offset = int(request.args.get("offset", 0))
-        uf = request.args.get("uf")
-        modalidade = request.args.get("modalidade")
-        status = request.args.get("status")
-        financia = request.args.get("financia")
+        ufs = request.args.getlist("uf")
+        modalidades = request.args.getlist("modalidade")
+        status_list = request.args.getlist("status")
+        financia_list = request.args.getlist("financia")
+        cidades = request.args.getlist("cidade")
     except ValueError:
         return jsonify({"error": "Parâmetros inválidos"}), 400
 
@@ -226,10 +227,11 @@ def get_prospeccoes_capturados():
     dados = listar_prospeccoes_capturados(
         limit=limit,
         offset=offset,
-        uf=uf,
-        modalidade=modalidade,
-        status=status,
-        financia=financia,
+        ufs=ufs or None,
+        modalidades=modalidades or None,
+        status=status_list or None,
+        financia=financia_list or None,
+        cidades=cidades or None,
     )
     return jsonify({"data": dados, "limit": limit, "offset": offset})
 
