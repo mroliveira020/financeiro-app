@@ -6,8 +6,10 @@ const normalizeLink = (numeroBem, linkConsulta) => {
   return `https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnOrigem=index&hdnimovel=${numeroBem}`;
 };
 
-export async function fetchCapturados({ limit = 20, offset = 0 } = {}) {
-  const { data } = await api.get("/prospeccoes/capturados", { params: { limit, offset } });
+export async function fetchCapturados({ limit = 20, offset = 0, uf, modalidade, status } = {}) {
+  const { data } = await api.get("/prospeccoes/capturados", {
+    params: { limit, offset, uf, modalidade, status },
+  });
   return (data?.data || []).map((row) => ({
     codigo: row.numero_bem,
     cidade: row.cidade,
@@ -20,8 +22,8 @@ export async function fetchCapturados({ limit = 20, offset = 0 } = {}) {
   }));
 }
 
-export async function fetchSelecionados() {
-  const { data } = await api.get("/prospeccoes/selecionados");
+export async function fetchSelecionados({ status, uf } = {}) {
+  const { data } = await api.get("/prospeccoes/selecionados", { params: { status, uf } });
   return (data?.data || []).map((item) => ({
     codigo: item.numero_bem,
     status: item.status,
@@ -34,5 +36,17 @@ export async function fetchSelecionados() {
     modalidade: item.tipo_venda,
     disponivel: item.disponivel,
     observacoes: item.observacoes,
+    descricao: item.detalhes,
   }));
+}
+
+export async function adicionarSelecionado(payload) {
+  const body = {
+    numero_bem: payload.numero_bem,
+    status: payload.status,
+    valor_maximo: payload.valor_maximo,
+    prioridade: payload.prioridade,
+    observacoes: payload.observacoes,
+  };
+  return api.post("/prospeccoes/selecionados", body);
 }

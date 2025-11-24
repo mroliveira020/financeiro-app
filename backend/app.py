@@ -21,6 +21,7 @@ from models import (
     atualizar_inserir_orcamentos,
     listar_prospeccoes_capturados,
     listar_prospeccoes_selecionados,
+    inserir_prospeccao_selecionado,
 )
 from analytics import analytics_bp
 from gpt import gpt_bp
@@ -212,20 +213,41 @@ def get_prospeccoes_capturados():
     try:
         limit = int(request.args.get("limit", 20))
         offset = int(request.args.get("offset", 0))
+        uf = request.args.get("uf")
+        modalidade = request.args.get("modalidade")
+        status = request.args.get("status")
     except ValueError:
         return jsonify({"error": "Parâmetros inválidos"}), 400
 
     limit = max(1, min(limit, 100))
     offset = max(0, offset)
-    dados = listar_prospeccoes_capturados(limit=limit, offset=offset)
+    dados = listar_prospeccoes_capturados(limit=limit, offset=offset, uf=uf, modalidade=modalidade, status=status)
     return jsonify({"data": dados, "limit": limit, "offset": offset})
 
 
 @app.route("/prospeccoes/selecionados", methods=["GET"])
 @requires_auth
 def get_prospeccoes_selecionados():
-    dados = listar_prospeccoes_selecionados()
+    status = request.args.get("status")
+    uf = request.args.get("uf")
+    dados = listar_prospeccoes_selecionados(status=status, uf=uf)
     return jsonify({"data": dados})
+
+
+@app.route("/prospeccoes/selecionados", methods=["POST"])
+@requires_editor_token
+@limiter.limit(RATE_LIMIT_EDIT)
+def post_prospeccoes_selecionados():
+    payload = request.get_json(force=True, silent=True) or {}
+    numero_bem = payload.get("numero_bem")
+    if not numero_bem:
+        return jsonify({"error": "numero_bem é obrigatório"}), 400
+    status = payload.get("status") or "candidato"
+    valor_maximo = payload.get("valor_maximo")
+    prioridade = payload.get("prioridade")
+    observacoes = payload.get("observacoes")
+    result = inserir_prospeccao_selecionado(numero_bem, status, valor_maximo, prioridade, observacoes)
+    return jsonify(result), 201
 
 @app.route("/imoveis/<int:imovel_id>", methods=["PATCH"])
 @requires_editor_token

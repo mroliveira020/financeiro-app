@@ -18,8 +18,8 @@
 }
 
 .prospects-hero {
-  margin: 4px 0;
-  font-size: 28px;
+  margin: 2px 0;
+  font-size: 24px;
   font-weight: 700;
   color: #1b1f33;
 }
@@ -36,6 +36,7 @@
 .prospects-subtitle {
   margin: 0;
   color: #4a5268;
+  font-size: 14px;
 }
 
 .prospects-actions {
@@ -87,7 +88,7 @@
 
 .prospects-title {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   color: #1b1f33;
 }
 
@@ -107,12 +108,12 @@
 .prospects-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .prospects-table th,
 .prospects-table td {
-  padding: 12px 10px;
+  padding: 10px 8px;
   border-bottom: 1px solid #eef0f6;
   text-align: left;
 }
@@ -187,6 +188,46 @@
 
 .prospects-gap {
   height: 4px;
+}
+
+.prospects-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f9fafc;
+  border: 1px solid #e7e9f0;
+  border-radius: 12px;
+}
+
+.prospects-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prospects-filter-group label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4a5268;
+}
+
+.prospects-filter-group select {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #d6d9e3;
+  background: #fff;
+  font-size: 13px;
+  color: #1b1f33;
+}
+
+.prospects-message {
+  padding: 10px 12px;
+  background: #eef6ff;
+  color: #0c4a6e;
+  border: 1px solid #c7e2ff;
+  border-radius: 10px;
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {

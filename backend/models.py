@@ -1297,9 +1297,9 @@ def listar_orcamentos_por_imovel(id_imovel):
 # ======================================================
 
 
-def listar_prospeccoes_capturados(limit=20, offset=0):
+def listar_prospeccoes_capturados(limit=20, offset=0, uf=None, modalidade=None, status=None):
     conn, cur = conectar()
-    query = """
+    base_query = """
         SELECT
             numero_bem,
             coletado_em,
@@ -1325,10 +1325,29 @@ def listar_prospeccoes_capturados(limit=20, offset=0):
             link_consulta,
             fonte
         FROM vw_imoveis_prospeccao_latest
-        ORDER BY coletado_em DESC
-        LIMIT %s OFFSET %s
     """
-    cur.execute(query, (limit, offset))
+    conditions = []
+    params = []
+
+    if uf:
+        conditions.append("LOWER(uf) = LOWER(%s)")
+        params.append(uf)
+    if modalidade:
+        conditions.append("LOWER(tipo_venda) = LOWER(%s)")
+        params.append(modalidade)
+    if status is not None:
+        # status esperado: "disponivel" ou "indisponivel"
+        if status.lower() in {"disponivel", "indisponivel"}:
+            conditions.append("disponivel = %s")
+            params.append(status.lower() == "disponivel")
+
+    if conditions:
+        base_query += " WHERE " + " AND ".join(conditions)
+
+    base_query += " ORDER BY coletado_em DESC LIMIT %s OFFSET %s"
+    params.extend([limit, offset])
+
+    cur.execute(base_query, params)
     rows = cur.fetchall()
     conn.close()
 
@@ -1362,9 +1381,9 @@ def listar_prospeccoes_capturados(limit=20, offset=0):
     return result
 
 
-def listar_prospeccoes_selecionados():
+def listar_prospeccoes_selecionados(status=None, uf=None):
     conn, cur = conectar()
-    query = """
+    base_query = """
         SELECT
             s.numero_bem,
             s.status,
@@ -1377,13 +1396,28 @@ def listar_prospeccoes_selecionados():
             v.valor_avaliacao,
             v.link_consulta,
             v.tipo_venda,
-            v.disponivel
+            v.disponivel,
+            v.detalhes
         FROM imoveis_selecionados s
         LEFT JOIN vw_imoveis_prospeccao_latest v
             ON v.numero_bem = s.numero_bem
-        ORDER BY s.updated_at DESC NULLS LAST, s.created_at DESC NULLS LAST
     """
-    cur.execute(query)
+    conditions = []
+    params = []
+
+    if status:
+        conditions.append("LOWER(s.status) = LOWER(%s)")
+        params.append(status)
+    if uf:
+        conditions.append("LOWER(v.uf) = LOWER(%s)")
+        params.append(uf)
+
+    if conditions:
+        base_query += " WHERE " + " AND ".join(conditions)
+
+    base_query += " ORDER BY s.updated_at DESC NULLS LAST, s.created_at DESC NULLS LAST"
+
+    cur.execute(base_query, params)
     rows = cur.fetchall()
     conn.close()
 
@@ -1402,8 +1436,29 @@ def listar_prospeccoes_selecionados():
             "link_consulta": row[9],
             "tipo_venda": row[10],
             "disponivel": row[11],
+            "detalhes": row[12],
         })
     return result
+
+
+def inserir_prospeccao_selecionado(numero_bem, status="candidato", valor_maximo=None, prioridade=None, observacoes=None):
+    conn, cur = conectar()
+    cur.execute(
+        """
+        INSERT INTO imoveis_selecionados (numero_bem, status, valor_maximo, prioridade, observacoes)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (numero_bem) DO UPDATE
+        SET status = EXCLUDED.status,
+            valor_maximo = EXCLUDED.valor_maximo,
+            prioridade = EXCLUDED.prioridade,
+            observacoes = EXCLUDED.observacoes,
+            updated_at = now()
+        """,
+        (numero_bem, status or "candidato", valor_maximo, prioridade, observacoes),
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Imóvel adicionado/atualizado em selecionados", "numero_bem": numero_bem}
 
 def atualizar_inserir_orcamentos(id_imovel, orcamentos):
     conn, cur = conectar()
