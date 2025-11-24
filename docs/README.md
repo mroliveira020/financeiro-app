@@ -24,7 +24,7 @@
   - Rotas: `frontend/src/App.jsx` com `/login`, `/` (Home), `/dashboard/:id` e `/prospeccoes`; `RequireAuth` garante login antes de renderizar layout.
   - Home: `frontend/src/pages/Home.jsx` — lista/adiciona imóveis; usa `frontend/src/services/api.js`.
   - Dashboard: `frontend/src/pages/Dashboard.jsx` — compõe Dados Cadastrais, Resumo Financeiro, Transações Incompletas e Completas.
-  - Prospecções: `frontend/src/pages/Prospeccoes.jsx` — nova tela na barra lateral com duas tabelas (Selecionados e Capturados). Hoje usa mocks; próxima etapa é ligar aos dados do Supabase (`imoveis_prospeccao`).
+  - Prospecções: `frontend/src/pages/Prospeccoes.jsx` — nova tela na barra lateral com duas tabelas (Selecionados e Capturados) consumindo as rotas do backend.
   - Dados cadastrais: `frontend/src/components/dadosCadastrais/DadosCadastrais.jsx` — GET `/imoveis/:id`, exibe mapa, edição via modal.
   - Resumo financeiro: `frontend/src/components/ResumoFinanceiro.jsx` — GET `/dashboard/resumo-financeiro/:id`, calcula totais e ROI; edição de orçamentos via `ModalEditarOrcamento`.
   - Transações Incompletas: `frontend/src/components/TransacoesIncompletas/TransacoesIncompletas.jsx` — GET incompletos, atualização inline de categoria/imóvel/situação (com destaque de linhas alteradas e botões 💾/“Aplicar todos”), PATCH individual, POST lote.
@@ -221,6 +221,7 @@ Com base nas páginas Home e Dashboard, as rotas efetivamente utilizadas pelo fr
 - Resumo/Orçamentos: `GET /dashboard/resumo-financeiro/:id_imovel`, `GET /orcamentos/:id_imovel`, `POST /orcamentos/:id_imovel`.
 - Rodapé/Home: `GET /dashboard/ultima_atualizacao`, `GET /dashboard/ultimos_lancamentos`.
 - Indicadores/Home: `GET /dashboard/gastos-mensais?meses=6&excluir=8,15,18`.
+- Prospecções: `GET /prospeccoes/selecionados`, `GET /prospeccoes/capturados`.
 
 ## Rotas Não Utilizadas pela UI (atual)
 

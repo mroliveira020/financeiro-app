@@ -129,9 +129,9 @@ export default function Prospeccoes() {
       setErroSel("");
       setErroCap("");
       try {
-        const [sel, cap] = await Promise.all([fetchSelecionados(), fetchCapturados({ limit: 20 })]);
-        setSelecionados(sel);
-        setCapturados(cap);
+        const [sel, cap] = await Promise.all([fetchSelecionados(), fetchCapturados({ limit: 50 })]);
+        setSelecionados(sel || []);
+        setCapturados(cap || []);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro inesperado";
         setErroSel(message);
