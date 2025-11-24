@@ -157,9 +157,6 @@ export default function Prospeccoes() {
   const [meta, setMeta] = useState({ ufs: [], modalidades: [], financia: [] });
   const [expanded, setExpanded] = useState(new Set());
 
-  const totalSel = useMemo(() => selecionados.length, [selecionados]);
-  const totalCap = useMemo(() => capturados.length, [capturados]);
-
   useEffect(() => {
     const carregar = async () => {
       setLoadingSel(true);
@@ -251,6 +248,11 @@ export default function Prospeccoes() {
     setExpanded(next);
   };
 
+  const handleMultiSelect = (event, setter) => {
+    const values = Array.from(event.target.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
+    setter(values);
+  };
+
   return (
     <div className="prospects-page">
       <div className="prospects-header">
@@ -325,7 +327,3 @@ export default function Prospeccoes() {
     </div>
   );
 }
-  const handleMultiSelect = (event, setter) => {
-    const values = Array.from(event.target.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
-    setter(values);
-  };

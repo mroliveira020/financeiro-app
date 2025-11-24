@@ -6,9 +6,27 @@ const normalizeLink = (numeroBem, linkConsulta) => {
   return `https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnOrigem=index&hdnimovel=${numeroBem}`;
 };
 
+const serializeParams = (params) => {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    if (Array.isArray(value)) {
+      value.forEach((v) => {
+        if (v !== undefined && v !== null && `${v}`.trim() !== "") {
+          search.append(key, v);
+        }
+      });
+    } else if (`${value}`.trim() !== "") {
+      search.append(key, value);
+    }
+  });
+  return search.toString();
+};
+
 export async function fetchCapturados({ limit = 20, offset = 0, uf, modalidade, status, financia, cidade } = {}) {
   const { data } = await api.get("/prospeccoes/capturados", {
     params: { limit, offset, uf, modalidade, status, financia, cidade },
+    paramsSerializer: serializeParams,
   });
   return (data?.data || []).map((row) => ({
     codigo: row.numero_bem,
@@ -27,7 +45,10 @@ export async function fetchCapturados({ limit = 20, offset = 0, uf, modalidade, 
 }
 
 export async function fetchSelecionados({ status, uf } = {}) {
-  const { data } = await api.get("/prospeccoes/selecionados", { params: { status, uf } });
+  const { data } = await api.get("/prospeccoes/selecionados", {
+    params: { status, uf },
+    paramsSerializer: serializeParams,
+  });
   return (data?.data || []).map((item) => ({
     codigo: item.numero_bem,
     status: item.status,
