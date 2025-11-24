@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Prospeccoes.css";
 
-import { fetchCapturados, fetchSelecionados, adicionarSelecionado } from "../services/prospeccoes";
+import { fetchCapturados, fetchSelecionados, adicionarSelecionado, fetchProspecMeta } from "../services/prospeccoes";
 
 const formatarMoeda = (valor) => Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -63,7 +63,7 @@ function TabelaSelecionados({ dados, loading, erro }) {
   );
 }
 
-function TabelaCapturados({ dados, loading, erro, onIncluir, includeLoadingIds }) {
+function TabelaCapturados({ dados, loading, erro, onIncluir, includeLoadingIds, expanded, toggleExpand }) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando capturados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar capturados: {erro}</p></div>;
   if (!dados.length) return <div className="prospects-card"><p className="prospects-empty">Nenhum capturado encontrado.</p></div>;
@@ -88,34 +88,51 @@ function TabelaCapturados({ dados, loading, erro, onIncluir, includeLoadingIds }
               <th>Modalidade</th>
               <th>Valor</th>
               <th>Descrição</th>
+              <th>Financia</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {dados.map((item) => (
-              <tr key={item.codigo}>
-                <td className="mono">
-                  <a className="prospects-link" href={item.link} target="_blank" rel="noreferrer">
-                    {item.codigo}
-                  </a>
-                </td>
-                <td>{item.cidade}</td>
-                <td>{item.uf}</td>
-                <td>{item.situacao}</td>
-                <td>{item.modalidade}</td>
-                <td>{formatarMoeda(item.valor)}</td>
-                <td>{item.descricao || "—"}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="prospects-btn secondary"
-                    disabled={includeLoadingIds.has(item.codigo)}
-                    onClick={() => onIncluir(item)}
-                  >
-                    {includeLoadingIds.has(item.codigo) ? "Incluindo..." : "Incluir"}
-                  </button>
-                </td>
-              </tr>
+              <React.Fragment key={item.codigo}>
+                <tr className="prospects-expandable" onClick={() => toggleExpand(item.codigo)}>
+                  <td className="mono">
+                    <a className="prospects-link" href={item.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                      {item.codigo}
+                    </a>
+                  </td>
+                  <td>{item.cidade}</td>
+                  <td>{item.uf}</td>
+                  <td>{item.situacao}</td>
+                  <td>{item.modalidade}</td>
+                  <td>{formatarMoeda(item.valor)}</td>
+                  <td>{item.descricao || "—"}</td>
+                  <td>{item.financia === undefined || item.financia === null ? "—" : item.financia ? "Sim" : "Não"}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="prospects-btn secondary"
+                      style={{ padding: "6px 8px", minWidth: "auto" }}
+                      disabled={includeLoadingIds.has(item.codigo)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onIncluir(item);
+                      }}
+                    >
+                      {includeLoadingIds.has(item.codigo) ? "…" : "+"}
+                    </button>
+                  </td>
+                </tr>
+                {expanded.has(item.codigo) && (
+                  <tr className="prospects-extra">
+                    <td colSpan={9}>
+                      <div><strong>Endereço:</strong> {item.endereco || "—"}</div>
+                      <div><strong>Bairro:</strong> {item.bairro || "—"}</div>
+                      <div><strong>Coletado em:</strong> {item.coletadoEm || "—"}</div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
             ))}
           </tbody>
         </table>
@@ -131,14 +148,15 @@ export default function Prospeccoes() {
   const [loadingCap, setLoadingCap] = useState(false);
   const [erroSel, setErroSel] = useState("");
   const [erroCap, setErroCap] = useState("");
-  const [filtroStatusSel, setFiltroStatusSel] = useState("");
-  const [filtroUfSel, setFiltroUfSel] = useState("");
   const [filtroUfCap, setFiltroUfCap] = useState("");
   const [filtroModalidadeCap, setFiltroModalidadeCap] = useState("");
   const [filtroStatusCap, setFiltroStatusCap] = useState("");
+  const [filtroFinanciaCap, setFiltroFinanciaCap] = useState("");
   const [limitCap, setLimitCap] = useState(20);
   const [includeLoadingIds, setIncludeLoadingIds] = useState(new Set());
   const [mensagem, setMensagem] = useState("");
+  const [meta, setMeta] = useState({ ufs: [], modalidades: [], financia: [] });
+  const [expanded, setExpanded] = useState(new Set());
 
   const totalSel = useMemo(() => selecionados.length, [selecionados]);
   const totalCap = useMemo(() => capturados.length, [capturados]);
@@ -151,12 +169,13 @@ export default function Prospeccoes() {
       setErroCap("");
       try {
         const [sel, cap] = await Promise.all([
-          fetchSelecionados({ status: filtroStatusSel, uf: filtroUfSel }),
+          fetchSelecionados({}),
           fetchCapturados({
             limit: limitCap,
             uf: filtroUfCap,
             modalidade: filtroModalidadeCap,
             status: filtroStatusCap,
+            financia: filtroFinanciaCap,
           }),
         ]);
         setSelecionados(sel || []);
@@ -171,18 +190,16 @@ export default function Prospeccoes() {
       }
     };
     carregar();
-  }, [filtroStatusSel, filtroUfSel, filtroUfCap, filtroModalidadeCap, filtroStatusCap, limitCap]);
+    }, [filtroStatusSel, filtroUfSel, filtroUfCap, filtroModalidadeCap, filtroStatusCap, limitCap]);
+  }, [filtroStatusCap, filtroUfCap, filtroModalidadeCap, filtroFinanciaCap, limitCap]);
+  useEffect(() => {
+    fetchProspecMeta()
+      .then((resp) => setMeta(resp))
+      .catch(() => setMeta({ ufs: [], modalidades: [], financia: [] }));
+  }, []);
 
-  const ufOptions = useMemo(() => {
-    const set = new Set(capturados.map((c) => c.uf).filter(Boolean));
-    selecionados.forEach((s) => s.uf && set.add(s.uf));
-    return Array.from(set).sort();
-  }, [capturados, selecionados]);
-
-  const modalidadeOptions = useMemo(() => {
-    const set = new Set(capturados.map((c) => c.modalidade).filter(Boolean));
-    return Array.from(set).sort();
-  }, [capturados]);
+  const ufOptions = useMemo(() => meta.ufs || [], [meta]);
+  const modalidadeOptions = useMemo(() => meta.modalidades || [], [meta]);
 
   const handleIncluir = async (item) => {
     setMensagem("");
@@ -199,7 +216,7 @@ export default function Prospeccoes() {
       });
       setMensagem(`Imóvel ${item.codigo} incluído em selecionados.`);
       // Recarrega selecionados para refletir
-      const sel = await fetchSelecionados({ status: filtroStatusSel, uf: filtroUfSel });
+      const sel = await fetchSelecionados({});
       setSelecionados(sel || []);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao incluir";
@@ -209,6 +226,16 @@ export default function Prospeccoes() {
       updated.delete(item.codigo);
       setIncludeLoadingIds(updated);
     }
+  };
+
+  const toggleExpand = (codigo) => {
+    const next = new Set(expanded);
+    if (next.has(codigo)) {
+      next.delete(codigo);
+    } else {
+      next.add(codigo);
+    }
+    setExpanded(next);
   };
 
   return (
@@ -225,24 +252,6 @@ export default function Prospeccoes() {
       </div>
 
       <div className="prospects-filters">
-        <div className="prospects-filter-group">
-          <label>UF (selecionados)</label>
-          <select value={filtroUfSel} onChange={(e) => setFiltroUfSel(e.target.value)}>
-            <option value="">Todas</option>
-            {ufOptions.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
-          </select>
-        </div>
-        <div className="prospects-filter-group">
-          <label>Status (selecionados)</label>
-          <select value={filtroStatusSel} onChange={(e) => setFiltroStatusSel(e.target.value)}>
-            <option value="">Todos</option>
-            <option value="candidato">Candidato</option>
-            <option value="aprovado">Aprovado</option>
-            <option value="descartado">Descartado</option>
-            <option value="em_leilao">Em leilão</option>
-            <option value="arrematado">Arrematado</option>
-          </select>
-        </div>
         <div className="prospects-filter-group">
           <label>UF (capturados)</label>
           <select value={filtroUfCap} onChange={(e) => setFiltroUfCap(e.target.value)}>
@@ -263,6 +272,14 @@ export default function Prospeccoes() {
             <option value="">Todos</option>
             <option value="disponivel">Disponível</option>
             <option value="indisponivel">Indisponível</option>
+          </select>
+        </div>
+        <div className="prospects-filter-group">
+          <label>Financia</label>
+          <select value={filtroFinanciaCap} onChange={(e) => setFiltroFinanciaCap(e.target.value)}>
+            <option value="">Todos</option>
+            <option value="sim">Sim</option>
+            <option value="nao">Não</option>
           </select>
         </div>
         <div className="prospects-filter-group">
@@ -287,6 +304,8 @@ export default function Prospeccoes() {
         erro={erroCap}
         onIncluir={handleIncluir}
         includeLoadingIds={includeLoadingIds}
+        expanded={expanded}
+        toggleExpand={toggleExpand}
       />
     </div>
   );

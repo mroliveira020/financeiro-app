@@ -22,6 +22,7 @@ from models import (
     listar_prospeccoes_capturados,
     listar_prospeccoes_selecionados,
     inserir_prospeccao_selecionado,
+    listar_prospeccoes_meta,
 )
 from analytics import analytics_bp
 from gpt import gpt_bp
@@ -216,12 +217,20 @@ def get_prospeccoes_capturados():
         uf = request.args.get("uf")
         modalidade = request.args.get("modalidade")
         status = request.args.get("status")
+        financia = request.args.get("financia")
     except ValueError:
         return jsonify({"error": "Parâmetros inválidos"}), 400
 
     limit = max(1, min(limit, 100))
     offset = max(0, offset)
-    dados = listar_prospeccoes_capturados(limit=limit, offset=offset, uf=uf, modalidade=modalidade, status=status)
+    dados = listar_prospeccoes_capturados(
+        limit=limit,
+        offset=offset,
+        uf=uf,
+        modalidade=modalidade,
+        status=status,
+        financia=financia,
+    )
     return jsonify({"data": dados, "limit": limit, "offset": offset})
 
 
@@ -248,6 +257,12 @@ def post_prospeccoes_selecionados():
     observacoes = payload.get("observacoes")
     result = inserir_prospeccao_selecionado(numero_bem, status, valor_maximo, prioridade, observacoes)
     return jsonify(result), 201
+
+
+@app.route("/prospeccoes/meta", methods=["GET"])
+@requires_auth
+def get_prospeccoes_meta():
+    return jsonify(listar_prospeccoes_meta())
 
 @app.route("/imoveis/<int:imovel_id>", methods=["PATCH"])
 @requires_editor_token

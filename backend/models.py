@@ -1297,7 +1297,7 @@ def listar_orcamentos_por_imovel(id_imovel):
 # ======================================================
 
 
-def listar_prospeccoes_capturados(limit=20, offset=0, uf=None, modalidade=None, status=None):
+def listar_prospeccoes_capturados(limit=20, offset=0, uf=None, modalidade=None, status=None, financia=None):
     conn, cur = conectar()
     base_query = """
         SELECT
@@ -1340,6 +1340,11 @@ def listar_prospeccoes_capturados(limit=20, offset=0, uf=None, modalidade=None, 
         if status.lower() in {"disponivel", "indisponivel"}:
             conditions.append("disponivel = %s")
             params.append(status.lower() == "disponivel")
+    if financia is not None:
+        if financia.lower() in {"sim", "true", "1"}:
+            conditions.append("financia = TRUE")
+        elif financia.lower() in {"nao", "não", "false", "0"}:
+            conditions.append("financia = FALSE")
 
     if conditions:
         base_query += " WHERE " + " AND ".join(conditions)
@@ -1459,6 +1464,21 @@ def inserir_prospeccao_selecionado(numero_bem, status="candidato", valor_maximo=
     conn.commit()
     conn.close()
     return {"message": "Imóvel adicionado/atualizado em selecionados", "numero_bem": numero_bem}
+
+
+def listar_prospeccoes_meta():
+    conn, cur = conectar()
+    cur.execute("SELECT DISTINCT uf FROM vw_imoveis_prospeccao_latest WHERE uf IS NOT NULL")
+    ufs = sorted({row[0] for row in cur.fetchall() if row[0]})
+
+    cur.execute("SELECT DISTINCT tipo_venda FROM vw_imoveis_prospeccao_latest WHERE tipo_venda IS NOT NULL")
+    modalidades = sorted({row[0] for row in cur.fetchall() if row[0]})
+
+    cur.execute("SELECT DISTINCT financia FROM vw_imoveis_prospeccao_latest WHERE financia IS NOT NULL")
+    financia = sorted({ "sim" if row[0] else "nao" for row in cur.fetchall() })
+
+    conn.close()
+    return {"ufs": ufs, "modalidades": modalidades, "financia": financia}
 
 def atualizar_inserir_orcamentos(id_imovel, orcamentos):
     conn, cur = conectar()
