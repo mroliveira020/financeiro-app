@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../services/http";
 import ModalSelecionarImovel from "./ModalSelecionarImovel";
@@ -16,18 +16,18 @@ function DadosCadastrais() {
   const { hasRole } = useAuth();
   const canEdit = hasRole("editor", "admin");
 
-  useEffect(() => {
-    fetchImovel();
-  }, [id]);
-
-  const fetchImovel = async () => {
+  const fetchImovel = useCallback(async () => {
     try {
       const { data } = await api.get(`/imoveis/${id}`);
       setImovel(data);
     } catch (error) {
       console.error("Erro ao buscar dados do imóvel", error);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchImovel();
+  }, [fetchImovel]);
 
   const trocarImovel = (novoId) => {
     setMostrarModalImoveis(false);

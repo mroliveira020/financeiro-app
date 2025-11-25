@@ -306,6 +306,9 @@ function Home() {
       .finally(() => setLoadingResumo(false));
   }, [mostrarVendidos]);
 
+  const chartPrefExclusoesArray = useMemo(() => chartPref.excluir || [], [chartPref.excluir]);
+  const chartPrefExclusoes = useMemo(() => chartPrefExclusoesArray.join(","), [chartPrefExclusoesArray]);
+
   useEffect(() => {
     if (!prefReady) {
       return;
@@ -316,7 +319,7 @@ function Home() {
     setErroGastos(false);
     setGastosRetryState({ status: "running", attempt: 1, totalAttempts: TOTAL_GASTOS_ATTEMPTS });
 
-    fetchGastosMensais(chartPref.meses, chartPref.excluir || [], {
+    fetchGastosMensais(chartPref.meses, chartPrefExclusoesArray, {
       retries: GASTOS_MAX_RETRIES,
       baseDelayMs: RETRY_BASE_DELAY_MS,
       onRetry: ({ attempt }) => {
@@ -355,7 +358,7 @@ function Home() {
     return () => {
       ativo = false;
     };
-  }, [prefReady, chartPref.meses, (chartPref.excluir || []).join(','), gastosReloadKey, mostrarVendidos]);
+  }, [prefReady, chartPref.meses, chartPrefExclusoes, chartPrefExclusoesArray, gastosReloadKey, mostrarVendidos]);
 
   const handleTentarNovamenteImoveis = () => {
     carregarImoveis();

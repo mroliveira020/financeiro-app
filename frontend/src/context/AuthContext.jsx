@@ -1,12 +1,9 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import api from "../services/http";
 import { clearSession, getAccessToken, getStoredUser, storeSession } from "../services/auth";
+import { safeErrorMessage } from "./authUtils";
 
 const AuthContext = createContext(undefined);
-
-function safeErrorMessage(error) {
-  return error?.response?.data?.error || error?.message || "Falha ao autenticar";
-}
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => getAccessToken());
@@ -133,6 +130,7 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

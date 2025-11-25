@@ -150,11 +150,11 @@
        2.15.2 [x] Garimpo envia direto para Supabase (`imoveis_prospeccao`), sem gerar planilhas, com filtro por janela (horas) e chunk de envio.
        2.15.3 [x] Integrar a tela de Prospecções aos dados reais do Supabase (lista de capturados e view de selecionados), com filtros e link no código.
        2.15.4 [ ] Acionar “Nova coleta” (fluxo real ou instrução). Export CSV removido do escopo.
-       2.15.5 [ ] UX Prospecções / Consistência:
-            2.15.5.1 [ ] Filtros aplicados exclusivamente no backend (UF, cidade, modalidade, financia, status default “disponível”), sem dupla filtragem no frontend.
-            2.15.5.2 [ ] API `/prospeccoes/capturados` com paginação real (`page/page_size`), ordenação (`order_by/order_dir`), `valor_minimo` (menor entre venda/leilões) e `ultima_disputa` (maior data).
-            2.15.5.3 [ ] Front envia filtros/ordem/página; exibe datas em DD/MM/AAAA HH:MM; coluna status removida (mostrar no detalhe); valor = `valor_minimo`; cabeçalho clicável para ordenar e paginação navegável.
-            2.15.5.4 [ ] Detalhe/expansão exibe todos os campos (valores individuais, datas, financia, fonte, endereço) para decisão.
+       2.15.5 [x] UX Prospecções / Consistência:
+            2.15.5.1 [x] Filtros aplicados exclusivamente no backend (UF, cidade, modalidade, financia, status default “disponível”), sem dupla filtragem no frontend.
+            2.15.5.2 [x] API `/prospeccoes/capturados` com paginação real (`page/page_size`), ordenação (`order_by/order_dir`), `valor_minimo` (menor entre venda/leilões) e `ultima_disputa` (maior data).
+            2.15.5.3 [x] Front envia filtros/ordem/página; exibe datas em DD/MM/AAAA HH:MM; coluna status removida (mostrar no detalhe); valor = `valor_minimo`; cabeçalho clicável para ordenar e paginação navegável.
+            2.15.5.4 [x] Detalhe/expansão exibe todos os campos (valores individuais, datas, financia, fonte, endereço) para decisão.
 
 3. Próximas
 3. Próximas (médio prazo)

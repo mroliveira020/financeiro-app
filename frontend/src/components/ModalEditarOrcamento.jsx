@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import api from "../services/http";
 
 function ModalEditarOrcamento({ id_imovel, onClose, onSave }) {
@@ -6,9 +6,9 @@ function ModalEditarOrcamento({ id_imovel, onClose, onSave }) {
 
   useEffect(() => {
     fetchOrcamentos();
-  }, []);
+  }, [fetchOrcamentos]);
 
-  const fetchOrcamentos = async () => {
+  const fetchOrcamentos = useCallback(async () => {
     try {
       const { data } = await api.get(`/orcamentos/${id_imovel}`);
       const orcamentosFormatados = data.map((item) => ({
@@ -19,7 +19,7 @@ function ModalEditarOrcamento({ id_imovel, onClose, onSave }) {
     } catch (error) {
       console.error("Erro ao buscar orçamentos:", error);
     }
-  };
+  }, [id_imovel]);
 
   // Formata valor float para string no formato BR (duas casas e vírgula)
   const formatarMoeda = (valor) => {

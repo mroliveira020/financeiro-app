@@ -31,7 +31,7 @@ export async function fetchCapturados({
   modalidade,
   financia,
   status = ["disponivel"],
-  orderBy = "coletado_em",
+  orderBy = "ultima_disputa",
   orderDir = "desc",
 } = {}) {
   const { data } = await api.get("/prospeccoes/capturados", {
@@ -49,42 +49,38 @@ export async function fetchCapturados({
     paramsSerializer: { serialize: serializeParams },
   });
   const rows = data?.data || [];
-  const total = data?.total || rows.length;
-  const formatted = rows.map((row) => {
-    const valores = [row.valor_leilao_1, row.valor_leilao_2, row.valor_venda].filter(
-      (v) => v !== null && v !== undefined && !Number.isNaN(Number(v))
-    );
-    const valorMinimo = valores.length ? Math.min(...valores.map(Number)) : null;
-    const ultimaData = [row.data_leilao_1, row.data_leilao_2, row.data_licitacao_aberta, row.data_hora_encerramento, row.coletado_em]
-      .filter(Boolean)
-      .map((d) => new Date(d))
-      .sort((a, b) => a - b)
-      .slice(-1)[0];
-    return {
-      codigo: row.numero_bem,
-      cidade: row.cidade,
-      uf: row.uf,
-      situacao: row.disponivel ? "Disponível" : "Indisponível",
-      modalidade: row.tipo_venda,
-      valor: valorMinimo,
-      link: normalizeLink(row.numero_bem, row.link_consulta),
-      coletadoEm: row.coletado_em,
-      descricao: row.detalhes,
-      financia: row.financia,
-      endereco: row.endereco,
-      bairro: row.bairro,
-      data_leilao_1: row.data_leilao_1,
-      data_leilao_2: row.data_leilao_2,
-      data_licitacao_aberta: row.data_licitacao_aberta,
-      data_hora_encerramento: row.data_hora_encerramento,
-      valor_leilao_1: row.valor_leilao_1,
-      valor_leilao_2: row.valor_leilao_2,
-      valor_venda: row.valor_venda,
-      ultima_disputa: ultimaData ? ultimaData.toISOString() : null,
-      fonte: row.fonte,
-    };
-  });
-  return { data: formatted, total };
+  const total = data?.total ?? rows.length;
+  const currentPage = data?.page ?? page;
+  const currentPageSize = data?.page_size ?? pageSize;
+  const formatted = rows.map((row) => ({
+    codigo: row.numero_bem,
+    cidade: row.cidade,
+    uf: row.uf,
+    situacao: row.disponivel ? "Disponível" : "Indisponível",
+    modalidade: row.tipo_venda,
+    valor: row.valor_minimo,
+    valorMinimo: row.valor_minimo,
+    valorVenda: row.valor_venda,
+    valorAvaliacao: row.valor_avaliacao,
+    valorLeilao1: row.valor_leilao_1,
+    valorLeilao2: row.valor_leilao_2,
+    lanceAtual: row.lance_atual,
+    link: normalizeLink(row.numero_bem, row.link_consulta),
+    coletadoEm: row.coletado_em,
+    ultima_disputa: row.ultima_disputa,
+    descricao: row.detalhes,
+    financia: row.financia,
+    endereco: row.endereco,
+    bairro: row.bairro,
+    data_leilao_1: row.data_leilao_1,
+    data_leilao_2: row.data_leilao_2,
+    data_licitacao_aberta: row.data_licitacao_aberta,
+    data_hora_encerramento: row.data_hora_encerramento,
+    fonte: row.fonte,
+    tipoImovel: row.tipo_imovel,
+    desconto: row.desconto,
+  }));
+  return { data: formatted, total, page: currentPage, pageSize: currentPageSize };
 }
 
 export async function fetchSelecionados({ status, uf } = {}) {

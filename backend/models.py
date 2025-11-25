@@ -1299,32 +1299,50 @@ def listar_orcamentos_por_imovel(id_imovel):
 
 def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None, status=None, financia=None, cidades=None, order_by="coletado_em", order_dir="desc"):
     conn, cur = conectar()
-    base_query = """
-        SELECT
-            numero_bem,
-            coletado_em,
-            tipo_venda,
-            tipo_imovel,
-            uf,
-            cidade,
-            bairro,
-            endereco,
-            valor_venda,
-            valor_avaliacao,
-            desconto,
-            detalhes,
-            disponivel,
-            financia,
-            valor_leilao_1,
-            valor_leilao_2,
-            data_leilao_1,
-            data_leilao_2,
-            data_licitacao_aberta,
-            data_hora_encerramento,
-            lance_atual,
-            link_consulta,
-            fonte
-        FROM vw_imoveis_prospeccao_latest
+    base_cte = """
+        WITH base AS (
+            SELECT
+                numero_bem,
+                coletado_em,
+                tipo_venda,
+                tipo_imovel,
+                uf,
+                cidade,
+                bairro,
+                endereco,
+                valor_venda,
+                valor_avaliacao,
+                desconto,
+                detalhes,
+                disponivel,
+                financia,
+                valor_leilao_1,
+                valor_leilao_2,
+                data_leilao_1,
+                data_leilao_2,
+                data_licitacao_aberta,
+                data_hora_encerramento,
+                lance_atual,
+                link_consulta,
+                fonte,
+                (
+                    SELECT MIN(v)
+                    FROM (VALUES (valor_leilao_1), (valor_leilao_2), (valor_venda)) AS vals(v)
+                    WHERE v IS NOT NULL
+                ) AS valor_minimo,
+                (
+                    SELECT MAX(d)
+                    FROM (
+                        VALUES (data_leilao_1),
+                               (data_leilao_2),
+                               (data_licitacao_aberta),
+                               (data_hora_encerramento),
+                               (coletado_em)
+                    ) AS datas(d)
+                    WHERE d IS NOT NULL
+                ) AS ultima_disputa
+            FROM vw_imoveis_prospeccao_latest
+        )
     """
     conditions = []
     params = []
@@ -1374,57 +1392,56 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
         "cidade": "cidade",
         "uf": "uf",
         "modalidade": "tipo_venda",
-        "valor": "COALESCE(valor_leilao_1, valor_leilao_2, valor_venda, 999999999)",
-        "ultima_disputa": "COALESCE(data_leilao_1, data_leilao_2, data_licitacao_aberta, data_hora_encerramento, coletado_em)",
+        "valor": "valor_minimo",
+        "valor_minimo": "valor_minimo",
+        "ultima_disputa": "ultima_disputa",
         "coletado_em": "coletado_em",
     }
     order_col = order_map.get(order_by, "coletado_em")
     direction = "ASC" if (order_dir or "").lower() == "asc" else "DESC"
 
-    count_query = f"SELECT COUNT(*) FROM vw_imoveis_prospeccao_latest {where_clause}"
+    count_query = f"""{base_cte} SELECT COUNT(*) FROM base {where_clause}"""
     cur.execute(count_query, params)
     total = cur.fetchone()[0]
 
-    base_query += where_clause
-    base_query += f" ORDER BY {order_col} {direction} LIMIT %s OFFSET %s"
+    data_query = (
+        f"""{base_cte} SELECT * FROM base{where_clause} """
+        f"""ORDER BY {order_col} {direction} LIMIT %s OFFSET %s"""
+    )
     query_params = params + [limit, offset]
 
-    cur.execute(base_query, query_params)
+    cur.execute(data_query, query_params)
     rows = cur.fetchall()
     conn.close()
 
     result = []
     for row in rows:
-        valores = [row[8], row[14], row[15]]
-        valores_validos = [float(v) for v in valores if v is not None]
-        valor_minimo = min(valores_validos) if valores_validos else None
-        datas = [row[16], row[17], row[18], row[19], row[1]]
-        datas_validas = [d for d in datas if d is not None]
-        ultima_disputa = max(datas_validas) if datas_validas else None
+        valor_minimo = float(row["valor_minimo"]) if row["valor_minimo"] is not None else None
+        ultima_disputa = row["ultima_disputa"].isoformat() if row["ultima_disputa"] is not None else None
         result.append({
-            "numero_bem": row[0],
-            "coletado_em": row[1],
-            "tipo_venda": row[2],
-            "tipo_imovel": row[3],
-            "uf": row[4],
-            "cidade": row[5],
-            "bairro": row[6],
-            "endereco": row[7],
-            "valor_venda": float(row[8]) if row[8] is not None else None,
-            "valor_avaliacao": float(row[9]) if row[9] is not None else None,
-            "desconto": float(row[10]) if row[10] is not None else None,
-            "detalhes": row[11],
-            "disponivel": row[12],
-            "financia": row[13],
-            "valor_leilao_1": float(row[14]) if row[14] is not None else None,
-            "valor_leilao_2": float(row[15]) if row[15] is not None else None,
-            "data_leilao_1": row[16],
-            "data_leilao_2": row[17],
-            "data_licitacao_aberta": row[18],
-            "data_hora_encerramento": row[19],
-            "lance_atual": float(row[20]) if row[20] is not None else None,
-            "link_consulta": row[21],
-            "fonte": row[22],
+            "numero_bem": row["numero_bem"],
+            "coletado_em": row["coletado_em"].isoformat() if row["coletado_em"] else None,
+            "tipo_venda": row["tipo_venda"],
+            "tipo_imovel": row["tipo_imovel"],
+            "uf": row["uf"],
+            "cidade": row["cidade"],
+            "bairro": row["bairro"],
+            "endereco": row["endereco"],
+            "valor_venda": float(row["valor_venda"]) if row["valor_venda"] is not None else None,
+            "valor_avaliacao": float(row["valor_avaliacao"]) if row["valor_avaliacao"] is not None else None,
+            "desconto": float(row["desconto"]) if row["desconto"] is not None else None,
+            "detalhes": row["detalhes"],
+            "disponivel": row["disponivel"],
+            "financia": row["financia"],
+            "valor_leilao_1": float(row["valor_leilao_1"]) if row["valor_leilao_1"] is not None else None,
+            "valor_leilao_2": float(row["valor_leilao_2"]) if row["valor_leilao_2"] is not None else None,
+            "data_leilao_1": row["data_leilao_1"].isoformat() if row["data_leilao_1"] else None,
+            "data_leilao_2": row["data_leilao_2"].isoformat() if row["data_leilao_2"] else None,
+            "data_licitacao_aberta": row["data_licitacao_aberta"].isoformat() if row["data_licitacao_aberta"] else None,
+            "data_hora_encerramento": row["data_hora_encerramento"].isoformat() if row["data_hora_encerramento"] else None,
+            "lance_atual": float(row["lance_atual"]) if row["lance_atual"] is not None else None,
+            "link_consulta": row["link_consulta"],
+            "fonte": row["fonte"],
             "valor_minimo": valor_minimo,
             "ultima_disputa": ultima_disputa,
         })
