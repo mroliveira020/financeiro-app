@@ -185,6 +185,27 @@ export default function Prospeccoes() {
     setter(values);
   };
 
+  const toggleValue = (value, listSetter) => {
+    listSetter((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) {
+        next.delete(value);
+      } else {
+        next.add(value);
+      }
+      return Array.from(next);
+    });
+  };
+
+  const limparFiltros = () => {
+    setFiltroUfCap([]);
+    setFiltroCidadesCap([]);
+    setFiltroModalidadeCap([]);
+    setFiltroStatusCap([]);
+    setFiltroFinanciaCap([]);
+    setLimitCap(20);
+  };
+
   useEffect(() => {
     const carregar = async () => {
       setLoadingSel(true);
@@ -314,35 +335,90 @@ export default function Prospeccoes() {
       <div className="prospects-filters">
         <div className="prospects-filter-group">
           <label>UF (capturados)</label>
-          <select multiple value={filtroUfCap} onChange={(e) => handleMultiSelect(e, setFiltroUfCap)}>
-            {ufOptions.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
-          </select>
+          <div className="prospects-checklist">
+            {ufOptions.map((uf) => (
+              <label key={uf} className="prospects-check">
+                <input
+                  type="checkbox"
+                  checked={filtroUfCap.includes(uf)}
+                  onChange={() => toggleValue(uf, setFiltroUfCap)}
+                />
+                <span>{uf}</span>
+              </label>
+            ))}
+          </div>
         </div>
         <div className="prospects-filter-group">
           <label>Cidade</label>
-          <select multiple value={filtroCidadesCap} onChange={(e) => handleMultiSelect(e, setFiltroCidadesCap)}>
-            {cidadesOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <div className="prospects-checklist">
+            {cidadesOptions.map((c) => (
+              <label key={c} className="prospects-check">
+                <input
+                  type="checkbox"
+                  checked={filtroCidadesCap.includes(c)}
+                  onChange={() => toggleValue(c, setFiltroCidadesCap)}
+                />
+                <span>{c}</span>
+              </label>
+            ))}
+          </div>
         </div>
         <div className="prospects-filter-group">
           <label>Modalidade</label>
-          <select multiple value={filtroModalidadeCap} onChange={(e) => handleMultiSelect(e, setFiltroModalidadeCap)}>
-            {modalidadeOptions.map((m) => <option key={m} value={m}>{m}</option>)}
-          </select>
+          <div className="prospects-checklist">
+            {modalidadeOptions.map((m) => (
+              <label key={m} className="prospects-check">
+                <input
+                  type="checkbox"
+                  checked={filtroModalidadeCap.includes(m)}
+                  onChange={() => toggleValue(m, setFiltroModalidadeCap)}
+                />
+                <span>{m}</span>
+              </label>
+            ))}
+          </div>
         </div>
         <div className="prospects-filter-group">
           <label>Status (capturados)</label>
-          <select multiple value={filtroStatusCap} onChange={(e) => handleMultiSelect(e, setFiltroStatusCap)}>
-            <option value="disponivel">Disponível</option>
-            <option value="indisponivel">Indisponível</option>
-          </select>
+          <div className="prospects-checklist">
+            <label className="prospects-check">
+              <input
+                type="checkbox"
+                checked={filtroStatusCap.includes("disponivel")}
+                onChange={() => toggleValue("disponivel", setFiltroStatusCap)}
+              />
+              <span>Disponível</span>
+            </label>
+            <label className="prospects-check">
+              <input
+                type="checkbox"
+                checked={filtroStatusCap.includes("indisponivel")}
+                onChange={() => toggleValue("indisponivel", setFiltroStatusCap)}
+              />
+              <span>Indisponível</span>
+            </label>
+          </div>
         </div>
         <div className="prospects-filter-group">
           <label>Financia</label>
-          <select multiple value={filtroFinanciaCap} onChange={(e) => handleMultiSelect(e, setFiltroFinanciaCap)}>
-            <option value="sim">Sim</option>
-            <option value="nao">Não</option>
-          </select>
+          <div className="prospects-checklist">
+            <label className="prospects-check">
+              <input
+                type="checkbox"
+                checked={filtroFinanciaCap.includes("sim")}
+                onChange={() => toggleValue("sim", setFiltroFinanciaCap)}
+              />
+              <span>Sim</span>
+            </label>
+            <label className="prospects-check">
+              <input
+                type="checkbox"
+                checked={filtroFinanciaCap.includes("nao")}
+                onChange={() => toggleValue("nao", setFiltroFinanciaCap)}
+              />
+              <span>Não</span>
+            </label>
+          </div>
         </div>
         <div className="prospects-filter-group">
           <label>Exibir</label>
@@ -351,6 +427,9 @@ export default function Prospeccoes() {
             <option value={50}>50</option>
             <option value={100}>100</option>
           </select>
+        </div>
+        <div className="prospects-filter-actions">
+          <button type="button" className="prospects-btn secondary" onClick={limparFiltros}>Limpar filtros</button>
         </div>
       </div>
 
