@@ -1297,7 +1297,7 @@ def listar_orcamentos_por_imovel(id_imovel):
 # ======================================================
 
 
-def listar_prospeccoes_capturados(limit=20, offset=0, ufs=None, modalidades=None, status=None, financia=None, cidades=None):
+def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None, status=None, financia=None, cidades=None, order_by="coletado_em", order_dir="desc"):
     conn, cur = conectar()
     base_query = """
         SELECT
@@ -1337,53 +1337,70 @@ def listar_prospeccoes_capturados(limit=20, offset=0, ufs=None, modalidades=None
         placeholders = ",".join(["LOWER(%s)"] * len(modalidades))
         conditions.append(f"LOWER(tipo_venda) IN ({placeholders})")
         params.extend([item.lower() for item in modalidades])
-    if status:
-        if isinstance(status, (list, tuple)):
-            values = []
-            for s in status:
-                if isinstance(s, str) and s.lower() == "disponivel":
-                    values.append(True)
-                elif isinstance(s, str) and s.lower() == "indisponivel":
-                    values.append(False)
-            if values:
-                placeholders = ",".join(["%s"] * len(values))
-                conditions.append(f"disponivel IN ({placeholders})")
-                params.extend(values)
-        elif isinstance(status, str):
-            if status.lower() == "disponivel":
-                conditions.append("disponivel = TRUE")
-            elif status.lower() == "indisponivel":
-                conditions.append("disponivel = FALSE")
+    status_list = status or ["disponivel"]
+    if status_list:
+        values = []
+        for s in status_list:
+            if isinstance(s, str) and s.lower() == "disponivel":
+                values.append(True)
+            elif isinstance(s, str) and s.lower() == "indisponivel":
+                values.append(False)
+        if values:
+            placeholders = ",".join(["%s"] * len(values))
+            conditions.append(f"disponivel IN ({placeholders})")
+            params.extend(values)
     if financia:
-        if isinstance(financia, (list, tuple)):
-            values = []
-            for f in financia:
-                if isinstance(f, str) and f.lower() in {"sim", "true", "1"}:
-                    values.append(True)
-                elif isinstance(f, str) and f.lower() in {"nao", "não", "false", "0"}:
-                    values.append(False)
-            if values:
-                placeholders = ",".join(["%s"] * len(values))
-                conditions.append(f"financia IN ({placeholders})")
-                params.extend(values)
-        elif isinstance(financia, str):
-            if financia.lower() in {"sim", "true", "1"}:
-                conditions.append("financia = TRUE")
-            elif financia.lower() in {"nao", "não", "false", "0"}:
-                conditions.append("financia = FALSE")
+        values = []
+        for f in financia:
+            if isinstance(f, str) and f.lower() in {"sim", "true", "1"}:
+                values.append(True)
+            elif isinstance(f, str) and f.lower() in {"nao", "não", "false", "0"}:
+                values.append(False)
+        if values:
+            placeholders = ",".join(["%s"] * len(values))
+            conditions.append(f"financia IN ({placeholders})")
+            params.extend(values)
+    if cidades:
+        placeholders = ",".join(["LOWER(%s)"] * len(cidades))
+        conditions.append(f"LOWER(cidade) IN ({placeholders})")
+        params.extend([item.lower() for item in cidades])
 
+    where_clause = ""
     if conditions:
-        base_query += " WHERE " + " AND ".join(conditions)
+        where_clause = " WHERE " + " AND ".join(conditions)
 
-    base_query += " ORDER BY coletado_em DESC LIMIT %s OFFSET %s"
-    params.extend([limit, offset])
+    order_map = {
+        "codigo": "numero_bem",
+        "cidade": "cidade",
+        "uf": "uf",
+        "modalidade": "tipo_venda",
+        "valor": "COALESCE(valor_leilao_1, valor_leilao_2, valor_venda, 999999999)",
+        "ultima_disputa": "COALESCE(data_leilao_1, data_leilao_2, data_licitacao_aberta, data_hora_encerramento, coletado_em)",
+        "coletado_em": "coletado_em",
+    }
+    order_col = order_map.get(order_by, "coletado_em")
+    direction = "ASC" if (order_dir or "").lower() == "asc" else "DESC"
 
-    cur.execute(base_query, params)
+    count_query = f"SELECT COUNT(*) FROM vw_imoveis_prospeccao_latest {where_clause}"
+    cur.execute(count_query, params)
+    total = cur.fetchone()[0]
+
+    base_query += where_clause
+    base_query += f" ORDER BY {order_col} {direction} LIMIT %s OFFSET %s"
+    query_params = params + [limit, offset]
+
+    cur.execute(base_query, query_params)
     rows = cur.fetchall()
     conn.close()
 
     result = []
     for row in rows:
+        valores = [row[8], row[14], row[15]]
+        valores_validos = [float(v) for v in valores if v is not None]
+        valor_minimo = min(valores_validos) if valores_validos else None
+        datas = [row[16], row[17], row[18], row[19], row[1]]
+        datas_validas = [d for d in datas if d is not None]
+        ultima_disputa = max(datas_validas) if datas_validas else None
         result.append({
             "numero_bem": row[0],
             "coletado_em": row[1],
@@ -1408,8 +1425,10 @@ def listar_prospeccoes_capturados(limit=20, offset=0, ufs=None, modalidades=None
             "lance_atual": float(row[20]) if row[20] is not None else None,
             "link_consulta": row[21],
             "fonte": row[22],
+            "valor_minimo": valor_minimo,
+            "ultima_disputa": ultima_disputa,
         })
-    return result
+    return {"total": total, "data": result}
 
 
 def listar_prospeccoes_selecionados(status=None, uf=None):

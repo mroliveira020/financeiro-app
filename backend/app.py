@@ -212,28 +212,39 @@ def get_imovel_by_id(imovel_id):
 @requires_auth
 def get_prospeccoes_capturados():
     try:
-        limit = int(request.args.get("limit", 20))
-        offset = int(request.args.get("offset", 0))
+        page = int(request.args.get("page", 1))
+        page_size = int(request.args.get("page_size", 50))
         ufs = request.args.getlist("uf")
         modalidades = request.args.getlist("modalidade")
         status_list = request.args.getlist("status")
         financia_list = request.args.getlist("financia")
         cidades = request.args.getlist("cidade")
+        order_by = request.args.get("order_by", "coletado_em")
+        order_dir = request.args.get("order_dir", "desc")
     except ValueError:
         return jsonify({"error": "Parâmetros inválidos"}), 400
 
-    limit = max(1, min(limit, 100))
-    offset = max(0, offset)
-    dados = listar_prospeccoes_capturados(
-        limit=limit,
+    page = max(1, page)
+    page_size = max(1, min(page_size, 200))
+    offset = (page - 1) * page_size
+
+    result = listar_prospeccoes_capturados(
+        limit=page_size,
         offset=offset,
         ufs=ufs or None,
         modalidades=modalidades or None,
-        status=status_list or None,
+        status=status_list or ["disponivel"],
         financia=financia_list or None,
         cidades=cidades or None,
+        order_by=order_by,
+        order_dir=order_dir,
     )
-    return jsonify({"data": dados, "limit": limit, "offset": offset})
+    return jsonify({
+        "data": result["data"],
+        "total": result["total"],
+        "page": page,
+        "page_size": page_size,
+    })
 
 
 @app.route("/prospeccoes/selecionados", methods=["GET"])

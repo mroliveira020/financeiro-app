@@ -23,34 +23,68 @@ const serializeParams = (params) => {
   return search.toString();
 };
 
-export async function fetchCapturados({ limit = 20, offset = 0, uf, modalidade, status, financia, cidade } = {}) {
+export async function fetchCapturados({
+  page = 1,
+  pageSize = 50,
+  uf,
+  cidade,
+  modalidade,
+  financia,
+  status = ["disponivel"],
+  orderBy = "coletado_em",
+  orderDir = "desc",
+} = {}) {
   const { data } = await api.get("/prospeccoes/capturados", {
-    params: { limit, offset, uf, modalidade, status, financia, cidade },
+    params: {
+      page,
+      page_size: pageSize,
+      uf,
+      cidade,
+      modalidade,
+      financia,
+      status,
+      order_by: orderBy,
+      order_dir: orderDir,
+    },
     paramsSerializer: { serialize: serializeParams },
   });
-  return (data?.data || []).map((row) => ({
-    codigo: row.numero_bem,
-    cidade: row.cidade,
-    uf: row.uf,
-    situacao: row.disponivel ? "Disponível" : "Indisponível",
-    modalidade: row.tipo_venda,
-    valor: Math.min(
-      ...[row.valor_leilao_1, row.valor_leilao_2, row.valor_venda].filter((v) => v !== null && v !== undefined).map(Number)
-    ),
-    link: normalizeLink(row.numero_bem, row.link_consulta),
-    coletadoEm: row.coletado_em,
-    descricao: row.detalhes,
-    financia: row.financia,
-    endereco: row.endereco,
-    bairro: row.bairro,
-    data_leilao_1: row.data_leilao_1,
-    data_leilao_2: row.data_leilao_2,
-    data_licitacao_aberta: row.data_licitacao_aberta,
-    ultima_disputa: [row.data_leilao_1, row.data_leilao_2, row.data_licitacao_aberta]
+  const rows = data?.data || [];
+  const total = data?.total || rows.length;
+  const formatted = rows.map((row) => {
+    const valores = [row.valor_leilao_1, row.valor_leilao_2, row.valor_venda].filter(
+      (v) => v !== null && v !== undefined && !Number.isNaN(Number(v))
+    );
+    const valorMinimo = valores.length ? Math.min(...valores.map(Number)) : null;
+    const ultimaData = [row.data_leilao_1, row.data_leilao_2, row.data_licitacao_aberta, row.data_hora_encerramento, row.coletado_em]
       .filter(Boolean)
-      .sort()
-      .slice(-1)[0] || null,
-  }));
+      .map((d) => new Date(d))
+      .sort((a, b) => a - b)
+      .slice(-1)[0];
+    return {
+      codigo: row.numero_bem,
+      cidade: row.cidade,
+      uf: row.uf,
+      situacao: row.disponivel ? "Disponível" : "Indisponível",
+      modalidade: row.tipo_venda,
+      valor: valorMinimo,
+      link: normalizeLink(row.numero_bem, row.link_consulta),
+      coletadoEm: row.coletado_em,
+      descricao: row.detalhes,
+      financia: row.financia,
+      endereco: row.endereco,
+      bairro: row.bairro,
+      data_leilao_1: row.data_leilao_1,
+      data_leilao_2: row.data_leilao_2,
+      data_licitacao_aberta: row.data_licitacao_aberta,
+      data_hora_encerramento: row.data_hora_encerramento,
+      valor_leilao_1: row.valor_leilao_1,
+      valor_leilao_2: row.valor_leilao_2,
+      valor_venda: row.valor_venda,
+      ultima_disputa: ultimaData ? ultimaData.toISOString() : null,
+      fonte: row.fonte,
+    };
+  });
+  return { data: formatted, total };
 }
 
 export async function fetchSelecionados({ status, uf } = {}) {

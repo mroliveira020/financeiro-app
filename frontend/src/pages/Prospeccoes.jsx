@@ -125,10 +125,9 @@ function TabelaCapturados({ dados, loading, erro, onIncluir, includeLoadingIds, 
                   </td>
                   <td>{item.cidade}</td>
                   <td>{item.uf}</td>
-                  <td>{item.situacao}</td>
                   <td>{item.modalidade}</td>
-                  <td>{formatarMoeda(item.valor)}</td>
-                  <td>{item.ultima_disputa || "—"}</td>
+                  <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>
+                  <td>{formatarData(item.ultima_disputa)}</td>
                   <td>{item.descricao || "—"}</td>
                   <td>{item.financia === undefined || item.financia === null ? "—" : item.financia ? "Sim" : "Não"}</td>
                   <td>
@@ -178,13 +177,16 @@ export default function Prospeccoes() {
   const [filtroUfCap, setFiltroUfCap] = useState([]);
   const [filtroCidadesCap, setFiltroCidadesCap] = useState([]);
   const [filtroModalidadeCap, setFiltroModalidadeCap] = useState([]);
-  const [filtroStatusCap, setFiltroStatusCap] = useState([]);
+  const [filtroStatusCap, setFiltroStatusCap] = useState(["disponivel"]);
   const [filtroFinanciaCap, setFiltroFinanciaCap] = useState([]);
-  const [limitCap, setLimitCap] = useState(20);
+  const [pageSize, setPageSize] = useState(20);
+  const [page, setPage] = useState(1);
   const [includeLoadingIds, setIncludeLoadingIds] = useState(new Set());
   const [mensagem, setMensagem] = useState("");
   const [meta, setMeta] = useState({ ufs: [], modalidades: [], financia: [] });
   const [expanded, setExpanded] = useState(new Set());
+  const [sortBy, setSortBy] = useState("coletado_em");
+  const [sortDir, setSortDir] = useState("desc");
 
   const handleMultiSelect = (event, setter) => {
     const values = Array.from(event.target.selectedOptions || []).map((opt) => opt.value).filter(Boolean);
@@ -203,15 +205,15 @@ export default function Prospeccoes() {
     });
   };
 
-  const limparFiltros = () => {
-    setFiltroUfCap([]);
-    setFiltroCidadesCap([]);
-    setFiltroModalidadeCap([]);
-    setFiltroStatusCap([]);
-    setFiltroFinanciaCap([]);
-    setLimitCap(20);
-    setCapturadosBrutos(capturadosBrutos); // mantém dados carregados, apenas limpa filtros
-  };
+const limparFiltros = () => {
+  setFiltroUfCap([]);
+  setFiltroCidadesCap([]);
+  setFiltroModalidadeCap([]);
+  setFiltroStatusCap(["disponivel"]);
+  setFiltroFinanciaCap([]);
+  setPageSize(20);
+  setPage(1);
+};
 
   useEffect(() => {
     const carregar = async () => {
@@ -222,14 +224,7 @@ export default function Prospeccoes() {
       try {
         const [sel, cap] = await Promise.all([
           fetchSelecionados({}),
-          fetchCapturados({
-            limit: limitCap,
-            uf: filtroUfCap,
-            modalidade: filtroModalidadeCap,
-            status: filtroStatusCap,
-            financia: filtroFinanciaCap,
-            cidade: filtroCidadesCap,
-          }),
+          fetchCapturados({ limit: 200 }),
         ]);
         setSelecionados(sel || []);
         setCapturadosBrutos(cap || []);
@@ -265,7 +260,7 @@ export default function Prospeccoes() {
 
   const capturados = useMemo(() => {
     const normalize = (v) => `${v || ""}`.trim().toLowerCase();
-    return (capturadosBrutos || []).filter((item) => {
+    const filtrados = (capturadosBrutos || []).filter((item) => {
       if (filtroUfCap.length && !filtroUfCap.map(normalize).includes(normalize(item.uf))) {
         return false;
       }
@@ -286,6 +281,7 @@ export default function Prospeccoes() {
       }
       return true;
     });
+    return filtrados.slice(0, limitCap);
   }, [capturadosBrutos, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroStatusCap, filtroFinanciaCap]);
 
   const handleIncluir = async (item) => {
