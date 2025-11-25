@@ -1,10 +1,11 @@
 import axios from 'axios';
 import { getAccessToken } from './auth';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000';
+const fallbackURL = 'https://site-backend-hg4w.onrender.com';
+const baseURL = import.meta.env.VITE_API_URL || fallbackURL;
 
 if (!import.meta.env.VITE_API_URL) {
-  console.warn('[http] VITE_API_URL não definida. Usando padrão http://127.0.0.1:5000');
+  console.warn(`[http] VITE_API_URL não definida. Usando fallback ${fallbackURL}`);
 }
 
 export const api = axios.create({
