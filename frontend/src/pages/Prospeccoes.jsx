@@ -10,6 +10,23 @@ function TabelaSelecionados({ dados, loading, erro }) {
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar selecionados: {erro}</p></div>;
   if (!dados.length) return <div className="prospects-card"><p className="prospects-empty">Nenhum selecionado encontrado.</p></div>;
 
+  const formatStatus = (status) => {
+    if (!status) return { label: "—", cls: "" };
+    const label = `${status}`.trim();
+    return { label, cls: label.toLowerCase() };
+  };
+
+  const formatPrioridade = (pri) => {
+    if (pri === null || pri === undefined) return { label: "—", cls: "" };
+    if (typeof pri === "number") {
+      if (pri >= 3) return { label: "Alta", cls: "alta" };
+      if (pri <= 1) return { label: "Baixa", cls: "baixa" };
+      return { label: "Média", cls: "media" };
+    }
+    const label = `${pri}`.trim();
+    return { label, cls: label.toLowerCase() };
+  };
+
   return (
     <div className="prospects-card">
       <div className="prospects-card__header">
@@ -44,12 +61,18 @@ function TabelaSelecionados({ dados, loading, erro }) {
                 <td>{item.cidade}</td>
                 <td>{item.uf}</td>
                 <td>
-                  <span className={`prospects-chip status-${(item.status || "").toLowerCase()}`}>{item.status || "—"}</span>
+                  {(() => {
+                    const { label, cls } = formatStatus(item.status);
+                    return <span className={`prospects-chip status-${cls}`}>{label}</span>;
+                  })()}
                 </td>
                 <td>{formatarMoeda(item.valorMaximo)}</td>
                 <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>
                 <td>
-                  <span className={`prospects-chip priority-${(item.prioridade || "").toLowerCase()}`}>{item.prioridade || "—"}</span>
+                  {(() => {
+                    const { label, cls } = formatPrioridade(item.prioridade);
+                    return <span className={`prospects-chip priority-${cls}`}>{label}</span>;
+                  })()}
                 </td>
                 <td>{item.descricao || "—"}</td>
               </tr>
@@ -181,7 +204,29 @@ export default function Prospeccoes() {
           }),
         ]);
         setSelecionados(sel || []);
-        setCapturados(cap || []);
+        const normalizaTexto = (v) => `${v || ""}`.trim().toLowerCase();
+        const filtra = (lista) => lista.filter((item) => {
+          if (filtroUfCap.length && !filtroUfCap.map(normalizaTexto).includes(normalizaTexto(item.uf))) {
+            return false;
+          }
+          if (filtroCidadesCap.length && !filtroCidadesCap.map(normalizaTexto).includes(normalizaTexto(item.cidade))) {
+            return false;
+          }
+          if (filtroModalidadeCap.length && !filtroModalidadeCap.map(normalizaTexto).includes(normalizaTexto(item.modalidade))) {
+            return false;
+          }
+          if (filtroStatusCap.length && !filtroStatusCap.map(normalizaTexto).includes(normalizaTexto(item.situacao))) {
+            return false;
+          }
+          if (filtroFinanciaCap.length) {
+            const fin = item.financia ? "sim" : "nao";
+            if (!filtroFinanciaCap.map(normalizaTexto).includes(fin)) {
+              return false;
+            }
+          }
+          return true;
+        });
+        setCapturados(filtra(cap || []));
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro inesperado";
         setErroSel(message);
