@@ -225,29 +225,7 @@ export default function Prospeccoes() {
           }),
         ]);
         setSelecionados(sel || []);
-        const normalizaTexto = (v) => `${v || ""}`.trim().toLowerCase();
-        const filtra = (lista) => lista.filter((item) => {
-          if (filtroUfCap.length && !filtroUfCap.map(normalizaTexto).includes(normalizaTexto(item.uf))) {
-            return false;
-          }
-          if (filtroCidadesCap.length && !filtroCidadesCap.map(normalizaTexto).includes(normalizaTexto(item.cidade))) {
-            return false;
-          }
-          if (filtroModalidadeCap.length && !filtroModalidadeCap.map(normalizaTexto).includes(normalizaTexto(item.modalidade))) {
-            return false;
-          }
-          if (filtroStatusCap.length && !filtroStatusCap.map(normalizaTexto).includes(normalizaTexto(item.situacao))) {
-            return false;
-          }
-          if (filtroFinanciaCap.length) {
-            const fin = item.financia ? "sim" : "nao";
-            if (!filtroFinanciaCap.map(normalizaTexto).includes(fin)) {
-              return false;
-            }
-          }
-          return true;
-        });
-        setCapturados(filtra(cap || []));
+        setCapturados(cap || []);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro inesperado";
         setErroSel(message);
