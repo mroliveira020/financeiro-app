@@ -108,6 +108,7 @@ function TabelaCapturados({ dados, loading, erro, onIncluir, includeLoadingIds, 
               <th>Situação</th>
               <th>Modalidade</th>
               <th>Valor</th>
+              <th>Última disputa</th>
               <th>Descrição</th>
               <th>Financia</th>
               <th>Ações</th>
@@ -127,6 +128,7 @@ function TabelaCapturados({ dados, loading, erro, onIncluir, includeLoadingIds, 
                   <td>{item.situacao}</td>
                   <td>{item.modalidade}</td>
                   <td>{formatarMoeda(item.valor)}</td>
+                  <td>{item.ultima_disputa || "—"}</td>
                   <td>{item.descricao || "—"}</td>
                   <td>{item.financia === undefined || item.financia === null ? "—" : item.financia ? "Sim" : "Não"}</td>
                   <td>
@@ -146,10 +148,14 @@ function TabelaCapturados({ dados, loading, erro, onIncluir, includeLoadingIds, 
                 </tr>
                 {expanded.has(item.codigo) && (
                   <tr className="prospects-extra">
-                    <td colSpan={9}>
+                    <td colSpan={10}>
                       <div><strong>Endereço:</strong> {item.endereco || "—"}</div>
                       <div><strong>Bairro:</strong> {item.bairro || "—"}</div>
                       <div><strong>Coletado em:</strong> {item.coletadoEm || "—"}</div>
+                      <div><strong>Data Leilão 1:</strong> {item.data_leilao_1 || "—"}</div>
+                      <div><strong>Data Leilão 2:</strong> {item.data_leilao_2 || "—"}</div>
+                      <div><strong>Data Licitação Aberta:</strong> {item.data_licitacao_aberta || "—"}</div>
+                      <div><strong>Fonte:</strong> {item.fonte || "—"}</div>
                     </td>
                   </tr>
                 )}
@@ -164,7 +170,7 @@ function TabelaCapturados({ dados, loading, erro, onIncluir, includeLoadingIds, 
 
 export default function Prospeccoes() {
   const [selecionados, setSelecionados] = useState([]);
-  const [capturados, setCapturados] = useState([]);
+  const [capturadosBrutos, setCapturadosBrutos] = useState([]);
   const [loadingSel, setLoadingSel] = useState(false);
   const [loadingCap, setLoadingCap] = useState(false);
   const [erroSel, setErroSel] = useState("");
@@ -204,6 +210,7 @@ export default function Prospeccoes() {
     setFiltroStatusCap([]);
     setFiltroFinanciaCap([]);
     setLimitCap(20);
+    setCapturadosBrutos(capturadosBrutos); // mantém dados carregados, apenas limpa filtros
   };
 
   useEffect(() => {
@@ -225,7 +232,7 @@ export default function Prospeccoes() {
           }),
         ]);
         setSelecionados(sel || []);
-        setCapturados(cap || []);
+        setCapturadosBrutos(cap || []);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro inesperado";
         setErroSel(message);
@@ -255,6 +262,31 @@ export default function Prospeccoes() {
     });
     return Array.from(set).sort();
   }, [meta, filtroUfCap]);
+
+  const capturados = useMemo(() => {
+    const normalize = (v) => `${v || ""}`.trim().toLowerCase();
+    return (capturadosBrutos || []).filter((item) => {
+      if (filtroUfCap.length && !filtroUfCap.map(normalize).includes(normalize(item.uf))) {
+        return false;
+      }
+      if (filtroCidadesCap.length && !filtroCidadesCap.map(normalize).includes(normalize(item.cidade))) {
+        return false;
+      }
+      if (filtroModalidadeCap.length && !filtroModalidadeCap.map(normalize).includes(normalize(item.modalidade))) {
+        return false;
+      }
+      if (filtroStatusCap.length && !filtroStatusCap.map(normalize).includes(normalize(item.situacao))) {
+        return false;
+      }
+      if (filtroFinanciaCap.length) {
+        const fin = item.financia ? "sim" : "nao";
+        if (!filtroFinanciaCap.map(normalize).includes(fin)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [capturadosBrutos, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroStatusCap, filtroFinanciaCap]);
 
   const handleIncluir = async (item) => {
     setMensagem("");

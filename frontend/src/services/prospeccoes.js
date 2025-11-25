@@ -34,13 +34,22 @@ export async function fetchCapturados({ limit = 20, offset = 0, uf, modalidade, 
     uf: row.uf,
     situacao: row.disponivel ? "Disponível" : "Indisponível",
     modalidade: row.tipo_venda,
-    valor: row.valor_venda ?? row.valor_leilao_1 ?? row.valor_avaliacao,
+    valor: Math.min(
+      ...[row.valor_leilao_1, row.valor_leilao_2, row.valor_venda].filter((v) => v !== null && v !== undefined).map(Number)
+    ),
     link: normalizeLink(row.numero_bem, row.link_consulta),
     coletadoEm: row.coletado_em,
     descricao: row.detalhes,
     financia: row.financia,
     endereco: row.endereco,
     bairro: row.bairro,
+    data_leilao_1: row.data_leilao_1,
+    data_leilao_2: row.data_leilao_2,
+    data_licitacao_aberta: row.data_licitacao_aberta,
+    ultima_disputa: [row.data_leilao_1, row.data_leilao_2, row.data_licitacao_aberta]
+      .filter(Boolean)
+      .sort()
+      .slice(-1)[0] || null,
   }));
 }
 

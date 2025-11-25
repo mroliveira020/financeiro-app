@@ -150,7 +150,7 @@
        2.15.2 [x] Garimpo envia direto para Supabase (`imoveis_prospeccao`), sem gerar planilhas, com filtro por janela (horas) e chunk de envio.
        2.15.3 [x] Integrar a tela de Prospecções aos dados reais do Supabase (lista de capturados e view de selecionados), com filtros e link no código.
        2.15.4 [ ] Acionar “Nova coleta” (fluxo real ou instrução). Export CSV removido do escopo.
-       2.15.5 [ ] UX Prospecções: filtros completos e consistentes (UF, modalidade, status, financia, cidade) sem filtragem client-side paralela; colunas (descrição), ajuste de tipografia e label/ícone, controle de linhas exibidas e ação “Incluir em selecionados” direto da tabela.
+       2.15.5 [ ] UX Prospecções: filtros completos e consistentes (UF, modalidade, status, financia, cidade) sem filtragem client-side paralela; colunas (descrição, última disputa, valor mínimo), ajuste de tipografia e label/ícone, controle de linhas exibidas, expansão com todos os campos e ação “Incluir em selecionados” direto da tabela.
 
 3. Próximas
 3. Próximas (médio prazo)
