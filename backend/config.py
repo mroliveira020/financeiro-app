@@ -60,3 +60,6 @@ JWT_EXPIRES_MINUTES = int(os.getenv("JWT_EXPIRES_MINUTES", "60"))
 
 # Observabilidade / performance
 PERF_WARN_THRESHOLD_MS = int(os.getenv("PERF_WARN_THRESHOLD_MS", "700"))
+
+# URL pública do frontend (usada para geração de links de convite)
+FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", "http://localhost:5173")

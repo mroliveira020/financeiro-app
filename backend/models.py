@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import os
+import secrets
 import uuid
 from collections import defaultdict
 from functools import lru_cache
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from db_connection import conectar
 import json
 from werkzeug.security import generate_password_hash
@@ -153,9 +155,31 @@ def _garantir_tabela_usuarios():
             """
         )
         resultado = cur.fetchone()
-        # Em ambientes somente leitura (prod), evitar DDL desnecessário quando a tabela já existe.
         if resultado and resultado.get("tabela"):
-            return
+            cur.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'users'
+                  AND column_name IN (
+                    'password_reset_required',
+                    'invite_token_hash',
+                    'invite_expires_at',
+                    'invite_created_at'
+                  )
+                """
+            )
+            existing = {row[0] for row in cur.fetchall()}
+            required = {
+                "password_reset_required",
+                "invite_token_hash",
+                "invite_expires_at",
+                "invite_created_at",
+            }
+            # Em ambientes somente leitura, evita DDL quando a tabela já está no formato esperado.
+            if required.issubset(existing):
+                return
     finally:
         conn.close()
 
@@ -169,9 +193,37 @@ def _garantir_tabela_usuarios():
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'viewer',
                 is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                password_reset_required BOOLEAN NOT NULL DEFAULT FALSE,
+                invite_token_hash TEXT,
+                invite_expires_at TIMESTAMP WITH TIME ZONE,
+                invite_created_at TIMESTAMP WITH TIME ZONE,
                 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
             )
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS password_reset_required BOOLEAN NOT NULL DEFAULT FALSE
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS invite_token_hash TEXT
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS invite_expires_at TIMESTAMP WITH TIME ZONE
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS invite_created_at TIMESTAMP WITH TIME ZONE
             """
         )
         cur.execute(
@@ -207,6 +259,9 @@ def criar_usuario(email: str, senha: str, role: str = "viewer", is_active: bool 
     email_norm = (email or "").strip().lower()
     if not email_norm:
         raise ValueError("E-mail obrigatório")
+    role_norm = (role or "viewer").strip().lower()
+    if role_norm not in {"viewer", "editor", "admin", "prospector"}:
+        raise ValueError("Papel inválido")
     senha_hash = generate_password_hash(senha, method="pbkdf2:sha256", salt_length=16)
 
     conn, cur = conectar()
@@ -217,11 +272,187 @@ def criar_usuario(email: str, senha: str, role: str = "viewer", is_active: bool 
             VALUES (%s, %s, %s, %s)
             RETURNING id, email, role, is_active, created_at, updated_at
             """,
-            (email_norm, senha_hash, role, is_active),
+            (email_norm, senha_hash, role_norm, is_active),
         )
         row = cur.fetchone()
         conn.commit()
         return dict(row)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _hash_invite_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def listar_usuarios() -> list[dict]:
+    _garantir_tabela_usuarios()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT
+                id,
+                email,
+                role,
+                is_active,
+                created_at,
+                updated_at,
+                password_reset_required,
+                invite_expires_at,
+                (invite_token_hash IS NOT NULL) AS invite_pending
+            FROM users
+            ORDER BY created_at DESC
+            """
+        )
+        rows = cur.fetchall()
+        return [dict(row) for row in rows]
+    finally:
+        conn.close()
+
+
+def criar_convite_usuario(
+    email: str,
+    role: str = "viewer",
+    is_active: bool = True,
+    invite_hours: int = 72,
+) -> dict:
+    _garantir_tabela_usuarios()
+
+    email_norm = (email or "").strip().lower()
+    if not email_norm:
+        raise ValueError("E-mail obrigatório")
+    role_norm = (role or "viewer").strip().lower()
+    if role_norm not in {"viewer", "editor", "admin", "prospector"}:
+        raise ValueError("Papel inválido")
+
+    invite_hours = max(1, int(invite_hours or 72))
+    invite_token = secrets.token_urlsafe(24)
+    invite_token_hash = _hash_invite_token(invite_token)
+    invite_expires_at = datetime.now(timezone.utc) + timedelta(hours=invite_hours)
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            "SELECT id FROM users WHERE email = %s LIMIT 1",
+            (email_norm,),
+        )
+        existing = cur.fetchone()
+
+        if existing:
+            cur.execute(
+                """
+                UPDATE users
+                SET
+                    role = %s,
+                    is_active = %s,
+                    invite_token_hash = %s,
+                    invite_expires_at = %s,
+                    invite_created_at = NOW(),
+                    password_reset_required = TRUE,
+                    updated_at = NOW()
+                WHERE email = %s
+                RETURNING id, email, role, is_active, invite_expires_at
+                """,
+                (role_norm, is_active, invite_token_hash, invite_expires_at, email_norm),
+            )
+        else:
+            placeholder_hash = generate_password_hash(
+                secrets.token_urlsafe(32),
+                method="pbkdf2:sha256",
+                salt_length=16,
+            )
+            cur.execute(
+                """
+                INSERT INTO users (
+                    email,
+                    password_hash,
+                    role,
+                    is_active,
+                    invite_token_hash,
+                    invite_expires_at,
+                    invite_created_at,
+                    password_reset_required
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, NOW(), TRUE)
+                RETURNING id, email, role, is_active, invite_expires_at
+                """,
+                (
+                    email_norm,
+                    placeholder_hash,
+                    role_norm,
+                    is_active,
+                    invite_token_hash,
+                    invite_expires_at,
+                ),
+            )
+
+        user = cur.fetchone()
+        conn.commit()
+        result = dict(user)
+        result["invite_token"] = invite_token
+        return result
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def definir_senha_por_convite(email: str, token: str, nova_senha: str) -> dict:
+    _garantir_tabela_usuarios()
+
+    email_norm = (email or "").strip().lower()
+    if not email_norm:
+        raise ValueError("E-mail obrigatório")
+    if not token:
+        raise ValueError("Token obrigatório")
+    if not nova_senha or len(nova_senha) < 8:
+        raise ValueError("Senha deve ter pelo menos 8 caracteres")
+
+    token_hash = _hash_invite_token(token)
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT id, email, role, invite_token_hash, invite_expires_at
+            FROM users
+            WHERE email = %s
+            LIMIT 1
+            """,
+            (email_norm,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise ValueError("Convite inválido")
+        if not row["invite_token_hash"] or row["invite_token_hash"] != token_hash:
+            raise ValueError("Convite inválido")
+        if row["invite_expires_at"] and row["invite_expires_at"] < datetime.now(timezone.utc):
+            raise ValueError("Convite expirado")
+
+        new_hash = generate_password_hash(nova_senha, method="pbkdf2:sha256", salt_length=16)
+        cur.execute(
+            """
+            UPDATE users
+            SET
+                password_hash = %s,
+                password_reset_required = FALSE,
+                invite_token_hash = NULL,
+                invite_expires_at = NULL,
+                invite_created_at = NULL,
+                is_active = TRUE,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING id, email, role, is_active
+            """,
+            (new_hash, row["id"]),
+        )
+        user = cur.fetchone()
+        conn.commit()
+        return dict(user)
     except Exception:
         conn.rollback()
         raise
@@ -239,7 +470,7 @@ def obter_usuario_por_email(email: str) -> dict | None:
     try:
         cur.execute(
             """
-            SELECT id, email, password_hash, role, is_active
+            SELECT id, email, password_hash, role, is_active, password_reset_required
             FROM users
             WHERE email = %s
             LIMIT 1
@@ -1464,7 +1695,16 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             v.link_consulta,
             v.tipo_venda,
             v.disponivel,
-            v.detalhes
+            v.detalhes,
+            (
+                SELECT MAX(d)
+                FROM (
+                    VALUES (v.data_leilao_1),
+                           (v.data_leilao_2),
+                           (v.data_hora_encerramento)
+                ) AS datas(d)
+                WHERE d IS NOT NULL
+            ) AS data_leilao
         FROM imoveis_selecionados s
         LEFT JOIN vw_imoveis_prospeccao_latest v
             ON v.numero_bem = s.numero_bem
@@ -1504,6 +1744,7 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             "tipo_venda": row[10],
             "disponivel": row[11],
             "detalhes": row[12],
+            "data_leilao": row[13].isoformat() if row[13] else None,
         })
     return result
 
@@ -1541,6 +1782,20 @@ def inserir_prospeccao_selecionado(numero_bem, status="candidato", valor_maximo=
     conn.commit()
     conn.close()
     return {"message": "Imóvel adicionado/atualizado em selecionados", "numero_bem": numero_bem}
+
+
+def excluir_prospeccao_selecionado(numero_bem):
+    conn, cur = conectar()
+    cur.execute(
+        "DELETE FROM imoveis_selecionados WHERE numero_bem = %s",
+        (numero_bem,),
+    )
+    removidos = cur.rowcount
+    conn.commit()
+    conn.close()
+    if removidos == 0:
+        return {"deleted": False, "numero_bem": numero_bem, "message": "Imóvel não encontrado em selecionados"}
+    return {"deleted": True, "numero_bem": numero_bem, "message": "Imóvel removido de selecionados"}
 
 
 def listar_prospeccoes_meta():

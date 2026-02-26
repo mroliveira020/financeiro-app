@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Prospeccoes.css";
 
-import { fetchCapturados, fetchSelecionados, adicionarSelecionado, fetchProspecMeta } from "../services/prospeccoes";
+import { fetchCapturados, fetchSelecionados, adicionarSelecionado, excluirSelecionado, fetchProspecMeta } from "../services/prospeccoes";
 
 const formatarMoeda = (valor) => {
   if (valor === null || valor === undefined) return "—";
@@ -25,7 +25,7 @@ const formatarDataHora = (valor) => {
   return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
 };
 
-function TabelaSelecionados({ dados, loading, erro }) {
+function TabelaSelecionados({ dados, loading, erro, onExcluir, removeLoadingIds }) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando selecionados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar selecionados: {erro}</p></div>;
   if (!dados.length) return <div className="prospects-card"><p className="prospects-empty">Nenhum selecionado encontrado.</p></div>;
@@ -64,10 +64,13 @@ function TabelaSelecionados({ dados, loading, erro }) {
               <th>Cidade</th>
               <th>UF</th>
               <th>Status</th>
+              <th>Data leilão</th>
               <th>Valor máximo</th>
               <th>Valor referência</th>
               <th>Prioridade</th>
+              <th>Observações</th>
               <th>Descrição</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -86,6 +89,7 @@ function TabelaSelecionados({ dados, loading, erro }) {
                     return <span className={`prospects-chip status-${cls}`}>{label}</span>;
                   })()}
                 </td>
+                <td>{formatarDataHora(item.dataLeilao)}</td>
                 <td>{formatarMoeda(item.valorMaximo)}</td>
                 <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>
                 <td>
@@ -94,7 +98,19 @@ function TabelaSelecionados({ dados, loading, erro }) {
                     return <span className={`prospects-chip priority-${cls}`}>{label}</span>;
                   })()}
                 </td>
+                <td>{item.observacoes || "—"}</td>
                 <td>{item.descricao || "—"}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="prospects-btn secondary"
+                    style={{ padding: "6px 8px", minWidth: "auto" }}
+                    disabled={removeLoadingIds.has(item.codigo)}
+                    onClick={() => onExcluir(item)}
+                  >
+                    {removeLoadingIds.has(item.codigo) ? "…" : "Excluir"}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -281,6 +297,7 @@ export default function Prospeccoes() {
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(1);
   const [includeLoadingIds, setIncludeLoadingIds] = useState(new Set());
+  const [removeLoadingIds, setRemoveLoadingIds] = useState(new Set());
   const [mensagem, setMensagem] = useState("");
   const [meta, setMeta] = useState({ ufs: [], modalidades: [], financia: [] });
   const [expanded, setExpanded] = useState(new Set());
@@ -401,6 +418,33 @@ export default function Prospeccoes() {
       setMensagem(message);
     } finally {
       setIncludeLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item.codigo);
+        return next;
+      });
+    }
+  };
+
+  const handleExcluirSelecionado = async (item) => {
+    const confirm = window.confirm(`Excluir o imóvel ${item.codigo} da base de selecionados?`);
+    if (!confirm) return;
+
+    setMensagem("");
+    setRemoveLoadingIds((prev) => {
+      const next = new Set(prev);
+      next.add(item.codigo);
+      return next;
+    });
+
+    try {
+      await excluirSelecionado(item.codigo);
+      setSelecionados((prev) => prev.filter((row) => row.codigo !== item.codigo));
+      setMensagem(`Imóvel ${item.codigo} removido de selecionados.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao excluir";
+      setMensagem(message);
+    } finally {
+      setRemoveLoadingIds((prev) => {
         const next = new Set(prev);
         next.delete(item.codigo);
         return next;
@@ -552,7 +596,13 @@ export default function Prospeccoes() {
 
       {mensagem && <div className="prospects-message">{mensagem}</div>}
 
-      <TabelaSelecionados dados={selecionados} loading={loadingSel} erro={erroSel} />
+      <TabelaSelecionados
+        dados={selecionados}
+        loading={loadingSel}
+        erro={erroSel}
+        onExcluir={handleExcluirSelecionado}
+        removeLoadingIds={removeLoadingIds}
+      />
 
       <div className="prospects-gap" />
 

@@ -26,6 +26,9 @@ Subprojeto responsável por prospectar novos imóveis em leilão e gerar planilh
   - Consulta imóveis de venda direta da CAIXA, aplicando os tipos definidos em `config.yaml`.
   - Pergunta quantas horas de dados recentes do Supabase devem ser ignoradas e envia os registros diretamente para `imoveis_prospeccao`, em lotes.
 
+- Inicialização rápida do ambiente:
+  - `bash garimpo/init_garimpo.sh` cria/usa `backend/venv`, instala dependências (backend + garimpo) e copia `config.yaml.example` para `config.yaml` se ainda não existir. Depois, rode `bash garimpo/start.sh principal` ou `extrajudicial_caixa`.
+
 Os scripts usam configurações compartilhadas em `src/config.py`. Ajustes de timeout, headers ou cookies podem ser adicionados a `config.yaml` conforme necessário. Com `supabase.enabled=false` não há mais persistência (execução será abortada).
 
 ## Integração com Supabase

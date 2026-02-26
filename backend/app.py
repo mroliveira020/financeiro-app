@@ -22,6 +22,7 @@ from models import (
     listar_prospeccoes_capturados,
     listar_prospeccoes_selecionados,
     inserir_prospeccao_selecionado,
+    excluir_prospeccao_selecionado,
     listar_prospeccoes_meta,
 )
 from analytics import analytics_bp
@@ -39,7 +40,7 @@ from config import (
     TRUST_PROXY,
     PERF_WARN_THRESHOLD_MS,
 )
-from security import requires_auth, requires_editor_token
+from security import requires_auth, requires_editor_token, requires_prospeccao_write
 from ratelimit import limiter
 from werkzeug.middleware.proxy_fix import ProxyFix
 import time, json
@@ -257,7 +258,7 @@ def get_prospeccoes_selecionados():
 
 
 @app.route("/prospeccoes/selecionados", methods=["POST"])
-@requires_editor_token
+@requires_prospeccao_write
 @limiter.limit(RATE_LIMIT_EDIT)
 def post_prospeccoes_selecionados():
     payload = request.get_json(force=True, silent=True) or {}
@@ -270,6 +271,18 @@ def post_prospeccoes_selecionados():
     observacoes = payload.get("observacoes")
     result = inserir_prospeccao_selecionado(numero_bem, status, valor_maximo, prioridade, observacoes)
     return jsonify(result), 201
+
+
+@app.route("/prospeccoes/selecionados/<numero_bem>", methods=["DELETE"])
+@requires_prospeccao_write
+@limiter.limit(RATE_LIMIT_EDIT)
+def delete_prospeccoes_selecionados(numero_bem):
+    if not numero_bem:
+        return jsonify({"error": "numero_bem é obrigatório"}), 400
+    result = excluir_prospeccao_selecionado(numero_bem)
+    if not result.get("deleted"):
+        return jsonify(result), 404
+    return jsonify(result), 200
 
 
 @app.route("/prospeccoes/meta", methods=["GET"])

@@ -20,6 +20,9 @@ class AuthError(Exception):
         self.status_code = status_code
 
 
+PROSPECTOR_ALLOWED_PREFIXES = ("/prospeccoes", "/auth", "/healthz")
+
+
 def _log_auth_failure(reason: str, status: int) -> None:
     try:
         ip = (
@@ -70,6 +73,25 @@ def _decode_access_token(token: str) -> Dict[str, Any]:
     }
 
 
+def _is_allowed_path_for_prospector(path: str) -> bool:
+    if not path:
+        return False
+    normalized = path.rstrip("/") or "/"
+    for prefix in PROSPECTOR_ALLOWED_PREFIXES:
+        if normalized == prefix or normalized.startswith(prefix + "/"):
+            return True
+    return False
+
+
+def _ensure_module_access(user: Dict[str, Any]) -> Optional[tuple]:
+    if user.get("role") != "prospector":
+        return None
+    if _is_allowed_path_for_prospector(request.path):
+        return None
+    _log_auth_failure("Módulo não permitido para este perfil", 403)
+    return jsonify({"error": "Permissão insuficiente para este módulo"}), 403
+
+
 def generate_access_token(user_id: int, email: str, role: str, is_active: bool = True) -> str:
     expires = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRES_MINUTES)
     payload = {
@@ -108,10 +130,13 @@ def requires_auth(fn):
         if request.method == "OPTIONS":
             return ("", 204)
         try:
-            _ensure_user_loaded()
+            user = _ensure_user_loaded()
         except AuthError as exc:
             _log_auth_failure(exc.message, exc.status_code)
             return jsonify({"error": exc.message}), exc.status_code
+        access_error = _ensure_module_access(user)
+        if access_error:
+            return access_error
         return fn(*args, **kwargs)
 
     return wrapper
@@ -128,6 +153,9 @@ def requires_role(*roles: str):
             except AuthError as exc:
                 _log_auth_failure(exc.message, exc.status_code)
                 return jsonify({"error": exc.message}), exc.status_code
+            access_error = _ensure_module_access(user)
+            if access_error:
+                return access_error
 
             if user.get("role") not in roles:
                 _log_auth_failure("Permissão insuficiente", 403)
@@ -152,8 +180,37 @@ def requires_editor_token(fn):
         except AuthError as exc:
             _log_auth_failure(exc.message, exc.status_code)
             return jsonify({"error": exc.message}), exc.status_code
+        access_error = _ensure_module_access(user)
+        if access_error:
+            return access_error
 
         if user.get("role") not in {"editor", "admin"}:
+            _log_auth_failure("Permissão insuficiente", 403)
+            return jsonify({"error": "Permissão insuficiente"}), 403
+
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+def requires_prospeccao_write(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if request.method == "OPTIONS":
+            return ("", 204)
+        if READ_ONLY:
+            return jsonify({"error": "Somente leitura"}), 405
+
+        try:
+            user = _ensure_user_loaded()
+        except AuthError as exc:
+            _log_auth_failure(exc.message, exc.status_code)
+            return jsonify({"error": exc.message}), exc.status_code
+        access_error = _ensure_module_access(user)
+        if access_error:
+            return access_error
+
+        if user.get("role") not in {"prospector", "editor", "admin"}:
             _log_auth_failure("Permissão insuficiente", 403)
             return jsonify({"error": "Permissão insuficiente"}), 403
 

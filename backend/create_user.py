@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument("--email", help="E-mail do usuário (obrigatório)", required=True)
     parser.add_argument(
         "--role",
-        choices=["viewer", "editor", "admin"],
+        choices=["viewer", "editor", "admin", "prospector"],
         default="viewer",
         help="Papel do usuário (padrão: viewer)",
     )

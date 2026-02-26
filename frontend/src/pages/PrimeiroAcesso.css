@@ -1,0 +1,84 @@
+.first-access-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #134e4a, #115e59);
+}
+
+.first-access-card {
+  width: 100%;
+  max-width: 440px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+}
+
+.first-access-card h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.first-access-card p {
+  margin: 6px 0 16px;
+  color: #475569;
+}
+
+.first-access-form {
+  display: grid;
+  gap: 8px;
+}
+
+.first-access-form label {
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.first-access-form input {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.first-access-form button {
+  margin-top: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: #0f766e;
+  color: #fff;
+  padding: 10px;
+  font-weight: 600;
+}
+
+.first-access-form button:disabled {
+  opacity: 0.75;
+}
+
+.first-access-alert {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.92rem;
+}
+
+.first-access-alert--error {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.first-access-alert--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.first-access-link {
+  display: inline-block;
+  margin-top: 12px;
+  color: #0f766e;
+  text-decoration: none;
+}
+
+.first-access-link:hover {
+  text-decoration: underline;
+}

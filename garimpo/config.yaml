@@ -43,9 +43,9 @@ email:
 
 supabase:
   enabled: true
-  url: ""
-  anon_key: ""
-  service_role_key: ""
+  url: "https://thmekudlkuwjuddkyhpi.supabase.co"
+  anon_key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRobWVrdWRsa3V3anVkZGt5aHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3NDM4MTUsImV4cCI6MjA1NTMxOTgxNX0.8tWYoeF3krCzYDJX6jony_1hEAacS4F-tOtbNFGy6as"
+  service_role_key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRobWVrdWRsa3V3anVkZGt5aHBpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczOTc0MzgxNSwiZXhwIjoyMDU1MzE5ODE1fQ.AZogBNPM-O7FrD0oSa7wfLY0dSczAfbR3jJchOQZ9dQ"
   chunk_size: 500
   timeout: 10
   retry:

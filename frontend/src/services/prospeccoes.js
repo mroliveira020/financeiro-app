@@ -101,6 +101,7 @@ export async function fetchSelecionados({ status, uf } = {}) {
     disponivel: item.disponivel,
     observacoes: item.observacoes,
     descricao: item.detalhes,
+    dataLeilao: item.data_leilao,
   }));
 }
 
@@ -113,6 +114,10 @@ export async function adicionarSelecionado(payload) {
     observacoes: payload.observacoes,
   };
   return api.post("/prospeccoes/selecionados", body);
+}
+
+export async function excluirSelecionado(numeroBem) {
+  return api.delete(`/prospeccoes/selecionados/${numeroBem}`);
 }
 
 export async function fetchProspecMeta() {

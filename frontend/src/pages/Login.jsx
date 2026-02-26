@@ -104,6 +104,9 @@ export default function Login() {
           <span className="text-muted small">
             Problemas de acesso? Fale com o administrador para provisionar seu usuário.
           </span>
+          <Link to="/primeiro-acesso" className="small">
+            Primeiro acesso: definir senha
+          </Link>
           <Link to="/" className="small">
             Voltar ao site
           </Link>
