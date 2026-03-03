@@ -131,3 +131,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 3. [ ] **Pendências de consolidação**
    3.1. [ ] Atualizar documentação operacional com fluxo completo de convite/primeiro acesso.
    3.2. [ ] Adicionar testes de integração para convites, expiração e definição de senha.
+
+## Segurança Operacional
+1. [x] Rotacionar chaves do Supabase após exposição acidental em arquivo `.env`.
+2. [x] Garantir que arquivos `.env` locais (`backend/.env`, `frontend/.env`, `garimpo/.env` e raiz) não sejam mais versionados.
