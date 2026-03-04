@@ -16,6 +16,13 @@ Subprojeto responsável por prospectar novos imóveis em leilão e gerar planilh
 4. Entrada da base:
    - Planilha única (`data.input`): modo `excel`.
    - CSVs por UF (ex.: `data/input/Lista_imoveis_PR.csv`): modo `csv` ou `auto` (pergunta se os arquivos estiverem presentes).
+5. Segredos locais:
+   - Copie `garimpo/.env.example` para `garimpo/.env`.
+   - Preencha no `garimpo/.env`:
+     - `SUPABASE_URL`
+     - `SUPABASE_ANON_KEY`
+     - `SUPABASE_SERVICE_KEY`
+   - O arquivo `garimpo/.env` fica apenas na sua máquina e não deve ir para o Git.
 
 ## Scripts Principais
 - `python garimpo/src/principal.py`
@@ -30,6 +37,7 @@ Subprojeto responsável por prospectar novos imóveis em leilão e gerar planilh
   - `bash garimpo/init_garimpo.sh` cria/usa `backend/venv`, instala dependências (backend + garimpo) e copia `config.yaml.example` para `config.yaml` se ainda não existir. Depois, rode `bash garimpo/start.sh principal` ou `extrajudicial_caixa`.
 
 Os scripts usam configurações compartilhadas em `src/config.py`. Ajustes de timeout, headers ou cookies podem ser adicionados a `config.yaml` conforme necessário. Com `supabase.enabled=false` não há mais persistência (execução será abortada).
+O `bash garimpo/start.sh ...` carrega automaticamente o `garimpo/.env` e valida `SUPABASE_URL`/`SUPABASE_SERVICE_KEY` quando `supabase.enabled=true`.
 
 ## Integração com Supabase
 - Preencha `supabase` em `config.yaml` (ou via `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`). O envio só é tentado se `enabled: true` e `url`/chave de serviço estiverem configurados; caso contrário, o script aborta para evitar perda de dados.
@@ -46,3 +54,6 @@ Os scripts usam configurações compartilhadas em `src/config.py`. Ajustes de ti
 - Documente no PR o filtro utilizado (UFs, tipos de venda) e anexe registros de amostra.
 - Em caso de falhas, verifique os arquivos `data/output/erros_<script>_<data>.csv`; eles listam códigos de imóveis e motivos do erro.
 - Para rodadas de teste, aponte `GARIMPO_CONFIG` para um YAML alternativo (ex.: uma planilha reduzida) sem alterar `config.yaml` do repositório.
+- Instale o hook de proteção de segredos antes de commitar:
+  - `bash scripts/install-git-hooks.sh`
+  - O hook bloqueia commits com `.env` real e padrões como `sb_secret_`.

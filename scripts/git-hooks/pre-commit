@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+staged_files="$(git diff --cached --name-only)"
+
+if echo "${staged_files}" | grep -E '(^|/)\.env($|[^/]+)' | grep -v '\.env\.example$' >/dev/null; then
+  echo "[pre-commit] ERRO: arquivo .env real detectado no stage."
+  echo "[pre-commit] Remova do commit e mantenha apenas .env.example."
+  exit 1
+fi
+
+if git diff --cached --unified=0 | grep -E '^\+.*sb_secret_[A-Za-z0-9._-]{20,}' >/dev/null; then
+  echo "[pre-commit] ERRO: possível segredo do Supabase detectado no diff."
+  echo "[pre-commit] Remova a chave antes de commitar."
+  exit 1
+fi
+
+exit 0

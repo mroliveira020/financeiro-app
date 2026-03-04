@@ -135,3 +135,43 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 ## Segurança Operacional
 1. [x] Rotacionar chaves do Supabase após exposição acidental em arquivo `.env`.
 2. [x] Garantir que arquivos `.env` locais (`backend/.env`, `frontend/.env`, `garimpo/.env` e raiz) não sejam mais versionados.
+
+## Supabase — Security Advisor
+1. [x] Corrigir alertas de `Security Definer View` nas views:
+   - `public.vw_lancamentos_completos`
+   - `public.vw_lancamentos_incompletos`
+   - `public.vw_orcamento_execucao`
+   - `public.vw_imoveis_prospeccao_latest`
+2. [x] Endurecer tabelas `public` com `RLS Disabled in Public`:
+   - `public.imoveis_prospeccao`
+   - `public.imoveis_selecionados`
+   - `public.users`
+   - `public.situacao_lancamento`
+3. [x] Corrigir warning `Function Search Path Mutable` na função `public.set_updated_at`.
+4. [ ] Planejar update de versão do Postgres no Supabase (warning de patch de segurança).
+5. [x] Validar regressão após hardening:
+   - login e rota `/usuarios`;
+   - leitura/gravação em `/prospeccoes/*`;
+   - carga do dashboard financeiro.
+6. [x] Security Advisor sem erros críticos; permanecem apenas sugestões/info de políticas RLS em tabelas de catálogo.
+
+## Garimpo — Segredos Locais (somente máquina)
+1. [x] **Padronizar configuração local sem versionamento**
+   1.1. [x] Manter apenas `garimpo/.env.example` no Git (sem valores reais).
+   1.2. [x] Garantir `garimpo/.env` no `.gitignore` e fora do índice Git.
+   1.3. [x] Definir carregamento prioritário de variáveis locais (`garimpo/.env`) para execução dos scripts.
+
+2. [ ] **Execução segura do garimpo na máquina local**
+   2.1. [x] Atualizar `garimpo/start.sh` para validar variáveis obrigatórias antes de iniciar (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`).
+   2.2. [x] Exibir mensagem clara quando variável obrigatória estiver ausente, sem imprimir segredo em log.
+   2.3. [ ] Validar fluxo `principal.py` e `extrajudicial_caixa.py` com `.env` local.
+
+3. [ ] **Prevenção de vazamento em commits**
+   3.1. [x] Adicionar pre-commit simples para bloquear inclusão de arquivos `.env` reais.
+   3.2. [x] Adicionar varredura rápida por padrões de chave (`sb_secret_`, `SUPABASE_SERVICE_KEY=`) antes de commit.
+   3.3. [ ] Documentar runbook de resposta (rotacionar chave + remoção do índice) em caso de incidente.
+
+4. [ ] **Critério de aceite**
+   4.1. [ ] Garimpo funciona localmente com `.env` privado.
+   4.2. [ ] Nenhum arquivo de segredo aparece em `git status`/`git add .`.
+   4.3. [ ] Repositório mantém apenas exemplos sanitizados.
