@@ -78,7 +78,9 @@ read_supabase_cfg_field() {
 }
 
 is_true() {
-    case "${1,,}" in
+    local normalized
+    normalized="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')"
+    case "${normalized}" in
         true|1|yes|y|sim|s) return 0 ;;
         *) return 1 ;;
     esac

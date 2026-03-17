@@ -4,10 +4,6 @@ import api from "../services/http";
 function ModalEditarOrcamento({ id_imovel, onClose, onSave }) {
   const [orcamentos, setOrcamentos] = useState([]);
 
-  useEffect(() => {
-    fetchOrcamentos();
-  }, [fetchOrcamentos]);
-
   const fetchOrcamentos = useCallback(async () => {
     try {
       const { data } = await api.get(`/orcamentos/${id_imovel}`);
@@ -20,6 +16,10 @@ function ModalEditarOrcamento({ id_imovel, onClose, onSave }) {
       console.error("Erro ao buscar orçamentos:", error);
     }
   }, [id_imovel]);
+
+  useEffect(() => {
+    fetchOrcamentos();
+  }, [fetchOrcamentos]);
 
   // Formata valor float para string no formato BR (duas casas e vírgula)
   const formatarMoeda = (valor) => {
