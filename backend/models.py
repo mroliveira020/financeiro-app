@@ -24,6 +24,13 @@ def _to_float(valor):
         return 0.0
 
 
+def _aliquota_ganho_capital(valor):
+    taxa = _to_float(valor)
+    if taxa < 0:
+        return 0.0
+    return taxa if taxa or valor == 0 else 0.15
+
+
 def _total_estimado(item):
     if not item:
         return 0.0
@@ -33,7 +40,7 @@ def _total_estimado(item):
     return max(orcamento, efetivado + em_contratacao)
 
 
-def _metricas_por_imovel(registros):
+def _metricas_por_imovel(registros, ganho_capital=None):
     if not registros:
         return {
             "valor_efetivado": 0.0,
@@ -64,9 +71,10 @@ def _metricas_por_imovel(registros):
     corretor = total_grupo7
 
     ganho_capital_base = valor_de_venda - custo_do_imovel - corretor
+    aliquota_ganho_capital = _aliquota_ganho_capital(ganho_capital)
     ir_ganho_capital = max(
         total_grupo9,
-        ganho_capital_base * 0.15 if ganho_capital_base > 0 else 0.0,
+        ganho_capital_base * aliquota_ganho_capital if ganho_capital_base > 0 else 0.0,
     )
 
     lucro_projetado = valor_de_venda - custo_do_imovel - corretor - ir_ganho_capital
@@ -609,7 +617,10 @@ def listar_imoveis():
                 grupos = []
             item["grupos"] = grupos
 
-            metricas = _metricas_por_imovel(registros_por_imovel.get(item["id"], []))
+            metricas = _metricas_por_imovel(
+                registros_por_imovel.get(item["id"], []),
+                item.get("ganho_capital"),
+            )
             for chave, valor in metricas.items():
                 item[chave] = float(valor)
 
@@ -1395,6 +1406,7 @@ def listar_resumo_imoveis(incluir_vendidos=True):
         WITH base AS (
             SELECT
                 i.id AS id_imovel,
+                COALESCE(i.ganho_capital, 0.15) AS ganho_capital,
                 COALESCE(o.id_grupo, 0) AS id_grupo,
                 COALESCE(o.valor_efetivado, 0) AS valor_efetivado,
                 COALESCE(o.valor_em_contratacao, 0) AS valor_em_contratacao,
@@ -1405,6 +1417,7 @@ def listar_resumo_imoveis(incluir_vendidos=True):
         ), per_imovel AS (
             SELECT
                 id_imovel,
+                MAX(ganho_capital) AS ganho_capital,
                 SUM(CASE WHEN id_grupo NOT IN (6,7,8,9)
                     THEN GREATEST(orcamento, valor_efetivado + valor_em_contratacao)
                     ELSE 0 END) AS investimento_total,
@@ -1439,7 +1452,7 @@ def listar_resumo_imoveis(incluir_vendidos=True):
                     total_grupo9,
                     CASE
                         WHEN (total_grupo8 - (investimento_total + total_grupo6) - total_grupo7) > 0
-                            THEN (total_grupo8 - (investimento_total + total_grupo6) - total_grupo7) * 0.15
+                            THEN (total_grupo8 - (investimento_total + total_grupo6) - total_grupo7) * ganho_capital
                         ELSE 0
                     END
                 )

@@ -6,6 +6,7 @@ import { useAuth } from "../context/AuthContext";
 
 function ResumoFinanceiro({ refreshKey = 0 }) {
   const [resumo, setResumo] = useState([]);
+  const [aliquotaGanhoCapital, setAliquotaGanhoCapital] = useState(0.15);
   const [mostrarModalOrcamento, setMostrarModalOrcamento] = useState(false);
   const [mostrarSegundaTabela, setMostrarSegundaTabela] = useState(false);
   const { hasRole } = useAuth();
@@ -24,9 +25,25 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
     }
   }, [id_imovel]);
 
+  const carregarAliquotaGanhoCapital = useCallback(async () => {
+    if (!id_imovel) return;
+    try {
+      const { data } = await api.get(`/imoveis/${id_imovel}`);
+      const taxa = Number(data?.ganho_capital);
+      setAliquotaGanhoCapital(Number.isFinite(taxa) && taxa >= 0 ? taxa : 0.15);
+    } catch (error) {
+      console.error("Erro ao buscar aliquota de ganho de capital", error);
+      setAliquotaGanhoCapital(0.15);
+    }
+  }, [id_imovel]);
+
   useEffect(() => {
     carregarResumo();
   }, [carregarResumo, refreshKey]);
+
+  useEffect(() => {
+    carregarAliquotaGanhoCapital();
+  }, [carregarAliquotaGanhoCapital, refreshKey]);
 
   // Funções auxiliares
   const calcularEfetivadoMaisContratacao = (item) => {
@@ -97,19 +114,13 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
   // Cálculo do IR Ganho de Capital: Máximo entre o orçado (grupo 9) e o cálculo baseado no ganho real
   const irGanhoDeCapital = Math.max(
     totalEstimadoGrupo9,
-    ganhoCapitalBase > 0 ? ganhoCapitalBase * 0.15 : 0 // usa taxa fixa de 15%
+    ganhoCapitalBase > 0 ? ganhoCapitalBase * aliquotaGanhoCapital : 0
   );
   
   const resultadoLiquido = valorDeVenda - custoDoImovel - corretor - irGanhoDeCapital;
 
   // ROI = Resultado Líquido / Investimento Total (apenas a parte investida, não o custo total)
   const roi = investimentoTotal > 0 ? (resultadoLiquido / investimentoTotal) : 0;
-
-   // Nota: A variável 'imovel' usada no cálculo do IR Ganho de Capital não está sendo buscada neste componente.
-   // Ela é usada no componente DadosCadastrais. Para usar 'imovel.ganho_capital' aqui, você precisaria:
-   // 1. Buscar os dados do imóvel também neste componente ResumoFinanceiro, OU
-   // 2. Passar os dados do imóvel (ou apenas 'imovel.ganho_capital') como prop de Dashboard para ResumoFinanceiro.
-   // Por enquanto, estou assumindo 0.15 (15%) se 'imovel' não existir aqui. Se você já busca 'imovel' e está apenas omitindo no contexto fornecido, ignore esta nota.
 
   const formatarMoeda = (valor) => {
     const numerico = Number(valor || 0);
