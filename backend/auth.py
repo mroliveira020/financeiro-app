@@ -1,4 +1,5 @@
 from typing import Any, Dict
+from urllib.parse import urlencode
 
 from flask import Blueprint, jsonify, request
 from psycopg2 import errors
@@ -17,6 +18,13 @@ from security import generate_access_token, get_current_user, requires_auth, req
 from config import FRONTEND_APP_URL
 
 auth_bp = Blueprint("auth", __name__)
+
+
+def _resolve_frontend_app_url() -> str:
+    origin = (request.headers.get("Origin") or "").strip()
+    if origin.startswith(("http://", "https://")):
+        return origin.rstrip("/")
+    return FRONTEND_APP_URL.rstrip("/")
 
 
 @auth_bp.route("/auth/login", methods=["POST"])
@@ -52,6 +60,7 @@ def login() -> Any:
                 "token": token,
                 "user": {
                     "id": user["id"],
+                    "name": user.get("name"),
                     "email": user["email"],
                     "role": user.get("role", "viewer"),
                 },
@@ -76,6 +85,7 @@ def me() -> Any:
         jsonify(
             {
                 "id": db_user["id"],
+                "name": db_user.get("name"),
                 "email": db_user["email"],
                 "role": db_user.get("role", "viewer"),
             }
@@ -95,6 +105,7 @@ def logout() -> Any:
 @requires_role("admin")
 def create_user() -> Any:
     payload: Dict[str, Any] = request.get_json(silent=True) or {}
+    nome = (payload.get("name") or "").strip()
     email = (payload.get("email") or "").strip().lower()
     password = payload.get("password") or ""
     role = (payload.get("role") or "viewer").strip().lower()
@@ -102,11 +113,11 @@ def create_user() -> Any:
 
     if role not in {"viewer", "editor", "admin", "prospector"}:
         return jsonify({"error": "Papel inválido"}), 400
-    if not email or not password:
-        return jsonify({"error": "E-mail e senha são obrigatórios"}), 400
+    if not nome or not email or not password:
+        return jsonify({"error": "Nome, e-mail e senha são obrigatórios"}), 400
 
     try:
-        user = criar_usuario(email=email, senha=password, role=role, is_active=is_active)
+        user = criar_usuario(email=email, senha=password, role=role, is_active=is_active, nome=nome)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except errors.UniqueViolation:
@@ -118,6 +129,7 @@ def create_user() -> Any:
         jsonify(
             {
                 "id": user["id"],
+                "name": user.get("name"),
                 "email": user["email"],
                 "role": user.get("role", "viewer"),
                 "is_active": user.get("is_active", True),
@@ -138,6 +150,7 @@ def list_users() -> Any:
 @requires_role("admin")
 def create_user_invite() -> Any:
     payload: Dict[str, Any] = request.get_json(silent=True) or {}
+    nome = (payload.get("name") or "").strip()
     email = (payload.get("email") or "").strip().lower()
     role = (payload.get("role") or "prospector").strip().lower()
     is_active = bool(payload.get("is_active", True))
@@ -145,11 +158,12 @@ def create_user_invite() -> Any:
 
     if role not in {"viewer", "editor", "admin", "prospector"}:
         return jsonify({"error": "Papel inválido"}), 400
-    if not email:
-        return jsonify({"error": "E-mail é obrigatório"}), 400
+    if not nome or not email:
+        return jsonify({"error": "Nome e e-mail são obrigatórios"}), 400
 
     try:
         invited = criar_convite_usuario(
+            nome=nome,
             email=email,
             role=role,
             is_active=is_active,
@@ -161,14 +175,15 @@ def create_user_invite() -> Any:
         return jsonify({"error": f"Falha ao gerar convite: {exc}"}), 500
 
     invite_link = (
-        f"{FRONTEND_APP_URL.rstrip('/')}/primeiro-acesso"
-        f"?email={invited['email']}&token={invited['invite_token']}"
+        f"{_resolve_frontend_app_url()}/primeiro-acesso?"
+        f"{urlencode({'email': invited['email'], 'token': invited['invite_token']})}"
     )
     return (
         jsonify(
             {
                 "user": {
                     "id": invited["id"],
+                    "name": invited.get("name"),
                     "email": invited["email"],
                     "role": invited["role"],
                     "is_active": invited["is_active"],

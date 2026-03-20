@@ -98,13 +98,15 @@
   flex-wrap: wrap;
 }
 
-.users-invite__box code {
+.users-invite__link {
   background: #fff;
   border: 1px solid #dbeafe;
   border-radius: 6px;
   padding: 6px 8px;
   word-break: break-all;
   flex: 1;
+  color: #1e3a8a;
+  text-decoration: none;
 }
 
 .users-invite__box button {

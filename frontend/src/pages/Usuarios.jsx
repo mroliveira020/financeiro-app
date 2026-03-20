@@ -25,6 +25,7 @@ export default function Usuarios() {
   const [saving, setSaving] = useState(false);
 
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [role, setRole] = useState("prospector");
   const [inviteHours, setInviteHours] = useState(72);
   const [isActive, setIsActive] = useState(true);
@@ -54,13 +55,15 @@ export default function Usuarios() {
     setInviteLink("");
     try {
       const { data } = await api.post("/auth/users/invite", {
+        name: name.trim(),
         email: email.trim().toLowerCase(),
         role,
         is_active: isActive,
         invite_hours: Number(inviteHours),
       });
-      setMessage(`Convite gerado para ${data?.user?.email}.`);
+      setMessage(`Convite gerado para ${data?.user?.name || data?.user?.email}.`);
       setInviteLink(data?.invite_link || "");
+      setName("");
       setEmail("");
       await loadUsers();
     } catch (err) {
@@ -88,6 +91,18 @@ export default function Usuarios() {
       </div>
 
       <form className="users-form" onSubmit={handleCreateInvite}>
+        <div className="users-form__row">
+          <label htmlFor="invite-name">Nome</label>
+          <input
+            id="invite-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nome do usuário"
+            required
+          />
+        </div>
+
         <div className="users-form__row">
           <label htmlFor="invite-email">E-mail</label>
           <input
@@ -146,7 +161,9 @@ export default function Usuarios() {
         <div className="users-invite">
           <p>Link de convite:</p>
           <div className="users-invite__box">
-            <code>{inviteLink}</code>
+            <a href={inviteLink} target="_blank" rel="noreferrer" className="users-invite__link">
+              {inviteLink}
+            </a>
             <button type="button" onClick={copyInviteLink}>Copiar</button>
           </div>
         </div>
@@ -156,6 +173,7 @@ export default function Usuarios() {
         <table className="users-table">
           <thead>
             <tr>
+              <th>Nome</th>
               <th>E-mail</th>
               <th>Perfil</th>
               <th>Ativo</th>
@@ -167,17 +185,18 @@ export default function Usuarios() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6}>Carregando...</td>
+                <td colSpan={7}>Carregando...</td>
               </tr>
             )}
             {!loading && users.length === 0 && (
               <tr>
-                <td colSpan={6}>Nenhum usuário encontrado.</td>
+                <td colSpan={7}>Nenhum usuário encontrado.</td>
               </tr>
             )}
             {!loading &&
               users.map((user) => (
                 <tr key={user.id}>
+                  <td>{user.name || "—"}</td>
                   <td>{user.email}</td>
                   <td>{user.role}</td>
                   <td>{user.is_active ? "Sim" : "Não"}</td>

@@ -171,6 +171,7 @@ def _garantir_tabela_usuarios():
                 WHERE table_schema = 'public'
                   AND table_name = 'users'
                   AND column_name IN (
+                    'name',
                     'password_reset_required',
                     'invite_token_hash',
                     'invite_expires_at',
@@ -180,6 +181,7 @@ def _garantir_tabela_usuarios():
             )
             existing = {row[0] for row in cur.fetchall()}
             required = {
+                "name",
                 "password_reset_required",
                 "invite_token_hash",
                 "invite_expires_at",
@@ -197,6 +199,7 @@ def _garantir_tabela_usuarios():
             """
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
+                name TEXT,
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'viewer',
@@ -208,6 +211,12 @@ def _garantir_tabela_usuarios():
                 created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
                 updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
             )
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS name TEXT
             """
         )
         cur.execute(
@@ -262,8 +271,17 @@ def _garantir_tabela_usuarios():
         conn.close()
 
 
-def criar_usuario(email: str, senha: str, role: str = "viewer", is_active: bool = True) -> dict:
+def criar_usuario(
+    email: str,
+    senha: str,
+    role: str = "viewer",
+    is_active: bool = True,
+    nome: str | None = None,
+) -> dict:
     _garantir_tabela_usuarios()
+    nome_norm = (nome or "").strip()
+    if not nome_norm:
+        raise ValueError("Nome obrigatório")
     email_norm = (email or "").strip().lower()
     if not email_norm:
         raise ValueError("E-mail obrigatório")
@@ -276,11 +294,11 @@ def criar_usuario(email: str, senha: str, role: str = "viewer", is_active: bool 
     try:
         cur.execute(
             """
-            INSERT INTO users (email, password_hash, role, is_active)
-            VALUES (%s, %s, %s, %s)
-            RETURNING id, email, role, is_active, created_at, updated_at
+            INSERT INTO users (name, email, password_hash, role, is_active)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id, name, email, role, is_active, created_at, updated_at
             """,
-            (email_norm, senha_hash, role_norm, is_active),
+            (nome_norm, email_norm, senha_hash, role_norm, is_active),
         )
         row = cur.fetchone()
         conn.commit()
@@ -304,6 +322,7 @@ def listar_usuarios() -> list[dict]:
             """
             SELECT
                 id,
+                name,
                 email,
                 role,
                 is_active,
@@ -323,6 +342,7 @@ def listar_usuarios() -> list[dict]:
 
 
 def criar_convite_usuario(
+    nome: str,
     email: str,
     role: str = "viewer",
     is_active: bool = True,
@@ -330,6 +350,9 @@ def criar_convite_usuario(
 ) -> dict:
     _garantir_tabela_usuarios()
 
+    nome_norm = (nome or "").strip()
+    if not nome_norm:
+        raise ValueError("Nome obrigatório")
     email_norm = (email or "").strip().lower()
     if not email_norm:
         raise ValueError("E-mail obrigatório")
@@ -355,6 +378,7 @@ def criar_convite_usuario(
                 """
                 UPDATE users
                 SET
+                    name = %s,
                     role = %s,
                     is_active = %s,
                     invite_token_hash = %s,
@@ -363,9 +387,9 @@ def criar_convite_usuario(
                     password_reset_required = TRUE,
                     updated_at = NOW()
                 WHERE email = %s
-                RETURNING id, email, role, is_active, invite_expires_at
+                RETURNING id, name, email, role, is_active, invite_expires_at
                 """,
-                (role_norm, is_active, invite_token_hash, invite_expires_at, email_norm),
+                (nome_norm, role_norm, is_active, invite_token_hash, invite_expires_at, email_norm),
             )
         else:
             placeholder_hash = generate_password_hash(
@@ -376,6 +400,7 @@ def criar_convite_usuario(
             cur.execute(
                 """
                 INSERT INTO users (
+                    name,
                     email,
                     password_hash,
                     role,
@@ -385,10 +410,11 @@ def criar_convite_usuario(
                     invite_created_at,
                     password_reset_required
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, NOW(), TRUE)
-                RETURNING id, email, role, is_active, invite_expires_at
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), TRUE)
+                RETURNING id, name, email, role, is_active, invite_expires_at
                 """,
                 (
+                    nome_norm,
                     email_norm,
                     placeholder_hash,
                     role_norm,
@@ -426,7 +452,7 @@ def definir_senha_por_convite(email: str, token: str, nova_senha: str) -> dict:
     try:
         cur.execute(
             """
-            SELECT id, email, role, invite_token_hash, invite_expires_at
+            SELECT id, name, email, role, invite_token_hash, invite_expires_at
             FROM users
             WHERE email = %s
             LIMIT 1
@@ -454,7 +480,7 @@ def definir_senha_por_convite(email: str, token: str, nova_senha: str) -> dict:
                 is_active = TRUE,
                 updated_at = NOW()
             WHERE id = %s
-            RETURNING id, email, role, is_active
+            RETURNING id, name, email, role, is_active
             """,
             (new_hash, row["id"]),
         )
@@ -478,7 +504,7 @@ def obter_usuario_por_email(email: str) -> dict | None:
     try:
         cur.execute(
             """
-            SELECT id, email, password_hash, role, is_active, password_reset_required
+            SELECT id, name, email, password_hash, role, is_active, password_reset_required
             FROM users
             WHERE email = %s
             LIMIT 1
@@ -497,7 +523,7 @@ def obter_usuario_por_id(user_id: int) -> dict | None:
     try:
         cur.execute(
             """
-            SELECT id, email, role, is_active
+            SELECT id, name, email, role, is_active
             FROM users
             WHERE id = %s
             """,

@@ -78,59 +78,73 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    5.1. [x] Normalização implementada (datas → ISO, monetários → decimal, booleanos `Disponível`/`Financia`).
    5.2. [ ] Validar amostra no painel do Supabase.
 
-## Próximas Etapas — Produto Prospecções (RBAC + Selecionados)
-1. [x] **Controle de acesso por módulo (somente Prospecção)**
-   1.1. [x] Adicionar papel `prospector` (ou equivalente) no backend (`auth/create_user/security`) e aceitar emissão de token com esse papel.
-   1.2. [x] Criar guardas específicos para prospecção:
-        - leitura (`GET /prospeccoes/*`) permitida para `prospector`, `viewer`, `editor`, `admin`;
-        - escrita (`POST/DELETE /prospeccoes/selecionados*`) permitida para `prospector`, `editor`, `admin`.
-   1.3. [x] Restringir módulos financeiros para `prospector` (backend e frontend), mantendo acesso apenas à rota `/prospeccoes`.
-   1.4. [x] Frontend: condicionar menu/rotas por papel e redirecionar `prospector` de `/` para `/prospeccoes`.
-   1.5. [x] Critério de aceite:
-        - usuário `prospector` autentica normalmente;
-        - acessa e opera somente Prospecções;
-        - recebe `403` ao tentar endpoints fora do módulo.
+## Roadmap Recomendado — Prospecções e Gestão de Usuários
+1. [ ] **Corrigir base do fluxo de usuários**
+   1.1. [ ] Incluir campo `nome` no cadastro/convite de usuários e armazenar esse valor na tabela `users`.
+   1.2. [ ] Exibir nome e e-mail na listagem `/usuarios`, mantendo o e-mail como identificador de login.
+   1.3. [ ] Ajustar fluxo de convite para tornar `nome` obrigatório e manter consistência entre convite, usuário ativo e sessão autenticada.
+   1.4. [ ] Corrigir geração e exibição do link de convite:
+        - Backend: validar `FRONTEND_APP_URL` por ambiente para garantir que `invite_link` aponte para a URL pública correta do frontend.
+        - Frontend: revisar exibição/cópia do link em `/usuarios` para evitar quebra visual ou cópia parcial do endereço/token.
+        - Operação: revisar variáveis do ambiente produtivo (`FRONTEND_APP_URL`) e registrar valor esperado no runbook.
+   1.5. [ ] Garantir que a sessão/autenticação exponha `id`, `nome`, `email` e `role` para uso nas telas de Prospecções.
 
-2. [x] **Evolução da lista de imóveis selecionados**
-   2.1. [x] Backend: retornar `data_leilao` em `GET /prospeccoes/selecionados` considerando a maior data disponível entre `data_leilao_1`, `data_leilao_2` e `data_hora_encerramento`.
-   2.2. [x] Frontend: incluir coluna "Data do leilão" na tabela de selecionados.
-   2.3. [x] Frontend: incluir coluna "Observações" na tabela de selecionados usando o campo já persistido.
-   2.4. [x] Backend: criar endpoint de exclusão `DELETE /prospeccoes/selecionados/<numero_bem>`.
-   2.5. [x] Frontend: adicionar ação de exclusão com confirmação e atualização da lista sem reload completo.
-   2.6. [x] Critério de aceite:
-        - data do leilão e observações visíveis para todos os selecionados;
-        - exclusão remove o registro de `imoveis_selecionados` e atualiza a UI;
-        - fluxo preserva histórico em `imoveis_prospeccao`.
+2. [ ] **Preparar autoria e identidade operacional nas Prospecções**
+   2.1. [ ] Registrar autor da inclusão (`created_by` ou equivalente) em `imoveis_selecionados`, vinculado ao usuário autenticado.
+   2.2. [ ] Propagar nome do autor (`created_by_name`) na listagem de selecionados e no histórico de observações.
+   2.3. [ ] Exibir coluna "Selecionado por" na lista de selecionados.
 
-3. [ ] **Qualidade, testes e documentação**
-   3.1. [ ] Backend: testes de autorização por papel (`prospector/viewer/editor/admin`) nas rotas de Prospecções e rotas financeiras.
-   3.2. [ ] Backend: testes para inclusão e exclusão de selecionados e cálculo de `data_leilao`.
-   3.3. [ ] Frontend: testes de renderização condicional por papel e fluxo de exclusão.
-   3.4. [ ] Atualizar `docs/README.md` e `README.md` com matriz de permissões e novas capacidades da tela de Prospecções.
-   3.5. [ ] Critério de aceite:
-        - suíte mínima de testes cobrindo RBAC e CRUD de selecionados;
-        - documentação de operação e criação de usuário `prospector` revisada.
+3. [ ] **Consolidar prioridade operacional**
+   3.1. [ ] Frontend: ao selecionar um imóvel capturado, oferecer escolha explícita de prioridade (`baixa`, `média`, `alta`) no fluxo de inclusão/edição.
+   3.2. [ ] Backend: manter normalização de prioridade e garantir persistência consistente em `imoveis_selecionados.prioridade`.
+   3.3. [ ] UX: exibir prioridade atual na lista de selecionados com ação rápida de edição sem exigir recriação do registro.
 
-4. [ ] **Ordem de execução recomendada**
-   4.1. [x] Fase 1: RBAC por módulo.
-   4.2. [x] Fase 2: API de selecionados (`data_leilao` + `DELETE`).
-   4.3. [x] Fase 3: ajustes de UI (novas colunas + exclusão).
-   4.4. [ ] Fase 4: testes automatizados e documentação final.
+4. [ ] **Implementar regra de exclusão por autor/admin**
+   4.1. [ ] Backend: permitir exclusão apenas para o usuário autor da prospecção ou perfil `admin`; demais perfis recebem `403`.
+   4.2. [ ] Frontend: esconder/desabilitar ação de excluir quando o usuário não tiver permissão, mantendo mensagem clara ao receber bloqueio do backend.
+   4.3. [ ] Critério de aceite:
+        - exclusão é permitida somente ao autor da inclusão ou a `admin`;
+        - lista exibe com clareza quem foi o autor da seleção.
 
-## Próximas Etapas — Gestão de Usuários (Admin + Convite)
-1. [x] **Administração de usuários**
-   1.1. [x] Criar tela `/usuarios` para perfil `admin` listar usuários cadastrados.
-   1.2. [x] Exibir status operacional: perfil, ativo, convite pendente e expiração do convite.
+5. [ ] **Implementar atribuição de imóveis para prospectores**
+   5.1. [ ] Modelagem: criar vínculo de responsáveis (`imoveis_selecionados_responsaveis`) permitindo um ou mais prospectores por imóvel selecionado.
+   5.2. [ ] Backend: permitir que `admin` atribua e remova prospectores responsáveis por imóvel.
+   5.3. [ ] Backend: definir regra de acesso operacional:
+        - `admin`: vê e gerencia todos os selecionados;
+        - autor da inclusão: pode excluir o imóvel que criou;
+        - prospector atribuído: pode atuar no imóvel (prioridade/observações), sem poder excluir se não for o autor;
+        - usuário não atribuído: pode ter leitura restrita ou sem ações, conforme política a ser fechada.
+   5.4. [ ] Frontend: adicionar seletor de responsáveis na tela de selecionados (somente `admin`) e exibir responsáveis associados por imóvel.
 
-2. [x] **Primeiro acesso com senha definida pelo usuário**
-   2.1. [x] Endpoint admin para gerar convite (`POST /auth/users/invite`) com validade configurável.
-   2.2. [x] Endpoint público para definir senha por convite (`POST /auth/setup-password`).
-   2.3. [x] Tela pública `/primeiro-acesso` para o usuário informar e-mail, token e nova senha.
-   2.4. [x] Bloquear login direto enquanto `password_reset_required = true`.
+6. [ ] **Implementar observações com histórico**
+   6.1. [ ] Modelagem: separar observação atual de trilha histórica (nova tabela `imoveis_selecionados_observacoes` ou estrutura equivalente com `id`, `numero_bem`, `autor_id`, `autor_nome`, `texto`, `created_at`).
+   6.2. [ ] Backend: criar endpoints para adicionar observação, listar histórico e manter `observacao_atual` resumida na listagem principal.
+   6.3. [ ] Frontend: permitir registrar novas observações sem sobrescrever as anteriores, exibir autor + data/hora e abrir histórico completo do imóvel selecionado.
 
-3. [ ] **Pendências de consolidação**
-   3.1. [ ] Atualizar documentação operacional com fluxo completo de convite/primeiro acesso.
-   3.2. [ ] Adicionar testes de integração para convites, expiração e definição de senha.
+7. [ ] **Revisar a experiência da lista de selecionados**
+   7.1. [ ] Backend: manter retorno de `data_leilao` considerando a maior data disponível entre `data_leilao_1`, `data_leilao_2` e `data_hora_encerramento`.
+   7.2. [ ] Frontend: garantir colunas e ações finais da lista:
+        - Data do leilão
+        - Prioridade
+        - Selecionado por
+        - Responsáveis
+        - Observação atual
+        - Acesso ao histórico
+   7.3. [ ] Critério de aceite:
+        - usuário consegue definir/alterar prioridade no ato da seleção e depois na lista;
+        - lista de selecionados exibe quem selecionou o imóvel;
+        - `admin` consegue atribuir um ou mais prospectores a cada imóvel;
+        - prospector atribuído consegue alterar prioridade e registrar observações;
+        - histórico permanece visível mesmo após mudanças de status/prioridade.
+
+8. [ ] **Fechar qualidade, testes e documentação**
+   8.1. [ ] Backend: testes de autorização por papel (`prospector/viewer/editor/admin`) nas rotas de Prospecções e rotas financeiras.
+   8.2. [ ] Backend: testes para inclusão, edição, exclusão restrita por autor/admin, atribuição de responsáveis e cálculo de `data_leilao`.
+   8.3. [ ] Backend: testes para histórico de observações (append-only, ordenação, autoria e permissões por atribuição).
+   8.4. [ ] Frontend: testes de renderização condicional por papel, edição de prioridade, bloqueio de exclusão, atribuição de prospectores e fluxo de observações.
+   8.5. [ ] Atualizar `docs/README.md` e `README.md` com matriz de permissões, regra de autoria, atribuição de responsáveis, campo `nome` no usuário e histórico de observações.
+   8.6. [ ] Atualizar documentação operacional com fluxo completo de convite/primeiro acesso, incluindo campo `nome` e configuração correta da URL pública do frontend.
+   8.7. [ ] Adicionar testes de integração para convites, expiração, definição de senha, persistência de `nome` e geração de `invite_link`.
 
 ## Segurança Operacional
 1. [x] Rotacionar chaves do Supabase após exposição acidental em arquivo `.env`.
