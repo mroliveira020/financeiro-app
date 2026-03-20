@@ -111,6 +111,9 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 4. [x] **Implementar regra de exclusão por autor/admin**
    4.1. [x] Backend: permitir exclusão apenas para o usuário autor da prospecção ou perfil `admin`; demais perfis recebem `403`.
    4.2. [x] Frontend: esconder/desabilitar ação de excluir quando o usuário não tiver permissão, mantendo mensagem clara ao receber bloqueio do backend.
+   4.2.1. [x] Alterar exclusão física para inativação lógica (`ativo = false`), preservando autoria, prioridade e observações para possível recuperação.
+   4.2.2. [x] Ocultar registros inativos da tabela de selecionados por padrão.
+   4.2.3. [x] Reinclusão de imóvel já inativado deve reativar o mesmo registro, preservando observações e histórico técnico.
    4.3. [x] Frontend: revisar UX da confirmação de exclusão do selecionado:
         - substituir texto genérico/estranho por mensagem objetiva e contextual;
         - incluir identificação do imóvel (código e, se possível, cidade/UF);
@@ -138,18 +141,53 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    6.4. [ ] UX: exibir observação atual em tooltip/hover na tabela para reduzir ruído visual, sem necessidade de histórico visível na rotina operacional.
    6.5. [ ] Opcional futuro: abrir histórico completo apenas em tela/modal secundário administrativo, se houver necessidade real.
 
-7. [ ] **Revisar a experiência da lista de selecionados**
-   7.1. [x] Backend: manter retorno de `data_leilao` considerando a maior data disponível entre `data_leilao_1`, `data_leilao_2` e `data_hora_encerramento`.
-   7.2. [x] Frontend: permitir ordenação pela data do leilão, priorizando esse campo como ordenação operacional da fila.
-   7.3. [x] UX: remover a coluna `Status` da tabela de selecionados enquanto ela não agrega valor operacional, reduzindo poluição visual.
-   7.4. [ ] Frontend: garantir colunas e ações finais da lista:
+7. [ ] **Adicionar ficha de análise e viabilidade do imóvel selecionado**
+   7.1. [ ] Modelagem: criar estrutura persistente para análise do selecionado, vinculada a `imoveis_selecionados.numero_bem`, preservando autoria e `updated_at`.
+   7.2. [ ] Modelagem: incluir campos manuais de entrada:
+        - link do Google Maps
+        - reforma
+        - condomínio em atraso
+        - desocupação
+        - documentação
+        - manutenção (`água`, `luz`, `condomínio`)
+        - valor máximo do lance
+        - check de comissão de leiloeiro de `5%`
+        - `% de financiamento`
+        - valor estimado da venda
+   7.3. [ ] Backend/API: expor endpoint de leitura/gravação da ficha de análise por imóvel selecionado.
+   7.4. [ ] Frontend: criar formulário de análise no imóvel selecionado com cálculos dinâmicos em tempo real, sem persistir cada alteração automaticamente.
+   7.5. [ ] Regra de persistência: cálculos e alterações de campos ficam locais na UI enquanto o usuário edita; gravação ocorre apenas ao clicar em `Salvar`.
+   7.6. [ ] Cálculos dinâmicos esperados:
+        - valor da comissão do leiloeiro (`5%` quando o check estiver ativo)
+        - valor desembolsado na aquisição
+        - custo do imóvel
+        - estimativa de capital investido
+        - ROI esperado em `%`
+        - ROI esperado em valor
+   7.7. [ ] Definir fórmula operacional dos cálculos:
+        - considerar `% de financiamento` sobre o valor de aquisição
+        - separar claramente desembolso de aquisição, custos acessórios e capital total investido
+        - manter fórmula auditável e documentada para evitar divergência entre tela e backend
+   7.8. [ ] UX: destacar campos digitáveis vs. campos calculados; exibir resumo financeiro em bloco visual claro; permitir edição confortável sem poluir a tabela principal.
+   7.9. [ ] Critério de aceite:
+        - usuário consegue preencher a análise do imóvel sem sair da rotina de prospecção;
+        - cálculos reagem imediatamente às alterações dos campos;
+        - nada é persistido antes do clique em `Salvar`;
+        - ao salvar, os valores reaparecem idênticos ao recarregar a página;
+        - link do Google Maps fica acessível a partir do imóvel selecionado.
+
+8. [ ] **Revisar a experiência da lista de selecionados**
+   8.1. [x] Backend: manter retorno de `data_leilao` considerando a maior data disponível entre `data_leilao_1`, `data_leilao_2` e `data_hora_encerramento`.
+   8.2. [x] Frontend: permitir ordenação pela data do leilão, priorizando esse campo como ordenação operacional da fila.
+   8.3. [x] UX: remover a coluna `Status` da tabela de selecionados enquanto ela não agrega valor operacional, reduzindo poluição visual.
+   8.4. [ ] Frontend: garantir colunas e ações finais da lista:
         - Data do leilão
         - Prioridade editável
         - Selecionado por
         - Responsáveis
         - Observação atual em tooltip
         - Ações com botões/iconografia mais claros
-   7.5. [ ] Critério de aceite:
+   8.5. [ ] Critério de aceite:
         - usuário consegue definir/alterar prioridade no ato da seleção e depois na lista;
         - lista de selecionados exibe quem selecionou o imóvel;
         - tabela ordena por data do leilão;
@@ -157,23 +195,27 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - `admin` consegue atribuir um ou mais prospectores a cada imóvel;
         - prospector atribuído consegue alterar prioridade e registrar observações.
 
-8. [ ] **Incluir imóveis manualmente fora da base capturada**
-   8.1. [ ] Modelagem/API: permitir criação manual de imóvel selecionado sem dependência prévia de `vw_imoveis_prospeccao_latest`, preservando autoria e metadados mínimos.
-   8.2. [ ] Frontend: criar fluxo de inclusão manual para imóveis vindos de outros sites, com campos essenciais (código/manual, cidade, UF, modalidade/origem, link, valor de referência, data do leilão, prioridade inicial e observação).
-   8.3. [ ] UX: destacar origem manual vs. origem capturada, sem quebrar a gestão unificada da fila de selecionados.
-   8.4. [ ] Critério de aceite:
+9. [ ] **Incluir imóveis manualmente fora da base capturada**
+   9.1. [ ] Modelagem/API: permitir criação manual de imóvel selecionado sem dependência prévia de `vw_imoveis_prospeccao_latest`, preservando autoria e metadados mínimos.
+   9.2. [ ] Frontend: criar fluxo de inclusão manual para imóveis vindos de outros sites, com campos essenciais (código/manual, cidade, UF, modalidade/origem, link, valor de referência, data do leilão, prioridade inicial e observação).
+   9.3. [ ] UX: destacar origem manual vs. origem capturada, sem quebrar a gestão unificada da fila de selecionados.
+   9.4. [ ] Critério de aceite:
         - usuário autorizado consegue cadastrar imóvel manualmente;
         - item manual aparece na mesma fila de selecionados com identificação clara da origem;
         - item manual aceita atribuição, prioridade e observações como qualquer outro.
 
-9. [ ] **Fechar qualidade, testes e documentação**
-   9.1. [ ] Backend: testes de autorização por papel (`prospector/viewer/editor/admin`) nas rotas de Prospecções e rotas financeiras.
-   9.2. [ ] Backend: testes para inclusão, edição, exclusão restrita por autor/admin, atribuição de responsáveis, inclusão manual e cálculo de `data_leilao`.
-   9.3. [ ] Backend: testes para observações (persistência da nota atual, trilha técnica, autoria e permissões por atribuição).
-   9.4. [ ] Frontend: testes de renderização condicional por papel, edição de prioridade, bloqueio de exclusão, ordenação por leilão, atribuição de prospectores, tooltip de observações e inclusão manual.
-   9.5. [ ] Atualizar `docs/README.md` e `README.md` com matriz de permissões, regra de autoria, atribuição de responsáveis, campo `nome` no usuário, inclusão manual e observações operacionais.
-   9.6. [ ] Atualizar documentação operacional com fluxo completo de convite/primeiro acesso, incluindo campo `nome`, configuração correta da URL pública do frontend e fallback SPA do deploy.
-   9.7. [ ] Adicionar testes de integração para convites, expiração, definição de senha, persistência de `nome`, geração de `invite_link` e edição/inativação de usuários.
+10. [ ] **Fechar qualidade, testes e documentação**
+   10.1. [ ] Backend: testes de autorização por papel (`prospector/viewer/editor/admin`) nas rotas de Prospecções e rotas financeiras.
+   10.2. [ ] Backend: testes para inclusão, edição, exclusão restrita por autor/admin, atribuição de responsáveis, inclusão manual e cálculo de `data_leilao`.
+   10.3. [ ] Backend: testes para observações (persistência da nota atual, trilha técnica, autoria e permissões por atribuição).
+   10.4. [ ] Backend: testes para ficha de análise/viabilidade, fórmulas financeiras e persistência apenas no `Salvar`.
+   10.5. [ ] Frontend: testes de renderização condicional por papel, edição de prioridade, bloqueio de exclusão, ordenação por leilão, atribuição de prospectores, tooltip de observações, ficha de viabilidade e inclusão manual.
+   10.6. [ ] Atualizar `docs/README.md` e `README.md` com matriz de permissões, regra de autoria, atribuição de responsáveis, campo `nome` no usuário, inclusão manual, observações operacionais e ficha de análise financeira.
+   10.7. [ ] Atualizar documentação operacional com fluxo completo de convite/primeiro acesso, incluindo campo `nome`, configuração correta da URL pública do frontend e fallback SPA do deploy.
+   10.8. [ ] Adicionar testes de integração para convites, expiração, definição de senha, persistência de `nome`, geração de `invite_link` e edição/inativação de usuários.
+
+11. [ ] **Backlog administrativo**
+   11.1. [ ] Criar visão administrativa de selecionados inativos, com opção de reativação manual sem depender de nova inclusão via base capturada.
 
 ## Segurança Operacional
 1. [x] Rotacionar chaves do Supabase após exposição acidental em arquivo `.env`.

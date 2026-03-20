@@ -294,13 +294,19 @@ def delete_prospeccoes_selecionados(numero_bem):
     autoria = buscar_autoria_prospeccao_selecionado(numero_bem)
     if not autoria:
         return jsonify({"deleted": False, "numero_bem": numero_bem, "message": "Imóvel não encontrado em selecionados"}), 404
+    if not autoria.get("ativo", True):
+        return jsonify({"deleted": False, "numero_bem": numero_bem, "message": "Imóvel já está fora da fila de selecionados"}), 404
 
     is_admin = current_user.get("role") == "admin"
     is_author = autoria.get("created_by") is not None and autoria.get("created_by") == current_user.get("id")
     if not is_admin and not is_author:
         return jsonify({"error": "Apenas o autor da seleção ou um administrador pode remover este imóvel."}), 403
 
-    result = excluir_prospeccao_selecionado(numero_bem)
+    result = excluir_prospeccao_selecionado(
+        numero_bem,
+        inativado_por=current_user.get("id"),
+        inativado_por_name=current_user.get("name") or current_user.get("email"),
+    )
     if not result.get("deleted"):
         return jsonify(result), 404
     return jsonify(result), 200

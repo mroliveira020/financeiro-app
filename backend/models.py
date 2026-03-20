@@ -330,6 +330,30 @@ def _garantir_colunas_prospeccao_autoria():
             ADD COLUMN IF NOT EXISTS created_by_name TEXT
             """
         )
+        cur.execute(
+            """
+            ALTER TABLE imoveis_selecionados
+            ADD COLUMN IF NOT EXISTS ativo BOOLEAN NOT NULL DEFAULT TRUE
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE imoveis_selecionados
+            ADD COLUMN IF NOT EXISTS inativado_em TIMESTAMPTZ NULL
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE imoveis_selecionados
+            ADD COLUMN IF NOT EXISTS inativado_por INTEGER NULL
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE imoveis_selecionados
+            ADD COLUMN IF NOT EXISTS inativado_por_name TEXT NULL
+            """
+        )
         conn.commit()
     except Exception:
         conn.rollback()
@@ -1860,6 +1884,8 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
     conditions = []
     params = []
 
+    conditions.append("COALESCE(s.ativo, TRUE) = TRUE")
+
     if status:
         conditions.append("LOWER(s.status) = LOWER(%s)")
         params.append(status)
@@ -1967,14 +1993,26 @@ def inserir_prospeccao_selecionado(
     cur.execute(
         """
         INSERT INTO imoveis_selecionados (
-            numero_bem, status, valor_maximo, prioridade, observacoes, created_by, created_by_name
+            numero_bem, status, valor_maximo, prioridade, observacoes, created_by, created_by_name, ativo
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE)
         ON CONFLICT (numero_bem) DO UPDATE
         SET status = EXCLUDED.status,
             valor_maximo = EXCLUDED.valor_maximo,
             prioridade = EXCLUDED.prioridade,
             observacoes = EXCLUDED.observacoes,
+            created_by = CASE
+                WHEN COALESCE(imoveis_selecionados.ativo, TRUE) = FALSE THEN EXCLUDED.created_by
+                ELSE imoveis_selecionados.created_by
+            END,
+            created_by_name = CASE
+                WHEN COALESCE(imoveis_selecionados.ativo, TRUE) = FALSE THEN EXCLUDED.created_by_name
+                ELSE imoveis_selecionados.created_by_name
+            END,
+            ativo = TRUE,
+            inativado_em = NULL,
+            inativado_por = NULL,
+            inativado_por_name = NULL,
             updated_at = now()
         """,
         (
@@ -2008,7 +2046,7 @@ def buscar_autoria_prospeccao_selecionado(numero_bem):
     try:
         cur.execute(
             """
-            SELECT numero_bem, created_by, created_by_name
+            SELECT numero_bem, created_by, created_by_name, COALESCE(ativo, TRUE) AS ativo
             FROM imoveis_selecionados
             WHERE numero_bem = %s
             LIMIT 1
@@ -2022,23 +2060,36 @@ def buscar_autoria_prospeccao_selecionado(numero_bem):
             "numero_bem": row[0],
             "created_by": row[1],
             "created_by_name": row[2],
+            "ativo": row[3],
         }
     finally:
         conn.close()
 
 
-def excluir_prospeccao_selecionado(numero_bem):
+def excluir_prospeccao_selecionado(numero_bem, inativado_por=None, inativado_por_name=None):
     conn, cur = conectar()
-    cur.execute(
-        "DELETE FROM imoveis_selecionados WHERE numero_bem = %s",
-        (numero_bem,),
-    )
-    removidos = cur.rowcount
-    conn.commit()
-    conn.close()
-    if removidos == 0:
-        return {"deleted": False, "numero_bem": numero_bem, "message": "Imóvel não encontrado em selecionados"}
-    return {"deleted": True, "numero_bem": numero_bem, "message": "Imóvel removido de selecionados"}
+    try:
+        cur.execute(
+            """
+            UPDATE imoveis_selecionados
+            SET
+                ativo = FALSE,
+                inativado_em = now(),
+                inativado_por = %s,
+                inativado_por_name = %s,
+                updated_at = now()
+            WHERE numero_bem = %s
+              AND COALESCE(ativo, TRUE) = TRUE
+            """,
+            (inativado_por, inativado_por_name, numero_bem),
+        )
+        removidos = cur.rowcount
+        conn.commit()
+        if removidos == 0:
+            return {"deleted": False, "numero_bem": numero_bem, "message": "Imóvel não encontrado em selecionados"}
+        return {"deleted": True, "numero_bem": numero_bem, "message": "Imóvel removido da fila de selecionados"}
+    finally:
+        conn.close()
 
 
 def listar_prospeccoes_meta():
