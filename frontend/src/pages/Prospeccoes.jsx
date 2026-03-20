@@ -102,50 +102,37 @@ function TabelaSelecionados({
                 <td>{formatarMoeda(item.valorMaximo)}</td>
                 <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>
                 <td>
-                  <div className="prospects-priority-actions">
-                    {PRIORIDADE_OPTIONS.map((option) => {
-                      const active = Number(item.prioridade || 2) === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`prospects-priority-btn ${active ? `priority-${option.cls}` : ""}`}
-                          disabled={updateLoadingIds.has(`${item.codigo}:prioridade`)}
-                          onClick={() => onAtualizarPrioridade(item, option)}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <select
+                    className="prospects-priority-select"
+                    value={Number(item.prioridade || 2)}
+                    disabled={updateLoadingIds.has(`${item.codigo}:prioridade`)}
+                    onChange={(e) => onAtualizarPrioridade(item, Number(e.target.value))}
+                  >
+                    {PRIORIDADE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td>
-                  <div className="prospects-observation-cell">
-                    <button
-                      type="button"
-                      className="prospects-btn tertiary"
-                      title={item.observacoes || "Nenhuma observação cadastrada."}
-                      onClick={() => onEditarObservacoes(item)}
-                      disabled={updateLoadingIds.has(`${item.codigo}:observacoes`)}
-                    >
-                      {item.observacoes ? "Ver / editar" : "Adicionar"}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className={`prospects-note-btn ${item.observacoes ? "has-note" : ""}`}
+                    title={item.observacoes || "Nenhuma observação cadastrada."}
+                    onClick={() => onEditarObservacoes(item)}
+                    disabled={updateLoadingIds.has(`${item.codigo}:observacoes`)}
+                  >
+                    {item.observacoes ? "Abrir nota" : "Adicionar"}
+                  </button>
                 </td>
                 <td>{item.descricao || "—"}</td>
                 <td>
                   <div className="prospects-row-actions">
                     <button
                       type="button"
-                      className="prospects-btn tertiary"
-                      onClick={() => onEditarObservacoes(item)}
-                      disabled={updateLoadingIds.has(`${item.codigo}:observacoes`)}
-                    >
-                      Obs.
-                    </button>
-                    <button
-                      type="button"
-                      className="prospects-btn danger"
+                      className="prospects-icon-btn danger"
+                      title="Remover da fila"
                       disabled={removeLoadingIds.has(item.codigo)}
                       onClick={() => onExcluir(item)}
                     >
@@ -157,6 +144,96 @@ function TabelaSelecionados({
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmarExclusaoModal({ item, loading, onCancel, onConfirm }) {
+  if (!item) return null;
+
+  return (
+    <div className="prospects-modal-backdrop" role="presentation">
+      <div className="prospects-modal" role="dialog" aria-modal="true" aria-labelledby="confirmar-exclusao-title">
+        <div className="prospects-modal__header">
+          <div>
+            <p className="prospects-eyebrow">Confirmação</p>
+            <h3 id="confirmar-exclusao-title" className="prospects-modal__title">Remover da fila</h3>
+          </div>
+        </div>
+        <div className="prospects-modal__body">
+          <p>
+            O imóvel <strong>{item.codigo}</strong>
+            {item.cidade || item.uf ? ` (${[item.cidade, item.uf].filter(Boolean).join("/")})` : ""}
+            {" "}será removido apenas da fila de selecionados.
+          </p>
+          <p>O histórico capturado na prospecção continuará preservado.</p>
+        </div>
+        <div className="prospects-modal__footer">
+          <button type="button" className="prospects-btn secondary" onClick={onCancel} disabled={loading}>
+            Cancelar
+          </button>
+          <button type="button" className="prospects-btn danger" onClick={onConfirm} disabled={loading}>
+            {loading ? "Removendo..." : "Confirmar remoção"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ObservacoesModal({ item, value, loading, onChange, onCancel, onSave }) {
+  if (!item) return null;
+
+  const historico = item.observacoesHistorico || [];
+
+  return (
+    <div className="prospects-modal-backdrop" role="presentation">
+      <div className="prospects-modal" role="dialog" aria-modal="true" aria-labelledby="observacoes-title">
+        <div className="prospects-modal__header">
+          <div>
+            <p className="prospects-eyebrow">Observações</p>
+            <h3 id="observacoes-title" className="prospects-modal__title">Imóvel {item.codigo}</h3>
+          </div>
+        </div>
+        <div className="prospects-modal__body">
+          <p className="prospects-modal__hint">
+            A observação atual fica visível na tabela e cada nova atualização passa a entrar no histórico abaixo.
+          </p>
+          <textarea
+            className="prospects-textarea"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Adicione uma nota objetiva sobre o imóvel"
+            rows={6}
+          />
+          <div className="prospects-history">
+            <div className="prospects-history__header">
+              <h4 className="prospects-history__title">Histórico de observações</h4>
+              <span className="prospects-pill">{historico.length}</span>
+            </div>
+            {!historico.length && (
+              <p className="prospects-history__empty">Nenhuma observação registrada ainda.</p>
+            )}
+            {historico.map((registro, index) => (
+              <div key={`${registro.createdAt || "sem-data"}-${index}`} className="prospects-history__item">
+                <div className="prospects-history__meta">
+                  <strong>{registro.createdByName || "Usuário não identificado"}</strong>
+                  <span>{formatarDataHora(registro.createdAt)}</span>
+                </div>
+                <p>{registro.observacao}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="prospects-modal__footer">
+          <button type="button" className="prospects-btn secondary" onClick={onCancel} disabled={loading}>
+            Fechar
+          </button>
+          <button type="button" className="prospects-btn primary" onClick={onSave} disabled={loading}>
+            {loading ? "Salvando..." : "Salvar nota"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -347,6 +424,9 @@ export default function Prospeccoes() {
   const [sortBy, setSortBy] = useState("ultima_disputa");
   const [sortDir, setSortDir] = useState("desc");
   const [selectedSortDir, setSelectedSortDir] = useState("asc");
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState(null);
+  const [observacaoItem, setObservacaoItem] = useState(null);
+  const [observacaoDraft, setObservacaoDraft] = useState("");
 
   useEffect(() => {
     const carregarSelecionados = async () => {
@@ -452,7 +532,7 @@ export default function Prospeccoes() {
         status: "candidato",
         valor_maximo: item.valorMinimo ?? item.valor,
         prioridade: "Média",
-        observacoes: `Adicionado via UI em ${new Date().toISOString()}`,
+        observacoes: "",
       });
       setMensagem(`Imóvel ${item.codigo} incluído em selecionados.`);
       const sel = await fetchSelecionados({});
@@ -469,12 +549,7 @@ export default function Prospeccoes() {
     }
   };
 
-  const handleExcluirSelecionado = async (item) => {
-    const confirm = window.confirm(
-      `Remover o imóvel ${item.codigo}${item.cidade || item.uf ? ` (${[item.cidade, item.uf].filter(Boolean).join("/")})` : ""} da fila de selecionados?\n\nO histórico de prospecção capturada será mantido.`
-    );
-    if (!confirm) return;
-
+  const confirmDelete = async (item) => {
     setMensagem("");
     setRemoveLoadingIds((prev) => {
       const next = new Set(prev);
@@ -486,6 +561,7 @@ export default function Prospeccoes() {
       await excluirSelecionado(item.codigo);
       setSelecionados((prev) => prev.filter((row) => row.codigo !== item.codigo));
       setMensagem(`Imóvel ${item.codigo} removido de selecionados.`);
+      setConfirmDeleteItem(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao excluir";
       setMensagem(message);
@@ -503,8 +579,9 @@ export default function Prospeccoes() {
     setSelecionados(sel || []);
   };
 
-  const handleAtualizarPrioridade = async (item, option) => {
+  const handleAtualizarPrioridade = async (item, prioridadeValue) => {
     const key = `${item.codigo}:prioridade`;
+    const option = PRIORIDADE_OPTIONS.find((candidate) => candidate.value === prioridadeValue);
     setMensagem("");
     setUpdateLoadingIds((prev) => new Set(prev).add(key));
     try {
@@ -512,10 +589,10 @@ export default function Prospeccoes() {
         numero_bem: item.codigo,
         status: item.status,
         valor_maximo: item.valorMaximo,
-        prioridade: option.value,
+        prioridade: prioridadeValue,
         observacoes: item.observacoes || "",
       });
-      setMensagem(`Prioridade do imóvel ${item.codigo} atualizada para ${option.label}.`);
+      setMensagem(`Prioridade do imóvel ${item.codigo} atualizada${option ? ` para ${option.label}` : ""}.`);
       await refreshSelecionados();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao atualizar prioridade";
@@ -529,26 +606,28 @@ export default function Prospeccoes() {
     }
   };
 
-  const handleEditarObservacoes = async (item) => {
-    const novaObservacao = window.prompt(
-      `Observações do imóvel ${item.codigo}:`,
-      item.observacoes || ""
-    );
-    if (novaObservacao === null) return;
+  const openObservacoesModal = (item) => {
+    setObservacaoItem(item);
+    setObservacaoDraft(item.observacoes || "");
+  };
 
-    const key = `${item.codigo}:observacoes`;
+  const handleSalvarObservacoes = async () => {
+    if (!observacaoItem) return;
+    const key = `${observacaoItem.codigo}:observacoes`;
     setMensagem("");
     setUpdateLoadingIds((prev) => new Set(prev).add(key));
     try {
       await adicionarSelecionado({
-        numero_bem: item.codigo,
-        status: item.status,
-        valor_maximo: item.valorMaximo,
-        prioridade: item.prioridade,
-        observacoes: novaObservacao.trim(),
+        numero_bem: observacaoItem.codigo,
+        status: observacaoItem.status,
+        valor_maximo: observacaoItem.valorMaximo,
+        prioridade: observacaoItem.prioridade,
+        observacoes: observacaoDraft.trim(),
       });
-      setMensagem(`Observações do imóvel ${item.codigo} atualizadas.`);
+      setMensagem(`Observações do imóvel ${observacaoItem.codigo} atualizadas.`);
       await refreshSelecionados();
+      setObservacaoItem(null);
+      setObservacaoDraft("");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao atualizar observações";
       setMensagem(message);
@@ -728,9 +807,9 @@ export default function Prospeccoes() {
         dados={selecionadosOrdenados}
         loading={loadingSel}
         erro={erroSel}
-        onExcluir={handleExcluirSelecionado}
+        onExcluir={setConfirmDeleteItem}
         onAtualizarPrioridade={handleAtualizarPrioridade}
-        onEditarObservacoes={handleEditarObservacoes}
+        onEditarObservacoes={openObservacoesModal}
         removeLoadingIds={removeLoadingIds}
         updateLoadingIds={updateLoadingIds}
         sortDir={selectedSortDir}
@@ -754,6 +833,25 @@ export default function Prospeccoes() {
         sortBy={sortBy}
         sortDir={sortDir}
         onSortChange={handleSortChange}
+      />
+
+      <ConfirmarExclusaoModal
+        item={confirmDeleteItem}
+        loading={Boolean(confirmDeleteItem && removeLoadingIds.has(confirmDeleteItem.codigo))}
+        onCancel={() => setConfirmDeleteItem(null)}
+        onConfirm={() => confirmDelete(confirmDeleteItem)}
+      />
+
+      <ObservacoesModal
+        item={observacaoItem}
+        value={observacaoDraft}
+        loading={Boolean(observacaoItem && updateLoadingIds.has(`${observacaoItem.codigo}:observacoes`))}
+        onChange={setObservacaoDraft}
+        onCancel={() => {
+          setObservacaoItem(null);
+          setObservacaoDraft("");
+        }}
+        onSave={handleSalvarObservacoes}
       />
     </div>
   );

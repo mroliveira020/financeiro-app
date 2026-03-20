@@ -338,6 +338,53 @@ def _garantir_colunas_prospeccao_autoria():
         conn.close()
 
 
+def _garantir_tabela_prospeccao_observacoes():
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS imoveis_selecionados_observacoes (
+                id BIGSERIAL PRIMARY KEY,
+                numero_bem TEXT NOT NULL,
+                observacao TEXT NOT NULL,
+                created_by INTEGER NULL,
+                created_by_name TEXT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_imoveis_sel_obs_numero_bem_created_at
+            ON imoveis_selecionados_observacoes (numero_bem, created_at DESC)
+            """
+        )
+        cur.execute(
+            """
+            INSERT INTO imoveis_selecionados_observacoes (
+                numero_bem, observacao, created_by, created_by_name, created_at
+            )
+            SELECT
+                s.numero_bem,
+                s.observacoes,
+                s.created_by,
+                s.created_by_name,
+                COALESCE(s.updated_at, s.created_at, now())
+            FROM imoveis_selecionados s
+            WHERE s.observacoes IS NOT NULL
+              AND BTRIM(s.observacoes) <> ''
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM imoveis_selecionados_observacoes o
+                  WHERE o.numero_bem = s.numero_bem
+              )
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def listar_usuarios() -> list[dict]:
     _garantir_tabela_usuarios()
     conn, cur = conectar()
@@ -1776,6 +1823,7 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
 
 def listar_prospeccoes_selecionados(status=None, uf=None):
     _garantir_colunas_prospeccao_autoria()
+    _garantir_tabela_prospeccao_observacoes()
     conn, cur = conectar()
     base_query = """
         SELECT
@@ -1824,6 +1872,26 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
 
     cur.execute(base_query, params)
     rows = cur.fetchall()
+
+    numeros_bem = [row[0] for row in rows if row[0]]
+    historico_por_imovel = {}
+    if numeros_bem:
+        cur.execute(
+            """
+            SELECT numero_bem, observacao, created_by, created_by_name, created_at
+            FROM imoveis_selecionados_observacoes
+            WHERE numero_bem = ANY(%s)
+            ORDER BY created_at DESC
+            """,
+            (numeros_bem,),
+        )
+        for numero_bem, observacao, created_by, created_by_name, created_at in cur.fetchall():
+            historico_por_imovel.setdefault(numero_bem, []).append({
+                "observacao": observacao,
+                "created_by": created_by,
+                "created_by_name": created_by_name,
+                "created_at": created_at.isoformat() if created_at else None,
+            })
     conn.close()
 
     result = []
@@ -1834,6 +1902,7 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             "valor_maximo": float(row[2]) if row[2] is not None else None,
             "prioridade": row[3],
             "observacoes": row[4],
+            "observacoes_historico": historico_por_imovel.get(row[0], []),
             "created_by": row[5],
             "created_by_name": row[6],
             "cidade": row[7],
@@ -1859,6 +1928,7 @@ def inserir_prospeccao_selecionado(
     created_by_name=None,
 ):
     _garantir_colunas_prospeccao_autoria()
+    _garantir_tabela_prospeccao_observacoes()
     conn, cur = conectar()
 
     prioridade_val = None
@@ -1874,6 +1944,15 @@ def inserir_prospeccao_selecionado(
         prioridade_val = int(prioridade)
     if prioridade_val is None:
         prioridade_val = 2  # padrão: média
+
+    observacoes_val = (observacoes or "").strip() or None
+
+    cur.execute(
+        "SELECT observacoes FROM imoveis_selecionados WHERE numero_bem = %s",
+        (numero_bem,),
+    )
+    row_existente = cur.fetchone()
+    observacao_anterior = (row_existente[0].strip() if row_existente and row_existente[0] else None)
 
     cur.execute(
         """
@@ -1893,11 +1972,22 @@ def inserir_prospeccao_selecionado(
             status or "candidato",
             valor_maximo,
             prioridade_val,
-            observacoes,
+            observacoes_val,
             created_by,
             created_by_name,
         ),
     )
+
+    if observacoes_val and observacoes_val != observacao_anterior:
+        cur.execute(
+            """
+            INSERT INTO imoveis_selecionados_observacoes (
+                numero_bem, observacao, created_by, created_by_name
+            )
+            VALUES (%s, %s, %s, %s)
+            """,
+            (numero_bem, observacoes_val, created_by, created_by_name),
+        )
     conn.commit()
     conn.close()
     return {"message": "Imóvel adicionado/atualizado em selecionados", "numero_bem": numero_bem}

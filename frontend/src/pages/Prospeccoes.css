@@ -202,30 +202,41 @@
   color: #0c4a6e;
 }
 
-.prospects-priority-actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+.prospects-priority-select {
+  width: 100%;
+  min-width: 112px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #d6d9e3;
+  background: #fff;
+  color: #1b1f33;
+  font-weight: 700;
 }
 
-.prospects-priority-btn {
+.prospects-priority-select:focus,
+.prospects-note-btn:focus,
+.prospects-icon-btn:focus,
+.prospects-textarea:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.prospects-note-btn {
   border: 1px solid #d6d9e3;
   border-radius: 999px;
   background: #fff;
-  color: #475569;
-  padding: 4px 10px;
+  color: #334155;
+  padding: 6px 12px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.prospects-priority-btn:hover {
-  border-color: #94a3b8;
-}
-
-.prospects-observation-cell {
-  display: flex;
-  align-items: center;
+.prospects-note-btn.has-note {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
 }
 
 .prospects-row-actions {
@@ -233,6 +244,23 @@
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.prospects-icon-btn {
+  border: 1px solid #d6d9e3;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.prospects-icon-btn.danger {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
 }
 
 .prospects-link {
@@ -356,6 +384,127 @@
   flex-wrap: wrap;
 }
 
+.prospects-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.prospects-modal {
+  width: min(100%, 680px);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.18);
+}
+
+.prospects-modal__header,
+.prospects-modal__body,
+.prospects-modal__footer {
+  padding: 20px 24px;
+}
+
+.prospects-modal__header {
+  border-bottom: 1px solid #eef0f6;
+}
+
+.prospects-modal__title {
+  margin: 4px 0 0;
+  font-size: 22px;
+  color: #1b1f33;
+}
+
+.prospects-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  color: #334155;
+}
+
+.prospects-modal__hint {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.prospects-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid #eef0f6;
+}
+
+.prospects-textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: inherit;
+  color: #1b1f33;
+  background: #fff;
+}
+
+.prospects-history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prospects-history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.prospects-history__title {
+  margin: 0;
+  font-size: 16px;
+  color: #1b1f33;
+}
+
+.prospects-history__empty {
+  margin: 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.prospects-history__item {
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fbfdff;
+}
+
+.prospects-history__item p {
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+  color: #334155;
+}
+
+.prospects-history__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: #64748b;
+  font-size: 12px;
+}
+
 @media (max-width: 900px) {
   .prospects-header {
     flex-direction: column;
@@ -366,5 +515,19 @@
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .prospects-modal-backdrop {
+    padding: 12px;
+  }
+
+  .prospects-modal__header,
+  .prospects-modal__body,
+  .prospects-modal__footer {
+    padding: 16px;
+  }
+
+  .prospects-modal__footer {
+    flex-direction: column-reverse;
   }
 }

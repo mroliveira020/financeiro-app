@@ -102,6 +102,12 @@ export async function fetchSelecionados({ status, uf } = {}) {
     modalidade: item.tipo_venda,
     disponivel: item.disponivel,
     observacoes: item.observacoes,
+    observacoesHistorico: (item.observacoes_historico || []).map((obs) => ({
+      observacao: obs.observacao,
+      createdBy: obs.created_by,
+      createdByName: obs.created_by_name,
+      createdAt: obs.created_at,
+    })),
     descricao: item.detalhes,
     dataLeilao: item.data_leilao,
   }));
