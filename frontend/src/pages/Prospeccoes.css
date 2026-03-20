@@ -396,7 +396,7 @@
 }
 
 .prospects-modal {
-  width: min(100%, 680px);
+  width: min(100%, 760px);
   max-height: calc(100vh - 48px);
   overflow: auto;
   background: #fff;
@@ -456,53 +456,8 @@
   background: #fff;
 }
 
-.prospects-history {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.prospects-history__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.prospects-history__title {
-  margin: 0;
-  font-size: 16px;
-  color: #1b1f33;
-}
-
-.prospects-history__empty {
-  margin: 0;
-  padding: 14px;
-  border-radius: 12px;
-  background: #f8fafc;
-  color: #64748b;
-}
-
-.prospects-history__item {
-  padding: 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  background: #fbfdff;
-}
-
-.prospects-history__item p {
-  margin: 10px 0 0;
-  white-space: pre-wrap;
-  color: #334155;
-}
-
-.prospects-history__meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  color: #64748b;
-  font-size: 12px;
+.prospects-textarea--large {
+  min-height: 260px;
 }
 
 @media (max-width: 900px) {

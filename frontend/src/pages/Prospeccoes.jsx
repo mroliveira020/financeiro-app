@@ -185,8 +185,6 @@ function ConfirmarExclusaoModal({ item, loading, onCancel, onConfirm }) {
 function ObservacoesModal({ item, value, loading, onChange, onCancel, onSave }) {
   if (!item) return null;
 
-  const historico = item.observacoesHistorico || [];
-
   return (
     <div className="prospects-modal-backdrop" role="presentation">
       <div className="prospects-modal" role="dialog" aria-modal="true" aria-labelledby="observacoes-title">
@@ -198,33 +196,15 @@ function ObservacoesModal({ item, value, loading, onChange, onCancel, onSave }) 
         </div>
         <div className="prospects-modal__body">
           <p className="prospects-modal__hint">
-            A observação atual fica visível na tabela e cada nova atualização passa a entrar no histórico abaixo.
+            Use este campo para manter a anotação mais atual e relevante sobre o imóvel.
           </p>
           <textarea
-            className="prospects-textarea"
+            className="prospects-textarea prospects-textarea--large"
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder="Adicione uma nota objetiva sobre o imóvel"
-            rows={6}
+            placeholder="Adicione uma nota objetiva sobre o imóvel. Você pode editar esse texto sempre que houver novidade."
+            rows={10}
           />
-          <div className="prospects-history">
-            <div className="prospects-history__header">
-              <h4 className="prospects-history__title">Histórico de observações</h4>
-              <span className="prospects-pill">{historico.length}</span>
-            </div>
-            {!historico.length && (
-              <p className="prospects-history__empty">Nenhuma observação registrada ainda.</p>
-            )}
-            {historico.map((registro, index) => (
-              <div key={`${registro.createdAt || "sem-data"}-${index}`} className="prospects-history__item">
-                <div className="prospects-history__meta">
-                  <strong>{registro.createdByName || "Usuário não identificado"}</strong>
-                  <span>{formatarDataHora(registro.createdAt)}</span>
-                </div>
-                <p>{registro.observacao}</p>
-              </div>
-            ))}
-          </div>
         </div>
         <div className="prospects-modal__footer">
           <button type="button" className="prospects-btn secondary" onClick={onCancel} disabled={loading}>

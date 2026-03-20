@@ -1833,7 +1833,7 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             s.prioridade,
             s.observacoes,
             s.created_by,
-            s.created_by_name,
+            COALESCE(NULLIF(u.name, ''), NULLIF(s.created_by_name, ''), u.email) AS created_by_name,
             v.cidade,
             v.uf,
             v.valor_venda,
@@ -1852,6 +1852,8 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
                 WHERE d IS NOT NULL
             ) AS data_leilao
         FROM imoveis_selecionados s
+        LEFT JOIN users u
+            ON u.id = s.created_by
         LEFT JOIN vw_imoveis_prospeccao_latest v
             ON v.numero_bem = s.numero_bem
     """
@@ -1878,8 +1880,16 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
     if numeros_bem:
         cur.execute(
             """
-            SELECT numero_bem, observacao, created_by, created_by_name, created_at
+            SELECT
+                o.numero_bem,
+                o.observacao,
+                o.created_by,
+                COALESCE(NULLIF(u.name, ''), NULLIF(o.created_by_name, ''), u.email) AS created_by_name,
+                o.created_at
             FROM imoveis_selecionados_observacoes
+            o
+            LEFT JOIN users u
+                ON u.id = o.created_by
             WHERE numero_bem = ANY(%s)
             ORDER BY created_at DESC
             """,
