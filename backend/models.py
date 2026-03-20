@@ -314,6 +314,30 @@ def _hash_invite_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+@lru_cache(maxsize=1)
+def _garantir_colunas_prospeccao_autoria():
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            ALTER TABLE imoveis_selecionados
+            ADD COLUMN IF NOT EXISTS created_by INTEGER
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE imoveis_selecionados
+            ADD COLUMN IF NOT EXISTS created_by_name TEXT
+            """
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def listar_usuarios() -> list[dict]:
     _garantir_tabela_usuarios()
     conn, cur = conectar()
@@ -1751,6 +1775,7 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
 
 
 def listar_prospeccoes_selecionados(status=None, uf=None):
+    _garantir_colunas_prospeccao_autoria()
     conn, cur = conectar()
     base_query = """
         SELECT
@@ -1759,6 +1784,8 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             s.valor_maximo,
             s.prioridade,
             s.observacoes,
+            s.created_by,
+            s.created_by_name,
             v.cidade,
             v.uf,
             v.valor_venda,
@@ -1807,20 +1834,31 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             "valor_maximo": float(row[2]) if row[2] is not None else None,
             "prioridade": row[3],
             "observacoes": row[4],
-            "cidade": row[5],
-            "uf": row[6],
-            "valor_venda": float(row[7]) if row[7] is not None else None,
-            "valor_avaliacao": float(row[8]) if row[8] is not None else None,
-            "link_consulta": row[9],
-            "tipo_venda": row[10],
-            "disponivel": row[11],
-            "detalhes": row[12],
-            "data_leilao": row[13].isoformat() if row[13] else None,
+            "created_by": row[5],
+            "created_by_name": row[6],
+            "cidade": row[7],
+            "uf": row[8],
+            "valor_venda": float(row[9]) if row[9] is not None else None,
+            "valor_avaliacao": float(row[10]) if row[10] is not None else None,
+            "link_consulta": row[11],
+            "tipo_venda": row[12],
+            "disponivel": row[13],
+            "detalhes": row[14],
+            "data_leilao": row[15].isoformat() if row[15] else None,
         })
     return result
 
 
-def inserir_prospeccao_selecionado(numero_bem, status="candidato", valor_maximo=None, prioridade=None, observacoes=None):
+def inserir_prospeccao_selecionado(
+    numero_bem,
+    status="candidato",
+    valor_maximo=None,
+    prioridade=None,
+    observacoes=None,
+    created_by=None,
+    created_by_name=None,
+):
+    _garantir_colunas_prospeccao_autoria()
     conn, cur = conectar()
 
     prioridade_val = None
@@ -1839,8 +1877,10 @@ def inserir_prospeccao_selecionado(numero_bem, status="candidato", valor_maximo=
 
     cur.execute(
         """
-        INSERT INTO imoveis_selecionados (numero_bem, status, valor_maximo, prioridade, observacoes)
-        VALUES (%s, %s, %s, %s, %s)
+        INSERT INTO imoveis_selecionados (
+            numero_bem, status, valor_maximo, prioridade, observacoes, created_by, created_by_name
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (numero_bem) DO UPDATE
         SET status = EXCLUDED.status,
             valor_maximo = EXCLUDED.valor_maximo,
@@ -1848,7 +1888,15 @@ def inserir_prospeccao_selecionado(numero_bem, status="candidato", valor_maximo=
             observacoes = EXCLUDED.observacoes,
             updated_at = now()
         """,
-        (numero_bem, status or "candidato", valor_maximo, prioridade_val, observacoes),
+        (
+            numero_bem,
+            status or "candidato",
+            valor_maximo,
+            prioridade_val,
+            observacoes,
+            created_by,
+            created_by_name,
+        ),
     )
     conn.commit()
     conn.close()

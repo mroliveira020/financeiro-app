@@ -79,19 +79,19 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    5.2. [ ] Validar amostra no painel do Supabase.
 
 ## Roadmap Recomendado — Prospecções e Gestão de Usuários
-1. [ ] **Corrigir base do fluxo de usuários**
-   1.1. [ ] Incluir campo `nome` no cadastro/convite de usuários e armazenar esse valor na tabela `users`.
-   1.2. [ ] Exibir nome e e-mail na listagem `/usuarios`, mantendo o e-mail como identificador de login.
-   1.3. [ ] Ajustar fluxo de convite para tornar `nome` obrigatório e manter consistência entre convite, usuário ativo e sessão autenticada.
-   1.4. [ ] Corrigir geração e exibição do link de convite:
+1. [x] **Corrigir base do fluxo de usuários**
+   1.1. [x] Incluir campo `nome` no cadastro/convite de usuários e armazenar esse valor na tabela `users`.
+   1.2. [x] Exibir nome e e-mail na listagem `/usuarios`, mantendo o e-mail como identificador de login.
+   1.3. [x] Ajustar fluxo de convite para tornar `nome` obrigatório e manter consistência entre convite, usuário ativo e sessão autenticada.
+   1.4. [x] Corrigir geração e exibição do link de convite:
         - Backend: validar `FRONTEND_APP_URL` por ambiente para garantir que `invite_link` aponte para a URL pública correta do frontend.
         - Frontend: revisar exibição/cópia do link em `/usuarios` para evitar quebra visual ou cópia parcial do endereço/token.
         - Operação: revisar variáveis do ambiente produtivo (`FRONTEND_APP_URL`) e registrar valor esperado no runbook.
-   1.5. [ ] Corrigir acesso direto ao fluxo `/primeiro-acesso` em produção:
+   1.5. [x] Corrigir acesso direto ao fluxo `/primeiro-acesso` em produção:
         - Deploy: configurar fallback SPA no serviço estático do Render para redirecionar rotas do frontend para `index.html`.
         - Validação: abrir link real de convite em aba anônima e confirmar carga da tela de definição de senha sem `Not Found`.
-   1.6. [ ] Garantir que a sessão/autenticação exponha `id`, `nome`, `email` e `role` para uso nas telas de Prospecções.
-   1.7. [ ] Permitir manutenção de usuários já cadastrados:
+   1.6. [x] Garantir que a sessão/autenticação exponha `id`, `nome`, `email` e `role` para uso nas telas de Prospecções.
+   1.7. [x] Permitir manutenção de usuários já cadastrados:
         - Backend: criar endpoint para atualizar `nome` e `is_active` de usuários existentes.
         - Frontend: adicionar ações de editar nome e ativar/inativar usuário na tela `/usuarios`.
         - Regra: `admin` pode ajustar dados cadastrais sem recriar convite.

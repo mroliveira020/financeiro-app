@@ -64,6 +64,7 @@ function TabelaSelecionados({ dados, loading, erro, onExcluir, removeLoadingIds 
               <th>Cidade</th>
               <th>UF</th>
               <th>Status</th>
+              <th>Selecionado por</th>
               <th>Data leilão</th>
               <th>Valor máximo</th>
               <th>Valor referência</th>
@@ -89,6 +90,7 @@ function TabelaSelecionados({ dados, loading, erro, onExcluir, removeLoadingIds 
                     return <span className={`prospects-chip status-${cls}`}>{label}</span>;
                   })()}
                 </td>
+                <td>{item.createdByName || "—"}</td>
                 <td>{formatarDataHora(item.dataLeilao)}</td>
                 <td>{formatarMoeda(item.valorMaximo)}</td>
                 <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>

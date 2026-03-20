@@ -40,7 +40,7 @@ from config import (
     TRUST_PROXY,
     PERF_WARN_THRESHOLD_MS,
 )
-from security import requires_auth, requires_editor_token, requires_prospeccao_write
+from security import requires_auth, requires_editor_token, requires_prospeccao_write, get_current_user
 from ratelimit import limiter
 from werkzeug.middleware.proxy_fix import ProxyFix
 import time, json
@@ -262,6 +262,7 @@ def get_prospeccoes_selecionados():
 @limiter.limit(RATE_LIMIT_EDIT)
 def post_prospeccoes_selecionados():
     payload = request.get_json(force=True, silent=True) or {}
+    current_user = get_current_user() or {}
     numero_bem = payload.get("numero_bem")
     if not numero_bem:
         return jsonify({"error": "numero_bem é obrigatório"}), 400
@@ -269,7 +270,15 @@ def post_prospeccoes_selecionados():
     valor_maximo = payload.get("valor_maximo")
     prioridade = payload.get("prioridade")
     observacoes = payload.get("observacoes")
-    result = inserir_prospeccao_selecionado(numero_bem, status, valor_maximo, prioridade, observacoes)
+    result = inserir_prospeccao_selecionado(
+        numero_bem,
+        status,
+        valor_maximo,
+        prioridade,
+        observacoes,
+        created_by=current_user.get("id"),
+        created_by_name=current_user.get("name") or current_user.get("email"),
+    )
     return jsonify(result), 201
 
 

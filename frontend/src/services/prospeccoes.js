@@ -93,6 +93,8 @@ export async function fetchSelecionados({ status, uf } = {}) {
     status: item.status,
     valorMaximo: item.valor_maximo,
     prioridade: item.prioridade,
+    createdBy: item.created_by,
+    createdByName: item.created_by_name,
     cidade: item.cidade,
     uf: item.uf,
     valor: item.valor_venda ?? item.valor_avaliacao,
