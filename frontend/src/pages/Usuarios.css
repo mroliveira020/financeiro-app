@@ -140,3 +140,37 @@
 .users-table th {
   background: #f8fafc;
 }
+
+.users-table__input {
+  width: 100%;
+  min-width: 180px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.users-table__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.users-table__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.users-table__button {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2937;
+  padding: 6px 10px;
+}
+
+.users-table__button--primary {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+}

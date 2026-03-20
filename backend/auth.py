@@ -10,6 +10,7 @@ from models import (
     criar_convite_usuario,
     definir_senha_por_convite,
     listar_usuarios,
+    atualizar_usuario,
     obter_usuario_por_email,
     obter_usuario_por_id,
 )
@@ -144,6 +145,26 @@ def create_user() -> Any:
 def list_users() -> Any:
     users = listar_usuarios()
     return jsonify({"data": users}), 200
+
+
+@auth_bp.route("/auth/users/<int:user_id>", methods=["PATCH"])
+@requires_role("admin")
+def update_user(user_id: int) -> Any:
+    payload: Dict[str, Any] = request.get_json(silent=True) or {}
+    nome = (payload.get("name") or "").strip()
+    is_active = bool(payload.get("is_active", True))
+
+    try:
+        user = atualizar_usuario(user_id=user_id, nome=nome, is_active=is_active)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"Falha ao atualizar usuário: {exc}"}), 500
+
+    if not user:
+        return jsonify({"error": "Usuário não encontrado"}), 404
+
+    return jsonify({"user": user}), 200
 
 
 @auth_bp.route("/auth/users/invite", methods=["POST"])

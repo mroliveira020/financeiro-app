@@ -23,6 +23,10 @@ export default function Usuarios() {
   const [message, setMessage] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [saving, setSaving] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editingName, setEditingName] = useState("");
+  const [editingIsActive, setEditingIsActive] = useState(true);
+  const [updatingUserId, setUpdatingUserId] = useState(null);
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -80,6 +84,39 @@ export default function Usuarios() {
       setMessage("Link copiado para a área de transferência.");
     } catch {
       setMessage("Não foi possível copiar automaticamente. Copie manualmente.");
+    }
+  };
+
+  const startEditing = (user) => {
+    setEditingUserId(user.id);
+    setEditingName(user.name || "");
+    setEditingIsActive(Boolean(user.is_active));
+    setError("");
+    setMessage("");
+  };
+
+  const cancelEditing = () => {
+    setEditingUserId(null);
+    setEditingName("");
+    setEditingIsActive(true);
+  };
+
+  const handleUpdateUser = async (userId) => {
+    setUpdatingUserId(userId);
+    setError("");
+    setMessage("");
+    try {
+      await api.patch(`/auth/users/${userId}`, {
+        name: editingName.trim(),
+        is_active: editingIsActive,
+      });
+      setMessage("Usuário atualizado com sucesso.");
+      cancelEditing();
+      await loadUsers();
+    } catch (err) {
+      setError(err?.response?.data?.error || "Erro ao atualizar usuário");
+    } finally {
+      setUpdatingUserId(null);
     }
   };
 
@@ -180,29 +217,86 @@ export default function Usuarios() {
               <th>Convite pendente</th>
               <th>Expira em</th>
               <th>Criado em</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7}>Carregando...</td>
+                <td colSpan={8}>Carregando...</td>
               </tr>
             )}
             {!loading && users.length === 0 && (
               <tr>
-                <td colSpan={7}>Nenhum usuário encontrado.</td>
+                <td colSpan={8}>Nenhum usuário encontrado.</td>
               </tr>
             )}
             {!loading &&
               users.map((user) => (
                 <tr key={user.id}>
-                  <td>{user.name || "—"}</td>
+                  <td>
+                    {editingUserId === user.id ? (
+                      <input
+                        type="text"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        className="users-table__input"
+                      />
+                    ) : (
+                      user.name || "—"
+                    )}
+                  </td>
                   <td>{user.email}</td>
                   <td>{user.role}</td>
-                  <td>{user.is_active ? "Sim" : "Não"}</td>
+                  <td>
+                    {editingUserId === user.id ? (
+                      <label className="users-table__check">
+                        <input
+                          type="checkbox"
+                          checked={editingIsActive}
+                          onChange={(e) => setEditingIsActive(e.target.checked)}
+                        />
+                        <span>{editingIsActive ? "Sim" : "Não"}</span>
+                      </label>
+                    ) : (
+                      user.is_active ? "Sim" : "Não"
+                    )}
+                  </td>
                   <td>{user.invite_pending ? "Sim" : "Não"}</td>
                   <td>{formatDate(user.invite_expires_at)}</td>
                   <td>{formatDate(user.created_at)}</td>
+                  <td>
+                    <div className="users-table__actions">
+                      {editingUserId === user.id ? (
+                        <>
+                          <button
+                            type="button"
+                            className="users-table__button users-table__button--primary"
+                            onClick={() => handleUpdateUser(user.id)}
+                            disabled={updatingUserId === user.id}
+                          >
+                            {updatingUserId === user.id ? "Salvando..." : "Salvar"}
+                          </button>
+                          <button
+                            type="button"
+                            className="users-table__button"
+                            onClick={cancelEditing}
+                            disabled={updatingUserId === user.id}
+                          >
+                            Cancelar
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="users-table__button"
+                          onClick={() => startEditing(user)}
+                        >
+                          Editar
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
           </tbody>

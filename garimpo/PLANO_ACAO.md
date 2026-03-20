@@ -87,7 +87,14 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - Backend: validar `FRONTEND_APP_URL` por ambiente para garantir que `invite_link` aponte para a URL pública correta do frontend.
         - Frontend: revisar exibição/cópia do link em `/usuarios` para evitar quebra visual ou cópia parcial do endereço/token.
         - Operação: revisar variáveis do ambiente produtivo (`FRONTEND_APP_URL`) e registrar valor esperado no runbook.
-   1.5. [ ] Garantir que a sessão/autenticação exponha `id`, `nome`, `email` e `role` para uso nas telas de Prospecções.
+   1.5. [ ] Corrigir acesso direto ao fluxo `/primeiro-acesso` em produção:
+        - Deploy: configurar fallback SPA no serviço estático do Render para redirecionar rotas do frontend para `index.html`.
+        - Validação: abrir link real de convite em aba anônima e confirmar carga da tela de definição de senha sem `Not Found`.
+   1.6. [ ] Garantir que a sessão/autenticação exponha `id`, `nome`, `email` e `role` para uso nas telas de Prospecções.
+   1.7. [ ] Permitir manutenção de usuários já cadastrados:
+        - Backend: criar endpoint para atualizar `nome` e `is_active` de usuários existentes.
+        - Frontend: adicionar ações de editar nome e ativar/inativar usuário na tela `/usuarios`.
+        - Regra: `admin` pode ajustar dados cadastrais sem recriar convite.
 
 2. [ ] **Preparar autoria e identidade operacional nas Prospecções**
    2.1. [ ] Registrar autor da inclusão (`created_by` ou equivalente) em `imoveis_selecionados`, vinculado ao usuário autenticado.
@@ -143,8 +150,8 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    8.3. [ ] Backend: testes para histórico de observações (append-only, ordenação, autoria e permissões por atribuição).
    8.4. [ ] Frontend: testes de renderização condicional por papel, edição de prioridade, bloqueio de exclusão, atribuição de prospectores e fluxo de observações.
    8.5. [ ] Atualizar `docs/README.md` e `README.md` com matriz de permissões, regra de autoria, atribuição de responsáveis, campo `nome` no usuário e histórico de observações.
-   8.6. [ ] Atualizar documentação operacional com fluxo completo de convite/primeiro acesso, incluindo campo `nome` e configuração correta da URL pública do frontend.
-   8.7. [ ] Adicionar testes de integração para convites, expiração, definição de senha, persistência de `nome` e geração de `invite_link`.
+   8.6. [ ] Atualizar documentação operacional com fluxo completo de convite/primeiro acesso, incluindo campo `nome`, configuração correta da URL pública do frontend e fallback SPA do deploy.
+   8.7. [ ] Adicionar testes de integração para convites, expiração, definição de senha, persistência de `nome`, geração de `invite_link` e edição/inativação de usuários.
 
 ## Segurança Operacional
 1. [x] Rotacionar chaves do Supabase após exposição acidental em arquivo `.env`.

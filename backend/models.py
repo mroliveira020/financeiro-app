@@ -555,6 +555,38 @@ def atualizar_status_usuario(user_id: int, is_active: bool) -> None:
         conn.close()
 
 
+def atualizar_usuario(user_id: int, nome: str, is_active: bool) -> dict | None:
+    _garantir_tabela_usuarios()
+    nome_norm = (nome or "").strip()
+    if not nome_norm:
+        raise ValueError("Nome obrigatório")
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            UPDATE users
+            SET
+                name = %s,
+                is_active = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING id, name, email, role, is_active, created_at, updated_at,
+                      password_reset_required, invite_expires_at,
+                      (invite_token_hash IS NOT NULL) AS invite_pending
+            """,
+            (nome_norm, is_active, user_id),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        return dict(row) if row else None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 # ======================================================
 # 🔹 Funções para a tabela IMOVEIS
 # ======================================================
