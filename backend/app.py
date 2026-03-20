@@ -23,6 +23,7 @@ from models import (
     listar_prospeccoes_selecionados,
     inserir_prospeccao_selecionado,
     excluir_prospeccao_selecionado,
+    buscar_autoria_prospeccao_selecionado,
     listar_prospeccoes_meta,
 )
 from analytics import analytics_bp
@@ -289,6 +290,16 @@ def post_prospeccoes_selecionados():
 def delete_prospeccoes_selecionados(numero_bem):
     if not numero_bem:
         return jsonify({"error": "numero_bem é obrigatório"}), 400
+    current_user = get_current_user() or {}
+    autoria = buscar_autoria_prospeccao_selecionado(numero_bem)
+    if not autoria:
+        return jsonify({"deleted": False, "numero_bem": numero_bem, "message": "Imóvel não encontrado em selecionados"}), 404
+
+    is_admin = current_user.get("role") == "admin"
+    is_author = autoria.get("created_by") is not None and autoria.get("created_by") == current_user.get("id")
+    if not is_admin and not is_author:
+        return jsonify({"error": "Apenas o autor da seleção ou um administrador pode remover este imóvel."}), 403
+
     result = excluir_prospeccao_selecionado(numero_bem)
     if not result.get("deleted"):
         return jsonify(result), 404

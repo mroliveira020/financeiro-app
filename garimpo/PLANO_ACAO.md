@@ -103,20 +103,20 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    2.4. [x] Sanear registros antigos já existentes, atribuindo autoria inicial à base legada.
 
 3. [ ] **Consolidar prioridade operacional**
-   3.1. [ ] Frontend: ao selecionar um imóvel capturado, oferecer escolha explícita de prioridade (`baixa`, `média`, `alta`) no fluxo de inclusão/edição.
-   3.2. [ ] Backend: manter normalização de prioridade e garantir persistência consistente em `imoveis_selecionados.prioridade`.
-   3.3. [ ] UX: exibir prioridade atual na lista de selecionados com ação rápida de edição sem exigir recriação do registro.
-   3.4. [ ] UX: substituir o texto cru de prioridade por controles mais claros, como botões/segmented control/chips clicáveis.
+   3.1. [ ] Frontend: ao selecionar um imóvel capturado, oferecer escolha explícita de prioridade (`baixa`, `média`, `alta`) no fluxo de inclusão.
+   3.2. [x] Backend: manter normalização de prioridade e garantir persistência consistente em `imoveis_selecionados.prioridade`.
+   3.3. [x] UX: exibir prioridade atual na lista de selecionados com ação rápida de edição sem exigir recriação do registro.
+   3.4. [x] UX: substituir o texto cru de prioridade por controle mais claro e objetivo na lista de selecionados.
 
-4. [ ] **Implementar regra de exclusão por autor/admin**
-   4.1. [ ] Backend: permitir exclusão apenas para o usuário autor da prospecção ou perfil `admin`; demais perfis recebem `403`.
-   4.2. [ ] Frontend: esconder/desabilitar ação de excluir quando o usuário não tiver permissão, mantendo mensagem clara ao receber bloqueio do backend.
-   4.3. [ ] Frontend: revisar UX da confirmação de exclusão do selecionado:
+4. [x] **Implementar regra de exclusão por autor/admin**
+   4.1. [x] Backend: permitir exclusão apenas para o usuário autor da prospecção ou perfil `admin`; demais perfis recebem `403`.
+   4.2. [x] Frontend: esconder/desabilitar ação de excluir quando o usuário não tiver permissão, mantendo mensagem clara ao receber bloqueio do backend.
+   4.3. [x] Frontend: revisar UX da confirmação de exclusão do selecionado:
         - substituir texto genérico/estranho por mensagem objetiva e contextual;
         - incluir identificação do imóvel (código e, se possível, cidade/UF);
         - deixar explícito que a exclusão remove apenas da fila de selecionados, sem apagar o histórico de prospecção.
-   4.4. [ ] UX: substituir o botão textual `Excluir` por ação visual mais apropriada (ícone/botão secundário com affordance clara e confirmação consistente).
-   4.5. [ ] Critério de aceite:
+   4.4. [x] UX: substituir o botão textual `Excluir` por ação visual mais apropriada (ícone/botão secundário com affordance clara e confirmação consistente).
+   4.5. [x] Critério de aceite:
         - exclusão é permitida somente ao autor da inclusão ou a `admin`;
         - lista exibe com clareza quem foi o autor da seleção;
         - confirmação de exclusão é compreensível e sem ambiguidade para o usuário.
@@ -131,23 +131,23 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - usuário não atribuído: pode ter leitura restrita ou sem ações, conforme política a ser fechada.
    5.4. [ ] Frontend: adicionar seletor de responsáveis na tela de selecionados (somente `admin`) e exibir responsáveis associados por imóvel.
 
-6. [ ] **Implementar observações com histórico**
-   6.1. [ ] Modelagem: separar observação atual de trilha histórica (nova tabela `imoveis_selecionados_observacoes` ou estrutura equivalente com `id`, `numero_bem`, `autor_id`, `autor_nome`, `texto`, `created_at`).
-   6.2. [ ] Backend: criar endpoints para adicionar observação, listar histórico e manter `observacao_atual` resumida na listagem principal.
-   6.3. [ ] Frontend: permitir registrar novas observações sem sobrescrever as anteriores, exibir autor + data/hora e abrir histórico completo do imóvel selecionado.
-   6.4. [ ] UX: exibir observação atual em tooltip/hover na tabela para reduzir ruído visual, com acesso explícito para abrir histórico e adicionar nova observação.
+6. [ ] **Consolidar observações operacionais**
+   6.1. [x] Modelagem: separar observação atual de trilha histórica técnica (`imoveis_selecionados_observacoes`) para preservar rastreabilidade sem poluir a operação.
+   6.2. [x] Backend: manter `observacao_atual` na listagem principal e registrar atualizações com autoria.
+   6.3. [x] Frontend: permitir editar a observação atual em modal simples, com bastante espaço de digitação e sem duplicidade de ações.
+   6.4. [ ] UX: exibir observação atual em tooltip/hover na tabela para reduzir ruído visual, sem necessidade de histórico visível na rotina operacional.
+   6.5. [ ] Opcional futuro: abrir histórico completo apenas em tela/modal secundário administrativo, se houver necessidade real.
 
 7. [ ] **Revisar a experiência da lista de selecionados**
-   7.1. [ ] Backend: manter retorno de `data_leilao` considerando a maior data disponível entre `data_leilao_1`, `data_leilao_2` e `data_hora_encerramento`.
-   7.2. [ ] Frontend: permitir ordenação pela data do leilão, priorizando esse campo como ordenação operacional da fila.
-   7.3. [ ] UX: remover a coluna `Status` da tabela de selecionados enquanto ela não agrega valor operacional, reduzindo poluição visual.
+   7.1. [x] Backend: manter retorno de `data_leilao` considerando a maior data disponível entre `data_leilao_1`, `data_leilao_2` e `data_hora_encerramento`.
+   7.2. [x] Frontend: permitir ordenação pela data do leilão, priorizando esse campo como ordenação operacional da fila.
+   7.3. [x] UX: remover a coluna `Status` da tabela de selecionados enquanto ela não agrega valor operacional, reduzindo poluição visual.
    7.4. [ ] Frontend: garantir colunas e ações finais da lista:
         - Data do leilão
         - Prioridade editável
         - Selecionado por
         - Responsáveis
         - Observação atual em tooltip
-        - Acesso ao histórico
         - Ações com botões/iconografia mais claros
    7.5. [ ] Critério de aceite:
         - usuário consegue definir/alterar prioridade no ato da seleção e depois na lista;
@@ -155,8 +155,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - tabela ordena por data do leilão;
         - coluna `Status` não polui a operação diária;
         - `admin` consegue atribuir um ou mais prospectores a cada imóvel;
-        - prospector atribuído consegue alterar prioridade e registrar observações;
-        - histórico permanece visível mesmo após mudanças de status/prioridade.
+        - prospector atribuído consegue alterar prioridade e registrar observações.
 
 8. [ ] **Incluir imóveis manualmente fora da base capturada**
    8.1. [ ] Modelagem/API: permitir criação manual de imóvel selecionado sem dependência prévia de `vw_imoveis_prospeccao_latest`, preservando autoria e metadados mínimos.
@@ -170,9 +169,9 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 9. [ ] **Fechar qualidade, testes e documentação**
    9.1. [ ] Backend: testes de autorização por papel (`prospector/viewer/editor/admin`) nas rotas de Prospecções e rotas financeiras.
    9.2. [ ] Backend: testes para inclusão, edição, exclusão restrita por autor/admin, atribuição de responsáveis, inclusão manual e cálculo de `data_leilao`.
-   9.3. [ ] Backend: testes para histórico de observações (append-only, ordenação, autoria e permissões por atribuição).
+   9.3. [ ] Backend: testes para observações (persistência da nota atual, trilha técnica, autoria e permissões por atribuição).
    9.4. [ ] Frontend: testes de renderização condicional por papel, edição de prioridade, bloqueio de exclusão, ordenação por leilão, atribuição de prospectores, tooltip de observações e inclusão manual.
-   9.5. [ ] Atualizar `docs/README.md` e `README.md` com matriz de permissões, regra de autoria, atribuição de responsáveis, campo `nome` no usuário, inclusão manual e histórico de observações.
+   9.5. [ ] Atualizar `docs/README.md` e `README.md` com matriz de permissões, regra de autoria, atribuição de responsáveis, campo `nome` no usuário, inclusão manual e observações operacionais.
    9.6. [ ] Atualizar documentação operacional com fluxo completo de convite/primeiro acesso, incluindo campo `nome`, configuração correta da URL pública do frontend e fallback SPA do deploy.
    9.7. [ ] Adicionar testes de integração para convites, expiração, definição de senha, persistência de `nome`, geração de `invite_link` e edição/inativação de usuários.
 

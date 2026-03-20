@@ -257,6 +257,13 @@
   cursor: pointer;
 }
 
+.prospects-icon-btn:disabled,
+.prospects-note-btn:disabled,
+.prospects-priority-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .prospects-icon-btn.danger {
   background: #fff1f2;
   border-color: #fecdd3;

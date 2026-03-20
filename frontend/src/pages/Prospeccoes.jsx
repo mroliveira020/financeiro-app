@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./Prospeccoes.css";
 
 import { fetchCapturados, fetchSelecionados, adicionarSelecionado, excluirSelecionado, fetchProspecMeta } from "../services/prospeccoes";
+import { useAuth } from "../context/AuthContext";
 
 const PRIORIDADE_OPTIONS = [
   { value: 1, label: "Baixa", cls: "baixa" },
@@ -42,6 +43,7 @@ function TabelaSelecionados({
   updateLoadingIds,
   sortDir,
   onToggleSort,
+  canDeleteItem,
 }) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando selecionados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar selecionados: {erro}</p></div>;
@@ -132,8 +134,8 @@ function TabelaSelecionados({
                     <button
                       type="button"
                       className="prospects-icon-btn danger"
-                      title="Remover da fila"
-                      disabled={removeLoadingIds.has(item.codigo)}
+                      title={canDeleteItem(item) ? "Remover da fila" : "Apenas o autor da seleção ou um administrador pode remover este imóvel"}
+                      disabled={removeLoadingIds.has(item.codigo) || !canDeleteItem(item)}
                       onClick={() => onExcluir(item)}
                     >
                       {removeLoadingIds.has(item.codigo) ? "..." : "Remover"}
@@ -381,6 +383,7 @@ function TabelaCapturados({
 }
 
 export default function Prospeccoes() {
+  const { user } = useAuth();
   const [selecionados, setSelecionados] = useState([]);
   const [capturados, setCapturados] = useState([]);
   const [capturadosTotal, setCapturadosTotal] = useState(0);
@@ -543,7 +546,7 @@ export default function Prospeccoes() {
       setMensagem(`Imóvel ${item.codigo} removido de selecionados.`);
       setConfirmDeleteItem(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro ao excluir";
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao excluir");
       setMensagem(message);
     } finally {
       setRemoveLoadingIds((prev) => {
@@ -659,6 +662,13 @@ export default function Prospeccoes() {
     setSortBy(key);
     setSortDir(dir);
     setPage(1);
+  };
+
+  const canDeleteItem = (item) => {
+    if (!user) return false;
+    if (user.role === "admin") return true;
+    if (!item?.createdBy) return false;
+    return String(item.createdBy) === String(user.id);
   };
 
   return (
@@ -794,6 +804,7 @@ export default function Prospeccoes() {
         updateLoadingIds={updateLoadingIds}
         sortDir={selectedSortDir}
         onToggleSort={() => setSelectedSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
+        canDeleteItem={canDeleteItem}
       />
 
       <div className="prospects-gap" />

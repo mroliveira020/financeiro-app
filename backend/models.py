@@ -2003,6 +2003,30 @@ def inserir_prospeccao_selecionado(
     return {"message": "Imóvel adicionado/atualizado em selecionados", "numero_bem": numero_bem}
 
 
+def buscar_autoria_prospeccao_selecionado(numero_bem):
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT numero_bem, created_by, created_by_name
+            FROM imoveis_selecionados
+            WHERE numero_bem = %s
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {
+            "numero_bem": row[0],
+            "created_by": row[1],
+            "created_by_name": row[2],
+        }
+    finally:
+        conn.close()
+
+
 def excluir_prospeccao_selecionado(numero_bem):
     conn, cur = conectar()
     cur.execute(
