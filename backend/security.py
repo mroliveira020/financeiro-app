@@ -198,8 +198,6 @@ def requires_prospeccao_write(fn):
     def wrapper(*args, **kwargs):
         if request.method == "OPTIONS":
             return ("", 204)
-        if READ_ONLY:
-            return jsonify({"error": "Somente leitura"}), 405
 
         try:
             user = _ensure_user_loaded()
