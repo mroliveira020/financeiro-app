@@ -145,20 +145,29 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    7.1. [ ] Modelagem: criar estrutura persistente para análise do selecionado, vinculada a `imoveis_selecionados.numero_bem`, preservando autoria e `updated_at`.
    7.2. [ ] Modelagem: incluir campos manuais de entrada:
         - link do Google Maps
+        - valor base da operação
+        - tempo da operação em meses (default `12`)
         - reforma
         - condomínio em atraso
+        - IPTU em atraso
         - desocupação
+        - ITBI em `%` e em valor (campos espelhados)
         - documentação
         - manutenção (`água`, `luz`, `condomínio`)
+        - despesas mensais (`água`, `luz`, `condomínio`, `IPTU`)
         - valor máximo do lance
-        - check de comissão de leiloeiro de `5%`
+        - comissão de leiloeiro em `%` e em valor (campos espelhados)
+        - ganho de capital em `%` e em valor (campos espelhados)
         - `% de financiamento`
         - valor estimado da venda
    7.3. [ ] Backend/API: expor endpoint de leitura/gravação da ficha de análise por imóvel selecionado.
    7.4. [ ] Frontend: criar formulário de análise no imóvel selecionado com cálculos dinâmicos em tempo real, sem persistir cada alteração automaticamente.
    7.5. [ ] Regra de persistência: cálculos e alterações de campos ficam locais na UI enquanto o usuário edita; gravação ocorre apenas ao clicar em `Salvar`.
    7.6. [ ] Cálculos dinâmicos esperados:
-        - valor da comissão do leiloeiro (`5%` quando o check estiver ativo)
+        - valor do ITBI e seu respectivo percentual (sincronizados)
+        - valor da comissão do leiloeiro e seu respectivo percentual (sincronizados)
+        - valor do ganho de capital e seu respectivo percentual (sincronizados)
+        - total de despesas mensais com multiplicação automática pelo tempo da operação
         - valor desembolsado na aquisição
         - custo do imóvel
         - estimativa de capital investido
@@ -166,12 +175,51 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - ROI esperado em valor
    7.7. [ ] Definir fórmula operacional dos cálculos:
         - considerar `% de financiamento` sobre o valor de aquisição
-        - separar claramente desembolso de aquisição, custos acessórios e capital total investido
+        - definir qual campo usa `valor base` como referência de cálculo para ITBI, comissão e ganho de capital
+        - separar claramente despesas únicas vs. despesas mensais recorrentes
+        - aplicar despesas mensais projetadas com base no tempo da operação (default `12` meses)
+        - manter ITBI com edição bidirecional entre `%` e valor
+        - manter comissão de leiloeiro com edição bidirecional entre `%` e valor
+        - manter comissão do corretor com edição bidirecional entre `%` e valor, usando `valor_estimado_venda` como base sugerida
+        - manter ganho de capital com edição bidirecional entre `%` e valor
+        - separar claramente desembolso de aquisição, custos acessórios, custo total do imóvel e capital total investido
+        - não incluir comissão do corretor nem IR/ganho de capital no `custo_total_imovel`, pois esses pagamentos ocorrem apenas após a venda
         - manter fórmula auditável e documentada para evitar divergência entre tela e backend
+   7.7.1. [x] Especificação base confirmada:
+        - `valor_base_operacao`: sugerir `valor_maximo_lance`, mas permitir edição manual
+        - `base_itbi = valor_base_operacao`
+        - `base_comissao_leiloeiro = valor_maximo_lance`
+        - `base_comissao_corretor = valor_estimado_venda`
+        - `base_ganho_capital = max((valor_estimado_venda - comissao_corretor_valor) - custo_total_imovel, 0)`
+   7.7.2. [x] Fórmulas de sincronização confirmadas:
+        - `itbi_valor = base_itbi * (itbi_percentual / 100)`
+        - `itbi_percentual = (itbi_valor / base_itbi) * 100`
+        - `comissao_leiloeiro_valor = base_comissao_leiloeiro * (comissao_leiloeiro_percentual / 100)`
+        - `comissao_leiloeiro_percentual = (comissao_leiloeiro_valor / base_comissao_leiloeiro) * 100`
+        - `comissao_corretor_valor = base_comissao_corretor * (comissao_corretor_percentual / 100)`
+        - `comissao_corretor_percentual = (comissao_corretor_valor / base_comissao_corretor) * 100`
+        - `ganho_capital_valor = base_ganho_capital * (ganho_capital_percentual / 100)`
+        - `ganho_capital_percentual = (ganho_capital_valor / base_ganho_capital) * 100`
+        - quando a base for `0`, o percentual calculado deve retornar `0` para evitar divisão inválida
+   7.7.3. [x] Fórmulas de despesas e aquisição confirmadas:
+        - `despesas_unicas = reforma + condominio_atraso + iptu_atraso + desocupacao + documentacao + itbi_valor`
+        - `despesa_mensal_total = manutencao_agua_mensal + manutencao_luz_mensal + manutencao_condominio_mensal + manutencao_iptu_mensal`
+        - `despesas_mensais_projetadas = despesa_mensal_total * tempo_operacao_meses`
+        - `valor_financiado = valor_maximo_lance * (percentual_financiamento / 100)`
+        - `desembolso_aquisicao = valor_maximo_lance - valor_financiado + comissao_leiloeiro_valor`
+        - `custo_total_imovel = valor_maximo_lance + comissao_leiloeiro_valor + despesas_unicas + despesas_mensais_projetadas`
+        - `capital_investido_estimado = desembolso_aquisicao + despesas_unicas + despesas_mensais_projetadas`
+   7.7.4. [x] Fórmulas de venda e resultado confirmadas:
+        - `lucro_esperado_valor = valor_estimado_venda - comissao_corretor_valor - ganho_capital_valor - custo_total_imovel`
+        - `roi_esperado_percentual = (lucro_esperado_valor / capital_investido_estimado) * 100`
+        - `roi_esperado_valor = lucro_esperado_valor`
    7.8. [ ] UX: destacar campos digitáveis vs. campos calculados; exibir resumo financeiro em bloco visual claro; permitir edição confortável sem poluir a tabela principal.
    7.9. [ ] Critério de aceite:
         - usuário consegue preencher a análise do imóvel sem sair da rotina de prospecção;
         - cálculos reagem imediatamente às alterações dos campos;
+        - ITBI permanece sincronizado entre `%` e valor;
+        - comissão e ganho de capital permanecem sincronizados entre `%` e valor;
+        - despesas mensais projetadas respeitam o tempo da operação informado;
         - nada é persistido antes do clique em `Salvar`;
         - ao salvar, os valores reaparecem idênticos ao recarregar a página;
         - link do Google Maps fica acessível a partir do imóvel selecionado.
