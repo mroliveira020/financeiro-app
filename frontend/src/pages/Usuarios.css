@@ -117,6 +117,33 @@
   padding: 6px 10px;
 }
 
+.users-section {
+  display: grid;
+  gap: 10px;
+}
+
+.users-section__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.users-section__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.users-section__header span {
+  min-width: 32px;
+  text-align: center;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .users-table-wrap {
   overflow-x: auto;
   background: #fff;

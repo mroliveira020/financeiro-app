@@ -33,6 +33,8 @@ export default function Usuarios() {
   const [role, setRole] = useState("prospector");
   const [inviteHours, setInviteHours] = useState(72);
   const [isActive, setIsActive] = useState(true);
+  const activeUsers = users.filter((user) => user.is_active);
+  const inactiveUsers = users.filter((user) => !user.is_active);
 
   const loadUsers = async () => {
     setLoading(true);
@@ -120,6 +122,105 @@ export default function Usuarios() {
     }
   };
 
+  const renderTable = (tableUsers, emptyMessage) => (
+    <div className="users-table-wrap">
+      <table className="users-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>E-mail</th>
+            <th>Perfil</th>
+            <th>Ativo</th>
+            <th>Convite pendente</th>
+            <th>Expira em</th>
+            <th>Criado em</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {loading && (
+            <tr>
+              <td colSpan={8}>Carregando...</td>
+            </tr>
+          )}
+          {!loading && tableUsers.length === 0 && (
+            <tr>
+              <td colSpan={8}>{emptyMessage}</td>
+            </tr>
+          )}
+          {!loading &&
+            tableUsers.map((user) => (
+              <tr key={user.id}>
+                <td>
+                  {editingUserId === user.id ? (
+                    <input
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => setEditingName(e.target.value)}
+                      className="users-table__input"
+                    />
+                  ) : (
+                    user.name || "—"
+                  )}
+                </td>
+                <td>{user.email}</td>
+                <td>{user.role}</td>
+                <td>
+                  {editingUserId === user.id ? (
+                    <label className="users-table__check">
+                      <input
+                        type="checkbox"
+                        checked={editingIsActive}
+                        onChange={(e) => setEditingIsActive(e.target.checked)}
+                      />
+                      <span>{editingIsActive ? "Sim" : "Não"}</span>
+                    </label>
+                  ) : (
+                    user.is_active ? "Sim" : "Não"
+                  )}
+                </td>
+                <td>{user.invite_pending ? "Sim" : "Não"}</td>
+                <td>{formatDate(user.invite_expires_at)}</td>
+                <td>{formatDate(user.created_at)}</td>
+                <td>
+                  <div className="users-table__actions">
+                    {editingUserId === user.id ? (
+                      <>
+                        <button
+                          type="button"
+                          className="users-table__button users-table__button--primary"
+                          onClick={() => handleUpdateUser(user.id)}
+                          disabled={updatingUserId === user.id}
+                        >
+                          {updatingUserId === user.id ? "Salvando..." : "Salvar"}
+                        </button>
+                        <button
+                          type="button"
+                          className="users-table__button"
+                          onClick={cancelEditing}
+                          disabled={updatingUserId === user.id}
+                        >
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className="users-table__button"
+                        onClick={() => startEditing(user)}
+                      >
+                        Editar
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div className="users-page">
       <div className="users-header">
@@ -206,102 +307,21 @@ export default function Usuarios() {
         </div>
       )}
 
-      <div className="users-table-wrap">
-        <table className="users-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>E-mail</th>
-              <th>Perfil</th>
-              <th>Ativo</th>
-              <th>Convite pendente</th>
-              <th>Expira em</th>
-              <th>Criado em</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr>
-                <td colSpan={8}>Carregando...</td>
-              </tr>
-            )}
-            {!loading && users.length === 0 && (
-              <tr>
-                <td colSpan={8}>Nenhum usuário encontrado.</td>
-              </tr>
-            )}
-            {!loading &&
-              users.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    {editingUserId === user.id ? (
-                      <input
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        className="users-table__input"
-                      />
-                    ) : (
-                      user.name || "—"
-                    )}
-                  </td>
-                  <td>{user.email}</td>
-                  <td>{user.role}</td>
-                  <td>
-                    {editingUserId === user.id ? (
-                      <label className="users-table__check">
-                        <input
-                          type="checkbox"
-                          checked={editingIsActive}
-                          onChange={(e) => setEditingIsActive(e.target.checked)}
-                        />
-                        <span>{editingIsActive ? "Sim" : "Não"}</span>
-                      </label>
-                    ) : (
-                      user.is_active ? "Sim" : "Não"
-                    )}
-                  </td>
-                  <td>{user.invite_pending ? "Sim" : "Não"}</td>
-                  <td>{formatDate(user.invite_expires_at)}</td>
-                  <td>{formatDate(user.created_at)}</td>
-                  <td>
-                    <div className="users-table__actions">
-                      {editingUserId === user.id ? (
-                        <>
-                          <button
-                            type="button"
-                            className="users-table__button users-table__button--primary"
-                            onClick={() => handleUpdateUser(user.id)}
-                            disabled={updatingUserId === user.id}
-                          >
-                            {updatingUserId === user.id ? "Salvando..." : "Salvar"}
-                          </button>
-                          <button
-                            type="button"
-                            className="users-table__button"
-                            onClick={cancelEditing}
-                            disabled={updatingUserId === user.id}
-                          >
-                            Cancelar
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          className="users-table__button"
-                          onClick={() => startEditing(user)}
-                        >
-                          Editar
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+      <section className="users-section">
+        <div className="users-section__header">
+          <h2>Usuários ativos</h2>
+          <span>{activeUsers.length}</span>
+        </div>
+        {renderTable(activeUsers, "Nenhum usuário ativo encontrado.")}
+      </section>
+
+      <section className="users-section">
+        <div className="users-section__header">
+          <h2>Usuários inativos</h2>
+          <span>{inactiveUsers.length}</span>
+        </div>
+        {renderTable(inactiveUsers, "Nenhum usuário inativo encontrado.")}
+      </section>
     </div>
   );
 }
