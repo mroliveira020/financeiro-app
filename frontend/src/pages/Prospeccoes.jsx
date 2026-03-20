@@ -3,6 +3,12 @@ import "./Prospeccoes.css";
 
 import { fetchCapturados, fetchSelecionados, adicionarSelecionado, excluirSelecionado, fetchProspecMeta } from "../services/prospeccoes";
 
+const PRIORIDADE_OPTIONS = [
+  { value: 1, label: "Baixa", cls: "baixa" },
+  { value: 2, label: "Média", cls: "media" },
+  { value: 3, label: "Alta", cls: "alta" },
+];
+
 const formatarMoeda = (valor) => {
   if (valor === null || valor === undefined) return "—";
   return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -25,27 +31,21 @@ const formatarDataHora = (valor) => {
   return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
 };
 
-function TabelaSelecionados({ dados, loading, erro, onExcluir, removeLoadingIds }) {
+function TabelaSelecionados({
+  dados,
+  loading,
+  erro,
+  onExcluir,
+  onAtualizarPrioridade,
+  onEditarObservacoes,
+  removeLoadingIds,
+  updateLoadingIds,
+  sortDir,
+  onToggleSort,
+}) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando selecionados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar selecionados: {erro}</p></div>;
   if (!dados.length) return <div className="prospects-card"><p className="prospects-empty">Nenhum selecionado encontrado.</p></div>;
-
-  const formatStatus = (status) => {
-    if (!status) return { label: "—", cls: "" };
-    const label = `${status}`.trim();
-    return { label, cls: label.toLowerCase() };
-  };
-
-  const formatPrioridade = (pri) => {
-    if (pri === null || pri === undefined) return { label: "—", cls: "" };
-    if (typeof pri === "number") {
-      if (pri >= 3) return { label: "Alta", cls: "alta" };
-      if (pri <= 1) return { label: "Baixa", cls: "baixa" };
-      return { label: "Média", cls: "media" };
-    }
-    const label = `${pri}`.trim();
-    return { label, cls: label.toLowerCase() };
-  };
 
   return (
     <div className="prospects-card">
@@ -53,6 +53,9 @@ function TabelaSelecionados({ dados, loading, erro, onExcluir, removeLoadingIds 
         <div>
           <p className="prospects-eyebrow">Fila de decisão</p>
           <h2 className="prospects-title">Selecionados</h2>
+          <p className="prospects-subtitle prospects-subtitle--compact">
+            Ordenado por data do leilão para facilitar a fila operacional.
+          </p>
         </div>
         <span className="prospects-pill">{dados.length} imóveis</span>
       </div>
@@ -63,9 +66,19 @@ function TabelaSelecionados({ dados, loading, erro, onExcluir, removeLoadingIds 
               <th>Código</th>
               <th>Cidade</th>
               <th>UF</th>
-              <th>Status</th>
               <th>Selecionado por</th>
-              <th>Data leilão</th>
+              <th
+                className="prospects-sortable"
+                role="button"
+                tabIndex={0}
+                aria-sort={sortDir === "asc" ? "ascending" : "descending"}
+                onClick={onToggleSort}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") onToggleSort();
+                }}
+              >
+                Data leilão{sortDir === "asc" ? " ▲" : " ▼"}
+              </th>
               <th>Valor máximo</th>
               <th>Valor referência</th>
               <th>Prioridade</th>
@@ -84,34 +97,61 @@ function TabelaSelecionados({ dados, loading, erro, onExcluir, removeLoadingIds 
                 </td>
                 <td>{item.cidade}</td>
                 <td>{item.uf}</td>
-                <td>
-                  {(() => {
-                    const { label, cls } = formatStatus(item.status);
-                    return <span className={`prospects-chip status-${cls}`}>{label}</span>;
-                  })()}
-                </td>
                 <td>{item.createdByName || "—"}</td>
                 <td>{formatarDataHora(item.dataLeilao)}</td>
                 <td>{formatarMoeda(item.valorMaximo)}</td>
                 <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>
                 <td>
-                  {(() => {
-                    const { label, cls } = formatPrioridade(item.prioridade);
-                    return <span className={`prospects-chip priority-${cls}`}>{label}</span>;
-                  })()}
+                  <div className="prospects-priority-actions">
+                    {PRIORIDADE_OPTIONS.map((option) => {
+                      const active = Number(item.prioridade || 2) === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`prospects-priority-btn ${active ? `priority-${option.cls}` : ""}`}
+                          disabled={updateLoadingIds.has(`${item.codigo}:prioridade`)}
+                          onClick={() => onAtualizarPrioridade(item, option)}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </td>
-                <td>{item.observacoes || "—"}</td>
+                <td>
+                  <div className="prospects-observation-cell">
+                    <button
+                      type="button"
+                      className="prospects-btn tertiary"
+                      title={item.observacoes || "Nenhuma observação cadastrada."}
+                      onClick={() => onEditarObservacoes(item)}
+                      disabled={updateLoadingIds.has(`${item.codigo}:observacoes`)}
+                    >
+                      {item.observacoes ? "Ver / editar" : "Adicionar"}
+                    </button>
+                  </div>
+                </td>
                 <td>{item.descricao || "—"}</td>
                 <td>
-                  <button
-                    type="button"
-                    className="prospects-btn secondary"
-                    style={{ padding: "6px 8px", minWidth: "auto" }}
-                    disabled={removeLoadingIds.has(item.codigo)}
-                    onClick={() => onExcluir(item)}
-                  >
-                    {removeLoadingIds.has(item.codigo) ? "…" : "Excluir"}
-                  </button>
+                  <div className="prospects-row-actions">
+                    <button
+                      type="button"
+                      className="prospects-btn tertiary"
+                      onClick={() => onEditarObservacoes(item)}
+                      disabled={updateLoadingIds.has(`${item.codigo}:observacoes`)}
+                    >
+                      Obs.
+                    </button>
+                    <button
+                      type="button"
+                      className="prospects-btn danger"
+                      disabled={removeLoadingIds.has(item.codigo)}
+                      onClick={() => onExcluir(item)}
+                    >
+                      {removeLoadingIds.has(item.codigo) ? "..." : "Remover"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -300,11 +340,13 @@ export default function Prospeccoes() {
   const [page, setPage] = useState(1);
   const [includeLoadingIds, setIncludeLoadingIds] = useState(new Set());
   const [removeLoadingIds, setRemoveLoadingIds] = useState(new Set());
+  const [updateLoadingIds, setUpdateLoadingIds] = useState(new Set());
   const [mensagem, setMensagem] = useState("");
   const [meta, setMeta] = useState({ ufs: [], modalidades: [], financia: [] });
   const [expanded, setExpanded] = useState(new Set());
   const [sortBy, setSortBy] = useState("ultima_disputa");
   const [sortDir, setSortDir] = useState("desc");
+  const [selectedSortDir, setSelectedSortDir] = useState("asc");
 
   useEffect(() => {
     const carregarSelecionados = async () => {
@@ -428,7 +470,9 @@ export default function Prospeccoes() {
   };
 
   const handleExcluirSelecionado = async (item) => {
-    const confirm = window.confirm(`Excluir o imóvel ${item.codigo} da base de selecionados?`);
+    const confirm = window.confirm(
+      `Remover o imóvel ${item.codigo}${item.cidade || item.uf ? ` (${[item.cidade, item.uf].filter(Boolean).join("/")})` : ""} da fila de selecionados?\n\nO histórico de prospecção capturada será mantido.`
+    );
     if (!confirm) return;
 
     setMensagem("");
@@ -453,6 +497,88 @@ export default function Prospeccoes() {
       });
     }
   };
+
+  const refreshSelecionados = async () => {
+    const sel = await fetchSelecionados({});
+    setSelecionados(sel || []);
+  };
+
+  const handleAtualizarPrioridade = async (item, option) => {
+    const key = `${item.codigo}:prioridade`;
+    setMensagem("");
+    setUpdateLoadingIds((prev) => new Set(prev).add(key));
+    try {
+      await adicionarSelecionado({
+        numero_bem: item.codigo,
+        status: item.status,
+        valor_maximo: item.valorMaximo,
+        prioridade: option.value,
+        observacoes: item.observacoes || "",
+      });
+      setMensagem(`Prioridade do imóvel ${item.codigo} atualizada para ${option.label}.`);
+      await refreshSelecionados();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao atualizar prioridade";
+      setMensagem(message);
+    } finally {
+      setUpdateLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
+  const handleEditarObservacoes = async (item) => {
+    const novaObservacao = window.prompt(
+      `Observações do imóvel ${item.codigo}:`,
+      item.observacoes || ""
+    );
+    if (novaObservacao === null) return;
+
+    const key = `${item.codigo}:observacoes`;
+    setMensagem("");
+    setUpdateLoadingIds((prev) => new Set(prev).add(key));
+    try {
+      await adicionarSelecionado({
+        numero_bem: item.codigo,
+        status: item.status,
+        valor_maximo: item.valorMaximo,
+        prioridade: item.prioridade,
+        observacoes: novaObservacao.trim(),
+      });
+      setMensagem(`Observações do imóvel ${item.codigo} atualizadas.`);
+      await refreshSelecionados();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao atualizar observações";
+      setMensagem(message);
+    } finally {
+      setUpdateLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
+
+  const selecionadosOrdenados = useMemo(() => {
+    const parseDate = (value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date.getTime();
+    };
+
+    return [...selecionados].sort((a, b) => {
+      const dateA = parseDate(a.dataLeilao);
+      const dateB = parseDate(b.dataLeilao);
+
+      if (dateA === null && dateB === null) return `${a.codigo}`.localeCompare(`${b.codigo}`);
+      if (dateA === null) return 1;
+      if (dateB === null) return -1;
+
+      return selectedSortDir === "asc" ? dateA - dateB : dateB - dateA;
+    });
+  }, [selecionados, selectedSortDir]);
 
   const toggleExpand = (codigo) => {
     const next = new Set(expanded);
@@ -599,11 +725,16 @@ export default function Prospeccoes() {
       {mensagem && <div className="prospects-message">{mensagem}</div>}
 
       <TabelaSelecionados
-        dados={selecionados}
+        dados={selecionadosOrdenados}
         loading={loadingSel}
         erro={erroSel}
         onExcluir={handleExcluirSelecionado}
+        onAtualizarPrioridade={handleAtualizarPrioridade}
+        onEditarObservacoes={handleEditarObservacoes}
         removeLoadingIds={removeLoadingIds}
+        updateLoadingIds={updateLoadingIds}
+        sortDir={selectedSortDir}
+        onToggleSort={() => setSelectedSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
       />
 
       <div className="prospects-gap" />

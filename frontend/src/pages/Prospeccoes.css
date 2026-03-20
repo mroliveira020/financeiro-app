@@ -66,6 +66,22 @@
   color: #1b1f33;
 }
 
+.prospects-btn.tertiary {
+  background: #ffffff;
+  border-color: #d6d9e3;
+  color: #334155;
+  padding: 6px 10px;
+  min-width: auto;
+}
+
+.prospects-btn.danger {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #be123c;
+  padding: 6px 10px;
+  min-width: auto;
+}
+
 .prospects-btn:hover {
   transform: translateY(-1px);
 }
@@ -90,6 +106,11 @@
   margin: 0;
   font-size: 18px;
   color: #1b1f33;
+}
+
+.prospects-subtitle--compact {
+  margin-top: 4px;
+  font-size: 12px;
 }
 
 .prospects-pill {
@@ -179,6 +200,39 @@
 .priority-baixa {
   background: #e0f2fe;
   color: #0c4a6e;
+}
+
+.prospects-priority-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.prospects-priority-btn {
+  border: 1px solid #d6d9e3;
+  border-radius: 999px;
+  background: #fff;
+  color: #475569;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.prospects-priority-btn:hover {
+  border-color: #94a3b8;
+}
+
+.prospects-observation-cell {
+  display: flex;
+  align-items: center;
+}
+
+.prospects-row-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .prospects-link {
