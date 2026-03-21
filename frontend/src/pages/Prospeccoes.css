@@ -437,13 +437,13 @@
 }
 
 .prospects-modal--wide {
-  width: min(100%, 1120px);
+  width: min(100%, 1280px);
 }
 
 .prospects-modal__header,
 .prospects-modal__body,
 .prospects-modal__footer {
-  padding: 20px 24px;
+  padding: 16px 20px;
 }
 
 .prospects-modal__header {
@@ -452,7 +452,7 @@
 
 .prospects-modal__title {
   margin: 4px 0 0;
-  font-size: 22px;
+  font-size: 18px;
   color: #1b1f33;
 }
 
@@ -465,11 +465,12 @@
 
 .prospects-modal__hint {
   margin: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   color: #475569;
+  font-size: 12px;
 }
 
 .prospects-modal__footer {
@@ -497,23 +498,25 @@
 
 .prospects-analise-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .prospects-analise-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  background: #fbfdff;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #dfe6f2;
+  border-radius: 14px;
+  background: #fcfdff;
 }
 
 .prospects-analise-section h4 {
   margin: 0;
-  font-size: 16px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: #1b1f33;
 }
 
@@ -528,19 +531,23 @@
 }
 
 .prospects-form-field span {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .prospects-form-field input {
   width: 100%;
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
   border: 1px solid #cbd5e1;
   background: #fff;
   color: #1b1f33;
   font: inherit;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .prospects-form-field input:focus {
@@ -551,44 +558,45 @@
 .prospects-pair-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .prospects-analise-inline-note {
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
   background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  border: 1px solid #c9dcff;
   color: #1d4ed8;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .prospects-summary-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .prospects-summary-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px;
-  border-radius: 14px;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 12px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
 }
 
 .prospects-summary-card span {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .prospects-summary-card strong {
-  font-size: 16px;
+  font-size: 13px;
   color: #0f172a;
 }
 
@@ -600,28 +608,29 @@
 .prospects-analise-kpis {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .prospects-analise-kpi {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px;
+  gap: 4px;
+  padding: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
 }
 
 .prospects-analise-kpi span {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #64748b;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .prospects-analise-kpi strong {
-  font-size: 16px;
+  font-size: 13px;
   color: #0f172a;
 }
 

@@ -73,6 +73,37 @@ const ANALISE_PAIR_MODE_DEFAULTS = {
   ganhoCapital: "percentual",
 };
 
+const MONEY_FIELDS = new Set([
+  "valor_base_operacao",
+  "valor_maximo_lance",
+  "valor_estimado_venda",
+  "reforma",
+  "condominio_atraso",
+  "iptu_atraso",
+  "desocupacao",
+  "itbi_valor",
+  "documentacao",
+  "manutencao_agua_mensal",
+  "manutencao_luz_mensal",
+  "manutencao_condominio_mensal",
+  "manutencao_iptu_mensal",
+  "comissao_leiloeiro_valor",
+  "comissao_corretor_valor",
+  "ganho_capital_valor",
+]);
+
+const PERCENT_FIELDS = new Set([
+  "percentual_financiamento",
+  "itbi_percentual",
+  "comissao_leiloeiro_percentual",
+  "comissao_corretor_percentual",
+  "ganho_capital_percentual",
+]);
+
+const INTEGER_FIELDS = new Set([
+  "tempo_operacao_meses",
+]);
+
 const toInputValue = (value, fallback = "") => {
   if (value === null || value === undefined) return fallback;
   return `${value}`;
@@ -80,7 +111,11 @@ const toInputValue = (value, fallback = "") => {
 
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
-  const normalized = `${value}`.replace(",", ".");
+  let normalized = `${value}`.trim();
+  normalized = normalized.replace(/[^\d,.-]/g, "");
+  if (normalized.includes(",")) {
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  }
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 };
@@ -100,6 +135,38 @@ const resolvePair = (base, percentualRaw, valorRaw, mode) => {
   return { percentual, valor };
 };
 
+const formatMoneyInput = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  const num = toNumber(value);
+  return num.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const formatPercentInput = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  return `${roundPercent(value)}`.replace(".", ",");
+};
+
+const formatIntegerInput = (value) => {
+  if (value === null || value === undefined || value === "") return "";
+  const inteiro = parseInt(`${value}`, 10);
+  return Number.isFinite(inteiro) ? `${inteiro}` : "";
+};
+
+const formatDraftValue = (field, value) => {
+  if (MONEY_FIELDS.has(field)) return formatMoneyInput(value);
+  if (PERCENT_FIELDS.has(field)) return formatPercentInput(value);
+  if (INTEGER_FIELDS.has(field)) return formatIntegerInput(value);
+  return value ?? "";
+};
+
+const normalizeDraftFieldValue = (field, value) => {
+  if (value === "") return "";
+  return formatDraftValue(field, value);
+};
+
 const inferPairMode = (percentual, valor) => {
   if ((percentual === null || percentual === undefined || percentual === "") && valor !== null && valor !== undefined && valor !== "") {
     return "valor";
@@ -110,7 +177,7 @@ const inferPairMode = (percentual, valor) => {
 const createAnaliseDraft = (inputs = {}) => ({
   ...ANALISE_DEFAULTS,
   ...Object.fromEntries(
-    Object.entries(inputs).map(([key, value]) => [key, toInputValue(value, ANALISE_DEFAULTS[key] ?? "")])
+    Object.entries(inputs).map(([key, value]) => [key, formatDraftValue(key, value)])
   ),
 });
 
@@ -368,6 +435,21 @@ function CampoNumerico({ label, value, onChange, step = "0.01", min = "0" }) {
   );
 }
 
+function CampoTextoNumerico({ label, value, onChange, placeholder = "" }) {
+  return (
+    <label className="prospects-form-field">
+      <span>{label}</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    </label>
+  );
+}
+
 function AnaliseModal({
   item,
   draft,
@@ -458,28 +540,28 @@ function AnaliseModal({
 
                 <section className="prospects-analise-section">
                   <h4>Premissas</h4>
-                  <CampoNumerico label="Valor máximo do lance" value={currentDraft.valor_maximo_lance} onChange={(value) => onFieldChange("valor_maximo_lance", value)} />
-                  <CampoNumerico label="Valor base da operação" value={currentDraft.valor_base_operacao} onChange={(value) => onFieldChange("valor_base_operacao", value)} />
+                  <CampoTextoNumerico label="Valor máximo do lance" value={currentDraft.valor_maximo_lance} onChange={(value) => onFieldChange("valor_maximo_lance", value)} />
+                  <CampoTextoNumerico label="Valor base da operação" value={currentDraft.valor_base_operacao} onChange={(value) => onFieldChange("valor_base_operacao", value)} />
                   <CampoNumerico label="Tempo da operação (meses)" value={currentDraft.tempo_operacao_meses} onChange={(value) => onFieldChange("tempo_operacao_meses", value)} step="1" min="1" />
-                  <CampoNumerico label="% financiamento" value={currentDraft.percentual_financiamento} onChange={(value) => onFieldChange("percentual_financiamento", value)} />
-                  <CampoNumerico label="Valor estimado da venda" value={currentDraft.valor_estimado_venda} onChange={(value) => onFieldChange("valor_estimado_venda", value)} />
+                  <CampoTextoNumerico label="% financiamento" value={currentDraft.percentual_financiamento} onChange={(value) => onFieldChange("percentual_financiamento", value)} />
+                  <CampoTextoNumerico label="Valor estimado da venda" value={currentDraft.valor_estimado_venda} onChange={(value) => onFieldChange("valor_estimado_venda", value)} />
                 </section>
 
                 <section className="prospects-analise-section">
                   <h4>Custos únicos</h4>
-                  <CampoNumerico label="Reforma" value={currentDraft.reforma} onChange={(value) => onFieldChange("reforma", value)} />
-                  <CampoNumerico label="Condomínio em atraso" value={currentDraft.condominio_atraso} onChange={(value) => onFieldChange("condominio_atraso", value)} />
-                  <CampoNumerico label="IPTU em atraso" value={currentDraft.iptu_atraso} onChange={(value) => onFieldChange("iptu_atraso", value)} />
-                  <CampoNumerico label="Desocupação" value={currentDraft.desocupacao} onChange={(value) => onFieldChange("desocupacao", value)} />
-                  <CampoNumerico label="Documentação" value={currentDraft.documentacao} onChange={(value) => onFieldChange("documentacao", value)} />
+                  <CampoTextoNumerico label="Reforma" value={currentDraft.reforma} onChange={(value) => onFieldChange("reforma", value)} />
+                  <CampoTextoNumerico label="Condomínio em atraso" value={currentDraft.condominio_atraso} onChange={(value) => onFieldChange("condominio_atraso", value)} />
+                  <CampoTextoNumerico label="IPTU em atraso" value={currentDraft.iptu_atraso} onChange={(value) => onFieldChange("iptu_atraso", value)} />
+                  <CampoTextoNumerico label="Desocupação" value={currentDraft.desocupacao} onChange={(value) => onFieldChange("desocupacao", value)} />
+                  <CampoTextoNumerico label="Documentação" value={currentDraft.documentacao} onChange={(value) => onFieldChange("documentacao", value)} />
                 </section>
 
                 <section className="prospects-analise-section">
                   <h4>Despesas mensais</h4>
-                  <CampoNumerico label="Água" value={currentDraft.manutencao_agua_mensal} onChange={(value) => onFieldChange("manutencao_agua_mensal", value)} />
-                  <CampoNumerico label="Luz" value={currentDraft.manutencao_luz_mensal} onChange={(value) => onFieldChange("manutencao_luz_mensal", value)} />
-                  <CampoNumerico label="Condomínio" value={currentDraft.manutencao_condominio_mensal} onChange={(value) => onFieldChange("manutencao_condominio_mensal", value)} />
-                  <CampoNumerico label="IPTU" value={currentDraft.manutencao_iptu_mensal} onChange={(value) => onFieldChange("manutencao_iptu_mensal", value)} />
+                  <CampoTextoNumerico label="Água" value={currentDraft.manutencao_agua_mensal} onChange={(value) => onFieldChange("manutencao_agua_mensal", value)} />
+                  <CampoTextoNumerico label="Luz" value={currentDraft.manutencao_luz_mensal} onChange={(value) => onFieldChange("manutencao_luz_mensal", value)} />
+                  <CampoTextoNumerico label="Condomínio" value={currentDraft.manutencao_condominio_mensal} onChange={(value) => onFieldChange("manutencao_condominio_mensal", value)} />
+                  <CampoTextoNumerico label="IPTU" value={currentDraft.manutencao_iptu_mensal} onChange={(value) => onFieldChange("manutencao_iptu_mensal", value)} />
                   <div className="prospects-analise-inline-note">
                     Projeção automática: {formatarMoeda(calculos.despesas_mensais_projetadas)} em {inputs.tempo_operacao_meses} meses.
                   </div>
@@ -493,7 +575,7 @@ function AnaliseModal({
                       value={resolveDisplayValue("itbi_percentual", "itbi", "percentual")}
                       onChange={(value) => onPairModeChange("itbi", "percentual", "itbi_percentual", value)}
                     />
-                    <CampoNumerico
+                    <CampoTextoNumerico
                       label="ITBI valor"
                       value={resolveDisplayValue("itbi_valor", "itbi", "valor")}
                       onChange={(value) => onPairModeChange("itbi", "valor", "itbi_valor", value)}
@@ -505,7 +587,7 @@ function AnaliseModal({
                       value={resolveDisplayValue("comissao_leiloeiro_percentual", "leiloeiro", "percentual")}
                       onChange={(value) => onPairModeChange("leiloeiro", "percentual", "comissao_leiloeiro_percentual", value)}
                     />
-                    <CampoNumerico
+                    <CampoTextoNumerico
                       label="Comissão leiloeiro valor"
                       value={resolveDisplayValue("comissao_leiloeiro_valor", "leiloeiro", "valor")}
                       onChange={(value) => onPairModeChange("leiloeiro", "valor", "comissao_leiloeiro_valor", value)}
@@ -521,7 +603,7 @@ function AnaliseModal({
                       value={resolveDisplayValue("comissao_corretor_percentual", "corretor", "percentual")}
                       onChange={(value) => onPairModeChange("corretor", "percentual", "comissao_corretor_percentual", value)}
                     />
-                    <CampoNumerico
+                    <CampoTextoNumerico
                       label="Comissão corretor valor"
                       value={resolveDisplayValue("comissao_corretor_valor", "corretor", "valor")}
                       onChange={(value) => onPairModeChange("corretor", "valor", "comissao_corretor_valor", value)}
@@ -533,7 +615,7 @@ function AnaliseModal({
                       value={resolveDisplayValue("ganho_capital_percentual", "ganhoCapital", "percentual")}
                       onChange={(value) => onPairModeChange("ganhoCapital", "percentual", "ganho_capital_percentual", value)}
                     />
-                    <CampoNumerico
+                    <CampoTextoNumerico
                       label="Ganho de capital valor"
                       value={resolveDisplayValue("ganho_capital_valor", "ganhoCapital", "valor")}
                       onChange={(value) => onPairModeChange("ganhoCapital", "valor", "ganho_capital_valor", value)}
@@ -1084,12 +1166,18 @@ export default function Prospeccoes() {
   };
 
   const handleAnaliseFieldChange = (field, value) => {
-    setAnaliseDraft((prev) => ({ ...(prev || ANALISE_DEFAULTS), [field]: value }));
+    setAnaliseDraft((prev) => ({
+      ...(prev || ANALISE_DEFAULTS),
+      [field]: normalizeDraftFieldValue(field, value),
+    }));
   };
 
   const handleAnalisePairModeChange = (pairName, mode, field, value) => {
     setAnalisePairModes((prev) => ({ ...prev, [pairName]: mode }));
-    setAnaliseDraft((prev) => ({ ...(prev || ANALISE_DEFAULTS), [field]: value }));
+    setAnaliseDraft((prev) => ({
+      ...(prev || ANALISE_DEFAULTS),
+      [field]: normalizeDraftFieldValue(field, value),
+    }));
   };
 
   const handleSalvarAnalise = async () => {
