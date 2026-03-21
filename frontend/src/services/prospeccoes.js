@@ -137,3 +137,13 @@ export async function fetchProspecMeta() {
     cidades_por_uf: data?.cidades_por_uf || {},
   };
 }
+
+export async function fetchAnaliseSelecionado(numeroBem) {
+  const { data } = await api.get(`/prospeccoes/selecionados/${numeroBem}/analise`);
+  return data;
+}
+
+export async function salvarAnaliseSelecionado(numeroBem, payload) {
+  const { data } = await api.put(`/prospeccoes/selecionados/${numeroBem}/analise`, payload);
+  return data;
+}

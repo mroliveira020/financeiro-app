@@ -25,6 +25,8 @@ from models import (
     excluir_prospeccao_selecionado,
     buscar_autoria_prospeccao_selecionado,
     listar_prospeccoes_meta,
+    obter_analise_prospeccao_selecionado,
+    salvar_analise_prospeccao_selecionado,
 )
 from analytics import analytics_bp
 from gpt import gpt_bp
@@ -316,6 +318,37 @@ def delete_prospeccoes_selecionados(numero_bem):
 @requires_auth
 def get_prospeccoes_meta():
     return jsonify(listar_prospeccoes_meta())
+
+
+@app.route("/prospeccoes/selecionados/<numero_bem>/analise", methods=["GET"])
+@requires_auth
+def get_prospeccao_selecionado_analise(numero_bem):
+    if not numero_bem:
+        return jsonify({"error": "numero_bem é obrigatório"}), 400
+    result = obter_analise_prospeccao_selecionado(numero_bem)
+    if not result:
+        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    return jsonify(result), 200
+
+
+@app.route("/prospeccoes/selecionados/<numero_bem>/analise", methods=["PUT"])
+@requires_prospeccao_write
+@limiter.limit(RATE_LIMIT_EDIT)
+def put_prospeccao_selecionado_analise(numero_bem):
+    if not numero_bem:
+        return jsonify({"error": "numero_bem é obrigatório"}), 400
+
+    payload = request.get_json(force=True, silent=True) or {}
+    current_user = get_current_user() or {}
+    result = salvar_analise_prospeccao_selecionado(
+        numero_bem,
+        payload,
+        current_user_id=current_user.get("id"),
+        current_user_name=current_user.get("name") or current_user.get("email"),
+    )
+    if not result:
+        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    return jsonify(result), 200
 
 @app.route("/imoveis/<int:imovel_id>", methods=["PATCH"])
 @requires_editor_token

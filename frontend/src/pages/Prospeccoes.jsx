@@ -1,7 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./Prospeccoes.css";
 
-import { fetchCapturados, fetchSelecionados, adicionarSelecionado, excluirSelecionado, fetchProspecMeta } from "../services/prospeccoes";
+import {
+  fetchCapturados,
+  fetchSelecionados,
+  adicionarSelecionado,
+  excluirSelecionado,
+  fetchProspecMeta,
+  fetchAnaliseSelecionado,
+  salvarAnaliseSelecionado,
+} from "../services/prospeccoes";
 import { useAuth } from "../context/AuthContext";
 
 const PRIORIDADE_OPTIONS = [
@@ -32,6 +40,192 @@ const formatarDataHora = (valor) => {
   return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
 };
 
+const ANALISE_DEFAULTS = {
+  link_google_maps: "",
+  valor_base_operacao: "",
+  tempo_operacao_meses: "12",
+  valor_maximo_lance: "",
+  percentual_financiamento: "",
+  valor_estimado_venda: "",
+  reforma: "",
+  condominio_atraso: "",
+  iptu_atraso: "",
+  desocupacao: "",
+  itbi_percentual: "",
+  itbi_valor: "",
+  documentacao: "",
+  manutencao_agua_mensal: "",
+  manutencao_luz_mensal: "",
+  manutencao_condominio_mensal: "",
+  manutencao_iptu_mensal: "",
+  comissao_leiloeiro_percentual: "",
+  comissao_leiloeiro_valor: "",
+  comissao_corretor_percentual: "",
+  comissao_corretor_valor: "",
+  ganho_capital_percentual: "",
+  ganho_capital_valor: "",
+};
+
+const ANALISE_PAIR_MODE_DEFAULTS = {
+  itbi: "percentual",
+  leiloeiro: "percentual",
+  corretor: "percentual",
+  ganhoCapital: "percentual",
+};
+
+const toInputValue = (value, fallback = "") => {
+  if (value === null || value === undefined) return fallback;
+  return `${value}`;
+};
+
+const toNumber = (value) => {
+  if (value === null || value === undefined || value === "") return 0;
+  const normalized = `${value}`.replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const roundMoney = (value) => Math.round((toNumber(value) + Number.EPSILON) * 100) / 100;
+const roundPercent = (value) => Math.round((toNumber(value) + Number.EPSILON) * 10000) / 10000;
+
+const resolvePair = (base, percentualRaw, valorRaw, mode) => {
+  const baseVal = toNumber(base);
+  if (mode === "valor") {
+    const valor = roundMoney(valorRaw);
+    const percentual = baseVal > 0 ? roundPercent((valor / baseVal) * 100) : 0;
+    return { percentual, valor };
+  }
+  const percentual = roundPercent(percentualRaw);
+  const valor = roundMoney(baseVal * (percentual / 100));
+  return { percentual, valor };
+};
+
+const inferPairMode = (percentual, valor) => {
+  if ((percentual === null || percentual === undefined || percentual === "") && valor !== null && valor !== undefined && valor !== "") {
+    return "valor";
+  }
+  return "percentual";
+};
+
+const createAnaliseDraft = (inputs = {}) => ({
+  ...ANALISE_DEFAULTS,
+  ...Object.fromEntries(
+    Object.entries(inputs).map(([key, value]) => [key, toInputValue(value, ANALISE_DEFAULTS[key] ?? "")])
+  ),
+});
+
+const createAnalisePairModes = (inputs = {}) => ({
+  itbi: inferPairMode(inputs.itbi_percentual, inputs.itbi_valor),
+  leiloeiro: inferPairMode(inputs.comissao_leiloeiro_percentual, inputs.comissao_leiloeiro_valor),
+  corretor: inferPairMode(inputs.comissao_corretor_percentual, inputs.comissao_corretor_valor),
+  ganhoCapital: inferPairMode(inputs.ganho_capital_percentual, inputs.ganho_capital_valor),
+});
+
+const computeAnalise = (draft, pairModes) => {
+  const valorMaximoLance = roundMoney(draft.valor_maximo_lance);
+  const valorBaseOperacao = roundMoney(draft.valor_base_operacao || valorMaximoLance);
+  const tempoOperacaoMeses = Math.max(1, parseInt(draft.tempo_operacao_meses || "12", 10) || 12);
+  const percentualFinanciamento = roundPercent(draft.percentual_financiamento);
+  const valorEstimadoVenda = roundMoney(draft.valor_estimado_venda);
+
+  const reforma = roundMoney(draft.reforma);
+  const condominioAtraso = roundMoney(draft.condominio_atraso);
+  const iptuAtraso = roundMoney(draft.iptu_atraso);
+  const desocupacao = roundMoney(draft.desocupacao);
+  const documentacao = roundMoney(draft.documentacao);
+
+  const manutencaoAguaMensal = roundMoney(draft.manutencao_agua_mensal);
+  const manutencaoLuzMensal = roundMoney(draft.manutencao_luz_mensal);
+  const manutencaoCondominioMensal = roundMoney(draft.manutencao_condominio_mensal);
+  const manutencaoIptuMensal = roundMoney(draft.manutencao_iptu_mensal);
+
+  const itbi = resolvePair(valorBaseOperacao, draft.itbi_percentual, draft.itbi_valor, pairModes.itbi);
+  const leiloeiro = resolvePair(
+    valorMaximoLance,
+    draft.comissao_leiloeiro_percentual,
+    draft.comissao_leiloeiro_valor,
+    pairModes.leiloeiro
+  );
+  const corretor = resolvePair(
+    valorEstimadoVenda,
+    draft.comissao_corretor_percentual,
+    draft.comissao_corretor_valor,
+    pairModes.corretor
+  );
+
+  const despesasUnicas = roundMoney(
+    reforma + condominioAtraso + iptuAtraso + desocupacao + documentacao + itbi.valor
+  );
+  const despesaMensalTotal = roundMoney(
+    manutencaoAguaMensal + manutencaoLuzMensal + manutencaoCondominioMensal + manutencaoIptuMensal
+  );
+  const despesasMensaisProjetadas = roundMoney(despesaMensalTotal * tempoOperacaoMeses);
+  const valorFinanciado = roundMoney(valorMaximoLance * (percentualFinanciamento / 100));
+  const desembolsoAquisicao = roundMoney(valorMaximoLance - valorFinanciado + leiloeiro.valor);
+  const custoTotalImovel = roundMoney(
+    valorMaximoLance + leiloeiro.valor + despesasUnicas + despesasMensaisProjetadas
+  );
+  const capitalInvestidoEstimado = roundMoney(
+    desembolsoAquisicao + despesasUnicas + despesasMensaisProjetadas
+  );
+  const baseGanhoCapital = roundMoney(Math.max((valorEstimadoVenda - corretor.valor) - custoTotalImovel, 0));
+  const ganhoCapital = resolvePair(
+    baseGanhoCapital,
+    draft.ganho_capital_percentual,
+    draft.ganho_capital_valor,
+    pairModes.ganhoCapital
+  );
+  const lucroEsperadoValor = roundMoney(
+    valorEstimadoVenda - corretor.valor - ganhoCapital.valor - custoTotalImovel
+  );
+  const roiEsperadoPercentual = capitalInvestidoEstimado > 0
+    ? roundPercent((lucroEsperadoValor / capitalInvestidoEstimado) * 100)
+    : 0;
+
+  return {
+    inputs: {
+      link_google_maps: (draft.link_google_maps || "").trim(),
+      valor_base_operacao: valorBaseOperacao,
+      tempo_operacao_meses: tempoOperacaoMeses,
+      valor_maximo_lance: valorMaximoLance,
+      percentual_financiamento: percentualFinanciamento,
+      valor_estimado_venda: valorEstimadoVenda,
+      reforma,
+      condominio_atraso: condominioAtraso,
+      iptu_atraso: iptuAtraso,
+      desocupacao,
+      itbi_percentual: itbi.percentual,
+      itbi_valor: itbi.valor,
+      documentacao,
+      manutencao_agua_mensal: manutencaoAguaMensal,
+      manutencao_luz_mensal: manutencaoLuzMensal,
+      manutencao_condominio_mensal: manutencaoCondominioMensal,
+      manutencao_iptu_mensal: manutencaoIptuMensal,
+      comissao_leiloeiro_percentual: leiloeiro.percentual,
+      comissao_leiloeiro_valor: leiloeiro.valor,
+      comissao_corretor_percentual: corretor.percentual,
+      comissao_corretor_valor: corretor.valor,
+      ganho_capital_percentual: ganhoCapital.percentual,
+      ganho_capital_valor: ganhoCapital.valor,
+    },
+    calculos: {
+      despesas_unicas: despesasUnicas,
+      despesa_mensal_total: despesaMensalTotal,
+      despesas_mensais_projetadas: despesasMensaisProjetadas,
+      valor_financiado: valorFinanciado,
+      desembolso_aquisicao: desembolsoAquisicao,
+      custo_total_imovel: custoTotalImovel,
+      capital_investido_estimado: capitalInvestidoEstimado,
+      base_ganho_capital: baseGanhoCapital,
+      lucro_esperado_valor: lucroEsperadoValor,
+      roi_esperado_percentual: roiEsperadoPercentual,
+      roi_esperado_valor: lucroEsperadoValor,
+    },
+  };
+};
+
+const buildAnalisePayload = (draft, pairModes) => computeAnalise(draft, pairModes).inputs;
+
 function TabelaSelecionados({
   dados,
   loading,
@@ -39,6 +233,7 @@ function TabelaSelecionados({
   onExcluir,
   onAtualizarPrioridade,
   onEditarObservacoes,
+  onAbrirAnalise,
   removeLoadingIds,
   updateLoadingIds,
   sortDir,
@@ -133,6 +328,14 @@ function TabelaSelecionados({
                   <div className="prospects-row-actions">
                     <button
                       type="button"
+                      className="prospects-icon-btn"
+                      title="Abrir ficha de viabilidade"
+                      onClick={() => onAbrirAnalise(item)}
+                    >
+                      Análise
+                    </button>
+                    <button
+                      type="button"
                       className="prospects-icon-btn danger"
                       title={canDeleteItem(item) ? "Remover da fila" : "Apenas o autor da seleção ou um administrador pode remover este imóvel"}
                       disabled={removeLoadingIds.has(item.codigo) || !canDeleteItem(item)}
@@ -146,6 +349,219 @@ function TabelaSelecionados({
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function CampoNumerico({ label, value, onChange, step = "0.01", min = "0" }) {
+  return (
+    <label className="prospects-form-field">
+      <span>{label}</span>
+      <input type="number" min={min} step={step} value={value} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  );
+}
+
+function AnaliseModal({
+  item,
+  draft,
+  pairModes,
+  loading,
+  saving,
+  onClose,
+  onFieldChange,
+  onPairModeChange,
+  onSave,
+}) {
+  if (!item) return null;
+
+  const currentDraft = draft || createAnaliseDraft({});
+  const analise = computeAnalise(currentDraft, pairModes);
+  const { inputs, calculos } = analise;
+
+  const resolveDisplayValue = (field, pairName, modeName) => {
+    if (pairModes[pairName] === modeName) return currentDraft[field];
+    return toInputValue(inputs[field], "");
+  };
+
+  return (
+    <div className="prospects-modal-backdrop" role="presentation">
+      <div className="prospects-modal prospects-modal--wide" role="dialog" aria-modal="true" aria-labelledby="analise-title">
+        <div className="prospects-modal__header">
+          <div>
+            <p className="prospects-eyebrow">Viabilidade</p>
+            <h3 id="analise-title" className="prospects-modal__title">Imóvel {item.codigo}</h3>
+            <p className="prospects-subtitle prospects-subtitle--compact">
+              Ajuste as premissas e confira os cálculos antes de salvar.
+            </p>
+          </div>
+        </div>
+        <div className="prospects-modal__body">
+          {loading ? (
+            <p className="prospects-empty">Carregando ficha de análise...</p>
+          ) : (
+            <>
+              <div className="prospects-analise-grid">
+                <section className="prospects-analise-section prospects-analise-section--full">
+                  <h4>Referências</h4>
+                  <label className="prospects-form-field">
+                    <span>Link Google Maps</span>
+                    <input
+                      type="url"
+                      value={currentDraft.link_google_maps}
+                      onChange={(e) => onFieldChange("link_google_maps", e.target.value)}
+                      placeholder="https://maps.google.com/..."
+                    />
+                  </label>
+                  {currentDraft.link_google_maps && (
+                    <a className="prospects-link" href={currentDraft.link_google_maps} target="_blank" rel="noreferrer">
+                      Abrir mapa
+                    </a>
+                  )}
+                </section>
+
+                <section className="prospects-analise-section">
+                  <h4>Premissas</h4>
+                  <CampoNumerico label="Valor máximo do lance" value={currentDraft.valor_maximo_lance} onChange={(value) => onFieldChange("valor_maximo_lance", value)} />
+                  <CampoNumerico label="Valor base da operação" value={currentDraft.valor_base_operacao} onChange={(value) => onFieldChange("valor_base_operacao", value)} />
+                  <CampoNumerico label="Tempo da operação (meses)" value={currentDraft.tempo_operacao_meses} onChange={(value) => onFieldChange("tempo_operacao_meses", value)} step="1" min="1" />
+                  <CampoNumerico label="% financiamento" value={currentDraft.percentual_financiamento} onChange={(value) => onFieldChange("percentual_financiamento", value)} />
+                  <CampoNumerico label="Valor estimado da venda" value={currentDraft.valor_estimado_venda} onChange={(value) => onFieldChange("valor_estimado_venda", value)} />
+                </section>
+
+                <section className="prospects-analise-section">
+                  <h4>Custos únicos</h4>
+                  <CampoNumerico label="Reforma" value={currentDraft.reforma} onChange={(value) => onFieldChange("reforma", value)} />
+                  <CampoNumerico label="Condomínio em atraso" value={currentDraft.condominio_atraso} onChange={(value) => onFieldChange("condominio_atraso", value)} />
+                  <CampoNumerico label="IPTU em atraso" value={currentDraft.iptu_atraso} onChange={(value) => onFieldChange("iptu_atraso", value)} />
+                  <CampoNumerico label="Desocupação" value={currentDraft.desocupacao} onChange={(value) => onFieldChange("desocupacao", value)} />
+                  <CampoNumerico label="Documentação" value={currentDraft.documentacao} onChange={(value) => onFieldChange("documentacao", value)} />
+                </section>
+
+                <section className="prospects-analise-section">
+                  <h4>Despesas mensais</h4>
+                  <CampoNumerico label="Água" value={currentDraft.manutencao_agua_mensal} onChange={(value) => onFieldChange("manutencao_agua_mensal", value)} />
+                  <CampoNumerico label="Luz" value={currentDraft.manutencao_luz_mensal} onChange={(value) => onFieldChange("manutencao_luz_mensal", value)} />
+                  <CampoNumerico label="Condomínio" value={currentDraft.manutencao_condominio_mensal} onChange={(value) => onFieldChange("manutencao_condominio_mensal", value)} />
+                  <CampoNumerico label="IPTU" value={currentDraft.manutencao_iptu_mensal} onChange={(value) => onFieldChange("manutencao_iptu_mensal", value)} />
+                  <div className="prospects-analise-inline-note">
+                    Projeção automática: {formatarMoeda(calculos.despesas_mensais_projetadas)} em {inputs.tempo_operacao_meses} meses.
+                  </div>
+                </section>
+
+                <section className="prospects-analise-section">
+                  <h4>ITBI e aquisição</h4>
+                  <div className="prospects-pair-grid">
+                    <CampoNumerico
+                      label="ITBI %"
+                      value={resolveDisplayValue("itbi_percentual", "itbi", "percentual")}
+                      onChange={(value) => onPairModeChange("itbi", "percentual", "itbi_percentual", value)}
+                    />
+                    <CampoNumerico
+                      label="ITBI valor"
+                      value={resolveDisplayValue("itbi_valor", "itbi", "valor")}
+                      onChange={(value) => onPairModeChange("itbi", "valor", "itbi_valor", value)}
+                    />
+                  </div>
+                  <div className="prospects-pair-grid">
+                    <CampoNumerico
+                      label="Comissão leiloeiro %"
+                      value={resolveDisplayValue("comissao_leiloeiro_percentual", "leiloeiro", "percentual")}
+                      onChange={(value) => onPairModeChange("leiloeiro", "percentual", "comissao_leiloeiro_percentual", value)}
+                    />
+                    <CampoNumerico
+                      label="Comissão leiloeiro valor"
+                      value={resolveDisplayValue("comissao_leiloeiro_valor", "leiloeiro", "valor")}
+                      onChange={(value) => onPairModeChange("leiloeiro", "valor", "comissao_leiloeiro_valor", value)}
+                    />
+                  </div>
+                </section>
+
+                <section className="prospects-analise-section">
+                  <h4>Venda</h4>
+                  <div className="prospects-pair-grid">
+                    <CampoNumerico
+                      label="Comissão corretor %"
+                      value={resolveDisplayValue("comissao_corretor_percentual", "corretor", "percentual")}
+                      onChange={(value) => onPairModeChange("corretor", "percentual", "comissao_corretor_percentual", value)}
+                    />
+                    <CampoNumerico
+                      label="Comissão corretor valor"
+                      value={resolveDisplayValue("comissao_corretor_valor", "corretor", "valor")}
+                      onChange={(value) => onPairModeChange("corretor", "valor", "comissao_corretor_valor", value)}
+                    />
+                  </div>
+                  <div className="prospects-pair-grid">
+                    <CampoNumerico
+                      label="Ganho de capital %"
+                      value={resolveDisplayValue("ganho_capital_percentual", "ganhoCapital", "percentual")}
+                      onChange={(value) => onPairModeChange("ganhoCapital", "percentual", "ganho_capital_percentual", value)}
+                    />
+                    <CampoNumerico
+                      label="Ganho de capital valor"
+                      value={resolveDisplayValue("ganho_capital_valor", "ganhoCapital", "valor")}
+                      onChange={(value) => onPairModeChange("ganhoCapital", "valor", "ganho_capital_valor", value)}
+                    />
+                  </div>
+                  <div className="prospects-analise-inline-note">
+                    Base do ganho de capital: {formatarMoeda(calculos.base_ganho_capital)}
+                  </div>
+                </section>
+
+                <section className="prospects-analise-section prospects-analise-section--full">
+                  <h4>Resumo financeiro</h4>
+                  <div className="prospects-summary-grid">
+                    <div className="prospects-summary-card">
+                      <span>Valor financiado</span>
+                      <strong>{formatarMoeda(calculos.valor_financiado)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Desembolso na aquisição</span>
+                      <strong>{formatarMoeda(calculos.desembolso_aquisicao)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Despesas únicas</span>
+                      <strong>{formatarMoeda(calculos.despesas_unicas)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Despesa mensal total</span>
+                      <strong>{formatarMoeda(calculos.despesa_mensal_total)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Custos mensais projetados</span>
+                      <strong>{formatarMoeda(calculos.despesas_mensais_projetadas)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Custo total do imóvel</span>
+                      <strong>{formatarMoeda(calculos.custo_total_imovel)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Capital investido</span>
+                      <strong>{formatarMoeda(calculos.capital_investido_estimado)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Lucro esperado</span>
+                      <strong>{formatarMoeda(calculos.lucro_esperado_valor)}</strong>
+                    </div>
+                    <div className="prospects-summary-card prospects-summary-card--accent">
+                      <span>ROI esperado</span>
+                      <strong>{formatarPercentual(calculos.roi_esperado_percentual)}</strong>
+                    </div>
+                  </div>
+                </section>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="prospects-modal__footer">
+          <button type="button" className="prospects-btn secondary" onClick={onClose} disabled={saving}>
+            Fechar
+          </button>
+          <button type="button" className="prospects-btn primary" onClick={onSave} disabled={loading || saving}>
+            {saving ? "Salvando..." : "Salvar análise"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -410,6 +826,11 @@ export default function Prospeccoes() {
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(null);
   const [observacaoItem, setObservacaoItem] = useState(null);
   const [observacaoDraft, setObservacaoDraft] = useState("");
+  const [analiseItem, setAnaliseItem] = useState(null);
+  const [analiseDraft, setAnaliseDraft] = useState(null);
+  const [analisePairModes, setAnalisePairModes] = useState(ANALISE_PAIR_MODE_DEFAULTS);
+  const [analiseLoading, setAnaliseLoading] = useState(false);
+  const [analiseSaving, setAnaliseSaving] = useState(false);
 
   useEffect(() => {
     const carregarSelecionados = async () => {
@@ -623,6 +1044,62 @@ export default function Prospeccoes() {
     }
   };
 
+  const openAnaliseModal = async (item) => {
+    setAnaliseItem(item);
+    setAnaliseDraft(createAnaliseDraft({ valor_maximo_lance: item.valorMaximo || "" }));
+    setAnalisePairModes({ ...ANALISE_PAIR_MODE_DEFAULTS });
+    setAnaliseLoading(true);
+    try {
+      const data = await fetchAnaliseSelecionado(item.codigo);
+      const inputs = data?.inputs || {};
+      setAnaliseDraft(createAnaliseDraft(inputs));
+      setAnalisePairModes(createAnalisePairModes(inputs));
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar análise");
+      setMensagem(message);
+      setAnaliseItem(null);
+      setAnaliseDraft(null);
+    } finally {
+      setAnaliseLoading(false);
+    }
+  };
+
+  const closeAnaliseModal = () => {
+    setAnaliseItem(null);
+    setAnaliseDraft(null);
+    setAnalisePairModes({ ...ANALISE_PAIR_MODE_DEFAULTS });
+    setAnaliseLoading(false);
+    setAnaliseSaving(false);
+  };
+
+  const handleAnaliseFieldChange = (field, value) => {
+    setAnaliseDraft((prev) => ({ ...(prev || ANALISE_DEFAULTS), [field]: value }));
+  };
+
+  const handleAnalisePairModeChange = (pairName, mode, field, value) => {
+    setAnalisePairModes((prev) => ({ ...prev, [pairName]: mode }));
+    setAnaliseDraft((prev) => ({ ...(prev || ANALISE_DEFAULTS), [field]: value }));
+  };
+
+  const handleSalvarAnalise = async () => {
+    if (!analiseItem || !analiseDraft) return;
+    setAnaliseSaving(true);
+    setMensagem("");
+    try {
+      const payload = buildAnalisePayload(analiseDraft, analisePairModes);
+      const data = await salvarAnaliseSelecionado(analiseItem.codigo, payload);
+      const inputs = data?.inputs || payload;
+      setAnaliseDraft(createAnaliseDraft(inputs));
+      setAnalisePairModes(createAnalisePairModes(inputs));
+      setMensagem(`Análise do imóvel ${analiseItem.codigo} salva com sucesso.`);
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao salvar análise");
+      setMensagem(message);
+    } finally {
+      setAnaliseSaving(false);
+    }
+  };
+
   const selecionadosOrdenados = useMemo(() => {
     const parseDate = (value) => {
       if (!value) return null;
@@ -800,6 +1277,7 @@ export default function Prospeccoes() {
         onExcluir={setConfirmDeleteItem}
         onAtualizarPrioridade={handleAtualizarPrioridade}
         onEditarObservacoes={openObservacoesModal}
+        onAbrirAnalise={openAnaliseModal}
         removeLoadingIds={removeLoadingIds}
         updateLoadingIds={updateLoadingIds}
         sortDir={selectedSortDir}
@@ -843,6 +1321,18 @@ export default function Prospeccoes() {
           setObservacaoDraft("");
         }}
         onSave={handleSalvarObservacoes}
+      />
+
+      <AnaliseModal
+        item={analiseItem}
+        draft={analiseDraft}
+        pairModes={analisePairModes}
+        loading={analiseLoading}
+        saving={analiseSaving}
+        onClose={closeAnaliseModal}
+        onFieldChange={handleAnaliseFieldChange}
+        onPairModeChange={handleAnalisePairModeChange}
+        onSave={handleSalvarAnalise}
       />
     </div>
   );

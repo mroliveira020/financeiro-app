@@ -142,7 +142,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    6.5. [ ] Opcional futuro: abrir histórico completo apenas em tela/modal secundário administrativo, se houver necessidade real.
 
 7. [ ] **Adicionar ficha de análise e viabilidade do imóvel selecionado**
-   7.1. [ ] Modelagem: criar estrutura persistente para análise do selecionado, vinculada a `imoveis_selecionados.numero_bem`, preservando autoria e `updated_at`.
+   7.1. [x] Modelagem: criar estrutura persistente para análise do selecionado, vinculada a `imoveis_selecionados.numero_bem`, preservando autoria e `updated_at`.
    7.2. [ ] Modelagem: incluir campos manuais de entrada:
         - link do Google Maps
         - valor base da operação
@@ -160,9 +160,9 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - ganho de capital em `%` e em valor (campos espelhados)
         - `% de financiamento`
         - valor estimado da venda
-   7.3. [ ] Backend/API: expor endpoint de leitura/gravação da ficha de análise por imóvel selecionado.
-   7.4. [ ] Frontend: criar formulário de análise no imóvel selecionado com cálculos dinâmicos em tempo real, sem persistir cada alteração automaticamente.
-   7.5. [ ] Regra de persistência: cálculos e alterações de campos ficam locais na UI enquanto o usuário edita; gravação ocorre apenas ao clicar em `Salvar`.
+   7.3. [x] Backend/API: expor endpoint de leitura/gravação da ficha de análise por imóvel selecionado.
+   7.4. [x] Frontend: criar formulário de análise no imóvel selecionado com cálculos dinâmicos em tempo real, sem persistir cada alteração automaticamente.
+   7.5. [x] Regra de persistência: cálculos e alterações de campos ficam locais na UI enquanto o usuário edita; gravação ocorre apenas ao clicar em `Salvar`.
    7.6. [ ] Cálculos dinâmicos esperados:
         - valor do ITBI e seu respectivo percentual (sincronizados)
         - valor da comissão do leiloeiro e seu respectivo percentual (sincronizados)

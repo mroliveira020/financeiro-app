@@ -409,6 +409,50 @@ def _garantir_tabela_prospeccao_observacoes():
         conn.close()
 
 
+def _garantir_tabela_prospeccao_analise():
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS imoveis_selecionados_analise (
+                numero_bem TEXT PRIMARY KEY REFERENCES imoveis_selecionados(numero_bem),
+                link_google_maps TEXT NULL,
+                valor_base_operacao NUMERIC NULL,
+                tempo_operacao_meses INTEGER NOT NULL DEFAULT 12,
+                valor_maximo_lance NUMERIC NULL,
+                percentual_financiamento NUMERIC NULL,
+                valor_estimado_venda NUMERIC NULL,
+                reforma NUMERIC NULL,
+                condominio_atraso NUMERIC NULL,
+                iptu_atraso NUMERIC NULL,
+                desocupacao NUMERIC NULL,
+                itbi_percentual NUMERIC NULL,
+                itbi_valor NUMERIC NULL,
+                documentacao NUMERIC NULL,
+                manutencao_agua_mensal NUMERIC NULL,
+                manutencao_luz_mensal NUMERIC NULL,
+                manutencao_condominio_mensal NUMERIC NULL,
+                manutencao_iptu_mensal NUMERIC NULL,
+                comissao_leiloeiro_percentual NUMERIC NULL,
+                comissao_leiloeiro_valor NUMERIC NULL,
+                comissao_corretor_percentual NUMERIC NULL,
+                comissao_corretor_valor NUMERIC NULL,
+                ganho_capital_percentual NUMERIC NULL,
+                ganho_capital_valor NUMERIC NULL,
+                created_by INTEGER NULL,
+                created_by_name TEXT NULL,
+                updated_by INTEGER NULL,
+                updated_by_name TEXT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def listar_usuarios() -> list[dict]:
     _garantir_tabela_usuarios()
     conn, cur = conectar()
@@ -1952,6 +1996,406 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             "data_leilao": row[15].isoformat() if row[15] else None,
         })
     return result
+
+
+def _round_money(value):
+    return round(_to_float(value), 2)
+
+
+def _round_percent(value):
+    return round(_to_float(value), 4)
+
+
+def _coerce_nullable_money(value):
+    if value in (None, ""):
+        return None
+    return _round_money(value)
+
+
+def _coerce_nullable_percent(value):
+    if value in (None, ""):
+        return None
+    return _round_percent(value)
+
+
+def _coerce_tempo_operacao(value):
+    try:
+        inteiro = int(value)
+    except (TypeError, ValueError):
+        return 12
+    return max(1, inteiro)
+
+
+def _resolver_percentual_valor(base, percentual, valor):
+    base_val = _to_float(base)
+    percentual_val = _coerce_nullable_percent(percentual)
+    valor_val = _coerce_nullable_money(valor)
+
+    if valor_val is None and percentual_val is None:
+        return 0.0, 0.0
+
+    if valor_val is not None:
+        percentual_calc = ((valor_val / base_val) * 100) if base_val > 0 else 0.0
+        return _round_percent(percentual_calc), _round_money(valor_val)
+
+    valor_calc = base_val * ((_to_float(percentual_val)) / 100)
+    return _round_percent(percentual_val), _round_money(valor_calc)
+
+
+def calcular_analise_prospeccao(dados):
+    valor_maximo_lance = _round_money(dados.get("valor_maximo_lance"))
+    valor_base_operacao = _coerce_nullable_money(dados.get("valor_base_operacao"))
+    if valor_base_operacao is None:
+        valor_base_operacao = valor_maximo_lance
+
+    tempo_operacao_meses = _coerce_tempo_operacao(dados.get("tempo_operacao_meses"))
+    percentual_financiamento = _round_percent(dados.get("percentual_financiamento"))
+    valor_estimado_venda = _round_money(dados.get("valor_estimado_venda"))
+
+    reforma = _round_money(dados.get("reforma"))
+    condominio_atraso = _round_money(dados.get("condominio_atraso"))
+    iptu_atraso = _round_money(dados.get("iptu_atraso"))
+    desocupacao = _round_money(dados.get("desocupacao"))
+    documentacao = _round_money(dados.get("documentacao"))
+
+    manutencao_agua_mensal = _round_money(dados.get("manutencao_agua_mensal"))
+    manutencao_luz_mensal = _round_money(dados.get("manutencao_luz_mensal"))
+    manutencao_condominio_mensal = _round_money(dados.get("manutencao_condominio_mensal"))
+    manutencao_iptu_mensal = _round_money(dados.get("manutencao_iptu_mensal"))
+
+    itbi_percentual, itbi_valor = _resolver_percentual_valor(
+        valor_base_operacao,
+        dados.get("itbi_percentual"),
+        dados.get("itbi_valor"),
+    )
+
+    comissao_leiloeiro_percentual, comissao_leiloeiro_valor = _resolver_percentual_valor(
+        valor_maximo_lance,
+        dados.get("comissao_leiloeiro_percentual"),
+        dados.get("comissao_leiloeiro_valor"),
+    )
+
+    comissao_corretor_percentual, comissao_corretor_valor = _resolver_percentual_valor(
+        valor_estimado_venda,
+        dados.get("comissao_corretor_percentual"),
+        dados.get("comissao_corretor_valor"),
+    )
+
+    despesas_unicas = _round_money(
+        reforma + condominio_atraso + iptu_atraso + desocupacao + documentacao + itbi_valor
+    )
+    despesa_mensal_total = _round_money(
+        manutencao_agua_mensal +
+        manutencao_luz_mensal +
+        manutencao_condominio_mensal +
+        manutencao_iptu_mensal
+    )
+    despesas_mensais_projetadas = _round_money(despesa_mensal_total * tempo_operacao_meses)
+
+    valor_financiado = _round_money(valor_maximo_lance * (percentual_financiamento / 100))
+    desembolso_aquisicao = _round_money(
+        valor_maximo_lance - valor_financiado + comissao_leiloeiro_valor
+    )
+
+    custo_total_imovel = _round_money(
+        valor_maximo_lance +
+        comissao_leiloeiro_valor +
+        despesas_unicas +
+        despesas_mensais_projetadas
+    )
+    capital_investido_estimado = _round_money(
+        desembolso_aquisicao +
+        despesas_unicas +
+        despesas_mensais_projetadas
+    )
+
+    base_ganho_capital = _round_money(max(
+        (valor_estimado_venda - comissao_corretor_valor) - custo_total_imovel,
+        0.0,
+    ))
+    ganho_capital_percentual, ganho_capital_valor = _resolver_percentual_valor(
+        base_ganho_capital,
+        dados.get("ganho_capital_percentual"),
+        dados.get("ganho_capital_valor"),
+    )
+
+    lucro_esperado_valor = _round_money(
+        valor_estimado_venda -
+        comissao_corretor_valor -
+        ganho_capital_valor -
+        custo_total_imovel
+    )
+    roi_esperado_percentual = _round_percent(
+        (lucro_esperado_valor / capital_investido_estimado) * 100
+        if capital_investido_estimado > 0 else 0.0
+    )
+
+    return {
+        "link_google_maps": (dados.get("link_google_maps") or "").strip() or None,
+        "valor_base_operacao": valor_base_operacao,
+        "tempo_operacao_meses": tempo_operacao_meses,
+        "valor_maximo_lance": valor_maximo_lance,
+        "percentual_financiamento": percentual_financiamento,
+        "valor_estimado_venda": valor_estimado_venda,
+        "reforma": reforma,
+        "condominio_atraso": condominio_atraso,
+        "iptu_atraso": iptu_atraso,
+        "desocupacao": desocupacao,
+        "itbi_percentual": itbi_percentual,
+        "itbi_valor": itbi_valor,
+        "documentacao": documentacao,
+        "manutencao_agua_mensal": manutencao_agua_mensal,
+        "manutencao_luz_mensal": manutencao_luz_mensal,
+        "manutencao_condominio_mensal": manutencao_condominio_mensal,
+        "manutencao_iptu_mensal": manutencao_iptu_mensal,
+        "comissao_leiloeiro_percentual": comissao_leiloeiro_percentual,
+        "comissao_leiloeiro_valor": comissao_leiloeiro_valor,
+        "comissao_corretor_percentual": comissao_corretor_percentual,
+        "comissao_corretor_valor": comissao_corretor_valor,
+        "ganho_capital_percentual": ganho_capital_percentual,
+        "ganho_capital_valor": ganho_capital_valor,
+        "despesas_unicas": despesas_unicas,
+        "despesa_mensal_total": despesa_mensal_total,
+        "despesas_mensais_projetadas": despesas_mensais_projetadas,
+        "valor_financiado": valor_financiado,
+        "desembolso_aquisicao": desembolso_aquisicao,
+        "custo_total_imovel": custo_total_imovel,
+        "capital_investido_estimado": capital_investido_estimado,
+        "base_ganho_capital": base_ganho_capital,
+        "lucro_esperado_valor": lucro_esperado_valor,
+        "roi_esperado_percentual": roi_esperado_percentual,
+        "roi_esperado_valor": lucro_esperado_valor,
+    }
+
+
+def obter_analise_prospeccao_selecionado(numero_bem):
+    _garantir_colunas_prospeccao_autoria()
+    _garantir_tabela_prospeccao_analise()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT
+                s.numero_bem,
+                s.valor_maximo,
+                a.link_google_maps,
+                a.valor_base_operacao,
+                a.tempo_operacao_meses,
+                a.valor_maximo_lance,
+                a.percentual_financiamento,
+                a.valor_estimado_venda,
+                a.reforma,
+                a.condominio_atraso,
+                a.iptu_atraso,
+                a.desocupacao,
+                a.itbi_percentual,
+                a.itbi_valor,
+                a.documentacao,
+                a.manutencao_agua_mensal,
+                a.manutencao_luz_mensal,
+                a.manutencao_condominio_mensal,
+                a.manutencao_iptu_mensal,
+                a.comissao_leiloeiro_percentual,
+                a.comissao_leiloeiro_valor,
+                a.comissao_corretor_percentual,
+                a.comissao_corretor_valor,
+                a.ganho_capital_percentual,
+                a.ganho_capital_valor,
+                a.created_by,
+                COALESCE(NULLIF(cu.name, ''), NULLIF(a.created_by_name, ''), cu.email) AS created_by_name,
+                a.updated_by,
+                COALESCE(NULLIF(uu.name, ''), NULLIF(a.updated_by_name, ''), uu.email) AS updated_by_name,
+                a.created_at,
+                a.updated_at
+            FROM imoveis_selecionados s
+            LEFT JOIN imoveis_selecionados_analise a
+                ON a.numero_bem = s.numero_bem
+            LEFT JOIN users cu
+                ON cu.id = a.created_by
+            LEFT JOIN users uu
+                ON uu.id = a.updated_by
+            WHERE s.numero_bem = %s
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+
+        dados = {
+            "numero_bem": row["numero_bem"],
+            "link_google_maps": row["link_google_maps"],
+            "valor_base_operacao": float(row["valor_base_operacao"]) if row["valor_base_operacao"] is not None else None,
+            "tempo_operacao_meses": row["tempo_operacao_meses"] if row["tempo_operacao_meses"] is not None else 12,
+            "valor_maximo_lance": float(row["valor_maximo_lance"]) if row["valor_maximo_lance"] is not None else (float(row["valor_maximo"]) if row["valor_maximo"] is not None else 0.0),
+            "percentual_financiamento": float(row["percentual_financiamento"]) if row["percentual_financiamento"] is not None else 0.0,
+            "valor_estimado_venda": float(row["valor_estimado_venda"]) if row["valor_estimado_venda"] is not None else 0.0,
+            "reforma": float(row["reforma"]) if row["reforma"] is not None else 0.0,
+            "condominio_atraso": float(row["condominio_atraso"]) if row["condominio_atraso"] is not None else 0.0,
+            "iptu_atraso": float(row["iptu_atraso"]) if row["iptu_atraso"] is not None else 0.0,
+            "desocupacao": float(row["desocupacao"]) if row["desocupacao"] is not None else 0.0,
+            "itbi_percentual": float(row["itbi_percentual"]) if row["itbi_percentual"] is not None else None,
+            "itbi_valor": float(row["itbi_valor"]) if row["itbi_valor"] is not None else None,
+            "documentacao": float(row["documentacao"]) if row["documentacao"] is not None else 0.0,
+            "manutencao_agua_mensal": float(row["manutencao_agua_mensal"]) if row["manutencao_agua_mensal"] is not None else 0.0,
+            "manutencao_luz_mensal": float(row["manutencao_luz_mensal"]) if row["manutencao_luz_mensal"] is not None else 0.0,
+            "manutencao_condominio_mensal": float(row["manutencao_condominio_mensal"]) if row["manutencao_condominio_mensal"] is not None else 0.0,
+            "manutencao_iptu_mensal": float(row["manutencao_iptu_mensal"]) if row["manutencao_iptu_mensal"] is not None else 0.0,
+            "comissao_leiloeiro_percentual": float(row["comissao_leiloeiro_percentual"]) if row["comissao_leiloeiro_percentual"] is not None else None,
+            "comissao_leiloeiro_valor": float(row["comissao_leiloeiro_valor"]) if row["comissao_leiloeiro_valor"] is not None else None,
+            "comissao_corretor_percentual": float(row["comissao_corretor_percentual"]) if row["comissao_corretor_percentual"] is not None else None,
+            "comissao_corretor_valor": float(row["comissao_corretor_valor"]) if row["comissao_corretor_valor"] is not None else None,
+            "ganho_capital_percentual": float(row["ganho_capital_percentual"]) if row["ganho_capital_percentual"] is not None else None,
+            "ganho_capital_valor": float(row["ganho_capital_valor"]) if row["ganho_capital_valor"] is not None else None,
+        }
+        calculada = calcular_analise_prospeccao(dados)
+        return {
+            "numero_bem": numero_bem,
+            "inputs": calculada,
+            "calculos": {
+                "despesas_unicas": calculada["despesas_unicas"],
+                "despesa_mensal_total": calculada["despesa_mensal_total"],
+                "despesas_mensais_projetadas": calculada["despesas_mensais_projetadas"],
+                "valor_financiado": calculada["valor_financiado"],
+                "desembolso_aquisicao": calculada["desembolso_aquisicao"],
+                "custo_total_imovel": calculada["custo_total_imovel"],
+                "capital_investido_estimado": calculada["capital_investido_estimado"],
+                "base_ganho_capital": calculada["base_ganho_capital"],
+                "lucro_esperado_valor": calculada["lucro_esperado_valor"],
+                "roi_esperado_percentual": calculada["roi_esperado_percentual"],
+                "roi_esperado_valor": calculada["roi_esperado_valor"],
+            },
+            "meta": {
+                "created_by": row["created_by"],
+                "created_by_name": row["created_by_name"],
+                "updated_by": row["updated_by"],
+                "updated_by_name": row["updated_by_name"],
+                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
+            },
+        }
+    finally:
+        conn.close()
+
+
+def salvar_analise_prospeccao_selecionado(numero_bem, payload, current_user_id=None, current_user_name=None):
+    _garantir_colunas_prospeccao_autoria()
+    _garantir_tabela_prospeccao_analise()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            "SELECT 1 FROM imoveis_selecionados WHERE numero_bem = %s LIMIT 1",
+            (numero_bem,),
+        )
+        if not cur.fetchone():
+            return None
+
+        calculada = calcular_analise_prospeccao({
+            **(payload or {}),
+            "numero_bem": numero_bem,
+        })
+
+        cur.execute(
+            """
+            INSERT INTO imoveis_selecionados_analise (
+                numero_bem,
+                link_google_maps,
+                valor_base_operacao,
+                tempo_operacao_meses,
+                valor_maximo_lance,
+                percentual_financiamento,
+                valor_estimado_venda,
+                reforma,
+                condominio_atraso,
+                iptu_atraso,
+                desocupacao,
+                itbi_percentual,
+                itbi_valor,
+                documentacao,
+                manutencao_agua_mensal,
+                manutencao_luz_mensal,
+                manutencao_condominio_mensal,
+                manutencao_iptu_mensal,
+                comissao_leiloeiro_percentual,
+                comissao_leiloeiro_valor,
+                comissao_corretor_percentual,
+                comissao_corretor_valor,
+                ganho_capital_percentual,
+                ganho_capital_valor,
+                created_by,
+                created_by_name,
+                updated_by,
+                updated_by_name
+            )
+            VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
+            ON CONFLICT (numero_bem) DO UPDATE
+            SET
+                link_google_maps = EXCLUDED.link_google_maps,
+                valor_base_operacao = EXCLUDED.valor_base_operacao,
+                tempo_operacao_meses = EXCLUDED.tempo_operacao_meses,
+                valor_maximo_lance = EXCLUDED.valor_maximo_lance,
+                percentual_financiamento = EXCLUDED.percentual_financiamento,
+                valor_estimado_venda = EXCLUDED.valor_estimado_venda,
+                reforma = EXCLUDED.reforma,
+                condominio_atraso = EXCLUDED.condominio_atraso,
+                iptu_atraso = EXCLUDED.iptu_atraso,
+                desocupacao = EXCLUDED.desocupacao,
+                itbi_percentual = EXCLUDED.itbi_percentual,
+                itbi_valor = EXCLUDED.itbi_valor,
+                documentacao = EXCLUDED.documentacao,
+                manutencao_agua_mensal = EXCLUDED.manutencao_agua_mensal,
+                manutencao_luz_mensal = EXCLUDED.manutencao_luz_mensal,
+                manutencao_condominio_mensal = EXCLUDED.manutencao_condominio_mensal,
+                manutencao_iptu_mensal = EXCLUDED.manutencao_iptu_mensal,
+                comissao_leiloeiro_percentual = EXCLUDED.comissao_leiloeiro_percentual,
+                comissao_leiloeiro_valor = EXCLUDED.comissao_leiloeiro_valor,
+                comissao_corretor_percentual = EXCLUDED.comissao_corretor_percentual,
+                comissao_corretor_valor = EXCLUDED.comissao_corretor_valor,
+                ganho_capital_percentual = EXCLUDED.ganho_capital_percentual,
+                ganho_capital_valor = EXCLUDED.ganho_capital_valor,
+                updated_by = EXCLUDED.updated_by,
+                updated_by_name = EXCLUDED.updated_by_name,
+                updated_at = now()
+            """,
+            (
+                numero_bem,
+                calculada["link_google_maps"],
+                calculada["valor_base_operacao"],
+                calculada["tempo_operacao_meses"],
+                calculada["valor_maximo_lance"],
+                calculada["percentual_financiamento"],
+                calculada["valor_estimado_venda"],
+                calculada["reforma"],
+                calculada["condominio_atraso"],
+                calculada["iptu_atraso"],
+                calculada["desocupacao"],
+                calculada["itbi_percentual"],
+                calculada["itbi_valor"],
+                calculada["documentacao"],
+                calculada["manutencao_agua_mensal"],
+                calculada["manutencao_luz_mensal"],
+                calculada["manutencao_condominio_mensal"],
+                calculada["manutencao_iptu_mensal"],
+                calculada["comissao_leiloeiro_percentual"],
+                calculada["comissao_leiloeiro_valor"],
+                calculada["comissao_corretor_percentual"],
+                calculada["comissao_corretor_valor"],
+                calculada["ganho_capital_percentual"],
+                calculada["ganho_capital_valor"],
+                current_user_id,
+                current_user_name,
+                current_user_id,
+                current_user_name,
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return obter_analise_prospeccao_selecionado(numero_bem)
 
 
 def inserir_prospeccao_selecionado(
