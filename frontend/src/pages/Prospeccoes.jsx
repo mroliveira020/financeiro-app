@@ -159,7 +159,14 @@ const formatDraftValue = (field, value) => {
 
 const normalizeDraftFieldValue = (field, value) => {
   if (value === "") return "";
-  return formatDraftValue(field, value);
+  const raw = `${value}`;
+  if (INTEGER_FIELDS.has(field)) {
+    return raw.replace(/\D/g, "");
+  }
+  if (MONEY_FIELDS.has(field) || PERCENT_FIELDS.has(field)) {
+    return raw.replace(/[^\d,.-]/g, "");
+  }
+  return raw;
 };
 
 const inferPairMode = (percentual, valor) => {
