@@ -421,11 +421,11 @@ function TabelaSelecionados({
   );
 }
 
-function CampoNumerico({ label, value, onChange, step = "0.01", min = "0" }) {
+function CampoNumerico({ label, value, onChange }) {
   return (
     <label className="prospects-form-field">
       <span>{label}</span>
-      <input type="number" min={min} step={step} value={value} onChange={(e) => onChange(e.target.value)} />
+      <input type="text" inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }
@@ -515,16 +515,16 @@ function AnaliseModal({
                   </div>
                 </section>
 
-                <section className="prospects-analise-section">
+                <section className="prospects-analise-section prospects-analise-section--quarter">
                   <h4>Premissas</h4>
                   <CampoTextoNumerico label="Valor máximo do lance" value={currentDraft.valor_maximo_lance} onChange={(value) => onFieldChange("valor_maximo_lance", value)} />
                   <CampoTextoNumerico label="Valor base da operação" value={currentDraft.valor_base_operacao} onChange={(value) => onFieldChange("valor_base_operacao", value)} />
-                  <CampoNumerico label="Tempo da operação (meses)" value={currentDraft.tempo_operacao_meses} onChange={(value) => onFieldChange("tempo_operacao_meses", value)} step="1" min="1" />
+                  <CampoNumerico label="Tempo da operação (meses)" value={currentDraft.tempo_operacao_meses} onChange={(value) => onFieldChange("tempo_operacao_meses", value)} />
                   <CampoTextoNumerico label="% financiamento" value={currentDraft.percentual_financiamento} onChange={(value) => onFieldChange("percentual_financiamento", value)} />
                   <CampoTextoNumerico label="Valor estimado da venda" value={currentDraft.valor_estimado_venda} onChange={(value) => onFieldChange("valor_estimado_venda", value)} />
                 </section>
 
-                <section className="prospects-analise-section">
+                <section className="prospects-analise-section prospects-analise-section--quarter">
                   <h4>Custos únicos</h4>
                   <CampoTextoNumerico label="Reforma" value={currentDraft.reforma} onChange={(value) => onFieldChange("reforma", value)} />
                   <CampoTextoNumerico label="Condomínio em atraso" value={currentDraft.condominio_atraso} onChange={(value) => onFieldChange("condominio_atraso", value)} />
@@ -533,7 +533,7 @@ function AnaliseModal({
                   <CampoTextoNumerico label="Documentação" value={currentDraft.documentacao} onChange={(value) => onFieldChange("documentacao", value)} />
                 </section>
 
-                <section className="prospects-analise-section">
+                <section className="prospects-analise-section prospects-analise-section--quarter">
                   <h4>Despesas mensais</h4>
                   <CampoTextoNumerico label="Água" value={currentDraft.manutencao_agua_mensal} onChange={(value) => onFieldChange("manutencao_agua_mensal", value)} />
                   <CampoTextoNumerico label="Luz" value={currentDraft.manutencao_luz_mensal} onChange={(value) => onFieldChange("manutencao_luz_mensal", value)} />
@@ -544,7 +544,7 @@ function AnaliseModal({
                   </div>
                 </section>
 
-                <section className="prospects-analise-section prospects-analise-section--wide">
+                <section className="prospects-analise-section prospects-analise-section--half">
                   <h4>ITBI e aquisição</h4>
                   <div className="prospects-pair-grid">
                     <CampoNumerico
@@ -572,7 +572,7 @@ function AnaliseModal({
                   </div>
                 </section>
 
-                <section className="prospects-analise-section prospects-analise-section--wide">
+                <section className="prospects-analise-section prospects-analise-section--half">
                   <h4>Venda</h4>
                   <div className="prospects-pair-grid">
                     <CampoNumerico
@@ -603,7 +603,7 @@ function AnaliseModal({
                   </div>
                 </section>
 
-                <section className="prospects-analise-section">
+                <section className="prospects-analise-section prospects-analise-section--quarter">
                   <h4>Indicadores</h4>
                   <div className="prospects-analise-kpis">
                     <div className="prospects-analise-kpi">

@@ -1911,6 +1911,7 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             v.tipo_venda,
             v.disponivel,
             v.detalhes,
+            a.numero_bem AS analise_numero_bem,
             a.valor_base_operacao,
             a.tempo_operacao_meses,
             a.valor_maximo_lance,
@@ -2001,6 +2002,7 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
 
     result = []
     for row in rows:
+        tem_analise = row["analise_numero_bem"] is not None
         analise_inputs = {
             "valor_base_operacao": float(row["valor_base_operacao"]) if row["valor_base_operacao"] is not None else None,
             "tempo_operacao_meses": row["tempo_operacao_meses"],
@@ -2025,7 +2027,6 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             "ganho_capital_percentual": float(row["ganho_capital_percentual"]) if row["ganho_capital_percentual"] is not None else None,
             "ganho_capital_valor": float(row["ganho_capital_valor"]) if row["ganho_capital_valor"] is not None else None,
         }
-        tem_analise = any(value is not None for value in analise_inputs.values())
         calculos_analise = calcular_analise_prospeccao(analise_inputs) if tem_analise else None
 
         result.append({

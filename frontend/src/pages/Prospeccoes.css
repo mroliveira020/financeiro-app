@@ -525,8 +525,12 @@
   grid-column: 1 / -1;
 }
 
-.prospects-analise-section--wide {
-  grid-column: span 4;
+.prospects-analise-section--quarter {
+  grid-column: span 3;
+}
+
+.prospects-analise-section--half {
+  grid-column: span 6;
 }
 
 .prospects-form-field {
@@ -675,7 +679,8 @@
   }
 
   .prospects-analise-section,
-  .prospects-analise-section--wide {
+  .prospects-analise-section--quarter,
+  .prospects-analise-section--half {
     grid-column: 1 / -1;
   }
 }
