@@ -1892,6 +1892,7 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
 def listar_prospeccoes_selecionados(status=None, uf=None):
     _garantir_colunas_prospeccao_autoria()
     _garantir_tabela_prospeccao_observacoes()
+    _garantir_tabela_prospeccao_analise()
     conn, cur = conectar()
     base_query = """
         SELECT
@@ -1910,6 +1911,28 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             v.tipo_venda,
             v.disponivel,
             v.detalhes,
+            a.valor_base_operacao,
+            a.tempo_operacao_meses,
+            a.valor_maximo_lance,
+            a.percentual_financiamento,
+            a.valor_estimado_venda,
+            a.reforma,
+            a.condominio_atraso,
+            a.iptu_atraso,
+            a.desocupacao,
+            a.itbi_percentual,
+            a.itbi_valor,
+            a.documentacao,
+            a.manutencao_agua_mensal,
+            a.manutencao_luz_mensal,
+            a.manutencao_condominio_mensal,
+            a.manutencao_iptu_mensal,
+            a.comissao_leiloeiro_percentual,
+            a.comissao_leiloeiro_valor,
+            a.comissao_corretor_percentual,
+            a.comissao_corretor_valor,
+            a.ganho_capital_percentual,
+            a.ganho_capital_valor,
             (
                 SELECT MAX(d)
                 FROM (
@@ -1922,6 +1945,8 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
         FROM imoveis_selecionados s
         LEFT JOIN users u
             ON u.id = s.created_by
+        LEFT JOIN imoveis_selecionados_analise a
+            ON a.numero_bem = s.numero_bem
         LEFT JOIN vw_imoveis_prospeccao_latest v
             ON v.numero_bem = s.numero_bem
     """
@@ -1976,24 +2001,54 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
 
     result = []
     for row in rows:
+        analise_inputs = {
+            "valor_base_operacao": float(row["valor_base_operacao"]) if row["valor_base_operacao"] is not None else None,
+            "tempo_operacao_meses": row["tempo_operacao_meses"],
+            "valor_maximo_lance": float(row["valor_maximo_lance"]) if row["valor_maximo_lance"] is not None else (float(row["valor_maximo"]) if row["valor_maximo"] is not None else 0.0),
+            "percentual_financiamento": float(row["percentual_financiamento"]) if row["percentual_financiamento"] is not None else None,
+            "valor_estimado_venda": float(row["valor_estimado_venda"]) if row["valor_estimado_venda"] is not None else None,
+            "reforma": float(row["reforma"]) if row["reforma"] is not None else None,
+            "condominio_atraso": float(row["condominio_atraso"]) if row["condominio_atraso"] is not None else None,
+            "iptu_atraso": float(row["iptu_atraso"]) if row["iptu_atraso"] is not None else None,
+            "desocupacao": float(row["desocupacao"]) if row["desocupacao"] is not None else None,
+            "itbi_percentual": float(row["itbi_percentual"]) if row["itbi_percentual"] is not None else None,
+            "itbi_valor": float(row["itbi_valor"]) if row["itbi_valor"] is not None else None,
+            "documentacao": float(row["documentacao"]) if row["documentacao"] is not None else None,
+            "manutencao_agua_mensal": float(row["manutencao_agua_mensal"]) if row["manutencao_agua_mensal"] is not None else None,
+            "manutencao_luz_mensal": float(row["manutencao_luz_mensal"]) if row["manutencao_luz_mensal"] is not None else None,
+            "manutencao_condominio_mensal": float(row["manutencao_condominio_mensal"]) if row["manutencao_condominio_mensal"] is not None else None,
+            "manutencao_iptu_mensal": float(row["manutencao_iptu_mensal"]) if row["manutencao_iptu_mensal"] is not None else None,
+            "comissao_leiloeiro_percentual": float(row["comissao_leiloeiro_percentual"]) if row["comissao_leiloeiro_percentual"] is not None else None,
+            "comissao_leiloeiro_valor": float(row["comissao_leiloeiro_valor"]) if row["comissao_leiloeiro_valor"] is not None else None,
+            "comissao_corretor_percentual": float(row["comissao_corretor_percentual"]) if row["comissao_corretor_percentual"] is not None else None,
+            "comissao_corretor_valor": float(row["comissao_corretor_valor"]) if row["comissao_corretor_valor"] is not None else None,
+            "ganho_capital_percentual": float(row["ganho_capital_percentual"]) if row["ganho_capital_percentual"] is not None else None,
+            "ganho_capital_valor": float(row["ganho_capital_valor"]) if row["ganho_capital_valor"] is not None else None,
+        }
+        tem_analise = any(value is not None for value in analise_inputs.values())
+        calculos_analise = calcular_analise_prospeccao(analise_inputs) if tem_analise else None
+
         result.append({
-            "numero_bem": row[0],
-            "status": row[1],
-            "valor_maximo": float(row[2]) if row[2] is not None else None,
-            "prioridade": row[3],
-            "observacoes": row[4],
-            "observacoes_historico": historico_por_imovel.get(row[0], []),
-            "created_by": row[5],
-            "created_by_name": row[6],
-            "cidade": row[7],
-            "uf": row[8],
-            "valor_venda": float(row[9]) if row[9] is not None else None,
-            "valor_avaliacao": float(row[10]) if row[10] is not None else None,
-            "link_consulta": row[11],
-            "tipo_venda": row[12],
-            "disponivel": row[13],
-            "detalhes": row[14],
-            "data_leilao": row[15].isoformat() if row[15] else None,
+            "numero_bem": row["numero_bem"],
+            "status": row["status"],
+            "valor_maximo": float(row["valor_maximo"]) if row["valor_maximo"] is not None else None,
+            "prioridade": row["prioridade"],
+            "observacoes": row["observacoes"],
+            "observacoes_historico": historico_por_imovel.get(row["numero_bem"], []),
+            "created_by": row["created_by"],
+            "created_by_name": row["created_by_name"],
+            "cidade": row["cidade"],
+            "uf": row["uf"],
+            "valor_venda": float(row["valor_venda"]) if row["valor_venda"] is not None else None,
+            "valor_avaliacao": float(row["valor_avaliacao"]) if row["valor_avaliacao"] is not None else None,
+            "link_consulta": row["link_consulta"],
+            "tipo_venda": row["tipo_venda"],
+            "disponivel": row["disponivel"],
+            "detalhes": row["detalhes"],
+            "data_leilao": row["data_leilao"].isoformat() if row["data_leilao"] else None,
+            "analise_salva": tem_analise,
+            "roi_esperado_percentual": calculos_analise["roi_esperado_percentual"] if calculos_analise else None,
+            "lucro_esperado_valor": calculos_analise["lucro_esperado_valor"] if calculos_analise else None,
         })
     return result
 

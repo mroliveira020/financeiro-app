@@ -328,11 +328,16 @@ function TabelaSelecionados({
                   <div className="prospects-row-actions">
                     <button
                       type="button"
-                      className="prospects-icon-btn"
+                      className={`prospects-icon-btn prospects-icon-btn--analysis ${item.analiseSalva ? "has-roi" : ""}`}
                       title="Abrir ficha de viabilidade"
                       onClick={() => onAbrirAnalise(item)}
                     >
-                      Análise
+                      <span>Análise</span>
+                      {item.analiseSalva && item.roiEsperadoPercentual !== null && item.roiEsperadoPercentual !== undefined ? (
+                        <strong>{formatarPercentual(item.roiEsperadoPercentual)}</strong>
+                      ) : (
+                        <small>Nova</small>
+                      )}
                     </button>
                     <button
                       type="button"
@@ -403,6 +408,36 @@ function AnaliseModal({
           ) : (
             <>
               <div className="prospects-analise-grid">
+                <section className="prospects-analise-section prospects-analise-section--full prospects-analise-section--summary">
+                  <h4>Resumo financeiro</h4>
+                  <div className="prospects-summary-grid">
+                    <div className="prospects-summary-card">
+                      <span>Valor financiado</span>
+                      <strong>{formatarMoeda(calculos.valor_financiado)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Desembolso na aquisição</span>
+                      <strong>{formatarMoeda(calculos.desembolso_aquisicao)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Despesas únicas</span>
+                      <strong>{formatarMoeda(calculos.despesas_unicas)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Custos mensais projetados</span>
+                      <strong>{formatarMoeda(calculos.despesas_mensais_projetadas)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Custo total do imóvel</span>
+                      <strong>{formatarMoeda(calculos.custo_total_imovel)}</strong>
+                    </div>
+                    <div className="prospects-summary-card prospects-summary-card--accent">
+                      <span>ROI esperado</span>
+                      <strong>{formatarPercentual(calculos.roi_esperado_percentual)}</strong>
+                    </div>
+                  </div>
+                </section>
+
                 <section className="prospects-analise-section prospects-analise-section--full">
                   <h4>Referências</h4>
                   <label className="prospects-form-field">
@@ -509,44 +544,20 @@ function AnaliseModal({
                   </div>
                 </section>
 
-                <section className="prospects-analise-section prospects-analise-section--full">
-                  <h4>Resumo financeiro</h4>
-                  <div className="prospects-summary-grid">
-                    <div className="prospects-summary-card">
-                      <span>Valor financiado</span>
-                      <strong>{formatarMoeda(calculos.valor_financiado)}</strong>
-                    </div>
-                    <div className="prospects-summary-card">
-                      <span>Desembolso na aquisição</span>
-                      <strong>{formatarMoeda(calculos.desembolso_aquisicao)}</strong>
-                    </div>
-                    <div className="prospects-summary-card">
-                      <span>Despesas únicas</span>
-                      <strong>{formatarMoeda(calculos.despesas_unicas)}</strong>
-                    </div>
-                    <div className="prospects-summary-card">
+                <section className="prospects-analise-section">
+                  <h4>Indicadores</h4>
+                  <div className="prospects-analise-kpis">
+                    <div className="prospects-analise-kpi">
                       <span>Despesa mensal total</span>
                       <strong>{formatarMoeda(calculos.despesa_mensal_total)}</strong>
                     </div>
-                    <div className="prospects-summary-card">
-                      <span>Custos mensais projetados</span>
-                      <strong>{formatarMoeda(calculos.despesas_mensais_projetadas)}</strong>
-                    </div>
-                    <div className="prospects-summary-card">
-                      <span>Custo total do imóvel</span>
-                      <strong>{formatarMoeda(calculos.custo_total_imovel)}</strong>
-                    </div>
-                    <div className="prospects-summary-card">
+                    <div className="prospects-analise-kpi">
                       <span>Capital investido</span>
                       <strong>{formatarMoeda(calculos.capital_investido_estimado)}</strong>
                     </div>
-                    <div className="prospects-summary-card">
+                    <div className="prospects-analise-kpi">
                       <span>Lucro esperado</span>
                       <strong>{formatarMoeda(calculos.lucro_esperado_valor)}</strong>
-                    </div>
-                    <div className="prospects-summary-card prospects-summary-card--accent">
-                      <span>ROI esperado</span>
-                      <strong>{formatarPercentual(calculos.roi_esperado_percentual)}</strong>
                     </div>
                   </div>
                 </section>

@@ -110,6 +110,9 @@ export async function fetchSelecionados({ status, uf } = {}) {
     })),
     descricao: item.detalhes,
     dataLeilao: item.data_leilao,
+    analiseSalva: Boolean(item.analise_salva),
+    roiEsperadoPercentual: item.roi_esperado_percentual,
+    lucroEsperadoValor: item.lucro_esperado_valor,
   }));
 }
 
