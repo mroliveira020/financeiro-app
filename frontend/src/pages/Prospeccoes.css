@@ -498,7 +498,7 @@
 
 .prospects-analise-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -510,6 +510,7 @@
   border: 1px solid #dfe6f2;
   border-radius: 14px;
   background: #fcfdff;
+  grid-column: span 3;
 }
 
 .prospects-analise-section h4 {
@@ -522,6 +523,10 @@
 
 .prospects-analise-section--full {
   grid-column: 1 / -1;
+}
+
+.prospects-analise-section--wide {
+  grid-column: span 4;
 }
 
 .prospects-form-field {
@@ -606,16 +611,17 @@
 }
 
 .prospects-analise-kpis {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
 .prospects-analise-kpi {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 10px 12px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
@@ -630,8 +636,10 @@
 }
 
 .prospects-analise-kpi strong {
-  font-size: 13px;
+  font-size: 14px;
   color: #0f172a;
+  text-align: right;
+  white-space: nowrap;
 }
 
 @media (max-width: 900px) {
@@ -662,8 +670,12 @@
 
   .prospects-analise-grid,
   .prospects-pair-grid,
-  .prospects-summary-grid,
-  .prospects-analise-kpis {
+  .prospects-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .prospects-analise-section,
+  .prospects-analise-section--wide {
+    grid-column: 1 / -1;
   }
 }

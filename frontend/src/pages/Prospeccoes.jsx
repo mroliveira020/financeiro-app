@@ -104,11 +104,6 @@ const INTEGER_FIELDS = new Set([
   "tempo_operacao_meses",
 ]);
 
-const toInputValue = (value, fallback = "") => {
-  if (value === null || value === undefined) return fallback;
-  return `${value}`;
-};
-
 const toNumber = (value) => {
   if (value === null || value === undefined || value === "") return 0;
   let normalized = `${value}`.trim();
@@ -469,7 +464,7 @@ function AnaliseModal({
 
   const resolveDisplayValue = (field, pairName, modeName) => {
     if (pairModes[pairName] === modeName) return currentDraft[field];
-    return toInputValue(inputs[field], "");
+    return formatDraftValue(field, inputs[field]);
   };
 
   return (
@@ -520,24 +515,6 @@ function AnaliseModal({
                   </div>
                 </section>
 
-                <section className="prospects-analise-section prospects-analise-section--full">
-                  <h4>Referências</h4>
-                  <label className="prospects-form-field">
-                    <span>Link Google Maps</span>
-                    <input
-                      type="url"
-                      value={currentDraft.link_google_maps}
-                      onChange={(e) => onFieldChange("link_google_maps", e.target.value)}
-                      placeholder="https://maps.google.com/..."
-                    />
-                  </label>
-                  {currentDraft.link_google_maps && (
-                    <a className="prospects-link" href={currentDraft.link_google_maps} target="_blank" rel="noreferrer">
-                      Abrir mapa
-                    </a>
-                  )}
-                </section>
-
                 <section className="prospects-analise-section">
                   <h4>Premissas</h4>
                   <CampoTextoNumerico label="Valor máximo do lance" value={currentDraft.valor_maximo_lance} onChange={(value) => onFieldChange("valor_maximo_lance", value)} />
@@ -567,7 +544,7 @@ function AnaliseModal({
                   </div>
                 </section>
 
-                <section className="prospects-analise-section">
+                <section className="prospects-analise-section prospects-analise-section--wide">
                   <h4>ITBI e aquisição</h4>
                   <div className="prospects-pair-grid">
                     <CampoNumerico
@@ -595,7 +572,7 @@ function AnaliseModal({
                   </div>
                 </section>
 
-                <section className="prospects-analise-section">
+                <section className="prospects-analise-section prospects-analise-section--wide">
                   <h4>Venda</h4>
                   <div className="prospects-pair-grid">
                     <CampoNumerico
@@ -693,7 +670,7 @@ function ConfirmarExclusaoModal({ item, loading, onCancel, onConfirm }) {
   );
 }
 
-function ObservacoesModal({ item, value, loading, onChange, onCancel, onSave }) {
+function ObservacoesModal({ item, value, mapLink, loading, onChange, onMapLinkChange, onCancel, onSave }) {
   if (!item) return null;
 
   return (
@@ -716,6 +693,20 @@ function ObservacoesModal({ item, value, loading, onChange, onCancel, onSave }) 
             placeholder="Adicione uma nota objetiva sobre o imóvel. Você pode editar esse texto sempre que houver novidade."
             rows={10}
           />
+          <label className="prospects-form-field">
+            <span>Link Google Maps</span>
+            <input
+              type="url"
+              value={mapLink}
+              onChange={(e) => onMapLinkChange(e.target.value)}
+              placeholder="https://maps.google.com/..."
+            />
+          </label>
+          {mapLink && (
+            <a className="prospects-link" href={mapLink} target="_blank" rel="noreferrer">
+              Abrir localização
+            </a>
+          )}
         </div>
         <div className="prospects-modal__footer">
           <button type="button" className="prospects-btn secondary" onClick={onCancel} disabled={loading}>
@@ -919,6 +910,8 @@ export default function Prospeccoes() {
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(null);
   const [observacaoItem, setObservacaoItem] = useState(null);
   const [observacaoDraft, setObservacaoDraft] = useState("");
+  const [observacaoMapLink, setObservacaoMapLink] = useState("");
+  const [observacaoAnaliseBase, setObservacaoAnaliseBase] = useState(null);
   const [analiseItem, setAnaliseItem] = useState(null);
   const [analiseDraft, setAnaliseDraft] = useState(null);
   const [analisePairModes, setAnalisePairModes] = useState(ANALISE_PAIR_MODE_DEFAULTS);
@@ -1103,9 +1096,18 @@ export default function Prospeccoes() {
     }
   };
 
-  const openObservacoesModal = (item) => {
+  const openObservacoesModal = async (item) => {
     setObservacaoItem(item);
     setObservacaoDraft(item.observacoes || "");
+    setObservacaoMapLink("");
+    setObservacaoAnaliseBase(null);
+    try {
+      const data = await fetchAnaliseSelecionado(item.codigo);
+      setObservacaoAnaliseBase(data?.inputs || null);
+      setObservacaoMapLink(data?.inputs?.link_google_maps || "");
+    } catch {
+      setObservacaoMapLink("");
+    }
   };
 
   const handleSalvarObservacoes = async () => {
@@ -1121,10 +1123,16 @@ export default function Prospeccoes() {
         prioridade: observacaoItem.prioridade,
         observacoes: observacaoDraft.trim(),
       });
+      await salvarAnaliseSelecionado(observacaoItem.codigo, {
+        ...(observacaoAnaliseBase || {}),
+        link_google_maps: observacaoMapLink.trim(),
+      });
       setMensagem(`Observações do imóvel ${observacaoItem.codigo} atualizadas.`);
       await refreshSelecionados();
       setObservacaoItem(null);
       setObservacaoDraft("");
+      setObservacaoMapLink("");
+      setObservacaoAnaliseBase(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao atualizar observações";
       setMensagem(message);
@@ -1413,11 +1421,15 @@ export default function Prospeccoes() {
       <ObservacoesModal
         item={observacaoItem}
         value={observacaoDraft}
+        mapLink={observacaoMapLink}
         loading={Boolean(observacaoItem && updateLoadingIds.has(`${observacaoItem.codigo}:observacoes`))}
         onChange={setObservacaoDraft}
+        onMapLinkChange={setObservacaoMapLink}
         onCancel={() => {
           setObservacaoItem(null);
           setObservacaoDraft("");
+          setObservacaoMapLink("");
+          setObservacaoAnaliseBase(null);
         }}
         onSave={handleSalvarObservacoes}
       />
