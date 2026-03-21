@@ -179,7 +179,7 @@ const inferPairMode = (percentual, valor) => {
 const createAnaliseDraft = (inputs = {}) => ({
   ...ANALISE_DEFAULTS,
   ...Object.fromEntries(
-    Object.entries(inputs).map(([key, value]) => [key, formatDraftValue(key, value)])
+    Object.entries(inputs).map(([key, value]) => [key, value === null || value === undefined ? "" : `${value}`.replace(".", ",")])
   ),
 });
 
@@ -432,7 +432,7 @@ function CampoNumerico({ label, value, onChange }) {
   return (
     <label className="prospects-form-field">
       <span>{label}</span>
-      <input type="text" inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} />
+      <input type="text" inputMode="numeric" value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }
