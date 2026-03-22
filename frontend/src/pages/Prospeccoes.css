@@ -102,6 +102,13 @@
   margin-bottom: 12px;
 }
 
+.prospects-card__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .prospects-title {
   margin: 0;
   font-size: 18px;

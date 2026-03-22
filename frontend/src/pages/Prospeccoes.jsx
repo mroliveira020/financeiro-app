@@ -316,10 +316,11 @@ function TabelaSelecionados({
   sortDir,
   onToggleSort,
   canDeleteItem,
+  collapsed,
+  onToggleCollapse,
 }) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando selecionados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar selecionados: {erro}</p></div>;
-  if (!dados.length) return <div className="prospects-card"><p className="prospects-empty">Nenhum selecionado encontrado.</p></div>;
 
   return (
     <div className="prospects-card">
@@ -331,8 +332,15 @@ function TabelaSelecionados({
             Ordenado por data do leilão para facilitar a fila operacional.
           </p>
         </div>
-        <span className="prospects-pill">{dados.length} imóveis</span>
+        <div className="prospects-card__header-actions">
+          <span className="prospects-pill">{dados.length} imóveis</span>
+          <button type="button" className="prospects-btn secondary" onClick={onToggleCollapse}>
+            {collapsed ? "Mostrar selecionados" : "Ocultar selecionados"}
+          </button>
+        </div>
       </div>
+      {!dados.length && <p className="prospects-empty">Nenhum selecionado encontrado.</p>}
+      {!dados.length || collapsed ? null : (
       <div className="prospects-table-wrap">
         <table className="prospects-table">
           <thead>
@@ -432,6 +440,7 @@ function TabelaSelecionados({
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }
@@ -949,6 +958,10 @@ export default function Prospeccoes() {
   const [sortBy, setSortBy] = useState("ultima_disputa");
   const [sortDir, setSortDir] = useState("desc");
   const [selectedSortDir, setSelectedSortDir] = useState("asc");
+  const [selecionadosCollapsed, setSelecionadosCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("prospeccoes_selecionados_collapsed") === "1";
+  });
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(null);
   const [observacaoItem, setObservacaoItem] = useState(null);
   const [observacaoDraft, setObservacaoDraft] = useState("");
@@ -1015,6 +1028,14 @@ export default function Prospeccoes() {
       .then((resp) => setMeta(resp))
       .catch(() => setMeta({ ufs: [], modalidades: [], financia: [], cidades_por_uf: {} }));
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      "prospeccoes_selecionados_collapsed",
+      selecionadosCollapsed ? "1" : "0"
+    );
+  }, [selecionadosCollapsed]);
 
   const ufOptions = useMemo(() => meta.ufs || [], [meta]);
   const modalidadeOptions = useMemo(() => meta.modalidades || [], [meta]);
@@ -1446,6 +1467,8 @@ export default function Prospeccoes() {
         sortDir={selectedSortDir}
         onToggleSort={() => setSelectedSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
         canDeleteItem={canDeleteItem}
+        collapsed={selecionadosCollapsed}
+        onToggleCollapse={() => setSelecionadosCollapsed((prev) => !prev)}
       />
 
       <div className="prospects-gap" />
