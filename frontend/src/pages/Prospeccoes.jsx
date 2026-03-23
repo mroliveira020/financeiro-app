@@ -88,10 +88,10 @@ function PriorityIcon({ level = 2 }) {
   const activeLevel = Number(level) || 2;
   return (
     <IconBase label={`Prioridade ${activeLevel}`}>
-      <path d="M5 19.5V4.5" />
-      <path d="M8 6.5h6l-1 2.5 1 2.5H8z" opacity={activeLevel >= 1 ? "1" : "0.25"} />
-      <path d="M8 10.5h8l-1.2 2.5 1.2 2.5H8z" opacity={activeLevel >= 2 ? "1" : "0.25"} />
-      <path d="M8 14.5h10l-1.4 2.5 1.4 2.5H8z" opacity={activeLevel >= 3 ? "1" : "0.25"} />
+      <path d="M5 20h14" />
+      <rect x="6.5" y="13" width="3" height="5.5" rx="1.2" fill="currentColor" stroke="none" opacity={activeLevel >= 1 ? "1" : "0.22"} />
+      <rect x="10.5" y="9.5" width="3" height="9" rx="1.2" fill="currentColor" stroke="none" opacity={activeLevel >= 2 ? "1" : "0.22"} />
+      <rect x="14.5" y="6" width="3" height="12.5" rx="1.2" fill="currentColor" stroke="none" opacity={activeLevel >= 3 ? "1" : "0.22"} />
     </IconBase>
   );
 }
@@ -466,11 +466,11 @@ function TabelaSelecionados({
           <thead>
             <tr>
               <th>Código</th>
-              <th>Cidade / UF</th>
+              <th className="prospects-col-city">Cidade / UF</th>
               <th>Data leilão</th>
               <th>Valor máximo</th>
               <th>Valor referência</th>
-              <th>Descrição</th>
+              <th className="prospects-col-description">Descrição</th>
               <th>Ações</th>
             </tr>
           </thead>
@@ -482,10 +482,9 @@ function TabelaSelecionados({
                     {item.codigo}
                   </a>
                 </td>
-                <td>
+                <td className="prospects-col-city">
                   <div className="prospects-city-cell">
-                    <strong>{item.cidade || "—"}</strong>
-                    <span>{item.uf || "—"}</span>
+                    <strong>{item.cidade && item.uf ? `${item.cidade}/${item.uf}` : item.cidade || item.uf || "—"}</strong>
                   </div>
                 </td>
                 <td>
@@ -495,7 +494,7 @@ function TabelaSelecionados({
                 </td>
                 <td>{formatarMoeda(item.valorMaximo)}</td>
                 <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>
-                <td>
+                <td className="prospects-col-description">
                   <div className="prospects-description-cell" title={item.descricao || "—"}>
                     {item.descricao || "—"}
                   </div>
@@ -1722,20 +1721,29 @@ export default function Prospeccoes() {
 
   return (
     <div className="prospects-page">
-      <div className="prospects-header-summary prospects-header-summary--top">
-        <div className="prospects-stat-card">
-          <span>Selecionados</span>
-          <strong>{selecionados.length}</strong>
+      <section className="prospects-header">
+        <div className="prospects-header-copy">
+          <p className="prospects-eyebrow">Oportunidades</p>
+          <h1 className="prospects-hero">Prospecções</h1>
+          <p className="prospects-subtitle">
+            Central de decisão para acompanhar a base capturada e a fila operacional com mais clareza.
+          </p>
         </div>
-        <div className="prospects-stat-card">
-          <span>Alta prioridade</span>
-          <strong>{selectedMetrics.altaPrioridade}</strong>
+        <div className="prospects-header-summary prospects-header-summary--top">
+          <div className="prospects-stat-card">
+            <span>Selecionados</span>
+            <strong>{selecionados.length}</strong>
+          </div>
+          <div className="prospects-stat-card">
+            <span>Alta prioridade</span>
+            <strong>{selectedMetrics.altaPrioridade}</strong>
+          </div>
+          <div className="prospects-stat-card">
+            <span>Sem responsável</span>
+            <strong>{selectedMetrics.semResponsavel}</strong>
+          </div>
         </div>
-        <div className="prospects-stat-card">
-          <span>Sem responsável</span>
-          <strong>{selectedMetrics.semResponsavel}</strong>
-        </div>
-      </div>
+      </section>
 
       <div className="prospects-filters">
         <div className="prospects-filter-group">
