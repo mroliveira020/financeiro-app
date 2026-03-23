@@ -115,6 +115,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 
 3. [ ] **Consolidar prioridade operacional**
    3.1. [ ] Frontend: ao selecionar um imóvel capturado, oferecer escolha explícita de prioridade (`baixa`, `média`, `alta`) no fluxo de inclusão.
+   3.1.1. [ ] Decisão atual: adiar esta melhoria por ora; a edição de prioridade posterior na lista atende a operação no momento.
    3.2. [x] Backend: manter normalização de prioridade e garantir persistência consistente em `imoveis_selecionados.prioridade`.
    3.3. [x] UX: exibir prioridade atual na lista de selecionados com ação rápida de edição sem exigir recriação do registro.
    3.4. [x] UX: substituir o texto cru de prioridade por controle mais claro e objetivo na lista de selecionados.
@@ -154,6 +155,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    6.5. [ ] Opcional futuro: abrir histórico completo apenas em tela/modal secundário administrativo, se houver necessidade real.
 
 7. [ ] **Adicionar ficha de análise e viabilidade do imóvel selecionado**
+   7.0. [x] Decisão atual: considerar a ficha de análise suficientemente boa para a fase atual; manter pendências finas desta seção em backlog, sem priorização imediata.
    7.1. [x] Modelagem: criar estrutura persistente para análise do selecionado, vinculada a `imoveis_selecionados.numero_bem`, preservando autoria e `updated_at`.
    7.2. [ ] Modelagem: incluir campos manuais de entrada:
         - valor base da operação
@@ -288,22 +290,26 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    - Exibir responsáveis na lista de selecionados e liberar edição operacional para atribuídos.
 
 2. [ ] **Fechar inclusão manual de imóveis**
+   - Decisão atual: adiar para depois dos acabamentos de UX.
    - Permitir criação de selecionado sem dependência de `vw_imoveis_prospeccao_latest`.
    - Criar fluxo frontend com campos mínimos operacionais.
    - Identificar claramente origem manual vs. capturada.
 
 3. [ ] **Concluir acabamentos de UX já parcialmente prontos**
+   - Foco atual da aplicação.
    - Revisar se o tooltip de observação atual está suficiente ou se precisa componente visual dedicado.
-   - Refinar distinção visual entre campos digitáveis e calculados na ficha de análise.
-   - Confirmar se a ação de prioridade no ato da seleção precisa modal/etapa explícita.
+   - Fechar colunas e ações finais da lista de selecionados.
+   - Refinar visual e legibilidade dos elementos operacionais principais.
 
 4. [ ] **Validar operação e qualidade**
+   - Decisão atual: adiar para depois da rodada de UX e da inclusão manual.
    - Validar amostra real no painel do Supabase.
    - Validar execução local do garimpo com `.env`.
    - Fechar telemetria mínima de bloqueio `403` no garimpo antes da próxima carga grande.
    - Implementar testes backend/frontend das rotas e fluxos de Prospecções.
 
 5. [ ] **Fechar documentação operacional**
+   - Decisão atual: adiar para depois das entregas funcionais prioritárias.
    - Atualizar README/docs com matriz de permissões, autoria, responsáveis, inclusão manual e fluxo de observações/análise.
    - Registrar runbook de incidente para segredos e rotação de chave.
    - Documentar runbook do garimpo quando a CAIXA ativar challenge/hCaptcha na borda.

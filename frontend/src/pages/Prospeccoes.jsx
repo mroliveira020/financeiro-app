@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
 import "./Prospeccoes.css";
 
 import {
@@ -40,6 +40,17 @@ const formatarDataHora = (valor) => {
   const hora = String(data.getHours()).padStart(2, "0");
   const minuto = String(data.getMinutes()).padStart(2, "0");
   return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
+};
+
+const formatarDataCurta = (valor) => {
+  if (!valor) return "Sem data";
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return "Sem data";
+  return data.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 };
 
 const ANALISE_DEFAULTS = {
@@ -322,13 +333,12 @@ function TabelaSelecionados({
   onEditarResponsaveis,
   removeLoadingIds,
   updateLoadingIds,
-  sortDir,
-  onToggleSort,
   canDeleteItem,
   canOperateItem,
   canManageResponsaveis,
   collapsed,
   onToggleCollapse,
+  sortLabel,
 }) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando selecionados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar selecionados: {erro}</p></div>;
@@ -340,7 +350,7 @@ function TabelaSelecionados({
           <p className="prospects-eyebrow">Fila de decisão</p>
           <h2 className="prospects-title">Selecionados</h2>
           <p className="prospects-subtitle prospects-subtitle--compact">
-            Ordenado por data do leilão para facilitar a fila operacional.
+            {sortLabel}
           </p>
         </div>
         <div className="prospects-card__header-actions">
@@ -361,18 +371,7 @@ function TabelaSelecionados({
               <th>UF</th>
               <th>Selecionado por</th>
               <th>Responsáveis</th>
-              <th
-                className="prospects-sortable"
-                role="button"
-                tabIndex={0}
-                aria-sort={sortDir === "asc" ? "ascending" : "descending"}
-                onClick={onToggleSort}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") onToggleSort();
-                }}
-              >
-                Data leilão{sortDir === "asc" ? " ▲" : " ▼"}
-              </th>
+              <th>Data leilão</th>
               <th>Valor máximo</th>
               <th>Valor referência</th>
               <th>Prioridade</th>
@@ -392,8 +391,23 @@ function TabelaSelecionados({
                 <td>{item.cidade}</td>
                 <td>{item.uf}</td>
                 <td>{item.createdByName || "—"}</td>
-                <td>{item.responsaveis?.length ? item.responsaveis.map((responsavel) => responsavel.name || responsavel.email).join(", ") : "—"}</td>
-                <td>{formatarDataHora(item.dataLeilao)}</td>
+                <td>
+                  {item.responsaveis?.length ? (
+                    <div className="prospects-people-list">
+                      {item.responsaveis.map((responsavel) => (
+                        <span key={responsavel.id} className="prospects-inline-pill">
+                          {responsavel.name || responsavel.email}
+                        </span>
+                      ))}
+                    </div>
+                  ) : "—"}
+                </td>
+                <td>
+                  <div className="prospects-date-cell">
+                    <strong>{formatarDataCurta(item.dataLeilao)}</strong>
+                    <span>{formatarDataHora(item.dataLeilao).split(" ").slice(-1)[0] || "—"}</span>
+                  </div>
+                </td>
                 <td>{formatarMoeda(item.valorMaximo)}</td>
                 <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>
                 <td>
@@ -423,10 +437,14 @@ function TabelaSelecionados({
                     onClick={() => onEditarObservacoes(item)}
                     disabled={updateLoadingIds.has(`${item.codigo}:observacoes`) || !canOperateItem(item)}
                   >
-                    {item.observacoes ? "Abrir nota" : "Adicionar"}
+                    {item.observacoes ? "Nota ativa" : "Adicionar nota"}
                   </button>
                 </td>
-                <td>{item.descricao || "—"}</td>
+                <td>
+                  <div className="prospects-description-cell" title={item.descricao || "—"}>
+                    {item.descricao || "—"}
+                  </div>
+                </td>
                 <td>
                   <div className="prospects-row-actions">
                     <button
@@ -1054,7 +1072,12 @@ export default function Prospeccoes() {
   const [expanded, setExpanded] = useState(new Set());
   const [sortBy, setSortBy] = useState("ultima_disputa");
   const [sortDir, setSortDir] = useState("desc");
+  const [selectedSortBy, setSelectedSortBy] = useState("dataLeilao");
   const [selectedSortDir, setSelectedSortDir] = useState("asc");
+  const [selectedSearch, setSelectedSearch] = useState("");
+  const [selectedUfFilter, setSelectedUfFilter] = useState("todos");
+  const [selectedPrioridadeFilter, setSelectedPrioridadeFilter] = useState("todas");
+  const [selectedResponsavelFilter, setSelectedResponsavelFilter] = useState("todos");
   const [selecionadosCollapsed, setSelecionadosCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("prospeccoes_selecionados_collapsed") === "1";
@@ -1073,6 +1096,7 @@ export default function Prospeccoes() {
   const [responsaveisItem, setResponsaveisItem] = useState(null);
   const [responsaveisDraftIds, setResponsaveisDraftIds] = useState([]);
   const [responsaveisSaving, setResponsaveisSaving] = useState(false);
+  const deferredSelectedSearch = useDeferredValue(selectedSearch);
 
   useEffect(() => {
     const carregarSelecionados = async () => {
@@ -1159,6 +1183,11 @@ export default function Prospeccoes() {
     });
     return Array.from(set).sort();
   }, [meta, filtroUfCap]);
+
+  const selectedUfOptions = useMemo(
+    () => Array.from(new Set(selecionados.map((item) => item.uf).filter(Boolean))).sort(),
+    [selecionados]
+  );
 
   const toggleValue = (value, listSetter) => {
     listSetter((prev) => {
@@ -1433,24 +1462,93 @@ export default function Prospeccoes() {
     }
   };
 
-  const selecionadosOrdenados = useMemo(() => {
+  const selecionadosFiltradosOrdenados = useMemo(() => {
     const parseDate = (value) => {
       if (!value) return null;
       const date = new Date(value);
       return Number.isNaN(date.getTime()) ? null : date.getTime();
     };
 
-    return [...selecionados].sort((a, b) => {
-      const dateA = parseDate(a.dataLeilao);
-      const dateB = parseDate(b.dataLeilao);
-
-      if (dateA === null && dateB === null) return `${a.codigo}`.localeCompare(`${b.codigo}`);
-      if (dateA === null) return 1;
-      if (dateB === null) return -1;
-
-      return selectedSortDir === "asc" ? dateA - dateB : dateB - dateA;
+    const normalizedSearch = deferredSelectedSearch.trim().toLowerCase();
+    const filtered = selecionados.filter((item) => {
+      if (selectedUfFilter !== "todos" && item.uf !== selectedUfFilter) return false;
+      if (selectedPrioridadeFilter !== "todas" && String(item.prioridade || 2) !== selectedPrioridadeFilter) return false;
+      if (selectedResponsavelFilter === "com" && !(item.responsaveis?.length)) return false;
+      if (selectedResponsavelFilter === "sem" && item.responsaveis?.length) return false;
+      if (
+        selectedResponsavelFilter === "meus" &&
+        !item.responsaveis?.some((responsavel) => String(responsavel.id) === String(user?.id))
+      ) {
+        return false;
+      }
+      if (!normalizedSearch) return true;
+      const haystack = [
+        item.codigo,
+        item.cidade,
+        item.uf,
+        item.createdByName,
+        item.descricao,
+        item.observacoes,
+        ...(item.responsaveis || []).map((responsavel) => responsavel.name || responsavel.email),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(normalizedSearch);
     });
-  }, [selecionados, selectedSortDir]);
+
+    const direction = selectedSortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      if (selectedSortBy === "dataLeilao") {
+        const dateA = parseDate(a.dataLeilao);
+        const dateB = parseDate(b.dataLeilao);
+        if (dateA === null && dateB === null) return `${a.codigo}`.localeCompare(`${b.codigo}`) * direction;
+        if (dateA === null) return 1;
+        if (dateB === null) return -1;
+        return (dateA - dateB) * direction;
+      }
+      if (selectedSortBy === "prioridade") {
+        return ((Number(a.prioridade || 2) - Number(b.prioridade || 2)) || `${a.codigo}`.localeCompare(`${b.codigo}`)) * direction;
+      }
+      if (selectedSortBy === "cidade") {
+        return `${a.cidade || ""}`.localeCompare(`${b.cidade || ""}`) * direction;
+      }
+      if (selectedSortBy === "valorMaximo") {
+        return ((Number(a.valorMaximo || 0) - Number(b.valorMaximo || 0)) || `${a.codigo}`.localeCompare(`${b.codigo}`)) * direction;
+      }
+      if (selectedSortBy === "roi") {
+        return ((Number(a.roiEsperadoPercentual || 0) - Number(b.roiEsperadoPercentual || 0)) || `${a.codigo}`.localeCompare(`${b.codigo}`)) * direction;
+      }
+      return `${a.codigo}`.localeCompare(`${b.codigo}`) * direction;
+    });
+  }, [
+    selecionados,
+    deferredSelectedSearch,
+    selectedUfFilter,
+    selectedPrioridadeFilter,
+    selectedResponsavelFilter,
+    selectedSortBy,
+    selectedSortDir,
+    user?.id,
+  ]);
+
+  const selectedMetrics = useMemo(() => {
+    const comAnalise = selecionados.filter((item) => item.analiseSalva).length;
+    const semResponsavel = selecionados.filter((item) => !(item.responsaveis?.length)).length;
+    const altaPrioridade = selecionados.filter((item) => Number(item.prioridade || 2) === 3).length;
+    return { comAnalise, semResponsavel, altaPrioridade };
+  }, [selecionados]);
+
+  const selectedSortLabel = useMemo(() => {
+    const labels = {
+      dataLeilao: "data do leilão",
+      prioridade: "prioridade",
+      cidade: "cidade",
+      valorMaximo: "valor máximo",
+      roi: "ROI",
+    };
+    return `Ordenado por ${labels[selectedSortBy] || "data do leilão"} em ${selectedSortDir === "asc" ? "ordem crescente" : "ordem decrescente"}.`;
+  }, [selectedSortBy, selectedSortDir]);
 
   const toggleExpand = (codigo) => {
     const next = new Set(expanded);
@@ -1488,10 +1586,23 @@ export default function Prospeccoes() {
           <p className="prospects-eyebrow">Oportunidades</p>
           <h1 className="prospects-hero">Prospecções</h1>
           <p className="prospects-subtitle">
-            Acompanhe os imóveis em decisão e os últimos capturados pelo garimpo. Dados carregados do backend.
+            Central de decisão para acompanhar imóveis priorizados e a última captura do garimpo com mais clareza operacional.
           </p>
         </div>
-        <div className="prospects-actions" aria-hidden />
+        <div className="prospects-header-summary">
+          <div className="prospects-stat-card">
+            <span>Selecionados</span>
+            <strong>{selecionados.length}</strong>
+          </div>
+          <div className="prospects-stat-card">
+            <span>Alta prioridade</span>
+            <strong>{selectedMetrics.altaPrioridade}</strong>
+          </div>
+          <div className="prospects-stat-card">
+            <span>Sem responsável</span>
+            <strong>{selectedMetrics.semResponsavel}</strong>
+          </div>
+        </div>
       </div>
 
       <div className="prospects-filters">
@@ -1603,8 +1714,95 @@ export default function Prospeccoes() {
 
       {mensagem && <div className="prospects-message">{mensagem}</div>}
 
+      <section className="prospects-card prospects-card--command">
+        <div className="prospects-card__header prospects-card__header--stacked">
+          <div>
+            <p className="prospects-eyebrow">Operação</p>
+            <h2 className="prospects-title">Controle dos selecionados</h2>
+            <p className="prospects-subtitle prospects-subtitle--compact">
+              Filtre e ordene a fila para chegar mais rápido aos imóveis que pedem ação.
+            </p>
+          </div>
+          <div className="prospects-card__header-actions">
+            <span className="prospects-pill">{selecionadosFiltradosOrdenados.length} visíveis</span>
+            <span className="prospects-pill prospects-pill--muted">{selectedMetrics.comAnalise} com análise</span>
+          </div>
+        </div>
+        <div className="prospects-toolbar">
+          <label className="prospects-toolbar-field prospects-toolbar-field--search">
+            <span>Buscar</span>
+            <input
+              type="search"
+              value={selectedSearch}
+              onChange={(e) => setSelectedSearch(e.target.value)}
+              placeholder="Código, cidade, autor, responsável ou descrição"
+            />
+          </label>
+          <label className="prospects-toolbar-field">
+            <span>UF</span>
+            <select value={selectedUfFilter} onChange={(e) => setSelectedUfFilter(e.target.value)}>
+              <option value="todos">Todas</option>
+              {selectedUfOptions.map((uf) => (
+                <option key={uf} value={uf}>{uf}</option>
+              ))}
+            </select>
+          </label>
+          <label className="prospects-toolbar-field">
+            <span>Prioridade</span>
+            <select value={selectedPrioridadeFilter} onChange={(e) => setSelectedPrioridadeFilter(e.target.value)}>
+              <option value="todas">Todas</option>
+              {PRIORIDADE_OPTIONS.map((option) => (
+                <option key={option.value} value={String(option.value)}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="prospects-toolbar-field">
+            <span>Responsáveis</span>
+            <select value={selectedResponsavelFilter} onChange={(e) => setSelectedResponsavelFilter(e.target.value)}>
+              <option value="todos">Todos</option>
+              <option value="com">Com responsáveis</option>
+              <option value="sem">Sem responsáveis</option>
+              <option value="meus">Atribuídos a mim</option>
+            </select>
+          </label>
+          <label className="prospects-toolbar-field">
+            <span>Ordenar por</span>
+            <select value={selectedSortBy} onChange={(e) => setSelectedSortBy(e.target.value)}>
+              <option value="dataLeilao">Data do leilão</option>
+              <option value="prioridade">Prioridade</option>
+              <option value="cidade">Cidade</option>
+              <option value="valorMaximo">Valor máximo</option>
+              <option value="roi">ROI</option>
+            </select>
+          </label>
+          <label className="prospects-toolbar-field">
+            <span>Direção</span>
+            <select value={selectedSortDir} onChange={(e) => setSelectedSortDir(e.target.value)}>
+              <option value="asc">Crescente</option>
+              <option value="desc">Decrescente</option>
+            </select>
+          </label>
+          <div className="prospects-toolbar-actions">
+            <button
+              type="button"
+              className="prospects-btn secondary"
+              onClick={() => {
+                setSelectedSearch("");
+                setSelectedUfFilter("todos");
+                setSelectedPrioridadeFilter("todas");
+                setSelectedResponsavelFilter("todos");
+                setSelectedSortBy("dataLeilao");
+                setSelectedSortDir("asc");
+              }}
+            >
+              Limpar visão
+            </button>
+          </div>
+        </div>
+      </section>
+
       <TabelaSelecionados
-        dados={selecionadosOrdenados}
+        dados={selecionadosFiltradosOrdenados}
         loading={loadingSel}
         erro={erroSel}
         onExcluir={setConfirmDeleteItem}
@@ -1614,13 +1812,12 @@ export default function Prospeccoes() {
         onEditarResponsaveis={openResponsaveisModal}
         removeLoadingIds={removeLoadingIds}
         updateLoadingIds={updateLoadingIds}
-        sortDir={selectedSortDir}
-        onToggleSort={() => setSelectedSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
         canDeleteItem={canDeleteItem}
         canOperateItem={canOperateItem}
         canManageResponsaveis={canManageResponsaveis}
         collapsed={selecionadosCollapsed}
         onToggleCollapse={() => setSelecionadosCollapsed((prev) => !prev)}
+        sortLabel={selectedSortLabel}
       />
 
       <div className="prospects-gap" />
