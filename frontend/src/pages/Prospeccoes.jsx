@@ -369,7 +369,6 @@ function TabelaSelecionados({
               <th>Código</th>
               <th>Cidade</th>
               <th>UF</th>
-              <th>Selecionado por</th>
               <th>Responsáveis</th>
               <th>Data leilão</th>
               <th>Valor máximo</th>
@@ -390,17 +389,40 @@ function TabelaSelecionados({
                 </td>
                 <td>{item.cidade}</td>
                 <td>{item.uf}</td>
-                <td>{item.createdByName || "—"}</td>
                 <td>
-                  {item.responsaveis?.length ? (
-                    <div className="prospects-people-list">
-                      {item.responsaveis.map((responsavel) => (
-                        <span key={responsavel.id} className="prospects-inline-pill">
-                          {responsavel.name || responsavel.email}
-                        </span>
-                      ))}
-                    </div>
-                  ) : "—"}
+                  {(() => {
+                    const pessoas = [];
+                    const seen = new Set();
+                    const addPessoa = (id, label, variant = "default") => {
+                      const normalizedId = id ? String(id) : "";
+                      const normalizedLabel = `${label || ""}`.trim();
+                      const key = normalizedId || normalizedLabel.toLowerCase();
+                      if (!key || seen.has(key)) return;
+                      seen.add(key);
+                      pessoas.push({ key, label: normalizedLabel, variant });
+                    };
+
+                    addPessoa(item.createdBy, item.createdByName, "author");
+                    (item.responsaveis || []).forEach((responsavel) => {
+                      addPessoa(responsavel.id, responsavel.name || responsavel.email, "default");
+                    });
+
+                    if (!pessoas.length) return "—";
+
+                    return (
+                      <div className="prospects-people-list">
+                        {pessoas.map((pessoa) => (
+                          <span
+                            key={pessoa.key}
+                            className={`prospects-inline-pill ${pessoa.variant === "author" ? "prospects-inline-pill--author" : ""}`.trim()}
+                            title={pessoa.variant === "author" ? "Usuário que selecionou o imóvel" : undefined}
+                          >
+                            {pessoa.label}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td>
                   <div className="prospects-date-cell">
@@ -1078,7 +1100,7 @@ export default function Prospeccoes() {
   const [expanded, setExpanded] = useState(new Set());
   const [sortBy, setSortBy] = useState("ultima_disputa");
   const [sortDir, setSortDir] = useState("desc");
-  const [activeTab, setActiveTab] = useState("selecionados");
+  const [activeTab, setActiveTab] = useState("capturados");
   const [selectedSortBy, setSelectedSortBy] = useState("dataLeilao");
   const [selectedSortDir, setSelectedSortDir] = useState("asc");
   const [selectedSearch, setSelectedSearch] = useState("");
@@ -1760,22 +1782,22 @@ export default function Prospeccoes() {
         <button
           type="button"
           role="tab"
-          aria-selected={activeTab === "selecionados"}
-          className={`prospects-tab ${activeTab === "selecionados" ? "is-active" : ""}`}
-          onClick={() => setActiveTab("selecionados")}
-        >
-          <span>Selecionados</span>
-          <strong>{selecionados.length}</strong>
-        </button>
-        <button
-          type="button"
-          role="tab"
           aria-selected={activeTab === "capturados"}
           className={`prospects-tab ${activeTab === "capturados" ? "is-active" : ""}`}
           onClick={() => setActiveTab("capturados")}
         >
           <span>Base completa</span>
           <strong>{capturadosTotal}</strong>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "selecionados"}
+          className={`prospects-tab ${activeTab === "selecionados" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("selecionados")}
+        >
+          <span>Selecionados</span>
+          <strong>{selecionados.length}</strong>
         </button>
       </div>
 

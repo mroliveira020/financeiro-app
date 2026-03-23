@@ -110,7 +110,8 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 2. [x] **Preparar autoria e identidade operacional nas Prospecções**
    2.1. [x] Registrar autor da inclusão (`created_by` ou equivalente) em `imoveis_selecionados`, vinculado ao usuário autenticado.
    2.2. [x] Propagar nome do autor (`created_by_name`) na listagem de selecionados e no histórico de observações.
-   2.3. [x] Exibir coluna "Selecionado por" na lista de selecionados.
+   2.3. [x] Exibir autoria da seleção de forma visível na lista de selecionados.
+   2.3.1. [x] Decisão de UX atual: remover a coluna dedicada "Selecionado por" e incorporar o autor no bloco de responsáveis, com destaque visual sutil e sem duplicar o nome quando ele também estiver atribuído ao imóvel.
    2.4. [x] Sanear registros antigos já existentes, atribuindo autoria inicial à base legada.
 
 3. [ ] **Consolidar prioridade operacional**
@@ -143,7 +144,10 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - `admin`: vê e gerencia todos os selecionados;
         - autor da inclusão: pode excluir o imóvel que criou;
         - prospector atribuído: pode atuar no imóvel (prioridade/observações), sem poder excluir se não for o autor;
-        - usuário não atribuído: mantém leitura, mas sem ações operacionais.
+        - usuário não atribuído: não deve ver imóveis de terceiros fora da própria carteira.
+   5.3.1. [x] Regra de visibilidade consolidada:
+        - usuário comum vê apenas imóveis selecionados por ele ou atribuídos a ele;
+        - `admin` mantém visão completa e pode filtrar os selecionados por usuário na interface.
    5.4. [x] Frontend: adicionar seletor de responsáveis na tela de selecionados (somente `admin`) e exibir responsáveis associados por imóvel.
 
 6. [ ] **Consolidar observações operacionais**
@@ -246,20 +250,29 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    8.1. [x] Backend: manter retorno de `data_leilao` considerando a maior data disponível entre `data_leilao_1`, `data_leilao_2` e `data_hora_encerramento`.
    8.2. [x] Frontend: permitir ordenação pela data do leilão, priorizando esse campo como ordenação operacional da fila.
    8.3. [x] UX: remover a coluna `Status` da tabela de selecionados enquanto ela não agrega valor operacional, reduzindo poluição visual.
-   8.4. [ ] Frontend: garantir colunas e ações finais da lista:
+   8.4. [x] Frontend: garantir colunas e ações finais da lista:
         - Data do leilão
         - Prioridade editável
-        - Selecionado por
+        - autoria integrada ao bloco de responsáveis
         - Responsáveis
-        - Observação atual em tooltip
         - Ações com botões/iconografia mais claros
+   8.4.1. [x] Reorganizar navegação da página:
+        - aba `Base completa` vem primeiro;
+        - aba `Selecionados` vem depois;
+        - imóveis já selecionados aparecem identificados na consulta da base completa.
+   8.4.2. [x] Melhorias visuais aplicadas na página principal de Prospecções:
+        - filtros e ordenações dedicados para a fila de selecionados;
+        - aparência mais profissional dos botões e comandos;
+        - redução da hierarquia tipográfica para evitar títulos excessivamente grandes;
+        - refinamento de espaçamento, densidade dos cards e legibilidade geral da tela.
    8.5. [ ] Critério de aceite:
-        - usuário consegue definir/alterar prioridade no ato da seleção e depois na lista;
-        - lista de selecionados exibe quem selecionou o imóvel;
+        - usuário consegue alterar prioridade na lista;
+        - lista de selecionados exibe com clareza quem selecionou o imóvel, integrado aos responsáveis;
         - tabela ordena por data do leilão;
         - coluna `Status` não polui a operação diária;
         - `admin` consegue atribuir um ou mais prospectores a cada imóvel;
-        - prospector atribuído consegue alterar prioridade e registrar observações.
+        - prospector atribuído consegue alterar prioridade e registrar observações;
+        - interface principal de Prospecções separa claramente base completa e fila operacional.
 
 9. [ ] **Incluir imóveis manualmente fora da base capturada**
    9.1. [ ] Modelagem/API: permitir criação manual de imóvel selecionado sem dependência prévia de `vw_imoveis_prospeccao_latest`, preservando autoria e metadados mínimos.
@@ -298,8 +311,9 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 3. [ ] **Concluir acabamentos de UX já parcialmente prontos**
    - Foco atual da aplicação.
    - Revisar se o tooltip de observação atual está suficiente ou se precisa componente visual dedicado.
-   - Fechar colunas e ações finais da lista de selecionados.
-   - Refinar visual e legibilidade dos elementos operacionais principais.
+   - Refinar somente os pontos finos ainda abertos na página principal.
+   - Avaliar se a aba `Base completa` ainda pede mais acabamento visual em relação à aba de selecionados.
+   - Decidir se o tooltip de observação atual será mantido como solução final ou trocado por componente visual dedicado.
 
 4. [ ] **Validar operação e qualidade**
    - Decisão atual: adiar para depois da rodada de UX e da inclusão manual.

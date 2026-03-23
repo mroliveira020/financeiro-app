@@ -10,16 +10,16 @@
   --prospects-danger: #d63b52;
   display: flex;
   flex-direction: column;
-  gap: 22px;
-  padding: 10px;
+  gap: 18px;
+  padding: 8px;
 }
 
 .prospects-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  padding: 26px 30px;
+  gap: 16px;
+  padding: 22px 26px;
   background:
     radial-gradient(circle at top right, rgba(24, 73, 169, 0.08), transparent 26%),
     linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
@@ -30,8 +30,8 @@
 
 .prospects-hero {
   margin: 2px 0;
-  font-size: 40px;
-  line-height: 1.02;
+  font-size: 32px;
+  line-height: 1.08;
   font-weight: 800;
   letter-spacing: -0.04em;
   color: var(--prospects-ink);
@@ -49,14 +49,14 @@
 .prospects-subtitle {
   margin: 0;
   color: var(--prospects-muted);
-  font-size: 16px;
+  font-size: 15px;
   max-width: 760px;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .prospects-header-summary {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: stretch;
   flex-wrap: wrap;
 }
@@ -108,7 +108,7 @@
   background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
   border: 1px solid var(--prospects-line);
   border-radius: 22px;
-  padding: 18px;
+  padding: 16px;
   box-shadow: 0 16px 30px rgba(15, 23, 42, 0.05);
 }
 
@@ -116,8 +116,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .prospects-card__header--stacked {
@@ -127,14 +127,14 @@
 .prospects-card__header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .prospects-title {
   margin: 0;
-  font-size: 28px;
-  line-height: 1.05;
+  font-size: 23px;
+  line-height: 1.12;
   letter-spacing: -0.03em;
   color: var(--prospects-ink);
 }
@@ -147,10 +147,10 @@
 .prospects-pill {
   background: #edf3ff;
   color: var(--prospects-brand);
-  padding: 8px 14px;
+  padding: 7px 12px;
   border-radius: 999px;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .prospects-pill--muted {
@@ -162,8 +162,8 @@
   min-width: 138px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px;
+  gap: 4px;
+  padding: 12px 14px;
   border-radius: 18px;
   border: 1px solid var(--prospects-line);
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
@@ -178,7 +178,7 @@
 }
 
 .prospects-stat-card strong {
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1;
   letter-spacing: -0.04em;
   color: var(--prospects-ink);
@@ -187,8 +187,8 @@
 .prospects-tabs {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px;
+  gap: 6px;
+  padding: 5px;
   width: fit-content;
   border: 1px solid var(--prospects-line);
   border-radius: 18px;
@@ -201,8 +201,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 10px 14px;
   border: 0;
   border-radius: 14px;
   background: transparent;
@@ -213,7 +213,7 @@
 }
 
 .prospects-tab span {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .prospects-tab strong {
@@ -233,14 +233,14 @@
 }
 
 .prospects-card--command {
-  padding: 20px 22px;
+  padding: 18px 20px;
 }
 
 .prospects-toolbar {
   display: grid;
   grid-template-columns: minmax(250px, 1.5fr) repeat(5, minmax(150px, 1fr)) auto;
-  gap: 12px;
-  padding: 14px;
+  gap: 10px;
+  padding: 12px;
   border: 1px solid var(--prospects-line);
   border-radius: 18px;
   background:
@@ -250,7 +250,7 @@
 .prospects-toolbar-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .prospects-toolbar-field span {
@@ -264,11 +264,11 @@
 .prospects-toolbar-field input,
 .prospects-toolbar-field select {
   width: 100%;
-  min-height: 46px;
+  min-height: 42px;
   border-radius: 14px;
   border: 1px solid #ced8e7;
   background: #fff;
-  padding: 0 14px;
+  padding: 0 12px;
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -296,13 +296,13 @@
 .prospects-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
   min-width: 1360px;
 }
 
 .prospects-table th,
 .prospects-table td {
-  padding: 16px 12px;
+  padding: 14px 12px;
   border-bottom: 1px solid #eef2f7;
   text-align: left;
   vertical-align: top;
@@ -841,6 +841,12 @@
 .prospects-inline-pill--selected {
   background: #e6f4ea;
   color: #1f7a4d;
+}
+
+.prospects-inline-pill--author {
+  background: #eaf1ff;
+  color: #36518c;
+  border: 1px solid #d5e2ff;
 }
 
 .prospects-people-list {
