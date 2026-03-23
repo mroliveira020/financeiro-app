@@ -9,6 +9,8 @@ import {
   fetchProspecMeta,
   fetchAnaliseSelecionado,
   salvarAnaliseSelecionado,
+  fetchResponsaveisDisponiveis,
+  salvarResponsaveisSelecionado,
 } from "../services/prospeccoes";
 import { useAuth } from "../context/AuthContext";
 
@@ -317,11 +319,14 @@ function TabelaSelecionados({
   onAtualizarPrioridade,
   onEditarObservacoes,
   onAbrirAnalise,
+  onEditarResponsaveis,
   removeLoadingIds,
   updateLoadingIds,
   sortDir,
   onToggleSort,
   canDeleteItem,
+  canOperateItem,
+  canManageResponsaveis,
   collapsed,
   onToggleCollapse,
 }) {
@@ -355,6 +360,7 @@ function TabelaSelecionados({
               <th>Cidade</th>
               <th>UF</th>
               <th>Selecionado por</th>
+              <th>Responsáveis</th>
               <th
                 className="prospects-sortable"
                 role="button"
@@ -386,6 +392,7 @@ function TabelaSelecionados({
                 <td>{item.cidade}</td>
                 <td>{item.uf}</td>
                 <td>{item.createdByName || "—"}</td>
+                <td>{item.responsaveis?.length ? item.responsaveis.map((responsavel) => responsavel.name || responsavel.email).join(", ") : "—"}</td>
                 <td>{formatarDataHora(item.dataLeilao)}</td>
                 <td>{formatarMoeda(item.valorMaximo)}</td>
                 <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>
@@ -393,7 +400,8 @@ function TabelaSelecionados({
                   <select
                     className="prospects-priority-select"
                     value={Number(item.prioridade || 2)}
-                    disabled={updateLoadingIds.has(`${item.codigo}:prioridade`)}
+                    title={canOperateItem(item) ? "Editar prioridade" : "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"}
+                    disabled={updateLoadingIds.has(`${item.codigo}:prioridade`) || !canOperateItem(item)}
                     onChange={(e) => onAtualizarPrioridade(item, Number(e.target.value))}
                   >
                     {PRIORIDADE_OPTIONS.map((option) => (
@@ -407,9 +415,13 @@ function TabelaSelecionados({
                   <button
                     type="button"
                     className={`prospects-note-btn ${item.observacoes ? "has-note" : ""}`}
-                    title={item.observacoes || "Nenhuma observação cadastrada."}
+                    title={
+                      !canOperateItem(item)
+                        ? "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"
+                        : item.observacoes || "Nenhuma observação cadastrada."
+                    }
                     onClick={() => onEditarObservacoes(item)}
-                    disabled={updateLoadingIds.has(`${item.codigo}:observacoes`)}
+                    disabled={updateLoadingIds.has(`${item.codigo}:observacoes`) || !canOperateItem(item)}
                   >
                     {item.observacoes ? "Abrir nota" : "Adicionar"}
                   </button>
@@ -420,8 +432,9 @@ function TabelaSelecionados({
                     <button
                       type="button"
                       className={`prospects-icon-btn prospects-icon-btn--analysis ${item.analiseSalva ? "has-roi" : ""}`}
-                      title="Abrir ficha de viabilidade"
+                      title={canOperateItem(item) ? "Abrir ficha de viabilidade" : "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"}
                       onClick={() => onAbrirAnalise(item)}
+                      disabled={!canOperateItem(item)}
                     >
                       <span>Análise</span>
                       {item.analiseSalva && item.roiEsperadoPercentual !== null && item.roiEsperadoPercentual !== undefined ? (
@@ -430,6 +443,16 @@ function TabelaSelecionados({
                         <small>Nova</small>
                       )}
                     </button>
+                    {canManageResponsaveis ? (
+                      <button
+                        type="button"
+                        className="prospects-icon-btn"
+                        title="Definir responsáveis"
+                        onClick={() => onEditarResponsaveis(item)}
+                      >
+                        {item.responsaveis?.length ? "Responsáveis" : "Atribuir"}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="prospects-icon-btn danger"
@@ -447,6 +470,61 @@ function TabelaSelecionados({
         </table>
       </div>
       )}
+    </div>
+  );
+}
+
+function ResponsaveisModal({
+  item,
+  responsaveisDisponiveis,
+  selectedIds,
+  saving,
+  onToggle,
+  onCancel,
+  onSave,
+}) {
+  if (!item) return null;
+
+  return (
+    <div className="prospects-modal-backdrop" role="presentation">
+      <div className="prospects-modal" role="dialog" aria-modal="true" aria-labelledby="responsaveis-title">
+        <div className="prospects-modal__header">
+          <div>
+            <p className="prospects-eyebrow">Responsáveis</p>
+            <h3 id="responsaveis-title" className="prospects-modal__title">Imóvel {item.codigo}</h3>
+          </div>
+        </div>
+        <div className="prospects-modal__body">
+          <p className="prospects-modal__hint">
+            Selecione um ou mais prospectores que podem atuar neste imóvel.
+          </p>
+          {!responsaveisDisponiveis.length ? (
+            <p className="prospects-empty">Nenhum prospector ativo disponível para atribuição.</p>
+          ) : (
+            <div className="prospects-checklist">
+              {responsaveisDisponiveis.map((responsavel) => (
+                <label key={responsavel.id} className="prospects-check">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(responsavel.id)}
+                    onChange={() => onToggle(responsavel.id)}
+                    disabled={saving}
+                  />
+                  <span>{responsavel.name || responsavel.email} ({responsavel.email})</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="prospects-modal__footer">
+          <button type="button" className="prospects-btn secondary" onClick={onCancel} disabled={saving}>
+            Fechar
+          </button>
+          <button type="button" className="prospects-btn primary" onClick={onSave} disabled={saving}>
+            {saving ? "Salvando..." : "Salvar responsáveis"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -991,6 +1069,10 @@ export default function Prospeccoes() {
   const [analisePairModes, setAnalisePairModes] = useState(ANALISE_PAIR_MODE_DEFAULTS);
   const [analiseLoading, setAnaliseLoading] = useState(false);
   const [analiseSaving, setAnaliseSaving] = useState(false);
+  const [responsaveisDisponiveis, setResponsaveisDisponiveis] = useState([]);
+  const [responsaveisItem, setResponsaveisItem] = useState(null);
+  const [responsaveisDraftIds, setResponsaveisDraftIds] = useState([]);
+  const [responsaveisSaving, setResponsaveisSaving] = useState(false);
 
   useEffect(() => {
     const carregarSelecionados = async () => {
@@ -1047,6 +1129,16 @@ export default function Prospeccoes() {
       .then((resp) => setMeta(resp))
       .catch(() => setMeta({ ufs: [], modalidades: [], financia: [], cidades_por_uf: {} }));
   }, []);
+
+  useEffect(() => {
+    if (user?.role !== "admin") {
+      setResponsaveisDisponiveis([]);
+      return;
+    }
+    fetchResponsaveisDisponiveis()
+      .then((data) => setResponsaveisDisponiveis(data || []))
+      .catch(() => setResponsaveisDisponiveis([]));
+  }, [user]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1303,6 +1395,44 @@ export default function Prospeccoes() {
     }
   };
 
+  const canOperateItem = (item) => {
+    if (!user) return false;
+    if (user.role === "admin" || user.role === "editor") return true;
+    if (item?.createdBy && String(item.createdBy) === String(user.id)) return true;
+    return Boolean(item?.responsaveis?.some((responsavel) => String(responsavel.id) === String(user.id)));
+  };
+
+  const canManageResponsaveis = user?.role === "admin";
+
+  const openResponsaveisModal = (item) => {
+    setResponsaveisItem(item);
+    setResponsaveisDraftIds((item.responsaveis || []).map((responsavel) => responsavel.id));
+  };
+
+  const toggleResponsavelDraft = (userId) => {
+    setResponsaveisDraftIds((prev) => (
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    ));
+  };
+
+  const handleSalvarResponsaveis = async () => {
+    if (!responsaveisItem) return;
+    setResponsaveisSaving(true);
+    setMensagem("");
+    try {
+      await salvarResponsaveisSelecionado(responsaveisItem.codigo, responsaveisDraftIds);
+      setMensagem(`Responsáveis do imóvel ${responsaveisItem.codigo} atualizados.`);
+      await refreshSelecionados();
+      setResponsaveisItem(null);
+      setResponsaveisDraftIds([]);
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao salvar responsáveis");
+      setMensagem(message);
+    } finally {
+      setResponsaveisSaving(false);
+    }
+  };
+
   const selecionadosOrdenados = useMemo(() => {
     const parseDate = (value) => {
       if (!value) return null;
@@ -1481,11 +1611,14 @@ export default function Prospeccoes() {
         onAtualizarPrioridade={handleAtualizarPrioridade}
         onEditarObservacoes={openObservacoesModal}
         onAbrirAnalise={openAnaliseModal}
+        onEditarResponsaveis={openResponsaveisModal}
         removeLoadingIds={removeLoadingIds}
         updateLoadingIds={updateLoadingIds}
         sortDir={selectedSortDir}
         onToggleSort={() => setSelectedSortDir((prev) => (prev === "asc" ? "desc" : "asc"))}
         canDeleteItem={canDeleteItem}
+        canOperateItem={canOperateItem}
+        canManageResponsaveis={canManageResponsaveis}
         collapsed={selecionadosCollapsed}
         onToggleCollapse={() => setSelecionadosCollapsed((prev) => !prev)}
       />
@@ -1544,6 +1677,19 @@ export default function Prospeccoes() {
         onFieldBlur={handleAnaliseFieldBlur}
         onPairModeChange={handleAnalisePairModeChange}
         onSave={handleSalvarAnalise}
+      />
+
+      <ResponsaveisModal
+        item={responsaveisItem}
+        responsaveisDisponiveis={responsaveisDisponiveis}
+        selectedIds={responsaveisDraftIds}
+        saving={responsaveisSaving}
+        onToggle={toggleResponsavelDraft}
+        onCancel={() => {
+          setResponsaveisItem(null);
+          setResponsaveisDraftIds([]);
+        }}
+        onSave={handleSalvarResponsaveis}
       />
     </div>
   );

@@ -24,9 +24,12 @@ from models import (
     inserir_prospeccao_selecionado,
     excluir_prospeccao_selecionado,
     buscar_autoria_prospeccao_selecionado,
+    buscar_contexto_operacao_prospeccao_selecionado,
     listar_prospeccoes_meta,
     obter_analise_prospeccao_selecionado,
     salvar_analise_prospeccao_selecionado,
+    listar_prospectores_ativos,
+    salvar_responsaveis_prospeccao_selecionado,
 )
 from analytics import analytics_bp
 from gpt import gpt_bp
@@ -261,6 +264,20 @@ def get_prospeccoes_selecionados():
     return jsonify({"data": dados})
 
 
+def _usuario_pode_operar_prospeccao(contexto, current_user):
+    if not contexto or not current_user:
+        return False
+    role = current_user.get("role")
+    if role in {"admin", "editor"}:
+        return True
+    current_user_id = current_user.get("id")
+    if current_user_id is None:
+        return False
+    if contexto.get("created_by") == current_user_id:
+        return True
+    return current_user_id in set(contexto.get("responsavel_ids") or [])
+
+
 @app.route("/prospeccoes/selecionados", methods=["POST"])
 @requires_prospeccao_write
 @limiter.limit(RATE_LIMIT_EDIT)
@@ -270,6 +287,9 @@ def post_prospeccoes_selecionados():
     numero_bem = payload.get("numero_bem")
     if not numero_bem:
         return jsonify({"error": "numero_bem é obrigatório"}), 400
+    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
+    if contexto and contexto.get("ativo", True) and not _usuario_pode_operar_prospeccao(contexto, current_user):
+        return jsonify({"error": "Você não tem permissão para atualizar este imóvel selecionado."}), 403
     status = payload.get("status") or "candidato"
     valor_maximo = payload.get("valor_maximo")
     prioridade = payload.get("prioridade")
@@ -284,6 +304,15 @@ def post_prospeccoes_selecionados():
         created_by_name=current_user.get("name") or current_user.get("email"),
     )
     return jsonify(result), 201
+
+
+@app.route("/prospeccoes/responsaveis", methods=["GET"])
+@requires_auth
+def get_prospeccoes_responsaveis():
+    current_user = get_current_user() or {}
+    if current_user.get("role") != "admin":
+        return jsonify({"error": "Apenas administradores podem gerenciar responsáveis."}), 403
+    return jsonify({"data": listar_prospectores_ativos()}), 200
 
 
 @app.route("/prospeccoes/selecionados/<numero_bem>", methods=["DELETE"])
@@ -340,12 +369,40 @@ def put_prospeccao_selecionado_analise(numero_bem):
 
     payload = request.get_json(force=True, silent=True) or {}
     current_user = get_current_user() or {}
+    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
+    if not contexto:
+        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    if not _usuario_pode_operar_prospeccao(contexto, current_user):
+        return jsonify({"error": "Você não tem permissão para editar a análise deste imóvel."}), 403
     result = salvar_analise_prospeccao_selecionado(
         numero_bem,
         payload,
         current_user_id=current_user.get("id"),
         current_user_name=current_user.get("name") or current_user.get("email"),
     )
+    if not result:
+        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    return jsonify(result), 200
+
+
+@app.route("/prospeccoes/selecionados/<numero_bem>/responsaveis", methods=["PUT"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def put_prospeccoes_selecionados_responsaveis(numero_bem):
+    current_user = get_current_user() or {}
+    if current_user.get("role") != "admin":
+        return jsonify({"error": "Apenas administradores podem atribuir responsáveis."}), 403
+    payload = request.get_json(force=True, silent=True) or {}
+    user_ids = payload.get("user_ids") or []
+    try:
+        result = salvar_responsaveis_prospeccao_selecionado(
+            numero_bem,
+            user_ids,
+            assigned_by=current_user.get("id"),
+            assigned_by_name=current_user.get("name") or current_user.get("email"),
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     if not result:
         return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
     return jsonify(result), 200

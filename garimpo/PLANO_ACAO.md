@@ -124,27 +124,27 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - lista exibe com clareza quem foi o autor da seleção;
         - confirmação de exclusão é compreensível e sem ambiguidade para o usuário.
 
-5. [ ] **Implementar atribuição de imóveis para prospectores**
-   5.1. [ ] Modelagem: criar vínculo de responsáveis (`imoveis_selecionados_responsaveis`) permitindo um ou mais prospectores por imóvel selecionado.
-   5.2. [ ] Backend: permitir que `admin` atribua e remova prospectores responsáveis por imóvel.
-   5.3. [ ] Backend: definir regra de acesso operacional:
+5. [x] **Implementar atribuição de imóveis para prospectores**
+   5.1. [x] Modelagem: criar vínculo de responsáveis (`imoveis_selecionados_responsaveis`) permitindo um ou mais prospectores por imóvel selecionado.
+   5.2. [x] Backend: permitir que `admin` atribua e remova prospectores responsáveis por imóvel.
+   5.3. [x] Backend: definir regra de acesso operacional:
         - `admin`: vê e gerencia todos os selecionados;
         - autor da inclusão: pode excluir o imóvel que criou;
         - prospector atribuído: pode atuar no imóvel (prioridade/observações), sem poder excluir se não for o autor;
-        - usuário não atribuído: pode ter leitura restrita ou sem ações, conforme política a ser fechada.
-   5.4. [ ] Frontend: adicionar seletor de responsáveis na tela de selecionados (somente `admin`) e exibir responsáveis associados por imóvel.
+        - usuário não atribuído: mantém leitura, mas sem ações operacionais.
+   5.4. [x] Frontend: adicionar seletor de responsáveis na tela de selecionados (somente `admin`) e exibir responsáveis associados por imóvel.
 
 6. [ ] **Consolidar observações operacionais**
    6.1. [x] Modelagem: separar observação atual de trilha histórica técnica (`imoveis_selecionados_observacoes`) para preservar rastreabilidade sem poluir a operação.
    6.2. [x] Backend: manter `observacao_atual` na listagem principal e registrar atualizações com autoria.
    6.3. [x] Frontend: permitir editar a observação atual em modal simples, com bastante espaço de digitação e sem duplicidade de ações.
+   6.3.1. [x] Decisão de produto: manter o link do Google Maps acoplado ao modal de observações, como apoio operacional da nota atual, e não à ficha de análise.
    6.4. [ ] UX: exibir observação atual em tooltip/hover na tabela para reduzir ruído visual, sem necessidade de histórico visível na rotina operacional.
    6.5. [ ] Opcional futuro: abrir histórico completo apenas em tela/modal secundário administrativo, se houver necessidade real.
 
 7. [ ] **Adicionar ficha de análise e viabilidade do imóvel selecionado**
    7.1. [x] Modelagem: criar estrutura persistente para análise do selecionado, vinculada a `imoveis_selecionados.numero_bem`, preservando autoria e `updated_at`.
    7.2. [ ] Modelagem: incluir campos manuais de entrada:
-        - link do Google Maps
         - valor base da operação
         - tempo da operação em meses (default `12`)
         - reforma
@@ -227,7 +227,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - custo do financiamento no período respeita o tempo da operação e a prestação mensal informada;
         - nada é persistido antes do clique em `Salvar`;
         - ao salvar, os valores reaparecem idênticos ao recarregar a página;
-        - link do Google Maps fica acessível a partir do imóvel selecionado.
+        - link do Google Maps fica acessível a partir do modal de observações do imóvel selecionado.
 
 8. [ ] **Revisar a experiência da lista de selecionados**
    8.1. [x] Backend: manter retorno de `data_leilao` considerando a maior data disponível entre `data_leilao_1`, `data_leilao_2` e `data_hora_encerramento`.
@@ -269,6 +269,31 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 
 11. [ ] **Backlog administrativo**
    11.1. [ ] Criar visão administrativa de selecionados inativos, com opção de reativação manual sem depender de nova inclusão via base capturada.
+
+## Próximos Passos Objetivos
+1. [x] **Fechar atribuição de responsáveis**
+   - Modelar `imoveis_selecionados_responsaveis`.
+   - Criar rotas para atribuir/remover prospectores por imóvel.
+   - Exibir responsáveis na lista de selecionados e liberar edição operacional para atribuídos.
+
+2. [ ] **Fechar inclusão manual de imóveis**
+   - Permitir criação de selecionado sem dependência de `vw_imoveis_prospeccao_latest`.
+   - Criar fluxo frontend com campos mínimos operacionais.
+   - Identificar claramente origem manual vs. capturada.
+
+3. [ ] **Concluir acabamentos de UX já parcialmente prontos**
+   - Revisar se o tooltip de observação atual está suficiente ou se precisa componente visual dedicado.
+   - Refinar distinção visual entre campos digitáveis e calculados na ficha de análise.
+   - Confirmar se a ação de prioridade no ato da seleção precisa modal/etapa explícita.
+
+4. [ ] **Validar operação e qualidade**
+   - Validar amostra real no painel do Supabase.
+   - Validar execução local do garimpo com `.env`.
+   - Implementar testes backend/frontend das rotas e fluxos de Prospecções.
+
+5. [ ] **Fechar documentação operacional**
+   - Atualizar README/docs com matriz de permissões, autoria, responsáveis, inclusão manual e fluxo de observações/análise.
+   - Registrar runbook de incidente para segredos e rotação de chave.
 
 ## Segurança Operacional
 1. [x] Rotacionar chaves do Supabase após exposição acidental em arquivo `.env`.

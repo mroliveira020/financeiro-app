@@ -95,6 +95,12 @@ export async function fetchSelecionados({ status, uf } = {}) {
     prioridade: item.prioridade,
     createdBy: item.created_by,
     createdByName: item.created_by_name,
+    responsaveis: (item.responsaveis || []).map((responsavel) => ({
+      id: responsavel.id,
+      name: responsavel.name,
+      email: responsavel.email,
+      role: responsavel.role,
+    })),
     cidade: item.cidade,
     uf: item.uf,
     valor: item.valor_venda ?? item.valor_avaliacao,
@@ -114,6 +120,23 @@ export async function fetchSelecionados({ status, uf } = {}) {
     roiEsperadoPercentual: item.roi_esperado_percentual,
     lucroEsperadoValor: item.lucro_esperado_valor,
   }));
+}
+
+export async function fetchResponsaveisDisponiveis() {
+  const { data } = await api.get("/prospeccoes/responsaveis");
+  return (data?.data || []).map((item) => ({
+    id: item.id,
+    name: item.name,
+    email: item.email,
+    role: item.role,
+  }));
+}
+
+export async function salvarResponsaveisSelecionado(numeroBem, userIds) {
+  const { data } = await api.put(`/prospeccoes/selecionados/${numeroBem}/responsaveis`, {
+    user_ids: userIds,
+  });
+  return data;
 }
 
 export async function adicionarSelecionado(payload) {

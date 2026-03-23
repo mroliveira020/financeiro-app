@@ -460,6 +460,32 @@ def _garantir_tabela_prospeccao_analise():
         conn.close()
 
 
+def _garantir_tabela_prospeccao_responsaveis():
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS imoveis_selecionados_responsaveis (
+                numero_bem TEXT NOT NULL REFERENCES imoveis_selecionados(numero_bem) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                assigned_by INTEGER NULL,
+                assigned_by_name TEXT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                PRIMARY KEY (numero_bem, user_id)
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_imoveis_sel_resp_numero_bem
+            ON imoveis_selecionados_responsaveis (numero_bem, created_at DESC)
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def listar_usuarios() -> list[dict]:
     _garantir_tabela_usuarios()
     conn, cur = conectar()
@@ -1900,6 +1926,7 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
     _garantir_colunas_prospeccao_autoria()
     _garantir_tabela_prospeccao_observacoes()
     _garantir_tabela_prospeccao_analise()
+    _garantir_tabela_prospeccao_responsaveis()
     conn, cur = conectar()
     base_query = """
         SELECT
@@ -1981,6 +2008,7 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
 
     numeros_bem = [row[0] for row in rows if row[0]]
     historico_por_imovel = {}
+    responsaveis_por_imovel = {}
     if numeros_bem:
         cur.execute(
             """
@@ -2005,6 +2033,30 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
                 "created_by": created_by,
                 "created_by_name": created_by_name,
                 "created_at": created_at.isoformat() if created_at else None,
+            })
+        cur.execute(
+            """
+            SELECT
+                r.numero_bem,
+                r.user_id,
+                COALESCE(NULLIF(u.name, ''), u.email) AS user_name,
+                u.email,
+                u.role
+            FROM imoveis_selecionados_responsaveis r
+            JOIN users u
+              ON u.id = r.user_id
+            WHERE r.numero_bem = ANY(%s)
+              AND COALESCE(u.is_active, TRUE) = TRUE
+            ORDER BY COALESCE(NULLIF(u.name, ''), u.email), u.email
+            """,
+            (numeros_bem,),
+        )
+        for numero_bem, user_id, user_name, email, role in cur.fetchall():
+            responsaveis_por_imovel.setdefault(numero_bem, []).append({
+                "id": user_id,
+                "name": user_name,
+                "email": email,
+                "role": role,
             })
     conn.close()
 
@@ -2047,6 +2099,7 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             "observacoes_historico": historico_por_imovel.get(row["numero_bem"], []),
             "created_by": row["created_by"],
             "created_by_name": row["created_by_name"],
+            "responsaveis": responsaveis_por_imovel.get(row["numero_bem"], []),
             "cidade": row["cidade"],
             "uf": row["uf"],
             "valor_venda": float(row["valor_venda"]) if row["valor_venda"] is not None else None,
@@ -2561,6 +2614,43 @@ def inserir_prospeccao_selecionado(
     return {"message": "Imóvel adicionado/atualizado em selecionados", "numero_bem": numero_bem}
 
 
+def buscar_contexto_operacao_prospeccao_selecionado(numero_bem):
+    _garantir_tabela_prospeccao_responsaveis()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT numero_bem, created_by, created_by_name, COALESCE(ativo, TRUE) AS ativo
+            FROM imoveis_selecionados
+            WHERE numero_bem = %s
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+
+        cur.execute(
+            """
+            SELECT user_id
+            FROM imoveis_selecionados_responsaveis
+            WHERE numero_bem = %s
+            """,
+            (numero_bem,),
+        )
+        responsavel_ids = [item[0] for item in cur.fetchall()]
+        return {
+            "numero_bem": row[0],
+            "created_by": row[1],
+            "created_by_name": row[2],
+            "ativo": row[3],
+            "responsavel_ids": responsavel_ids,
+        }
+    finally:
+        conn.close()
+
+
 def buscar_autoria_prospeccao_selecionado(numero_bem):
     conn, cur = conectar()
     try:
@@ -2584,6 +2674,114 @@ def buscar_autoria_prospeccao_selecionado(numero_bem):
         }
     finally:
         conn.close()
+
+
+def listar_prospectores_ativos():
+    _garantir_tabela_prospeccao_responsaveis()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT id, name, email, role
+            FROM users
+            WHERE COALESCE(is_active, TRUE) = TRUE
+              AND role = 'prospector'
+            ORDER BY COALESCE(NULLIF(name, ''), email), email
+            """
+        )
+        rows = cur.fetchall()
+        return [
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "email": row["email"],
+                "role": row["role"],
+            }
+            for row in rows
+        ]
+    finally:
+        conn.close()
+
+
+def salvar_responsaveis_prospeccao_selecionado(
+    numero_bem,
+    user_ids,
+    assigned_by=None,
+    assigned_by_name=None,
+):
+    _garantir_tabela_prospeccao_responsaveis()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT numero_bem
+            FROM imoveis_selecionados
+            WHERE numero_bem = %s
+              AND COALESCE(ativo, TRUE) = TRUE
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        if not cur.fetchone():
+            return None
+
+        normalized_ids = []
+        for raw_id in user_ids or []:
+            try:
+                user_id = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            if user_id not in normalized_ids:
+                normalized_ids.append(user_id)
+
+        if normalized_ids:
+            cur.execute(
+                """
+                SELECT id
+                FROM users
+                WHERE id = ANY(%s)
+                  AND COALESCE(is_active, TRUE) = TRUE
+                  AND role = 'prospector'
+                """,
+                (normalized_ids,),
+            )
+            valid_ids = {row[0] for row in cur.fetchall()}
+            invalid_ids = [user_id for user_id in normalized_ids if user_id not in valid_ids]
+            if invalid_ids:
+                raise ValueError("Há responsáveis inválidos ou inativos na seleção.")
+        else:
+            valid_ids = set()
+
+        cur.execute(
+            "DELETE FROM imoveis_selecionados_responsaveis WHERE numero_bem = %s",
+            (numero_bem,),
+        )
+
+        for user_id in normalized_ids:
+            if user_id not in valid_ids:
+                continue
+            cur.execute(
+                """
+                INSERT INTO imoveis_selecionados_responsaveis (
+                    numero_bem,
+                    user_id,
+                    assigned_by,
+                    assigned_by_name
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                (numero_bem, user_id, assigned_by, assigned_by_name),
+            )
+
+        conn.commit()
+    finally:
+        conn.close()
+
+    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem) or {}
+    return {
+        "numero_bem": numero_bem,
+        "responsavel_ids": contexto.get("responsavel_ids", []),
+    }
 
 
 def excluir_prospeccao_selecionado(numero_bem, inativado_por=None, inativado_por_name=None):
