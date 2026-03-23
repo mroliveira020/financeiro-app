@@ -30,8 +30,8 @@
 
 .prospects-hero {
   margin: 2px 0;
-  font-size: 32px;
-  line-height: 1.08;
+  font-size: 26px;
+  line-height: 1.12;
   font-weight: 800;
   letter-spacing: -0.04em;
   color: var(--prospects-ink);
@@ -49,9 +49,9 @@
 .prospects-subtitle {
   margin: 0;
   color: var(--prospects-muted);
-  font-size: 15px;
+  font-size: 12px;
   max-width: 760px;
-  line-height: 1.45;
+  line-height: 1.35;
 }
 
 .prospects-header-summary {
@@ -133,24 +133,25 @@
 
 .prospects-title {
   margin: 0;
-  font-size: 23px;
-  line-height: 1.12;
+  font-size: 18px;
+  line-height: 1.15;
   letter-spacing: -0.03em;
   color: var(--prospects-ink);
 }
 
 .prospects-subtitle--compact {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .prospects-pill {
   background: #edf3ff;
   color: var(--prospects-brand);
-  padding: 7px 12px;
+  padding: 6px 10px;
   border-radius: 999px;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .prospects-pill--muted {
@@ -200,7 +201,7 @@
 }
 
 .prospects-stat-card span {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 700;
@@ -208,7 +209,7 @@
 }
 
 .prospects-stat-card strong {
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1;
   letter-spacing: -0.04em;
   color: var(--prospects-ink);
@@ -243,7 +244,7 @@
 }
 
 .prospects-tab span {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .prospects-tab strong {
@@ -253,7 +254,7 @@
   background: rgba(15, 23, 42, 0.06);
   color: inherit;
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .prospects-tab.is-active {
@@ -469,16 +470,17 @@
   background: #f8fafc;
 }
 
-.prospects-table-icon-btn--analysis.is-excellent {
-  color: #0f766e;
-  background: #e9fbf6;
-  border-color: #b9f0e1;
+.prospects-table-icon-btn--analysis.is-best {
+  color: #1849a9;
+  background: linear-gradient(180deg, #eef4ff 0%, #dfe9ff 100%);
+  border-color: #9bb8ff;
+  box-shadow: 0 10px 22px rgba(24, 73, 169, 0.18);
 }
 
 .prospects-table-icon-btn--analysis.is-good {
-  color: #1d4ed8;
-  background: #edf4ff;
-  border-color: #bfd3ff;
+  color: #0f766e;
+  background: #e9fbf6;
+  border-color: #b9f0e1;
 }
 
 .prospects-table-icon-btn--analysis.is-caution {

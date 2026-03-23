@@ -120,7 +120,7 @@ function EyeIcon({ closed = false }) {
 function obterClasseRoi(roi) {
   const valor = Number(roi);
   if (!Number.isFinite(valor)) return "is-neutral";
-  if (valor >= 40) return "is-excellent";
+  if (valor >= 40) return "is-best";
   if (valor >= 20) return "is-good";
   if (valor > 0) return "is-caution";
   return "is-risk";
@@ -453,7 +453,6 @@ function TabelaSelecionados({
               <th>Valor máximo</th>
               <th>Valor referência</th>
               <th>Prioridade</th>
-              <th>Observações</th>
               <th>Descrição</th>
               <th>Ações</th>
             </tr>
@@ -542,27 +541,25 @@ function TabelaSelecionados({
                   </select>
                 </td>
                 <td>
-                  <button
-                    type="button"
-                    className={`prospects-table-icon-btn prospects-table-icon-btn--note ${item.observacoes ? "has-note" : "is-empty"}`}
-                    title={
-                      !canOperateItem(item)
-                        ? "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"
-                        : item.observacoes || "Nenhuma observação cadastrada."
-                    }
-                    onClick={() => onEditarObservacoes(item)}
-                    disabled={updateLoadingIds.has(`${item.codigo}:observacoes`) || !canOperateItem(item)}
-                  >
-                    <NoteIcon />
-                  </button>
-                </td>
-                <td>
                   <div className="prospects-description-cell" title={item.descricao || "—"}>
                     {item.descricao || "—"}
                   </div>
                 </td>
                 <td>
                   <div className="prospects-row-actions">
+                    <button
+                      type="button"
+                      className={`prospects-table-icon-btn prospects-table-icon-btn--note ${item.observacoes ? "has-note" : "is-empty"}`}
+                      title={
+                        !canOperateItem(item)
+                          ? "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"
+                          : item.observacoes || "Nenhuma observação cadastrada."
+                      }
+                      onClick={() => onEditarObservacoes(item)}
+                      disabled={updateLoadingIds.has(`${item.codigo}:observacoes`) || !canOperateItem(item)}
+                    >
+                      <NoteIcon />
+                    </button>
                     <button
                       type="button"
                       className={`prospects-table-icon-btn prospects-table-icon-btn--analysis ${item.analiseSalva ? obterClasseRoi(item.roiEsperadoPercentual) : "is-neutral"}`}
