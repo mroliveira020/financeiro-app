@@ -440,7 +440,7 @@ function TabelaSelecionados({
       <div className="prospects-card__header">
         <div>
           <p className="prospects-eyebrow">Fila de decisão</p>
-          <h2 className="prospects-title">Selecionados</h2>
+          <h2 className="prospects-title">Itens da fila</h2>
           <p className="prospects-subtitle prospects-subtitle--compact">
             {sortLabel}
           </p>
@@ -459,7 +459,7 @@ function TabelaSelecionados({
           </button>
         </div>
       </div>
-      {!dados.length && <p className="prospects-empty">Nenhum selecionado encontrado.</p>}
+      {!dados.length && <p className="prospects-empty">Nenhum item da fila encontrado.</p>}
       {!dados.length || collapsed ? null : (
       <div className="prospects-table-wrap">
         <table className="prospects-table">
@@ -1777,7 +1777,7 @@ export default function Prospeccoes() {
     setTopbarContent(
       <div className="prospects-header-summary prospects-header-summary--topbar">
         <div className="prospects-stat-card">
-          <span>Selecionados</span>
+          <span>Na fila</span>
           <strong>{selecionados.length}</strong>
         </div>
         <div className="prospects-stat-card">
@@ -1825,14 +1825,14 @@ export default function Prospeccoes() {
           <section className="prospects-card prospects-card--command">
             <div className="prospects-card__header prospects-card__header--stacked">
               <div>
-                <p className="prospects-eyebrow">Fila operacional</p>
-                <h2 className="prospects-title">Selecionados</h2>
+                <p className="prospects-eyebrow">Filtros da fila</p>
+                <h2 className="prospects-title">Explorar fila</h2>
                 <p className="prospects-subtitle prospects-subtitle--compact">
-                  Filtre e ordene a fila para chegar mais rápido aos imóveis que pedem ação.
+                  Refine a visão operacional por busca, usuário, prioridade e ordenação.
                 </p>
               </div>
               <div className="prospects-card__header-actions">
-                <span className="prospects-pill">{selecionadosFiltradosOrdenados.length} visíveis</span>
+                <span className="prospects-pill">{selecionadosFiltradosOrdenados.length} na visão</span>
                 <span className="prospects-pill prospects-pill--muted">{selectedMetrics.comAnalise} com análise</span>
               </div>
             </div>
@@ -1904,7 +1904,7 @@ export default function Prospeccoes() {
               <div className="prospects-toolbar-actions">
                 <button
                   type="button"
-                  className="prospects-btn secondary"
+                  className="prospects-btn tertiary prospects-btn--toolbar"
                   onClick={() => {
                     setSelectedSearch("");
                     setSelectedUfFilter("todos");
