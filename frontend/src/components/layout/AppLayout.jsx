@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import EditorBar from "../EditorBar";
 import { useAuth } from "../../context/AuthContext";
@@ -45,6 +45,7 @@ function SidebarLink({ to, icon, label }) {
 export default function AppLayout() {
   const { user } = useAuth();
   const location = useLocation();
+  const [topbarContent, setTopbarContent] = useState(null);
   const isProspector = user?.role === "prospector";
   const isAdmin = user?.role === "admin";
   const isProspeccoesPage = location.pathname.startsWith("/prospeccoes");
@@ -69,15 +70,16 @@ export default function AppLayout() {
       <div className="app-shell__content">
         <header className="app-shell__topbar">
           <div className="app-shell__headline">
-            <div>
+            <div className="app-shell__headline-copy">
               <h1 className="app-shell__title">{pageTitle}</h1>
               <p className="app-shell__subtitle mb-0">{pageSubtitle}</p>
             </div>
+            {topbarContent ? <div className="app-shell__headline-extra">{topbarContent}</div> : null}
           </div>
           <EditorBar className="app-shell__session" />
         </header>
         <main className="app-shell__main">
-          <Outlet />
+          <Outlet context={{ setTopbarContent }} />
         </main>
       </div>
     </div>

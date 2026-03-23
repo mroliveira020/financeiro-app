@@ -1,4 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import "./Prospeccoes.css";
 
 import {
@@ -88,10 +89,9 @@ function PriorityIcon({ level = 2 }) {
   const activeLevel = Number(level) || 2;
   return (
     <IconBase label={`Prioridade ${activeLevel}`}>
-      <path d="M5 20h14" />
-      <rect x="6.5" y="13" width="3" height="5.5" rx="1.2" fill="currentColor" stroke="none" opacity={activeLevel >= 1 ? "1" : "0.22"} />
-      <rect x="10.5" y="9.5" width="3" height="9" rx="1.2" fill="currentColor" stroke="none" opacity={activeLevel >= 2 ? "1" : "0.22"} />
-      <rect x="14.5" y="6" width="3" height="12.5" rx="1.2" fill="currentColor" stroke="none" opacity={activeLevel >= 3 ? "1" : "0.22"} />
+      <path d="m6.5 16 3-3 3 3" opacity={activeLevel >= 1 ? "1" : "0.24"} />
+      <path d="m9.5 12.5 2.5-2.5 2.5 2.5" opacity={activeLevel >= 2 ? "1" : "0.24"} />
+      <path d="m12 9.5 2-2 2 2" opacity={activeLevel >= 3 ? "1" : "0.24"} />
     </IconBase>
   );
 }
@@ -419,10 +419,10 @@ function TabelaSelecionados({
   loading,
   erro,
   onExcluir,
-  onAtualizarPrioridade,
   onEditarObservacoes,
   onAbrirAnalise,
   onEditarResponsaveis,
+  onEditarPrioridade,
   removeLoadingIds,
   updateLoadingIds,
   canDeleteItem,
@@ -507,9 +507,9 @@ function TabelaSelecionados({
                       title={
                         !canOperateItem(item)
                           ? `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Somente admin, editor, autor ou responsável atribuído podem editar este imóvel`
-                          : `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Clique para alternar`
+                          : `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Clique para editar`
                       }
-                      onClick={() => onAtualizarPrioridade(item, Number(item.prioridade || 2) >= 3 ? 1 : Number(item.prioridade || 2) + 1)}
+                      onClick={() => onEditarPrioridade(item)}
                       disabled={updateLoadingIds.has(`${item.codigo}:prioridade`) || !canOperateItem(item)}
                     >
                       <PriorityIcon level={Number(item.prioridade || 2)} />
@@ -985,6 +985,51 @@ function ObservacoesModal({ item, value, mapLink, loading, onChange, onMapLinkCh
   );
 }
 
+function PrioridadeModal({ item, loading, onCancel, onSelect }) {
+  if (!item) return null;
+
+  return (
+    <div className="prospects-modal-backdrop" role="presentation">
+      <div className="prospects-modal prospects-modal--compact" role="dialog" aria-modal="true" aria-labelledby="prioridade-title">
+        <div className="prospects-modal__header">
+          <div>
+            <p className="prospects-eyebrow">Prioridade</p>
+            <h3 id="prioridade-title" className="prospects-modal__title">Imóvel {item.codigo}</h3>
+          </div>
+        </div>
+        <div className="prospects-modal__body">
+          <p className="prospects-modal__hint">
+            Escolha a prioridade operacional deste imóvel.
+          </p>
+          <div className="prospects-priority-options">
+            {PRIORIDADE_OPTIONS.map((option) => {
+              const isActive = Number(item.prioridade || 2) === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`prospects-priority-option ${isActive ? "is-active" : ""}`}
+                  onClick={() => onSelect(option.value)}
+                  disabled={loading}
+                >
+                  <span className={`prospects-priority-dot prospects-priority-dot--${option.cls}`} />
+                  <strong>{option.label}</strong>
+                  <small>{isActive ? "Atual" : "Selecionar"}</small>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="prospects-modal__footer">
+          <button type="button" className="prospects-btn secondary" onClick={onCancel} disabled={loading}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TabelaCapturados({
   dados,
   total,
@@ -1153,6 +1198,8 @@ function TabelaCapturados({
 }
 
 export default function Prospeccoes() {
+  const outletContext = useOutletContext() || {};
+  const setTopbarContent = outletContext.setTopbarContent;
   const { user } = useAuth();
   const [selecionados, setSelecionados] = useState([]);
   const [capturados, setCapturados] = useState([]);
@@ -1189,6 +1236,7 @@ export default function Prospeccoes() {
     return window.localStorage.getItem("prospeccoes_selecionados_collapsed") === "1";
   });
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(null);
+  const [prioridadeItem, setPrioridadeItem] = useState(null);
   const [observacaoItem, setObservacaoItem] = useState(null);
   const [observacaoDraft, setObservacaoDraft] = useState("");
   const [observacaoMapLink, setObservacaoMapLink] = useState("");
@@ -1417,6 +1465,7 @@ export default function Prospeccoes() {
       });
       setMensagem(`Prioridade do imóvel ${item.codigo} atualizada${option ? ` para ${option.label}` : ""}.`);
       await refreshSelecionados();
+      setPrioridadeItem(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao atualizar prioridade";
       setMensagem(message);
@@ -1427,6 +1476,10 @@ export default function Prospeccoes() {
         return next;
       });
     }
+  };
+
+  const openPrioridadeModal = (item) => {
+    setPrioridadeItem(item);
   };
 
   const openObservacoesModal = async (item) => {
@@ -1719,139 +1772,29 @@ export default function Prospeccoes() {
     return String(item.createdBy) === String(user.id);
   };
 
-  return (
-    <div className="prospects-page">
-      <section className="prospects-header">
-        <div className="prospects-header-copy">
-          <p className="prospects-eyebrow">Oportunidades</p>
-          <h1 className="prospects-hero">Prospecções</h1>
-          <p className="prospects-subtitle">
-            Central de decisão para acompanhar a base capturada e a fila operacional com mais clareza.
-          </p>
+  useEffect(() => {
+    if (!setTopbarContent) return undefined;
+    setTopbarContent(
+      <div className="prospects-header-summary prospects-header-summary--topbar">
+        <div className="prospects-stat-card">
+          <span>Selecionados</span>
+          <strong>{selecionados.length}</strong>
         </div>
-        <div className="prospects-header-summary prospects-header-summary--top">
-          <div className="prospects-stat-card">
-            <span>Selecionados</span>
-            <strong>{selecionados.length}</strong>
-          </div>
-          <div className="prospects-stat-card">
-            <span>Alta prioridade</span>
-            <strong>{selectedMetrics.altaPrioridade}</strong>
-          </div>
-          <div className="prospects-stat-card">
-            <span>Sem responsável</span>
-            <strong>{selectedMetrics.semResponsavel}</strong>
-          </div>
+        <div className="prospects-stat-card">
+          <span>Alta prioridade</span>
+          <strong>{selectedMetrics.altaPrioridade}</strong>
         </div>
-      </section>
-
-      <div className="prospects-filters">
-        <div className="prospects-filter-group">
-          <label>UF (capturados)</label>
-          <div className="prospects-checklist">
-            {ufOptions.map((uf) => (
-              <label key={uf} className="prospects-check">
-                <input
-                  type="checkbox"
-                  checked={filtroUfCap.includes(uf)}
-                  onChange={() => toggleValue(uf, setFiltroUfCap)}
-                />
-                <span>{uf}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="prospects-filter-group">
-          <label>Cidade</label>
-          <div className="prospects-checklist">
-            {cidadesOptions.map((c) => (
-              <label key={c} className="prospects-check">
-                <input
-                  type="checkbox"
-                  checked={filtroCidadesCap.includes(c)}
-                  onChange={() => toggleValue(c, setFiltroCidadesCap)}
-                />
-                <span>{c}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="prospects-filter-group">
-          <label>Modalidade</label>
-          <div className="prospects-checklist">
-            {modalidadeOptions.map((m) => (
-              <label key={m} className="prospects-check">
-                <input
-                  type="checkbox"
-                  checked={filtroModalidadeCap.includes(m)}
-                  onChange={() => toggleValue(m, setFiltroModalidadeCap)}
-                />
-                <span>{m}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="prospects-filter-group">
-          <label>Status (capturados)</label>
-          <div className="prospects-checklist">
-            <label className="prospects-check">
-              <input
-                type="checkbox"
-                checked={filtroStatusCap.includes("disponivel")}
-                onChange={() => toggleValue("disponivel", setFiltroStatusCap)}
-              />
-              <span>Disponível</span>
-            </label>
-            <label className="prospects-check">
-              <input
-                type="checkbox"
-                checked={filtroStatusCap.includes("indisponivel")}
-                onChange={() => toggleValue("indisponivel", setFiltroStatusCap)}
-              />
-              <span>Indisponível</span>
-            </label>
-          </div>
-        </div>
-        <div className="prospects-filter-group">
-          <label>Financia</label>
-          <div className="prospects-checklist">
-            <label className="prospects-check">
-              <input
-                type="checkbox"
-                checked={filtroFinanciaCap.includes("sim")}
-                onChange={() => toggleValue("sim", setFiltroFinanciaCap)}
-              />
-              <span>Sim</span>
-            </label>
-            <label className="prospects-check">
-              <input
-                type="checkbox"
-                checked={filtroFinanciaCap.includes("nao")}
-                onChange={() => toggleValue("nao", setFiltroFinanciaCap)}
-              />
-              <span>Não</span>
-            </label>
-          </div>
-        </div>
-        <div className="prospects-filter-group">
-          <label>Itens por página</label>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(1);
-            }}
-          >
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-          </select>
-        </div>
-        <div className="prospects-filter-actions">
-          <button type="button" className="prospects-btn secondary" onClick={limparFiltros}>Limpar filtros</button>
+        <div className="prospects-stat-card">
+          <span>Sem responsável</span>
+          <strong>{selectedMetrics.semResponsavel}</strong>
         </div>
       </div>
+    );
+    return () => setTopbarContent(null);
+  }, [selectedMetrics.altaPrioridade, selectedMetrics.semResponsavel, selecionados.length, setTopbarContent]);
 
+  return (
+    <div className="prospects-page">
       {mensagem && <div className="prospects-message">{mensagem}</div>}
 
       <div className="prospects-tabs" role="tablist" aria-label="Navegação de prospecções">
@@ -1983,7 +1926,7 @@ export default function Prospeccoes() {
             loading={loadingSel}
             erro={erroSel}
             onExcluir={setConfirmDeleteItem}
-            onAtualizarPrioridade={handleAtualizarPrioridade}
+            onEditarPrioridade={openPrioridadeModal}
             onEditarObservacoes={openObservacoesModal}
             onAbrirAnalise={openAnaliseModal}
             onEditarResponsaveis={openResponsaveisModal}
@@ -1999,7 +1942,112 @@ export default function Prospeccoes() {
         </>
       ) : (
         <>
-          <div className="prospects-gap" />
+          <div className="prospects-filters">
+            <div className="prospects-filter-group">
+              <label>UF (capturados)</label>
+              <div className="prospects-checklist">
+                {ufOptions.map((uf) => (
+                  <label key={uf} className="prospects-check">
+                    <input
+                      type="checkbox"
+                      checked={filtroUfCap.includes(uf)}
+                      onChange={() => toggleValue(uf, setFiltroUfCap)}
+                    />
+                    <span>{uf}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="prospects-filter-group">
+              <label>Cidade</label>
+              <div className="prospects-checklist">
+                {cidadesOptions.map((c) => (
+                  <label key={c} className="prospects-check">
+                    <input
+                      type="checkbox"
+                      checked={filtroCidadesCap.includes(c)}
+                      onChange={() => toggleValue(c, setFiltroCidadesCap)}
+                    />
+                    <span>{c}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="prospects-filter-group">
+              <label>Modalidade</label>
+              <div className="prospects-checklist">
+                {modalidadeOptions.map((m) => (
+                  <label key={m} className="prospects-check">
+                    <input
+                      type="checkbox"
+                      checked={filtroModalidadeCap.includes(m)}
+                      onChange={() => toggleValue(m, setFiltroModalidadeCap)}
+                    />
+                    <span>{m}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="prospects-filter-group">
+              <label>Status (capturados)</label>
+              <div className="prospects-checklist">
+                <label className="prospects-check">
+                  <input
+                    type="checkbox"
+                    checked={filtroStatusCap.includes("disponivel")}
+                    onChange={() => toggleValue("disponivel", setFiltroStatusCap)}
+                  />
+                  <span>Disponível</span>
+                </label>
+                <label className="prospects-check">
+                  <input
+                    type="checkbox"
+                    checked={filtroStatusCap.includes("indisponivel")}
+                    onChange={() => toggleValue("indisponivel", setFiltroStatusCap)}
+                  />
+                  <span>Indisponível</span>
+                </label>
+              </div>
+            </div>
+            <div className="prospects-filter-group">
+              <label>Financia</label>
+              <div className="prospects-checklist">
+                <label className="prospects-check">
+                  <input
+                    type="checkbox"
+                    checked={filtroFinanciaCap.includes("sim")}
+                    onChange={() => toggleValue("sim", setFiltroFinanciaCap)}
+                  />
+                  <span>Sim</span>
+                </label>
+                <label className="prospects-check">
+                  <input
+                    type="checkbox"
+                    checked={filtroFinanciaCap.includes("nao")}
+                    onChange={() => toggleValue("nao", setFiltroFinanciaCap)}
+                  />
+                  <span>Não</span>
+                </label>
+              </div>
+            </div>
+            <div className="prospects-filter-group">
+              <label>Itens por página</label>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+              >
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <div className="prospects-filter-actions">
+              <button type="button" className="prospects-btn secondary" onClick={limparFiltros}>Limpar filtros</button>
+            </div>
+          </div>
           <TabelaCapturados
             dados={capturados}
             total={capturadosTotal}
@@ -2025,6 +2073,13 @@ export default function Prospeccoes() {
         loading={Boolean(confirmDeleteItem && removeLoadingIds.has(confirmDeleteItem.codigo))}
         onCancel={() => setConfirmDeleteItem(null)}
         onConfirm={() => confirmDelete(confirmDeleteItem)}
+      />
+
+      <PrioridadeModal
+        item={prioridadeItem}
+        loading={Boolean(prioridadeItem && updateLoadingIds.has(`${prioridadeItem.codigo}:prioridade`))}
+        onCancel={() => setPrioridadeItem(null)}
+        onSelect={(prioridadeValue) => handleAtualizarPrioridade(prioridadeItem, prioridadeValue)}
       />
 
       <ObservacoesModal
