@@ -7,10 +7,9 @@ from datetime import datetime
 from typing import Dict, List
 
 import pandas as pd
-import requests
-from bs4 import BeautifulSoup
 
 from config import get_http_settings, get_output_dir, load_config
+from http_scraper import SessionFetcher, build_error_row
 from input_loader import load_base_dataframe
 from localiza_informacoes import localiza_informacoes
 from supabase_client import init_supabase_client
@@ -25,16 +24,10 @@ SUPABASE_CLIENT = init_supabase_client(CONFIG)
 headers = HTTP_SETTINGS["headers"]
 cookies = HTTP_SETTINGS["cookies"]
 timeout = HTTP_SETTINGS["timeout"]
-
-
-def extract_data(url: str, session: requests.Session) -> BeautifulSoup | None:
-    try:
-        response = session.get(url, headers=headers, cookies=cookies, timeout=timeout)
-        response.raise_for_status()
-        return BeautifulSoup(response.text, "html.parser")
-    except requests.RequestException as exc:
-        print(f"Erro na solicitação HTTP ({url}): {exc}")
-    return None
+rate_limit_seconds = HTTP_SETTINGS["rate_limit_seconds"]
+session_rotate_every = HTTP_SETTINGS["session_rotate_every"]
+retry_settings = HTTP_SETTINGS["retry"]
+browser_fallback_settings = HTTP_SETTINGS["browser_fallback"]
 
 
 def prompt_recent_hours() -> int:
@@ -88,7 +81,20 @@ def main() -> None:
 
     chunk_size = prompt_chunk_size()
 
-    session = requests.Session()
+    fetcher = SessionFetcher(
+        headers=headers,
+        cookies=cookies,
+        timeout=timeout,
+        rate_limit_seconds=rate_limit_seconds,
+        session_rotate_every=session_rotate_every,
+        retry_attempts=retry_settings["attempts"],
+        retry_base_delay_seconds=retry_settings["base_delay_seconds"],
+        retry_max_delay_seconds=retry_settings["max_delay_seconds"],
+        retry_jitter_seconds=retry_settings["jitter_seconds"],
+        browser_fallback_enabled=browser_fallback_settings["enabled"],
+        browser_fallback_headless=browser_fallback_settings["headless"],
+        browser_fallback_timeout_seconds=browser_fallback_settings["timeout_seconds"],
+    )
     df_filtered = pd.DataFrame()
     errors: List[Dict[str, object]] = []
     supabase_rows: List[Dict[str, object]] = []
@@ -104,21 +110,38 @@ def main() -> None:
             "https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp"
             f"?hdnOrigem=index&hdnimovel={codigo_imovel}"
         )
-        soup = extract_data(endereco_web, session)
-        if not soup:
-            errors.append({
-                "Número do Bem": codigo_imovel,
-                "Motivo": "Falha na requisição HTTP"
-            })
+        fetch_result = fetcher.fetch(endereco_web)
+        if not fetch_result.soup:
+            detalhe_erro = fetch_result.error_type or "http_error"
+            status = fetch_result.status_code or "sem_status"
+            request_id = fetch_result.azion_request_id or "-"
+            print(
+                f"Aviso: falha ao obter dados do código {codigo_imovel} "
+                f"(tipo={detalhe_erro}, status={status}, tentativas={fetch_result.attempts_used}, "
+                f"origem={fetch_result.source}, azion={request_id})."
+            )
+            errors.append(
+                build_error_row(
+                    codigo_imovel,
+                    motivo="Falha na requisição HTTP",
+                    fetch_result=fetch_result,
+                )
+            )
             continue
 
         try:
-            specific_data = localiza_informacoes(soup, endereco_web)
+            specific_data = localiza_informacoes(fetch_result.soup, endereco_web)
         except Exception as exc:  # noqa: BLE001
-            errors.append({
-                "Número do Bem": codigo_imovel,
-                "Motivo": f"Erro no parse: {exc}"
-            })
+            print(f"Aviso: erro de parse no código {codigo_imovel}: {exc}")
+            errors.append(
+                build_error_row(
+                    codigo_imovel,
+                    motivo=f"Erro no parse: {exc}",
+                    fetch_result=fetch_result,
+                    error_type="parse_error",
+                    error_message=str(exc),
+                )
+            )
             continue
 
         specific_data["Financiamento"] = specific_data.get("Financia")
@@ -136,6 +159,7 @@ def main() -> None:
             SUPABASE_CLIENT.upsert_prospeccao(supabase_rows, fonte="extrajudicial")
             supabase_rows.clear()
 
+    fetcher.close()
     SUPABASE_CLIENT.upsert_prospeccao(supabase_rows, fonte="extrajudicial")
 
     if errors:

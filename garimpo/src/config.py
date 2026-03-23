@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import json
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict
@@ -46,6 +47,20 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "timeout": 5,
         "headers": DEFAULT_HEADERS,
         "cookies": {},
+        "cookies_file": "",
+        "rate_limit_seconds": 0.3,
+        "session_rotate_every": 150,
+        "retry": {
+            "attempts": 3,
+            "base_delay_seconds": 1.5,
+            "max_delay_seconds": 12,
+            "jitter_seconds": 0.4,
+        },
+        "browser_fallback": {
+            "enabled": False,
+            "headless": True,
+            "timeout_seconds": 30,
+        },
     },
     "email": {
         "enabled": False,
@@ -127,10 +142,57 @@ def get_output_dir(config: Dict[str, Any]) -> Path:
 def get_http_settings(config: Dict[str, Any]) -> Dict[str, Any]:
     http_config: Dict[str, Any] = config.get("http", {})
     defaults = DEFAULT_CONFIG["http"]
+    retry_defaults = defaults["retry"]
+    retry_cfg = http_config.get("retry", {})
+    browser_defaults = defaults["browser_fallback"]
+    browser_cfg = http_config.get("browser_fallback", {})
+    cookies = http_config.get("cookies", defaults["cookies"])
+    cookies_file = http_config.get("cookies_file", defaults["cookies_file"])
+
+    if cookies_file:
+        cookies_path = resolve_path(cookies_file)
+        if cookies_path.exists():
+            with cookies_path.open("r", encoding="utf-8") as fh:
+                loaded_cookies = json.load(fh)
+            if isinstance(loaded_cookies, dict):
+                cookies = {**loaded_cookies, **cookies}
+
     return {
         "timeout": http_config.get("timeout", defaults["timeout"]),
         "headers": http_config.get("headers", defaults["headers"]),
-        "cookies": http_config.get("cookies", defaults["cookies"]),
+        "cookies": cookies,
+        "cookies_file": cookies_file,
+        "rate_limit_seconds": http_config.get(
+            "rate_limit_seconds",
+            defaults["rate_limit_seconds"],
+        ),
+        "session_rotate_every": http_config.get(
+            "session_rotate_every",
+            defaults["session_rotate_every"],
+        ),
+        "retry": {
+            "attempts": retry_cfg.get("attempts", retry_defaults["attempts"]),
+            "base_delay_seconds": retry_cfg.get(
+                "base_delay_seconds",
+                retry_defaults["base_delay_seconds"],
+            ),
+            "max_delay_seconds": retry_cfg.get(
+                "max_delay_seconds",
+                retry_defaults["max_delay_seconds"],
+            ),
+            "jitter_seconds": retry_cfg.get(
+                "jitter_seconds",
+                retry_defaults["jitter_seconds"],
+            ),
+        },
+        "browser_fallback": {
+            "enabled": browser_cfg.get("enabled", browser_defaults["enabled"]),
+            "headless": browser_cfg.get("headless", browser_defaults["headless"]),
+            "timeout_seconds": browser_cfg.get(
+                "timeout_seconds",
+                browser_defaults["timeout_seconds"],
+            ),
+        },
     }
 
 

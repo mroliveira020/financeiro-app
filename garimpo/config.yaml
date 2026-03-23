@@ -27,10 +27,22 @@ extrajudicial:
 
 http:
   timeout: 5
+  rate_limit_seconds: 0.3
+  session_rotate_every: 150
   # Sobrescreva cabeçalhos HTTP apenas se necessário (default definido no código)
   headers: {}
   # Informe cookies quando a CAIXA exigir sessão autenticada
   cookies: {}
+  cookies_file: data/session/caixa_cookies.json
+  retry:
+    attempts: 3
+    base_delay_seconds: 1.5
+    max_delay_seconds: 12
+    jitter_seconds: 0.4
+  browser_fallback:
+    enabled: false
+    headless: true
+    timeout_seconds: 30
 
 email:
   enabled: false

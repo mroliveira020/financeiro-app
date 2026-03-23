@@ -4,3 +4,4 @@ beautifulsoup4
 openpyxl
 xlsxwriter
 pyyaml
+playwright

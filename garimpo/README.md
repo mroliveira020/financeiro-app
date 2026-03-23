@@ -12,7 +12,9 @@ Subprojeto responsável por prospectar novos imóveis em leilão e gerar planilh
 ## Pré-requisitos
 1. Ative o ambiente virtual do backend: `source backend/venv/bin/activate`.
 2. Instale dependências adicionais: `pip install -r garimpo/requirements.txt`.
-3. Copie `garimpo/config.yaml.example` para `garimpo/config.yaml` e ajuste UFs, nomes de arquivos e, se necessário, parâmetros em `http` (timeout, headers, cookies).
+   - Para usar o bootstrap de sessão da CAIXA via navegador, instale também o browser do Playwright:
+     - `backend/venv/bin/playwright install chromium`
+3. Copie `garimpo/config.yaml.example` para `garimpo/config.yaml` e ajuste UFs, nomes de arquivos e, se necessário, parâmetros em `http` (`timeout`, `headers`, `cookies`, `cookies_file`, `rate_limit_seconds`, `session_rotate_every`, `retry`, `browser_fallback`).
 4. Entrada da base:
    - Planilha única (`data.input`): modo `excel`.
    - CSVs por UF (ex.: `data/input/Lista_imoveis_PR.csv`): modo `csv` ou `auto` (pergunta se os arquivos estiverem presentes).
@@ -32,11 +34,14 @@ Subprojeto responsável por prospectar novos imóveis em leilão e gerar planilh
 - `python garimpo/src/extrajudicial_caixa.py`
   - Consulta imóveis de venda direta da CAIXA, aplicando os tipos definidos em `config.yaml`.
   - Pergunta quantas horas de dados recentes do Supabase devem ser ignoradas e envia os registros diretamente para `imoveis_prospeccao`, em lotes.
+- `python garimpo/src/bootstrap_caixa_session.py`
+  - Abre a CAIXA em um navegador controlado pelo Playwright para permitir resolução manual do challenge/hCaptcha.
+  - Exporta os cookies da sessão para `data/session/caixa_cookies.json`, que podem ser reaproveitados automaticamente pelo bloco `http.cookies_file` do `config.yaml`.
 
 - Inicialização rápida do ambiente:
-  - `bash garimpo/init_garimpo.sh` cria/usa `backend/venv`, instala dependências (backend + garimpo) e copia `config.yaml.example` para `config.yaml` se ainda não existir. Depois, rode `bash garimpo/start.sh principal` ou `extrajudicial_caixa`.
+  - `bash garimpo/init_garimpo.sh` cria/usa `backend/venv`, instala dependências (backend + garimpo) e copia `config.yaml.example` para `config.yaml` se ainda não existir. Depois, rode `bash garimpo/start.sh principal`, `extrajudicial_caixa` ou `bootstrap_caixa_session`.
 
-Os scripts usam configurações compartilhadas em `src/config.py`. Ajustes de timeout, headers ou cookies podem ser adicionados a `config.yaml` conforme necessário. Com `supabase.enabled=false` não há mais persistência (execução será abortada).
+Os scripts usam configurações compartilhadas em `src/config.py`. Ajustes de timeout, headers, cookies, `cookies_file`, rate limit, rotação de sessão, retries e fallback via navegador (`browser_fallback`) podem ser adicionados a `config.yaml` conforme necessário. Com `supabase.enabled=false` não há mais persistência (execução será abortada).
 O `bash garimpo/start.sh ...` carrega automaticamente o `garimpo/.env` e valida `SUPABASE_URL`/`SUPABASE_SERVICE_KEY` quando `supabase.enabled=true`.
 
 ## Integração com Supabase
@@ -53,6 +58,8 @@ O `bash garimpo/start.sh ...` carrega automaticamente o `garimpo/.env` e valida 
 - Antes de enviar PR, mova resultados sensíveis para fora do repositório ou limpe `data/output/`.
 - Documente no PR o filtro utilizado (UFs, tipos de venda) e anexe registros de amostra.
 - Em caso de falhas, verifique os arquivos `data/output/erros_<script>_<data>.csv`; eles listam códigos de imóveis e motivos do erro.
+- Os CSVs de erro agora incluem telemetria básica de bloqueio HTTP, como `Status HTTP`, `Request ID Azion`, `Edge Location`, `Tentativas`, `URL Final` e `Trecho Resposta`.
+- Quando `http.browser_fallback.enabled=true`, o coletor tenta abrir a URL pelo Playwright após esgotar as tentativas via `requests`. Isso é útil para diagnóstico e para cenários em que a borda só libera conteúdo em navegador.
 - Para rodadas de teste, aponte `GARIMPO_CONFIG` para um YAML alternativo (ex.: uma planilha reduzida) sem alterar `config.yaml` do repositório.
 - Instale o hook de proteção de segredos antes de commitar:
   - `bash scripts/install-git-hooks.sh`

@@ -51,7 +51,18 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 - Documentação alinhada e instruções de execução/validação revisadas.
 
 ## Pendências/Oportunidades
-1. [ ] Avaliar adoção de headless browser (Playwright/Selenium) se a CAIXA bloquear requests simples.
+1. [ ] Tratar bloqueio anti-bot da CAIXA/Azion no garimpo.
+   1.1. [x] Diagnóstico confirmado: requisições simples via `requests` passaram a receber `403` na borda da Azion (`x-azion-request-id`), inclusive para home e busca.
+   1.2. [x] Evidência operacional confirmada: em navegador automatizado a home abre tela de verificação com hCaptcha, indicando barreira anti-bot antes do conteúdo do imóvel.
+   1.3. [x] Melhorar observabilidade do scraping:
+        - registrar `status_code`, `x-azion-request-id`, URL e trecho do corpo da resposta no CSV de erros;
+        - diferenciar erro de rede, `403` de borda, parse vazio e bloqueio por challenge.
+   1.4. [x] Implementar mitigação básica no fluxo atual:
+        - rate limit entre requisições;
+        - backoff exponencial com jitter para `403/429/5xx`;
+        - rotação/renovação de sessão durante a coleta.
+   1.5. [x] Validar bootstrap por navegador (`Playwright`) para obtenção de sessão/cookies antes da coleta.
+   1.6. [x] Reavaliar fallback estrutural: migrar o detalhe do imóvel para navegador headless quando o site exigir challenge.
 2. [ ] Considerar exportar planilhas finais em CSV/Parquet para integração futura.
 3. [ ] Investigar automação parcial de ingestão via API interna quando o fluxo estiver estável.
 4. [ ] Supabase: integrar persistência e reprocesso de resultados.
@@ -289,11 +300,13 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 4. [ ] **Validar operação e qualidade**
    - Validar amostra real no painel do Supabase.
    - Validar execução local do garimpo com `.env`.
+   - Fechar telemetria mínima de bloqueio `403` no garimpo antes da próxima carga grande.
    - Implementar testes backend/frontend das rotas e fluxos de Prospecções.
 
 5. [ ] **Fechar documentação operacional**
    - Atualizar README/docs com matriz de permissões, autoria, responsáveis, inclusão manual e fluxo de observações/análise.
    - Registrar runbook de incidente para segredos e rotação de chave.
+   - Documentar runbook do garimpo quando a CAIXA ativar challenge/hCaptcha na borda.
 
 ## Segurança Operacional
 1. [x] Rotacionar chaves do Supabase após exposição acidental em arquivo `.env`.
@@ -328,6 +341,11 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    2.1. [x] Atualizar `garimpo/start.sh` para validar variáveis obrigatórias antes de iniciar (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`).
    2.2. [x] Exibir mensagem clara quando variável obrigatória estiver ausente, sem imprimir segredo em log.
    2.3. [ ] Validar fluxo `principal.py` e `extrajudicial_caixa.py` com `.env` local.
+   2.4. [ ] Ajustar execução para cenário de bloqueio da CAIXA:
+        - rodar por lotes menores/UF;
+        - introduzir espera entre requests;
+        - registrar e encerrar cedo quando detectar sequência anormal de `403`.
+   2.5. [ ] Validar estratégia de sessão com navegador real/headless quando a borda exigir challenge.
 
 3. [ ] **Prevenção de vazamento em commits**
    3.1. [x] Adicionar pre-commit simples para bloquear inclusão de arquivos `.env` reais.

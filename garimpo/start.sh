@@ -36,12 +36,12 @@ fi
 
 SCRIPT_NAME="${1:-principal}"
 case "${SCRIPT_NAME}" in
-    principal|extrajudicial_caixa)
+    principal|extrajudicial_caixa|bootstrap_caixa_session)
         TARGET_SCRIPT="${GARIMPO_DIR}/src/${SCRIPT_NAME}.py"
         shift || true
         ;;
     *)
-        echo "[garimpo] Uso: bash garimpo/start.sh [principal|extrajudicial_caixa] [args...]"
+        echo "[garimpo] Uso: bash garimpo/start.sh [principal|extrajudicial_caixa|bootstrap_caixa_session] [args...]"
         exit 1
         ;;
 esac
@@ -110,5 +110,10 @@ validate_supabase_requirements() {
 
 validate_supabase_requirements
 
-echo "[garimpo] Executando: python ${TARGET_SCRIPT} $*"
-python "${TARGET_SCRIPT}" "$@"
+if [ "${SCRIPT_NAME}" = "bootstrap_caixa_session" ]; then
+    echo "[garimpo] Executando bootstrap de sessão da CAIXA via Playwright..."
+    python "${TARGET_SCRIPT}" "$@"
+else
+    echo "[garimpo] Executando: python ${TARGET_SCRIPT} $*"
+    python "${TARGET_SCRIPT}" "$@"
+fi
