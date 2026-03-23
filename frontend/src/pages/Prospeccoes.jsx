@@ -46,6 +46,7 @@ const ANALISE_DEFAULTS = {
   tempo_operacao_meses: "12",
   valor_maximo_lance: "",
   percentual_financiamento: "",
+  prestacao_mensal_financiamento: "",
   valor_estimado_venda: "",
   reforma: "",
   condominio_atraso: "",
@@ -77,6 +78,7 @@ const MONEY_FIELDS = new Set([
   "valor_base_operacao",
   "valor_maximo_lance",
   "valor_estimado_venda",
+  "prestacao_mensal_financiamento",
   "reforma",
   "condominio_atraso",
   "iptu_atraso",
@@ -187,7 +189,7 @@ const inferPairMode = (percentual, valor) => {
 const createAnaliseDraft = (inputs = {}) => ({
   ...ANALISE_DEFAULTS,
   ...Object.fromEntries(
-    Object.entries(inputs).map(([key, value]) => [key, value === null || value === undefined ? "" : `${value}`.replace(".", ",")])
+    Object.entries(inputs).map(([key, value]) => [key, formatDraftValue(key, value)])
   ),
 });
 
@@ -203,6 +205,7 @@ const computeAnalise = (draft, pairModes) => {
   const valorBaseOperacao = roundMoney(draft.valor_base_operacao || valorMaximoLance);
   const tempoOperacaoMeses = Math.max(1, parseInt(draft.tempo_operacao_meses || "12", 10) || 12);
   const percentualFinanciamento = roundPercent(draft.percentual_financiamento);
+  const prestacaoMensalFinanciamento = roundMoney(draft.prestacao_mensal_financiamento);
   const valorEstimadoVenda = roundMoney(draft.valor_estimado_venda);
 
   const reforma = roundMoney(draft.reforma);
@@ -237,13 +240,14 @@ const computeAnalise = (draft, pairModes) => {
     manutencaoAguaMensal + manutencaoLuzMensal + manutencaoCondominioMensal + manutencaoIptuMensal
   );
   const despesasMensaisProjetadas = roundMoney(despesaMensalTotal * tempoOperacaoMeses);
+  const custoFinanciamentoProjetado = roundMoney(prestacaoMensalFinanciamento * tempoOperacaoMeses);
   const valorFinanciado = roundMoney(valorMaximoLance * (percentualFinanciamento / 100));
   const desembolsoAquisicao = roundMoney(valorMaximoLance - valorFinanciado + leiloeiro.valor);
   const custoTotalImovel = roundMoney(
     valorMaximoLance + leiloeiro.valor + despesasUnicas + despesasMensaisProjetadas
   );
   const capitalInvestidoEstimado = roundMoney(
-    desembolsoAquisicao + despesasUnicas + despesasMensaisProjetadas
+    desembolsoAquisicao + despesasUnicas + despesasMensaisProjetadas + custoFinanciamentoProjetado
   );
   const baseGanhoCapital = roundMoney(Math.max((valorEstimadoVenda - corretor.valor) - custoTotalImovel, 0));
   const ganhoCapital = resolvePair(
@@ -266,6 +270,7 @@ const computeAnalise = (draft, pairModes) => {
       tempo_operacao_meses: tempoOperacaoMeses,
       valor_maximo_lance: valorMaximoLance,
       percentual_financiamento: percentualFinanciamento,
+      prestacao_mensal_financiamento: prestacaoMensalFinanciamento,
       valor_estimado_venda: valorEstimadoVenda,
       reforma,
       condominio_atraso: condominioAtraso,
@@ -289,6 +294,7 @@ const computeAnalise = (draft, pairModes) => {
       despesas_unicas: despesasUnicas,
       despesa_mensal_total: despesaMensalTotal,
       despesas_mensais_projetadas: despesasMensaisProjetadas,
+      custo_financiamento_projetado: custoFinanciamentoProjetado,
       valor_financiado: valorFinanciado,
       desembolso_aquisicao: desembolsoAquisicao,
       custo_total_imovel: custoTotalImovel,
@@ -540,6 +546,10 @@ function AnaliseModal({
                       <strong>{formatarMoeda(calculos.despesas_mensais_projetadas)}</strong>
                     </div>
                     <div className="prospects-summary-card">
+                      <span>Prestação projetada</span>
+                      <strong>{formatarMoeda(calculos.custo_financiamento_projetado)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
                       <span>Custo total do imóvel</span>
                       <strong>{formatarMoeda(calculos.custo_total_imovel)}</strong>
                     </div>
@@ -556,6 +566,7 @@ function AnaliseModal({
                   <CampoTextoNumerico label="Valor base da operação" value={currentDraft.valor_base_operacao} onChange={(value) => onFieldChange("valor_base_operacao", value)} onFocus={() => onFieldFocus("valor_base_operacao")} onBlur={() => onFieldBlur("valor_base_operacao")} />
                   <CampoNumerico label="Tempo da operação (meses)" value={currentDraft.tempo_operacao_meses} onChange={(value) => onFieldChange("tempo_operacao_meses", value)} onFocus={() => onFieldFocus("tempo_operacao_meses")} onBlur={() => onFieldBlur("tempo_operacao_meses")} />
                   <CampoTextoNumerico label="% financiamento" value={currentDraft.percentual_financiamento} onChange={(value) => onFieldChange("percentual_financiamento", value)} onFocus={() => onFieldFocus("percentual_financiamento")} onBlur={() => onFieldBlur("percentual_financiamento")} />
+                  <CampoTextoNumerico label="Prestação mensal financiamento" value={currentDraft.prestacao_mensal_financiamento} onChange={(value) => onFieldChange("prestacao_mensal_financiamento", value)} onFocus={() => onFieldFocus("prestacao_mensal_financiamento")} onBlur={() => onFieldBlur("prestacao_mensal_financiamento")} />
                   <CampoTextoNumerico label="Valor estimado da venda" value={currentDraft.valor_estimado_venda} onChange={(value) => onFieldChange("valor_estimado_venda", value)} onFocus={() => onFieldFocus("valor_estimado_venda")} onBlur={() => onFieldBlur("valor_estimado_venda")} />
                 </section>
 
@@ -660,6 +671,14 @@ function AnaliseModal({
                     <div className="prospects-analise-kpi">
                       <span>Despesa mensal total</span>
                       <strong>{formatarMoeda(calculos.despesa_mensal_total)}</strong>
+                    </div>
+                    <div className="prospects-analise-kpi">
+                      <span>Prestação mensal</span>
+                      <strong>{formatarMoeda(inputs.prestacao_mensal_financiamento)}</strong>
+                    </div>
+                    <div className="prospects-analise-kpi">
+                      <span>Financiamento no período</span>
+                      <strong>{formatarMoeda(calculos.custo_financiamento_projetado)}</strong>
                     </div>
                     <div className="prospects-analise-kpi">
                       <span>Capital investido</span>

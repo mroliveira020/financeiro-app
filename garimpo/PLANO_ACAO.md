@@ -178,12 +178,15 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - definir qual campo usa `valor base` como referência de cálculo para ITBI, comissão e ganho de capital
         - separar claramente despesas únicas vs. despesas mensais recorrentes
         - aplicar despesas mensais projetadas com base no tempo da operação (default `12` meses)
+        - permitir informar `prestacao_mensal_financiamento` para casos financiados
+        - considerar a prestação do financiamento como caixa não recuperado no horizonte da operação
         - manter ITBI com edição bidirecional entre `%` e valor
         - manter comissão de leiloeiro com edição bidirecional entre `%` e valor
         - manter comissão do corretor com edição bidirecional entre `%` e valor, usando `valor_estimado_venda` como base sugerida
         - manter ganho de capital com edição bidirecional entre `%` e valor
         - separar claramente desembolso de aquisição, custos acessórios, custo total do imóvel e capital total investido
         - não incluir comissão do corretor nem IR/ganho de capital no `custo_total_imovel`, pois esses pagamentos ocorrem apenas após a venda
+        - não incluir a prestação mensal do financiamento no `custo_total_imovel`; esse valor deve entrar apenas no `capital_investido_estimado`
         - manter fórmula auditável e documentada para evitar divergência entre tela e backend
    7.7.1. [x] Especificação base confirmada:
         - `valor_base_operacao`: sugerir `valor_maximo_lance`, mas permitir edição manual
@@ -205,10 +208,11 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - `despesas_unicas = reforma + condominio_atraso + iptu_atraso + desocupacao + documentacao + itbi_valor`
         - `despesa_mensal_total = manutencao_agua_mensal + manutencao_luz_mensal + manutencao_condominio_mensal + manutencao_iptu_mensal`
         - `despesas_mensais_projetadas = despesa_mensal_total * tempo_operacao_meses`
+        - `custo_financiamento_projetado = prestacao_mensal_financiamento * tempo_operacao_meses`
         - `valor_financiado = valor_maximo_lance * (percentual_financiamento / 100)`
         - `desembolso_aquisicao = valor_maximo_lance - valor_financiado + comissao_leiloeiro_valor`
         - `custo_total_imovel = valor_maximo_lance + comissao_leiloeiro_valor + despesas_unicas + despesas_mensais_projetadas`
-        - `capital_investido_estimado = desembolso_aquisicao + despesas_unicas + despesas_mensais_projetadas`
+        - `capital_investido_estimado = desembolso_aquisicao + despesas_unicas + despesas_mensais_projetadas + custo_financiamento_projetado`
    7.7.4. [x] Fórmulas de venda e resultado confirmadas:
         - `lucro_esperado_valor = valor_estimado_venda - comissao_corretor_valor - ganho_capital_valor - custo_total_imovel`
         - `roi_esperado_percentual = (lucro_esperado_valor / capital_investido_estimado) * 100`
@@ -220,6 +224,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - ITBI permanece sincronizado entre `%` e valor;
         - comissão e ganho de capital permanecem sincronizados entre `%` e valor;
         - despesas mensais projetadas respeitam o tempo da operação informado;
+        - custo do financiamento no período respeita o tempo da operação e a prestação mensal informada;
         - nada é persistido antes do clique em `Salvar`;
         - ao salvar, os valores reaparecem idênticos ao recarregar a página;
         - link do Google Maps fica acessível a partir do imóvel selecionado.

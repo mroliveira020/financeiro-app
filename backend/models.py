@@ -421,6 +421,7 @@ def _garantir_tabela_prospeccao_analise():
                 tempo_operacao_meses INTEGER NOT NULL DEFAULT 12,
                 valor_maximo_lance NUMERIC NULL,
                 percentual_financiamento NUMERIC NULL,
+                prestacao_mensal_financiamento NUMERIC NULL,
                 valor_estimado_venda NUMERIC NULL,
                 reforma NUMERIC NULL,
                 condominio_atraso NUMERIC NULL,
@@ -446,6 +447,12 @@ def _garantir_tabela_prospeccao_analise():
                 created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
             )
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE imoveis_selecionados_analise
+            ADD COLUMN IF NOT EXISTS prestacao_mensal_financiamento NUMERIC NULL
             """
         )
         conn.commit()
@@ -1916,6 +1923,7 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             a.tempo_operacao_meses,
             a.valor_maximo_lance,
             a.percentual_financiamento,
+            a.prestacao_mensal_financiamento,
             a.valor_estimado_venda,
             a.reforma,
             a.condominio_atraso,
@@ -2008,6 +2016,7 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
             "tempo_operacao_meses": row["tempo_operacao_meses"],
             "valor_maximo_lance": float(row["valor_maximo_lance"]) if row["valor_maximo_lance"] is not None else (float(row["valor_maximo"]) if row["valor_maximo"] is not None else 0.0),
             "percentual_financiamento": float(row["percentual_financiamento"]) if row["percentual_financiamento"] is not None else None,
+            "prestacao_mensal_financiamento": float(row["prestacao_mensal_financiamento"]) if row["prestacao_mensal_financiamento"] is not None else None,
             "valor_estimado_venda": float(row["valor_estimado_venda"]) if row["valor_estimado_venda"] is not None else None,
             "reforma": float(row["reforma"]) if row["reforma"] is not None else None,
             "condominio_atraso": float(row["condominio_atraso"]) if row["condominio_atraso"] is not None else None,
@@ -2106,6 +2115,7 @@ def calcular_analise_prospeccao(dados):
 
     tempo_operacao_meses = _coerce_tempo_operacao(dados.get("tempo_operacao_meses"))
     percentual_financiamento = _round_percent(dados.get("percentual_financiamento"))
+    prestacao_mensal_financiamento = _round_money(dados.get("prestacao_mensal_financiamento"))
     valor_estimado_venda = _round_money(dados.get("valor_estimado_venda"))
 
     reforma = _round_money(dados.get("reforma"))
@@ -2147,6 +2157,7 @@ def calcular_analise_prospeccao(dados):
         manutencao_iptu_mensal
     )
     despesas_mensais_projetadas = _round_money(despesa_mensal_total * tempo_operacao_meses)
+    custo_financiamento_projetado = _round_money(prestacao_mensal_financiamento * tempo_operacao_meses)
 
     valor_financiado = _round_money(valor_maximo_lance * (percentual_financiamento / 100))
     desembolso_aquisicao = _round_money(
@@ -2162,7 +2173,8 @@ def calcular_analise_prospeccao(dados):
     capital_investido_estimado = _round_money(
         desembolso_aquisicao +
         despesas_unicas +
-        despesas_mensais_projetadas
+        despesas_mensais_projetadas +
+        custo_financiamento_projetado
     )
 
     base_ganho_capital = _round_money(max(
@@ -2192,6 +2204,7 @@ def calcular_analise_prospeccao(dados):
         "tempo_operacao_meses": tempo_operacao_meses,
         "valor_maximo_lance": valor_maximo_lance,
         "percentual_financiamento": percentual_financiamento,
+        "prestacao_mensal_financiamento": prestacao_mensal_financiamento,
         "valor_estimado_venda": valor_estimado_venda,
         "reforma": reforma,
         "condominio_atraso": condominio_atraso,
@@ -2213,6 +2226,7 @@ def calcular_analise_prospeccao(dados):
         "despesas_unicas": despesas_unicas,
         "despesa_mensal_total": despesa_mensal_total,
         "despesas_mensais_projetadas": despesas_mensais_projetadas,
+        "custo_financiamento_projetado": custo_financiamento_projetado,
         "valor_financiado": valor_financiado,
         "desembolso_aquisicao": desembolso_aquisicao,
         "custo_total_imovel": custo_total_imovel,
@@ -2239,6 +2253,7 @@ def obter_analise_prospeccao_selecionado(numero_bem):
                 a.tempo_operacao_meses,
                 a.valor_maximo_lance,
                 a.percentual_financiamento,
+                a.prestacao_mensal_financiamento,
                 a.valor_estimado_venda,
                 a.reforma,
                 a.condominio_atraso,
@@ -2286,6 +2301,7 @@ def obter_analise_prospeccao_selecionado(numero_bem):
             "tempo_operacao_meses": row["tempo_operacao_meses"] if row["tempo_operacao_meses"] is not None else 12,
             "valor_maximo_lance": float(row["valor_maximo_lance"]) if row["valor_maximo_lance"] is not None else (float(row["valor_maximo"]) if row["valor_maximo"] is not None else 0.0),
             "percentual_financiamento": float(row["percentual_financiamento"]) if row["percentual_financiamento"] is not None else 0.0,
+            "prestacao_mensal_financiamento": float(row["prestacao_mensal_financiamento"]) if row["prestacao_mensal_financiamento"] is not None else 0.0,
             "valor_estimado_venda": float(row["valor_estimado_venda"]) if row["valor_estimado_venda"] is not None else 0.0,
             "reforma": float(row["reforma"]) if row["reforma"] is not None else 0.0,
             "condominio_atraso": float(row["condominio_atraso"]) if row["condominio_atraso"] is not None else 0.0,
@@ -2313,6 +2329,7 @@ def obter_analise_prospeccao_selecionado(numero_bem):
                 "despesas_unicas": calculada["despesas_unicas"],
                 "despesa_mensal_total": calculada["despesa_mensal_total"],
                 "despesas_mensais_projetadas": calculada["despesas_mensais_projetadas"],
+                "custo_financiamento_projetado": calculada["custo_financiamento_projetado"],
                 "valor_financiado": calculada["valor_financiado"],
                 "desembolso_aquisicao": calculada["desembolso_aquisicao"],
                 "custo_total_imovel": calculada["custo_total_imovel"],
@@ -2361,6 +2378,7 @@ def salvar_analise_prospeccao_selecionado(numero_bem, payload, current_user_id=N
                 tempo_operacao_meses,
                 valor_maximo_lance,
                 percentual_financiamento,
+                prestacao_mensal_financiamento,
                 valor_estimado_venda,
                 reforma,
                 condominio_atraso,
@@ -2385,7 +2403,7 @@ def salvar_analise_prospeccao_selecionado(numero_bem, payload, current_user_id=N
                 updated_by_name
             )
             VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             ON CONFLICT (numero_bem) DO UPDATE
             SET
@@ -2394,6 +2412,7 @@ def salvar_analise_prospeccao_selecionado(numero_bem, payload, current_user_id=N
                 tempo_operacao_meses = EXCLUDED.tempo_operacao_meses,
                 valor_maximo_lance = EXCLUDED.valor_maximo_lance,
                 percentual_financiamento = EXCLUDED.percentual_financiamento,
+                prestacao_mensal_financiamento = EXCLUDED.prestacao_mensal_financiamento,
                 valor_estimado_venda = EXCLUDED.valor_estimado_venda,
                 reforma = EXCLUDED.reforma,
                 condominio_atraso = EXCLUDED.condominio_atraso,
@@ -2423,6 +2442,7 @@ def salvar_analise_prospeccao_selecionado(numero_bem, payload, current_user_id=N
                 calculada["tempo_operacao_meses"],
                 calculada["valor_maximo_lance"],
                 calculada["percentual_financiamento"],
+                calculada["prestacao_mensal_financiamento"],
                 calculada["valor_estimado_venda"],
                 calculada["reforma"],
                 calculada["condominio_atraso"],
