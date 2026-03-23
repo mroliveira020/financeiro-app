@@ -1,17 +1,17 @@
 .editor-bar {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   background: #f8fafc;
   border: 1px solid #dbe4f3;
   border-radius: 999px;
-  padding: 8px 12px 8px 8px;
+  padding: 6px 10px 6px 6px;
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
 }
 
 .editor-bar__avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: linear-gradient(135deg, #2563eb, #0ea5e9);
   color: #fff;
@@ -29,7 +29,7 @@
 }
 
 .editor-bar__email {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #1f2933;
   overflow: hidden;
@@ -39,7 +39,7 @@
 }
 
 .editor-bar__role {
-  font-size: 11px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #475569;
@@ -50,9 +50,9 @@
   border: none;
   background: #e2e8f0;
   color: #1f2933;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 6px 12px;
+  padding: 5px 10px;
   border-radius: 999px;
   transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
 }

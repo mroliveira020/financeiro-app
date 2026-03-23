@@ -252,9 +252,9 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    8.3. [x] UX: remover a coluna `Status` da tabela de selecionados enquanto ela não agrega valor operacional, reduzindo poluição visual.
    8.4. [x] Frontend: garantir colunas e ações finais da lista:
         - Data do leilão
-        - Prioridade editável
-        - autoria integrada ao bloco de responsáveis
-        - Responsáveis com ação de editar/adicionar na própria coluna
+        - Prioridade editável por ação compacta na coluna de ações
+        - autoria integrada ao tooltip/gestão de responsáveis
+        - Responsáveis geridos por ação compacta na coluna de ações
         - Cidade/UF consolidados em uma única coluna para reduzir largura da tabela
         - Ações com botões/iconografia mais claros
    8.4.1. [x] Reorganizar navegação da página:
@@ -266,10 +266,12 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - aparência mais profissional dos botões e comandos;
         - redução da hierarquia tipográfica para evitar títulos excessivamente grandes;
         - refinamento de espaçamento, densidade dos cards e legibilidade geral da tela;
+        - remoção do header secundário "Prospecções", preservando apenas a barra principal e os cards-resumo;
         - data do leilão compactada para formato `dd/mm/yy hh:mm`;
         - observações representadas por ícone com estado visual cinza/azul;
         - análise financeira representada por ícone com cor orientada pelo ROI;
-        - ações principais da tabela condensadas em ícones na mesma linha.
+        - ações principais da tabela condensadas em ícones na mesma linha;
+        - descrição da sessão do usuário reduzida para não competir com o conteúdo operacional.
    8.5. [ ] Critério de aceite:
         - usuário consegue alterar prioridade na lista;
         - lista de selecionados exibe com clareza quem selecionou o imóvel, integrado aos responsáveis;

@@ -84,6 +84,18 @@ function UsersIcon() {
   );
 }
 
+function PriorityIcon({ level = 2 }) {
+  const activeLevel = Number(level) || 2;
+  return (
+    <IconBase label={`Prioridade ${activeLevel}`}>
+      <path d="M5 19.5V4.5" />
+      <path d="M8 6.5h6l-1 2.5 1 2.5H8z" opacity={activeLevel >= 1 ? "1" : "0.25"} />
+      <path d="M8 10.5h8l-1.2 2.5 1.2 2.5H8z" opacity={activeLevel >= 2 ? "1" : "0.25"} />
+      <path d="M8 14.5h10l-1.4 2.5 1.4 2.5H8z" opacity={activeLevel >= 3 ? "1" : "0.25"} />
+    </IconBase>
+  );
+}
+
 function ChartIcon() {
   return (
     <IconBase label="Análise financeira">
@@ -124,6 +136,13 @@ function obterClasseRoi(roi) {
   if (valor >= 20) return "is-good";
   if (valor > 0) return "is-caution";
   return "is-risk";
+}
+
+function obterClassePrioridade(prioridade) {
+  const valor = Number(prioridade || 2);
+  if (valor >= 3) return "is-high";
+  if (valor <= 1) return "is-low";
+  return "is-medium";
 }
 
 const ANALISE_DEFAULTS = {
@@ -448,11 +467,9 @@ function TabelaSelecionados({
             <tr>
               <th>Código</th>
               <th>Cidade / UF</th>
-              <th>Responsáveis</th>
               <th>Data leilão</th>
               <th>Valor máximo</th>
               <th>Valor referência</th>
-              <th>Prioridade</th>
               <th>Descrição</th>
               <th>Ações</th>
             </tr>
@@ -472,53 +489,6 @@ function TabelaSelecionados({
                   </div>
                 </td>
                 <td>
-                  <div className="prospects-people-cell">
-                  {(() => {
-                    const pessoas = [];
-                    const seen = new Set();
-                    const addPessoa = (id, label, variant = "default") => {
-                      const normalizedId = id ? String(id) : "";
-                      const normalizedLabel = `${label || ""}`.trim();
-                      const key = normalizedId || normalizedLabel.toLowerCase();
-                      if (!key || seen.has(key)) return;
-                      seen.add(key);
-                      pessoas.push({ key, label: normalizedLabel, variant });
-                    };
-
-                    addPessoa(item.createdBy, item.createdByName, "author");
-                    (item.responsaveis || []).forEach((responsavel) => {
-                      addPessoa(responsavel.id, responsavel.name || responsavel.email, "default");
-                    });
-
-                    if (!pessoas.length) return "—";
-
-                    return (
-                      <div className="prospects-people-list">
-                        {pessoas.map((pessoa) => (
-                          <span
-                            key={pessoa.key}
-                            className={`prospects-inline-pill ${pessoa.variant === "author" ? "prospects-inline-pill--author" : ""}`.trim()}
-                            title={pessoa.variant === "author" ? "Usuário que selecionou o imóvel" : undefined}
-                          >
-                            {pessoa.label}
-                          </span>
-                        ))}
-                      </div>
-                    );
-                  })()}
-                    {canManageResponsaveis ? (
-                      <button
-                        type="button"
-                        className="prospects-table-icon-btn prospects-table-icon-btn--responsaveis"
-                        title={item.responsaveis?.length ? "Editar responsáveis" : "Adicionar responsáveis"}
-                        onClick={() => onEditarResponsaveis(item)}
-                      >
-                        <UsersIcon />
-                      </button>
-                    ) : null}
-                  </div>
-                </td>
-                <td>
                   <div className="prospects-date-cell">
                     <strong>{formatarDataHoraCompacta(item.dataLeilao)}</strong>
                   </div>
@@ -526,27 +496,52 @@ function TabelaSelecionados({
                 <td>{formatarMoeda(item.valorMaximo)}</td>
                 <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>
                 <td>
-                  <select
-                    className="prospects-priority-select"
-                    value={Number(item.prioridade || 2)}
-                    title={canOperateItem(item) ? "Editar prioridade" : "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"}
-                    disabled={updateLoadingIds.has(`${item.codigo}:prioridade`) || !canOperateItem(item)}
-                    onChange={(e) => onAtualizarPrioridade(item, Number(e.target.value))}
-                  >
-                    {PRIORIDADE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
                   <div className="prospects-description-cell" title={item.descricao || "—"}>
                     {item.descricao || "—"}
                   </div>
                 </td>
                 <td>
                   <div className="prospects-row-actions">
+                    <button
+                      type="button"
+                      className={`prospects-table-icon-btn prospects-table-icon-btn--priority ${obterClassePrioridade(item.prioridade)}`}
+                      title={
+                        !canOperateItem(item)
+                          ? `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Somente admin, editor, autor ou responsável atribuído podem editar este imóvel`
+                          : `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Clique para alternar`
+                      }
+                      onClick={() => onAtualizarPrioridade(item, Number(item.prioridade || 2) >= 3 ? 1 : Number(item.prioridade || 2) + 1)}
+                      disabled={updateLoadingIds.has(`${item.codigo}:prioridade`) || !canOperateItem(item)}
+                    >
+                      <PriorityIcon level={Number(item.prioridade || 2)} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`prospects-table-icon-btn prospects-table-icon-btn--responsaveis ${canManageResponsaveis ? "" : "is-readonly"}`.trim()}
+                      title={(() => {
+                        const pessoas = [];
+                        const seen = new Set();
+                        const addPessoa = (id, label, suffix = "") => {
+                          const normalizedId = id ? String(id) : "";
+                          const normalizedLabel = `${label || ""}`.trim();
+                          const key = normalizedId || normalizedLabel.toLowerCase();
+                          if (!key || seen.has(key)) return;
+                          seen.add(key);
+                          pessoas.push(`${normalizedLabel}${suffix}`);
+                        };
+                        addPessoa(item.createdBy, item.createdByName, item.createdByName ? " (selecionou)" : "");
+                        (item.responsaveis || []).forEach((responsavel) => {
+                          addPessoa(responsavel.id, responsavel.name || responsavel.email);
+                        });
+                        const resumo = pessoas.length ? pessoas.join(", ") : "Sem responsáveis definidos.";
+                        return canManageResponsaveis ? `${resumo} Clique para editar responsáveis.` : resumo;
+                      })()}
+                      onClick={() => {
+                        if (canManageResponsaveis) onEditarResponsaveis(item);
+                      }}
+                    >
+                      <UsersIcon />
+                    </button>
                     <button
                       type="button"
                       className={`prospects-table-icon-btn prospects-table-icon-btn--note ${item.observacoes ? "has-note" : "is-empty"}`}
@@ -1727,27 +1722,18 @@ export default function Prospeccoes() {
 
   return (
     <div className="prospects-page">
-      <div className="prospects-header">
-        <div>
-          <p className="prospects-eyebrow">Oportunidades</p>
-          <h1 className="prospects-hero">Prospecções</h1>
-          <p className="prospects-subtitle">
-            Central de decisão para acompanhar imóveis priorizados e a última captura do garimpo com mais clareza operacional.
-          </p>
+      <div className="prospects-header-summary prospects-header-summary--top">
+        <div className="prospects-stat-card">
+          <span>Selecionados</span>
+          <strong>{selecionados.length}</strong>
         </div>
-        <div className="prospects-header-summary">
-          <div className="prospects-stat-card">
-            <span>Selecionados</span>
-            <strong>{selecionados.length}</strong>
-          </div>
-          <div className="prospects-stat-card">
-            <span>Alta prioridade</span>
-            <strong>{selectedMetrics.altaPrioridade}</strong>
-          </div>
-          <div className="prospects-stat-card">
-            <span>Sem responsável</span>
-            <strong>{selectedMetrics.semResponsavel}</strong>
-          </div>
+        <div className="prospects-stat-card">
+          <span>Alta prioridade</span>
+          <strong>{selectedMetrics.altaPrioridade}</strong>
+        </div>
+        <div className="prospects-stat-card">
+          <span>Sem responsável</span>
+          <strong>{selectedMetrics.semResponsavel}</strong>
         </div>
       </div>
 
@@ -1888,8 +1874,8 @@ export default function Prospeccoes() {
           <section className="prospects-card prospects-card--command">
             <div className="prospects-card__header prospects-card__header--stacked">
               <div>
-                <p className="prospects-eyebrow">Operação</p>
-                <h2 className="prospects-title">Controle dos selecionados</h2>
+                <p className="prospects-eyebrow">Fila operacional</p>
+                <h2 className="prospects-title">Selecionados</h2>
                 <p className="prospects-subtitle prospects-subtitle--compact">
                   Filtre e ordene a fila para chegar mais rápido aos imóveis que pedem ação.
                 </p>
