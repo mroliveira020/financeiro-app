@@ -42,16 +42,89 @@ const formatarDataHora = (valor) => {
   return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
 };
 
-const formatarDataCurta = (valor) => {
-  if (!valor) return "Sem data";
+const formatarDataHoraCompacta = (valor) => {
+  if (!valor) return "—";
   const data = new Date(valor);
-  if (Number.isNaN(data.getTime())) return "Sem data";
-  return data.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  if (Number.isNaN(data.getTime())) return "—";
+  const dia = String(data.getDate()).padStart(2, "0");
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const ano = String(data.getFullYear()).slice(-2);
+  const hora = String(data.getHours()).padStart(2, "0");
+  const minuto = String(data.getMinutes()).padStart(2, "0");
+  return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
 };
+
+function IconBase({ children, label }) {
+  return (
+    <svg viewBox="0 0 24 24" role="img" aria-label={label} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {children}
+    </svg>
+  );
+}
+
+function NoteIcon() {
+  return (
+    <IconBase label="Observações">
+      <path d="M8 3.5h8l4 4V19a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5.5a2 2 0 0 1 2-2Z" />
+      <path d="M16 3.5V8h4" />
+      <path d="M9 12h6" />
+      <path d="M9 16h4" />
+    </IconBase>
+  );
+}
+
+function UsersIcon() {
+  return (
+    <IconBase label="Responsáveis">
+      <path d="M16 21v-1.5a3.5 3.5 0 0 0-3.5-3.5h-1A3.5 3.5 0 0 0 8 19.5V21" />
+      <circle cx="12" cy="9" r="3" />
+      <path d="M19 21v-1a3 3 0 0 0-2.2-2.9" />
+      <path d="M17 5.5a2.5 2.5 0 0 1 0 5" />
+    </IconBase>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <IconBase label="Análise financeira">
+      <path d="M4 19h16" />
+      <path d="M7 16v-4" />
+      <path d="M12 16V8" />
+      <path d="M17 16v-7" />
+    </IconBase>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <IconBase label="Remover">
+      <path d="M4 7h16" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      <path d="M7 7l1 12a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9L17 7" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </IconBase>
+  );
+}
+
+function EyeIcon({ closed = false }) {
+  return (
+    <IconBase label={closed ? "Mostrar selecionados" : "Ocultar selecionados"}>
+      <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+      {closed ? <path d="M4 4l16 16" /> : null}
+    </IconBase>
+  );
+}
+
+function obterClasseRoi(roi) {
+  const valor = Number(roi);
+  if (!Number.isFinite(valor)) return "is-neutral";
+  if (valor >= 40) return "is-excellent";
+  if (valor >= 20) return "is-good";
+  if (valor > 0) return "is-caution";
+  return "is-risk";
+}
 
 const ANALISE_DEFAULTS = {
   link_google_maps: "",
@@ -355,8 +428,15 @@ function TabelaSelecionados({
         </div>
         <div className="prospects-card__header-actions">
           <span className="prospects-pill">{dados.length} imóveis</span>
-          <button type="button" className="prospects-btn secondary" onClick={onToggleCollapse}>
-            {collapsed ? "Mostrar selecionados" : "Ocultar selecionados"}
+          <button
+            type="button"
+            className="prospects-visibility-btn"
+            onClick={onToggleCollapse}
+            title={collapsed ? "Mostrar selecionados" : "Ocultar selecionados"}
+            aria-label={collapsed ? "Mostrar selecionados" : "Ocultar selecionados"}
+            aria-pressed={collapsed}
+          >
+            <EyeIcon closed={collapsed} />
           </button>
         </div>
       </div>
@@ -367,8 +447,7 @@ function TabelaSelecionados({
           <thead>
             <tr>
               <th>Código</th>
-              <th>Cidade</th>
-              <th>UF</th>
+              <th>Cidade / UF</th>
               <th>Responsáveis</th>
               <th>Data leilão</th>
               <th>Valor máximo</th>
@@ -387,9 +466,14 @@ function TabelaSelecionados({
                     {item.codigo}
                   </a>
                 </td>
-                <td>{item.cidade}</td>
-                <td>{item.uf}</td>
                 <td>
+                  <div className="prospects-city-cell">
+                    <strong>{item.cidade || "—"}</strong>
+                    <span>{item.uf || "—"}</span>
+                  </div>
+                </td>
+                <td>
+                  <div className="prospects-people-cell">
                   {(() => {
                     const pessoas = [];
                     const seen = new Set();
@@ -423,11 +507,21 @@ function TabelaSelecionados({
                       </div>
                     );
                   })()}
+                    {canManageResponsaveis ? (
+                      <button
+                        type="button"
+                        className="prospects-table-icon-btn prospects-table-icon-btn--responsaveis"
+                        title={item.responsaveis?.length ? "Editar responsáveis" : "Adicionar responsáveis"}
+                        onClick={() => onEditarResponsaveis(item)}
+                      >
+                        <UsersIcon />
+                      </button>
+                    ) : null}
+                  </div>
                 </td>
                 <td>
                   <div className="prospects-date-cell">
-                    <strong>{formatarDataCurta(item.dataLeilao)}</strong>
-                    <span>{formatarDataHora(item.dataLeilao).split(" ").slice(-1)[0] || "—"}</span>
+                    <strong>{formatarDataHoraCompacta(item.dataLeilao)}</strong>
                   </div>
                 </td>
                 <td>{formatarMoeda(item.valorMaximo)}</td>
@@ -450,7 +544,7 @@ function TabelaSelecionados({
                 <td>
                   <button
                     type="button"
-                    className={`prospects-note-btn ${item.observacoes ? "has-note" : ""}`}
+                    className={`prospects-table-icon-btn prospects-table-icon-btn--note ${item.observacoes ? "has-note" : "is-empty"}`}
                     title={
                       !canOperateItem(item)
                         ? "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"
@@ -459,7 +553,7 @@ function TabelaSelecionados({
                     onClick={() => onEditarObservacoes(item)}
                     disabled={updateLoadingIds.has(`${item.codigo}:observacoes`) || !canOperateItem(item)}
                   >
-                    {item.observacoes ? "Nota ativa" : "Adicionar nota"}
+                    <NoteIcon />
                   </button>
                 </td>
                 <td>
@@ -471,36 +565,27 @@ function TabelaSelecionados({
                   <div className="prospects-row-actions">
                     <button
                       type="button"
-                      className={`prospects-icon-btn prospects-icon-btn--analysis ${item.analiseSalva ? "has-roi" : ""}`}
-                      title={canOperateItem(item) ? "Abrir ficha de viabilidade" : "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"}
+                      className={`prospects-table-icon-btn prospects-table-icon-btn--analysis ${item.analiseSalva ? obterClasseRoi(item.roiEsperadoPercentual) : "is-neutral"}`}
+                      title={
+                        !canOperateItem(item)
+                          ? "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"
+                          : item.analiseSalva
+                            ? `Abrir análise financeira. ROI: ${formatarPercentual(item.roiEsperadoPercentual)}`
+                            : "Abrir ficha de viabilidade"
+                      }
                       onClick={() => onAbrirAnalise(item)}
                       disabled={!canOperateItem(item)}
                     >
-                      <span>Análise</span>
-                      {item.analiseSalva && item.roiEsperadoPercentual !== null && item.roiEsperadoPercentual !== undefined ? (
-                        <strong>{formatarPercentual(item.roiEsperadoPercentual)}</strong>
-                      ) : (
-                        <small>Nova</small>
-                      )}
+                      <ChartIcon />
                     </button>
-                    {canManageResponsaveis ? (
-                      <button
-                        type="button"
-                        className="prospects-icon-btn"
-                        title="Definir responsáveis"
-                        onClick={() => onEditarResponsaveis(item)}
-                      >
-                        {item.responsaveis?.length ? "Responsáveis" : "Atribuir"}
-                      </button>
-                    ) : null}
                     <button
                       type="button"
-                      className="prospects-icon-btn danger"
+                      className="prospects-table-icon-btn prospects-table-icon-btn--danger"
                       title={canDeleteItem(item) ? "Remover da fila" : "Apenas o autor da seleção ou um administrador pode remover este imóvel"}
                       disabled={removeLoadingIds.has(item.codigo) || !canDeleteItem(item)}
                       onClick={() => onExcluir(item)}
                     >
-                      {removeLoadingIds.has(item.codigo) ? "..." : "Remover"}
+                      {removeLoadingIds.has(item.codigo) ? "..." : <TrashIcon />}
                     </button>
                   </div>
                 </td>

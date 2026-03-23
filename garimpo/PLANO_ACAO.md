@@ -254,7 +254,8 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - Data do leilão
         - Prioridade editável
         - autoria integrada ao bloco de responsáveis
-        - Responsáveis
+        - Responsáveis com ação de editar/adicionar na própria coluna
+        - Cidade/UF consolidados em uma única coluna para reduzir largura da tabela
         - Ações com botões/iconografia mais claros
    8.4.1. [x] Reorganizar navegação da página:
         - aba `Base completa` vem primeiro;
@@ -264,12 +265,18 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - filtros e ordenações dedicados para a fila de selecionados;
         - aparência mais profissional dos botões e comandos;
         - redução da hierarquia tipográfica para evitar títulos excessivamente grandes;
-        - refinamento de espaçamento, densidade dos cards e legibilidade geral da tela.
+        - refinamento de espaçamento, densidade dos cards e legibilidade geral da tela;
+        - data do leilão compactada para formato `dd/mm/yy hh:mm`;
+        - observações representadas por ícone com estado visual cinza/azul;
+        - análise financeira representada por ícone com cor orientada pelo ROI;
+        - ações principais da tabela condensadas em ícones na mesma linha.
    8.5. [ ] Critério de aceite:
         - usuário consegue alterar prioridade na lista;
         - lista de selecionados exibe com clareza quem selecionou o imóvel, integrado aos responsáveis;
         - tabela ordena por data do leilão;
         - coluna `Status` não polui a operação diária;
+        - coluna de observações indica visualmente se existe nota ativa;
+        - coluna de ações comunica análise e remoção sem exigir botões textuais;
         - `admin` consegue atribuir um ou mais prospectores a cada imóvel;
         - prospector atribuído consegue alterar prioridade e registrar observações;
         - interface principal de Prospecções separa claramente base completa e fila operacional.
