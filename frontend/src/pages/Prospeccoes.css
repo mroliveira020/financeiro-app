@@ -424,29 +424,34 @@
 
 .prospects-row-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
   flex-wrap: nowrap;
 }
 
 .prospects-table-icon-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid #d5dfea;
-  border-radius: 12px;
+  border-radius: 13px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   color: #64748b;
   padding: 0;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
 }
 
 .prospects-table-icon-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
+}
+
+.prospects-table-icon-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
 }
 
 .prospects-table-icon-btn--note.is-empty {
@@ -461,22 +466,33 @@
 }
 
 .prospects-table-icon-btn--priority.is-low {
-  color: #0c4a6e;
-  background: #e0f2fe;
-  border-color: #b6e4fb;
+  color: #075985;
+  background: linear-gradient(180deg, #eefaff 0%, #dff4ff 100%);
+  border-color: #9fdcff;
 }
 
 .prospects-table-icon-btn--priority.is-medium {
   color: #0f766e;
-  background: #e9fbf6;
-  border-color: #b9f0e1;
+  background: linear-gradient(180deg, #effdf8 0%, #dcf8ee 100%);
+  border-color: #9de8d4;
 }
 
 .prospects-table-icon-btn--priority.is-high {
   color: #1849a9;
-  background: linear-gradient(180deg, #eef4ff 0%, #dfe9ff 100%);
-  border-color: #9bb8ff;
-  box-shadow: 0 10px 22px rgba(24, 73, 169, 0.18);
+  background: linear-gradient(180deg, #eff4ff 0%, #dce8ff 100%);
+  border-color: #88aaff;
+  box-shadow: 0 12px 24px rgba(24, 73, 169, 0.2);
+}
+
+.prospects-table-icon-btn--priority {
+  width: 38px;
+  height: 38px;
+}
+
+.prospects-table-icon-btn--priority svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.1;
 }
 
 .prospects-table-icon-btn--responsaveis.is-readonly {

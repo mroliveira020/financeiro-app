@@ -89,9 +89,10 @@ function PriorityIcon({ level = 2 }) {
   const activeLevel = Number(level) || 2;
   return (
     <IconBase label={`Prioridade ${activeLevel}`}>
-      <path d="m6.5 16 3-3 3 3" opacity={activeLevel >= 1 ? "1" : "0.24"} />
-      <path d="m9.5 12.5 2.5-2.5 2.5 2.5" opacity={activeLevel >= 2 ? "1" : "0.24"} />
-      <path d="m12 9.5 2-2 2 2" opacity={activeLevel >= 3 ? "1" : "0.24"} />
+      <path d="M6 18.5h12" opacity="0.35" />
+      <path d="M8 17v-3.5" opacity={activeLevel >= 1 ? "1" : "0.22"} />
+      <path d="M12 17V10.5" opacity={activeLevel >= 2 ? "1" : "0.22"} />
+      <path d="M16 17V7.5" opacity={activeLevel >= 3 ? "1" : "0.22"} />
     </IconBase>
   );
 }
