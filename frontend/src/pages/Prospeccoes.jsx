@@ -902,6 +902,7 @@ function TabelaCapturados({
   sortBy,
   sortDir,
   onSortChange,
+  selectedCodes,
 }) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando capturados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar capturados: {erro}</p></div>;
@@ -976,9 +977,14 @@ function TabelaCapturados({
               <React.Fragment key={item.codigo}>
                 <tr className="prospects-expandable" onClick={() => toggleExpand(item.codigo)}>
                   <td className="mono">
-                    <a className="prospects-link" href={item.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                      {item.codigo}
-                    </a>
+                    <div className="prospects-code-stack">
+                      <a className="prospects-link" href={item.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                        {item.codigo}
+                      </a>
+                      {selectedCodes.has(item.codigo) ? (
+                        <span className="prospects-inline-pill prospects-inline-pill--selected">Na fila</span>
+                      ) : null}
+                    </div>
                   </td>
                   <td>{item.cidade}</td>
                   <td>{item.uf}</td>
@@ -1072,12 +1078,14 @@ export default function Prospeccoes() {
   const [expanded, setExpanded] = useState(new Set());
   const [sortBy, setSortBy] = useState("ultima_disputa");
   const [sortDir, setSortDir] = useState("desc");
+  const [activeTab, setActiveTab] = useState("selecionados");
   const [selectedSortBy, setSelectedSortBy] = useState("dataLeilao");
   const [selectedSortDir, setSelectedSortDir] = useState("asc");
   const [selectedSearch, setSelectedSearch] = useState("");
   const [selectedUfFilter, setSelectedUfFilter] = useState("todos");
   const [selectedPrioridadeFilter, setSelectedPrioridadeFilter] = useState("todas");
   const [selectedResponsavelFilter, setSelectedResponsavelFilter] = useState("todos");
+  const [selectedUserFilter, setSelectedUserFilter] = useState("todos");
   const [selecionadosCollapsed, setSelecionadosCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("prospeccoes_selecionados_collapsed") === "1";
@@ -1157,6 +1165,7 @@ export default function Prospeccoes() {
   useEffect(() => {
     if (user?.role !== "admin") {
       setResponsaveisDisponiveis([]);
+      setSelectedUserFilter("todos");
       return;
     }
     fetchResponsaveisDisponiveis()
@@ -1186,6 +1195,29 @@ export default function Prospeccoes() {
 
   const selectedUfOptions = useMemo(
     () => Array.from(new Set(selecionados.map((item) => item.uf).filter(Boolean))).sort(),
+    [selecionados]
+  );
+  const selectedUserOptions = useMemo(() => {
+    const usersMap = new Map();
+    selecionados.forEach((item) => {
+      if (item.createdBy) {
+        usersMap.set(String(item.createdBy), {
+          id: String(item.createdBy),
+          label: item.createdByName || `Usuário ${item.createdBy}`,
+        });
+      }
+      (item.responsaveis || []).forEach((responsavel) => {
+        if (!responsavel?.id) return;
+        usersMap.set(String(responsavel.id), {
+          id: String(responsavel.id),
+          label: responsavel.name || responsavel.email || `Usuário ${responsavel.id}`,
+        });
+      });
+    });
+    return Array.from(usersMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [selecionados]);
+  const selectedCodes = useMemo(
+    () => new Set(selecionados.map((item) => item.codigo)),
     [selecionados]
   );
 
@@ -1476,6 +1508,14 @@ export default function Prospeccoes() {
       if (selectedResponsavelFilter === "com" && !(item.responsaveis?.length)) return false;
       if (selectedResponsavelFilter === "sem" && item.responsaveis?.length) return false;
       if (
+        user?.role === "admin" &&
+        selectedUserFilter !== "todos" &&
+        String(item.createdBy) !== selectedUserFilter &&
+        !item.responsaveis?.some((responsavel) => String(responsavel.id) === selectedUserFilter)
+      ) {
+        return false;
+      }
+      if (
         selectedResponsavelFilter === "meus" &&
         !item.responsaveis?.some((responsavel) => String(responsavel.id) === String(user?.id))
       ) {
@@ -1527,8 +1567,10 @@ export default function Prospeccoes() {
     selectedUfFilter,
     selectedPrioridadeFilter,
     selectedResponsavelFilter,
+    selectedUserFilter,
     selectedSortBy,
     selectedSortDir,
+    user?.role,
     user?.id,
   ]);
 
@@ -1714,130 +1756,171 @@ export default function Prospeccoes() {
 
       {mensagem && <div className="prospects-message">{mensagem}</div>}
 
-      <section className="prospects-card prospects-card--command">
-        <div className="prospects-card__header prospects-card__header--stacked">
-          <div>
-            <p className="prospects-eyebrow">Operação</p>
-            <h2 className="prospects-title">Controle dos selecionados</h2>
-            <p className="prospects-subtitle prospects-subtitle--compact">
-              Filtre e ordene a fila para chegar mais rápido aos imóveis que pedem ação.
-            </p>
-          </div>
-          <div className="prospects-card__header-actions">
-            <span className="prospects-pill">{selecionadosFiltradosOrdenados.length} visíveis</span>
-            <span className="prospects-pill prospects-pill--muted">{selectedMetrics.comAnalise} com análise</span>
-          </div>
-        </div>
-        <div className="prospects-toolbar">
-          <label className="prospects-toolbar-field prospects-toolbar-field--search">
-            <span>Buscar</span>
-            <input
-              type="search"
-              value={selectedSearch}
-              onChange={(e) => setSelectedSearch(e.target.value)}
-              placeholder="Código, cidade, autor, responsável ou descrição"
-            />
-          </label>
-          <label className="prospects-toolbar-field">
-            <span>UF</span>
-            <select value={selectedUfFilter} onChange={(e) => setSelectedUfFilter(e.target.value)}>
-              <option value="todos">Todas</option>
-              {selectedUfOptions.map((uf) => (
-                <option key={uf} value={uf}>{uf}</option>
-              ))}
-            </select>
-          </label>
-          <label className="prospects-toolbar-field">
-            <span>Prioridade</span>
-            <select value={selectedPrioridadeFilter} onChange={(e) => setSelectedPrioridadeFilter(e.target.value)}>
-              <option value="todas">Todas</option>
-              {PRIORIDADE_OPTIONS.map((option) => (
-                <option key={option.value} value={String(option.value)}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="prospects-toolbar-field">
-            <span>Responsáveis</span>
-            <select value={selectedResponsavelFilter} onChange={(e) => setSelectedResponsavelFilter(e.target.value)}>
-              <option value="todos">Todos</option>
-              <option value="com">Com responsáveis</option>
-              <option value="sem">Sem responsáveis</option>
-              <option value="meus">Atribuídos a mim</option>
-            </select>
-          </label>
-          <label className="prospects-toolbar-field">
-            <span>Ordenar por</span>
-            <select value={selectedSortBy} onChange={(e) => setSelectedSortBy(e.target.value)}>
-              <option value="dataLeilao">Data do leilão</option>
-              <option value="prioridade">Prioridade</option>
-              <option value="cidade">Cidade</option>
-              <option value="valorMaximo">Valor máximo</option>
-              <option value="roi">ROI</option>
-            </select>
-          </label>
-          <label className="prospects-toolbar-field">
-            <span>Direção</span>
-            <select value={selectedSortDir} onChange={(e) => setSelectedSortDir(e.target.value)}>
-              <option value="asc">Crescente</option>
-              <option value="desc">Decrescente</option>
-            </select>
-          </label>
-          <div className="prospects-toolbar-actions">
-            <button
-              type="button"
-              className="prospects-btn secondary"
-              onClick={() => {
-                setSelectedSearch("");
-                setSelectedUfFilter("todos");
-                setSelectedPrioridadeFilter("todas");
-                setSelectedResponsavelFilter("todos");
-                setSelectedSortBy("dataLeilao");
-                setSelectedSortDir("asc");
-              }}
-            >
-              Limpar visão
-            </button>
-          </div>
-        </div>
-      </section>
+      <div className="prospects-tabs" role="tablist" aria-label="Navegação de prospecções">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "selecionados"}
+          className={`prospects-tab ${activeTab === "selecionados" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("selecionados")}
+        >
+          <span>Selecionados</span>
+          <strong>{selecionados.length}</strong>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "capturados"}
+          className={`prospects-tab ${activeTab === "capturados" ? "is-active" : ""}`}
+          onClick={() => setActiveTab("capturados")}
+        >
+          <span>Base completa</span>
+          <strong>{capturadosTotal}</strong>
+        </button>
+      </div>
 
-      <TabelaSelecionados
-        dados={selecionadosFiltradosOrdenados}
-        loading={loadingSel}
-        erro={erroSel}
-        onExcluir={setConfirmDeleteItem}
-        onAtualizarPrioridade={handleAtualizarPrioridade}
-        onEditarObservacoes={openObservacoesModal}
-        onAbrirAnalise={openAnaliseModal}
-        onEditarResponsaveis={openResponsaveisModal}
-        removeLoadingIds={removeLoadingIds}
-        updateLoadingIds={updateLoadingIds}
-        canDeleteItem={canDeleteItem}
-        canOperateItem={canOperateItem}
-        canManageResponsaveis={canManageResponsaveis}
-        collapsed={selecionadosCollapsed}
-        onToggleCollapse={() => setSelecionadosCollapsed((prev) => !prev)}
-        sortLabel={selectedSortLabel}
-      />
+      {activeTab === "selecionados" ? (
+        <>
+          <section className="prospects-card prospects-card--command">
+            <div className="prospects-card__header prospects-card__header--stacked">
+              <div>
+                <p className="prospects-eyebrow">Operação</p>
+                <h2 className="prospects-title">Controle dos selecionados</h2>
+                <p className="prospects-subtitle prospects-subtitle--compact">
+                  Filtre e ordene a fila para chegar mais rápido aos imóveis que pedem ação.
+                </p>
+              </div>
+              <div className="prospects-card__header-actions">
+                <span className="prospects-pill">{selecionadosFiltradosOrdenados.length} visíveis</span>
+                <span className="prospects-pill prospects-pill--muted">{selectedMetrics.comAnalise} com análise</span>
+              </div>
+            </div>
+            <div className="prospects-toolbar">
+              <label className="prospects-toolbar-field prospects-toolbar-field--search">
+                <span>Buscar</span>
+                <input
+                  type="search"
+                  value={selectedSearch}
+                  onChange={(e) => setSelectedSearch(e.target.value)}
+                  placeholder="Código, cidade, autor, responsável ou descrição"
+                />
+              </label>
+              <label className="prospects-toolbar-field">
+                <span>UF</span>
+                <select value={selectedUfFilter} onChange={(e) => setSelectedUfFilter(e.target.value)}>
+                  <option value="todos">Todas</option>
+                  {selectedUfOptions.map((uf) => (
+                    <option key={uf} value={uf}>{uf}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="prospects-toolbar-field">
+                <span>Prioridade</span>
+                <select value={selectedPrioridadeFilter} onChange={(e) => setSelectedPrioridadeFilter(e.target.value)}>
+                  <option value="todas">Todas</option>
+                  {PRIORIDADE_OPTIONS.map((option) => (
+                    <option key={option.value} value={String(option.value)}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="prospects-toolbar-field">
+                <span>Responsáveis</span>
+                <select value={selectedResponsavelFilter} onChange={(e) => setSelectedResponsavelFilter(e.target.value)}>
+                  <option value="todos">Todos</option>
+                  <option value="com">Com responsáveis</option>
+                  <option value="sem">Sem responsáveis</option>
+                  <option value="meus">Atribuídos a mim</option>
+                </select>
+              </label>
+              {user?.role === "admin" ? (
+                <label className="prospects-toolbar-field">
+                  <span>Usuário</span>
+                  <select value={selectedUserFilter} onChange={(e) => setSelectedUserFilter(e.target.value)}>
+                    <option value="todos">Todos</option>
+                    {selectedUserOptions.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              <label className="prospects-toolbar-field">
+                <span>Ordenar por</span>
+                <select value={selectedSortBy} onChange={(e) => setSelectedSortBy(e.target.value)}>
+                  <option value="dataLeilao">Data do leilão</option>
+                  <option value="prioridade">Prioridade</option>
+                  <option value="cidade">Cidade</option>
+                  <option value="valorMaximo">Valor máximo</option>
+                  <option value="roi">ROI</option>
+                </select>
+              </label>
+              <label className="prospects-toolbar-field">
+                <span>Direção</span>
+                <select value={selectedSortDir} onChange={(e) => setSelectedSortDir(e.target.value)}>
+                  <option value="asc">Crescente</option>
+                  <option value="desc">Decrescente</option>
+                </select>
+              </label>
+              <div className="prospects-toolbar-actions">
+                <button
+                  type="button"
+                  className="prospects-btn secondary"
+                  onClick={() => {
+                    setSelectedSearch("");
+                    setSelectedUfFilter("todos");
+                    setSelectedPrioridadeFilter("todas");
+                    setSelectedResponsavelFilter("todos");
+                    setSelectedUserFilter("todos");
+                    setSelectedSortBy("dataLeilao");
+                    setSelectedSortDir("asc");
+                  }}
+                >
+                  Limpar visão
+                </button>
+              </div>
+            </div>
+          </section>
 
-      <div className="prospects-gap" />
-
-      <TabelaCapturados
-        dados={capturados}
-        total={capturadosTotal}
-        page={page}
-        pageSize={pageSize}
-        loading={loadingCap}
-        erro={erroCap}
-        onIncluir={handleIncluir}
-        includeLoadingIds={includeLoadingIds}
-        expanded={expanded}
-        toggleExpand={toggleExpand}
-        onPageChange={handlePageChange}
-        sortBy={sortBy}
-        sortDir={sortDir}
-        onSortChange={handleSortChange}
-      />
+          <TabelaSelecionados
+            dados={selecionadosFiltradosOrdenados}
+            loading={loadingSel}
+            erro={erroSel}
+            onExcluir={setConfirmDeleteItem}
+            onAtualizarPrioridade={handleAtualizarPrioridade}
+            onEditarObservacoes={openObservacoesModal}
+            onAbrirAnalise={openAnaliseModal}
+            onEditarResponsaveis={openResponsaveisModal}
+            removeLoadingIds={removeLoadingIds}
+            updateLoadingIds={updateLoadingIds}
+            canDeleteItem={canDeleteItem}
+            canOperateItem={canOperateItem}
+            canManageResponsaveis={canManageResponsaveis}
+            collapsed={selecionadosCollapsed}
+            onToggleCollapse={() => setSelecionadosCollapsed((prev) => !prev)}
+            sortLabel={selectedSortLabel}
+          />
+        </>
+      ) : (
+        <>
+          <div className="prospects-gap" />
+          <TabelaCapturados
+            dados={capturados}
+            total={capturadosTotal}
+            page={page}
+            pageSize={pageSize}
+            loading={loadingCap}
+            erro={erroCap}
+            onIncluir={handleIncluir}
+            includeLoadingIds={includeLoadingIds}
+            expanded={expanded}
+            toggleExpand={toggleExpand}
+            onPageChange={handlePageChange}
+            sortBy={sortBy}
+            sortDir={sortDir}
+            onSortChange={handleSortChange}
+            selectedCodes={selectedCodes}
+          />
+        </>
+      )}
 
       <ConfirmarExclusaoModal
         item={confirmDeleteItem}

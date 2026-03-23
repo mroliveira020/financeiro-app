@@ -1922,7 +1922,13 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
     return {"total": total, "data": result}
 
 
-def listar_prospeccoes_selecionados(status=None, uf=None):
+def listar_prospeccoes_selecionados(
+    status=None,
+    uf=None,
+    viewer_user_id=None,
+    viewer_role=None,
+    related_user_id=None,
+):
     _garantir_colunas_prospeccao_autoria()
     _garantir_tabela_prospeccao_observacoes()
     _garantir_tabela_prospeccao_analise()
@@ -1997,6 +2003,39 @@ def listar_prospeccoes_selecionados(status=None, uf=None):
     if uf:
         conditions.append("LOWER(v.uf) = LOWER(%s)")
         params.append(uf)
+    if viewer_role != "admin":
+        if viewer_user_id is None:
+            conn.close()
+            return []
+        conditions.append(
+            """
+            (
+                s.created_by = %s
+                OR EXISTS (
+                    SELECT 1
+                    FROM imoveis_selecionados_responsaveis r_view
+                    WHERE r_view.numero_bem = s.numero_bem
+                      AND r_view.user_id = %s
+                )
+            )
+            """
+        )
+        params.extend([viewer_user_id, viewer_user_id])
+    elif related_user_id is not None:
+        conditions.append(
+            """
+            (
+                s.created_by = %s
+                OR EXISTS (
+                    SELECT 1
+                    FROM imoveis_selecionados_responsaveis r_related
+                    WHERE r_related.numero_bem = s.numero_bem
+                      AND r_related.user_id = %s
+                )
+            )
+            """
+        )
+        params.extend([related_user_id, related_user_id])
 
     if conditions:
         base_query += " WHERE " + " AND ".join(conditions)

@@ -83,9 +83,9 @@ export async function fetchCapturados({
   return { data: formatted, total, page: currentPage, pageSize: currentPageSize };
 }
 
-export async function fetchSelecionados({ status, uf } = {}) {
+export async function fetchSelecionados({ status, uf, userId } = {}) {
   const { data } = await api.get("/prospeccoes/selecionados", {
-    params: { status, uf },
+    params: { status, uf, user_id: userId },
     paramsSerializer: { serialize: serializeParams },
   });
   return (data?.data || []).map((item) => ({

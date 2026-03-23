@@ -258,9 +258,19 @@ def get_prospeccoes_capturados():
 @app.route("/prospeccoes/selecionados", methods=["GET"])
 @requires_auth
 def get_prospeccoes_selecionados():
+    current_user = get_current_user() or {}
     status = request.args.get("status")
     uf = request.args.get("uf")
-    dados = listar_prospeccoes_selecionados(status=status, uf=uf)
+    related_user_id = request.args.get("user_id")
+    if current_user.get("role") != "admin":
+        related_user_id = None
+    dados = listar_prospeccoes_selecionados(
+        status=status,
+        uf=uf,
+        viewer_user_id=current_user.get("id"),
+        viewer_role=current_user.get("role"),
+        related_user_id=related_user_id,
+    )
     return jsonify({"data": dados})
 
 
