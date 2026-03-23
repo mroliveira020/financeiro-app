@@ -1,5 +1,5 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import "./Prospeccoes.css";
 
 import {
@@ -13,6 +13,7 @@ import {
   fetchResponsaveisDisponiveis,
   salvarResponsaveisSelecionado,
 } from "../services/prospeccoes";
+import { fetchImoveis } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 const PRIORIDADE_OPTIONS = [
@@ -20,6 +21,8 @@ const PRIORIDADE_OPTIONS = [
   { value: 2, label: "Média", cls: "media" },
   { value: 3, label: "Alta", cls: "alta" },
 ];
+
+const MOBILE_BREAKPOINT = 900;
 
 const formatarMoeda = (valor) => {
   if (valor === null || valor === undefined) return "—";
@@ -129,6 +132,49 @@ function EyeIcon({ closed = false }) {
     </IconBase>
   );
 }
+
+function FinanceIcon() {
+  return (
+    <IconBase label="Controle financeiro">
+      <rect x="3.5" y="6" width="17" height="12.5" rx="2" />
+      <path d="M3.5 10h17" />
+      <path d="M7 15h4" />
+      <path d="M16.5 4.5v3" />
+      <path d="M7.5 4.5v3" />
+    </IconBase>
+  );
+}
+
+function QueueIcon() {
+  return (
+    <IconBase label="Selecionados para prospecção">
+      <path d="M4 6.5h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17.5h10" />
+      <circle cx="18" cy="17.5" r="2" />
+    </IconBase>
+  );
+}
+
+function ArrowLeftIcon() {
+  return (
+    <IconBase label="Voltar">
+      <path d="M19 12H5" />
+      <path d="m11 18-6-6 6-6" />
+    </IconBase>
+  );
+}
+
+const detectMobileAccess = () => {
+  if (typeof window === "undefined") return false;
+  const width = window.innerWidth <= MOBILE_BREAKPOINT;
+  const coarsePointer = typeof window.matchMedia === "function"
+    ? window.matchMedia("(pointer: coarse)").matches
+    : false;
+  const touchPoints = navigator.maxTouchPoints || 0;
+  const userAgent = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
+  return width && (coarsePointer || touchPoints > 0 || userAgent);
+};
 
 function obterClasseRoi(roi) {
   const valor = Number(roi);
@@ -1198,10 +1244,195 @@ function TabelaCapturados({
   );
 }
 
+function MobileHubCard({
+  eyebrow,
+  title,
+  description,
+  count,
+  icon,
+  to,
+  onClick,
+  disabled = false,
+}) {
+  const content = (
+    <>
+      <div className="prospects-mobile-hub-card__icon">{icon}</div>
+      <div className="prospects-mobile-hub-card__body">
+        <span className="prospects-mobile-hub-card__eyebrow">{eyebrow}</span>
+        <strong>{title}</strong>
+        <p>{description}</p>
+      </div>
+      <div className="prospects-mobile-hub-card__meta">
+        <span>{disabled ? "Sem acesso" : "Imóveis"}</span>
+        <strong>{count}</strong>
+      </div>
+    </>
+  );
+
+  if (to && !disabled) {
+    return (
+      <Link className="prospects-mobile-hub-card" to={to}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={`prospects-mobile-hub-card ${disabled ? "is-disabled" : ""}`.trim()}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+    >
+      {content}
+    </button>
+  );
+}
+
+function MobileSelecionadosList({
+  dados,
+  loading,
+  erro,
+  onBack,
+  onEditarObservacoes,
+  onAbrirAnalise,
+  onEditarPrioridade,
+  onEditarResponsaveis,
+  onExcluir,
+  canOperateItem,
+  canManageResponsaveis,
+  canDeleteItem,
+  updateLoadingIds,
+  removeLoadingIds,
+}) {
+  if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando fila...</p></div>;
+  if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar fila: {erro}</p></div>;
+
+  return (
+    <section className="prospects-mobile-section">
+      <div className="prospects-card">
+        <div className="prospects-card__header prospects-card__header--stacked">
+          <div>
+            <p className="prospects-eyebrow">Mobile</p>
+            <h2 className="prospects-title">Fila de prospecção</h2>
+            <p className="prospects-subtitle prospects-subtitle--compact">
+              Abra notas, viabilidade e ajustes operacionais sem depender da tabela desktop.
+            </p>
+          </div>
+          <div className="prospects-card__header-actions">
+            <span className="prospects-pill">{dados.length} imóveis</span>
+            <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onBack}>
+              <ArrowLeftIcon />
+              <span>Menu mobile</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {!dados.length ? (
+        <div className="prospects-card">
+          <p className="prospects-empty">Nenhum item disponível na fila.</p>
+        </div>
+      ) : null}
+
+      <div className="prospects-mobile-list">
+        {dados.map((item) => {
+          const prioridadeLabel = PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média";
+          const podeOperar = canOperateItem(item);
+          const podeExcluir = canDeleteItem(item);
+          const roiClass = obterClasseRoi(item.roiEsperadoPercentual);
+          return (
+            <article key={item.codigo} className="prospects-mobile-item-card">
+              <div className="prospects-mobile-item-card__top">
+                <div>
+                  <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
+                    {item.codigo}
+                  </a>
+                  <p className="prospects-mobile-item-card__location">
+                    {[item.cidade, item.uf].filter(Boolean).join("/") || "Sem localização"}
+                  </p>
+                </div>
+                <div className="prospects-mobile-item-card__pills">
+                  <span className={`prospects-chip priority-${prioridadeLabel.toLowerCase()}`}>{prioridadeLabel}</span>
+                  <span className={`prospects-chip prospects-mobile-chip--roi ${roiClass}`}>{formatarPercentual(item.roiEsperadoPercentual)}</span>
+                </div>
+              </div>
+
+              <div className="prospects-mobile-item-card__meta">
+                <div>
+                  <span>Leilão</span>
+                  <strong>{formatarDataHoraCompacta(item.dataLeilao)}</strong>
+                </div>
+                <div>
+                  <span>Valor máximo</span>
+                  <strong>{formatarMoeda(item.valorMaximo)}</strong>
+                </div>
+              </div>
+
+              <p className="prospects-mobile-item-card__description">{item.descricao || "Sem descrição cadastrada."}</p>
+
+              <div className="prospects-mobile-item-card__actions">
+                <button
+                  type="button"
+                  className="prospects-btn secondary prospects-btn--mobile-action"
+                  onClick={() => onEditarObservacoes(item)}
+                  disabled={!podeOperar || updateLoadingIds.has(`${item.codigo}:observacoes`)}
+                >
+                  <NoteIcon />
+                  <span>Notas</span>
+                </button>
+                <button
+                  type="button"
+                  className="prospects-btn secondary prospects-btn--mobile-action"
+                  onClick={() => onAbrirAnalise(item)}
+                  disabled={!podeOperar}
+                >
+                  <ChartIcon />
+                  <span>Viabilidade</span>
+                </button>
+                <button
+                  type="button"
+                  className="prospects-btn tertiary prospects-btn--mobile-action"
+                  onClick={() => onEditarPrioridade(item)}
+                  disabled={!podeOperar || updateLoadingIds.has(`${item.codigo}:prioridade`)}
+                >
+                  <PriorityIcon level={Number(item.prioridade || 2)} />
+                  <span>Prioridade</span>
+                </button>
+                {canManageResponsaveis ? (
+                  <button
+                    type="button"
+                    className="prospects-btn tertiary prospects-btn--mobile-action"
+                    onClick={() => onEditarResponsaveis(item)}
+                  >
+                    <UsersIcon />
+                    <span>Responsáveis</span>
+                  </button>
+                ) : null}
+                {podeExcluir ? (
+                  <button
+                    type="button"
+                    className="prospects-btn danger prospects-btn--mobile-action"
+                    onClick={() => onExcluir(item)}
+                    disabled={removeLoadingIds.has(item.codigo)}
+                  >
+                    <TrashIcon />
+                    <span>Remover</span>
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function Prospeccoes() {
   const outletContext = useOutletContext() || {};
   const setTopbarContent = outletContext.setTopbarContent;
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const [selecionados, setSelecionados] = useState([]);
   const [capturados, setCapturados] = useState([]);
   const [capturadosTotal, setCapturadosTotal] = useState(0);
@@ -1251,7 +1482,21 @@ export default function Prospeccoes() {
   const [responsaveisItem, setResponsaveisItem] = useState(null);
   const [responsaveisDraftIds, setResponsaveisDraftIds] = useState([]);
   const [responsaveisSaving, setResponsaveisSaving] = useState(false);
+  const [mobileAccess, setMobileAccess] = useState(() => detectMobileAccess());
+  const [mobileSection, setMobileSection] = useState("hub");
+  const [financeiroCount, setFinanceiroCount] = useState(null);
   const deferredSelectedSearch = useDeferredValue(selectedSearch);
+  const canAccessFinance = hasRole("viewer", "editor", "admin");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleViewportChange = () => {
+      setMobileAccess(detectMobileAccess());
+    };
+    handleViewportChange();
+    window.addEventListener("resize", handleViewportChange);
+    return () => window.removeEventListener("resize", handleViewportChange);
+  }, []);
 
   useEffect(() => {
     const carregarSelecionados = async () => {
@@ -1319,6 +1564,24 @@ export default function Prospeccoes() {
       .then((data) => setResponsaveisDisponiveis(data || []))
       .catch(() => setResponsaveisDisponiveis([]));
   }, [user]);
+
+  useEffect(() => {
+    if (!mobileAccess || !canAccessFinance) return undefined;
+    let active = true;
+    fetchImoveis()
+      .then((data) => {
+        if (!active) return;
+        const ativos = (data || []).filter((item) => !item?.vendido);
+        setFinanceiroCount(ativos.length);
+      })
+      .catch(() => {
+        if (!active) return;
+        setFinanceiroCount(0);
+      });
+    return () => {
+      active = false;
+    };
+  }, [mobileAccess, canAccessFinance]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1775,6 +2038,10 @@ export default function Prospeccoes() {
 
   useEffect(() => {
     if (!setTopbarContent) return undefined;
+    if (mobileAccess) {
+      setTopbarContent(null);
+      return () => setTopbarContent(null);
+    }
     setTopbarContent(
       <div className="prospects-header-summary prospects-header-summary--topbar">
         <div className="prospects-stat-card">
@@ -1792,11 +2059,69 @@ export default function Prospeccoes() {
       </div>
     );
     return () => setTopbarContent(null);
-  }, [selectedMetrics.altaPrioridade, selectedMetrics.semResponsavel, selecionados.length, setTopbarContent]);
+  }, [mobileAccess, selectedMetrics.altaPrioridade, selectedMetrics.semResponsavel, selecionados.length, setTopbarContent]);
 
   return (
     <div className="prospects-page">
       {mensagem && <div className="prospects-message">{mensagem}</div>}
+
+      {mobileAccess ? (
+        <>
+          {mobileSection === "hub" ? (
+            <section className="prospects-mobile-hub">
+              <div className="prospects-card prospects-mobile-hub__intro">
+                <p className="prospects-eyebrow">Mobile</p>
+                <h2 className="prospects-title">Acesso rápido</h2>
+                <p className="prospects-subtitle">
+                  Escolha o módulo que você quer operar no celular. A versão mobile prioriza consulta rápida, notas e viabilidade.
+                </p>
+              </div>
+
+              <div className="prospects-mobile-hub__grid">
+                <MobileHubCard
+                  eyebrow="Financeiro"
+                  title="Controle financeiro"
+                  description={
+                    canAccessFinance
+                      ? "Acompanhe os imóveis adquiridos e siga para o controle financeiro."
+                      : "Seu perfil atual não possui acesso ao controle financeiro."
+                  }
+                  count={financeiroCount ?? 0}
+                  icon={<FinanceIcon />}
+                  to={canAccessFinance ? "/" : undefined}
+                  disabled={!canAccessFinance}
+                />
+                <MobileHubCard
+                  eyebrow="Prospecção"
+                  title="Selecionados para prospecção"
+                  description="Abra a fila operacional para registrar notas e ajustar a viabilidade dos imóveis."
+                  count={selecionados.length}
+                  icon={<QueueIcon />}
+                  onClick={() => setMobileSection("selecionados")}
+                />
+              </div>
+            </section>
+          ) : (
+            <MobileSelecionadosList
+              dados={selecionadosFiltradosOrdenados}
+              loading={loadingSel}
+              erro={erroSel}
+              onBack={() => setMobileSection("hub")}
+              onEditarObservacoes={openObservacoesModal}
+              onAbrirAnalise={openAnaliseModal}
+              onEditarPrioridade={openPrioridadeModal}
+              onEditarResponsaveis={openResponsaveisModal}
+              onExcluir={setConfirmDeleteItem}
+              canOperateItem={canOperateItem}
+              canManageResponsaveis={canManageResponsaveis}
+              canDeleteItem={canDeleteItem}
+              updateLoadingIds={updateLoadingIds}
+              removeLoadingIds={removeLoadingIds}
+            />
+          )}
+        </>
+      ) : (
+        <>
 
       <div className="prospects-tabs" role="tablist" aria-label="Navegação de prospecções">
         <button
@@ -2066,6 +2391,8 @@ export default function Prospeccoes() {
             onSortChange={handleSortChange}
             selectedCodes={selectedCodes}
           />
+        </>
+      )}
         </>
       )}
 

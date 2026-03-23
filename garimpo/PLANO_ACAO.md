@@ -272,6 +272,17 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - análise financeira representada por ícone com cor orientada pelo ROI;
         - ações principais da tabela condensadas em ícones na mesma linha;
         - descrição da sessão do usuário reduzida para não competir com o conteúdo operacional.
+   8.4.3. [ ] Versão mobile da aplicação:
+        - [x] iniciar menu mobile com cards-resumo para entrada rápida;
+        - [x] card `Controle financeiro` aponta para a home quando o usuário tem acesso;
+        - [x] card `Selecionados para prospecção` abre a primeira experiência mobile da fila;
+        - [x] primeira versão mobile da fila prioriza consulta rápida, notas e viabilidade;
+        - ao identificar acesso em viewport/dispositivo móvel, exibir uma tela inicial simplificada em vez da grade completa desktop;
+        - essa entrada mobile deve abrir com cards-resumo de navegação operacional;
+        - card `Controle financeiro` exibe quantidade de imóveis e só aparece/habilita quando o usuário tiver acesso a essa área;
+        - card `Selecionados para prospecção` exibe quantidade de imóveis da fila acessível ao usuário;
+        - a partir desse menu inicial, o usuário entra na experiência mobile otimizada de cada módulo, começando por `Selecionados`;
+        - a detecção mobile deve combinar viewport responsiva e sinais de dispositivo/toque, sem depender apenas de `userAgent`.
    8.5. [ ] Critério de aceite:
         - usuário consegue alterar prioridade na lista;
         - lista de selecionados exibe com clareza quem selecionou o imóvel, integrado aos responsáveis;
@@ -281,7 +292,9 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - coluna de ações comunica análise e remoção sem exigir botões textuais;
         - `admin` consegue atribuir um ou mais prospectores a cada imóvel;
         - prospector atribuído consegue alterar prioridade e registrar observações;
-        - interface principal de Prospecções separa claramente base completa e fila operacional.
+        - interface principal de Prospecções separa claramente base completa e fila operacional;
+        - no celular, a entrada do usuário prioriza cards-resumo claros e acesso rápido aos módulos permitidos;
+        - no celular, a área de `Selecionados` permite consultar o imóvel, registrar notas e abrir a viabilidade sem depender da tabela desktop.
 
 9. [ ] **Incluir imóveis manualmente fora da base capturada**
    9.1. [ ] Modelagem/API: permitir criação manual de imóvel selecionado sem dependência prévia de `vw_imoveis_prospeccao_latest`, preservando autoria e metadados mínimos.
@@ -323,6 +336,9 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    - Refinar somente os pontos finos ainda abertos na página principal.
    - Avaliar se a aba `Base completa` ainda pede mais acabamento visual em relação à aba de selecionados.
    - Decidir se o tooltip de observação atual será mantido como solução final ou trocado por componente visual dedicado.
+   - Incluir versão mobile com menu inicial em cards para `Controle financeiro` e `Selecionados para prospecção`.
+   - Definir a regra técnica de entrada mobile usando viewport responsiva + sinais de dispositivo.
+   - Implementar a experiência mobile de `Selecionados` com foco em consulta rápida, notas e viabilidade.
 
 4. [ ] **Validar operação e qualidade**
    - Decisão atual: adiar para depois da rodada de UX e da inclusão manual.
