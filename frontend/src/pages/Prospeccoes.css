@@ -1178,6 +1178,10 @@
   gap: 8px;
 }
 
+.prospects-summary-grid--outcome {
+  margin-top: 10px;
+}
+
 .prospects-summary-card {
   display: flex;
   flex-direction: column;

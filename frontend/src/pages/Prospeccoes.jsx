@@ -414,6 +414,7 @@ const computeAnalise = (draft, pairModes) => {
   const lucroEsperadoValor = roundMoney(
     valorEstimadoVenda - corretor.valor - ganhoCapital.valor - custoTotalImovel
   );
+  const despesasPosVenda = roundMoney(corretor.valor + ganhoCapital.valor);
   const roiEsperadoPercentual = capitalInvestidoEstimado > 0
     ? roundPercent((lucroEsperadoValor / capitalInvestidoEstimado) * 100)
     : 0;
@@ -447,6 +448,7 @@ const computeAnalise = (draft, pairModes) => {
     },
     calculos: {
       despesas_unicas: despesasUnicas,
+      despesa_mensal_operacional: despesaMensalOperacional,
       despesa_mensal_total: despesaMensalTotal,
       despesas_mensais_projetadas: despesasMensaisProjetadas,
       custo_financiamento_projetado: custoFinanciamentoProjetado,
@@ -455,6 +457,7 @@ const computeAnalise = (draft, pairModes) => {
       custo_total_imovel: custoTotalImovel,
       capital_investido_estimado: capitalInvestidoEstimado,
       base_ganho_capital: baseGanhoCapital,
+      despesas_pos_venda: despesasPosVenda,
       lucro_esperado_valor: lucroEsperadoValor,
       roi_esperado_percentual: roiEsperadoPercentual,
       roi_esperado_valor: lucroEsperadoValor,
@@ -774,10 +777,6 @@ function AnaliseModal({
                   <h4>Resumo financeiro</h4>
                   <div className="prospects-summary-grid">
                     <div className="prospects-summary-card">
-                      <span>Valor financiado</span>
-                      <strong>{formatarMoeda(calculos.valor_financiado)}</strong>
-                    </div>
-                    <div className="prospects-summary-card">
                       <span>Desembolso na aquisição</span>
                       <strong>{formatarMoeda(calculos.desembolso_aquisicao)}</strong>
                     </div>
@@ -786,19 +785,33 @@ function AnaliseModal({
                       <strong>{formatarMoeda(calculos.despesas_unicas)}</strong>
                     </div>
                     <div className="prospects-summary-card">
-                      <span>Custos mensais projetados</span>
+                      <span>Despesas do período</span>
                       <strong>{formatarMoeda(calculos.despesas_mensais_projetadas)}</strong>
                     </div>
+                    <div className="prospects-summary-card prospects-summary-card--accent">
+                      <span>Capital investido</span>
+                      <strong>{formatarMoeda(calculos.capital_investido_estimado)}</strong>
+                    </div>
+                  </div>
+                  <div className="prospects-summary-grid prospects-summary-grid--outcome">
                     <div className="prospects-summary-card">
-                      <span>Prestação projetada</span>
-                      <strong>{formatarMoeda(calculos.custo_financiamento_projetado)}</strong>
+                      <span>Valor de venda</span>
+                      <strong>{formatarMoeda(inputs.valor_estimado_venda)}</strong>
                     </div>
                     <div className="prospects-summary-card">
-                      <span>Custo total do imóvel</span>
-                      <strong>{formatarMoeda(calculos.custo_total_imovel)}</strong>
+                      <span>Valor financiado</span>
+                      <strong>{formatarMoeda(calculos.valor_financiado)}</strong>
+                    </div>
+                    <div className="prospects-summary-card">
+                      <span>Despesas pós-venda</span>
+                      <strong>{formatarMoeda(calculos.despesas_pos_venda)}</strong>
                     </div>
                     <div className="prospects-summary-card prospects-summary-card--accent">
-                      <span>ROI esperado</span>
+                      <span>Lucro líquido esperado</span>
+                      <strong>{formatarMoeda(calculos.lucro_esperado_valor)}</strong>
+                    </div>
+                    <div className="prospects-summary-card prospects-summary-card--accent">
+                      <span>ROI sobre capital investido</span>
                       <strong>{formatarPercentual(calculos.roi_esperado_percentual)}</strong>
                     </div>
                   </div>
@@ -810,12 +823,11 @@ function AnaliseModal({
                   <CampoTextoNumerico label="Valor base da operação" value={currentDraft.valor_base_operacao} onChange={(value) => onFieldChange("valor_base_operacao", value)} onFocus={() => onFieldFocus("valor_base_operacao")} onBlur={() => onFieldBlur("valor_base_operacao")} />
                   <CampoNumerico label="Tempo da operação (meses)" value={currentDraft.tempo_operacao_meses} onChange={(value) => onFieldChange("tempo_operacao_meses", value)} onFocus={() => onFieldFocus("tempo_operacao_meses")} onBlur={() => onFieldBlur("tempo_operacao_meses")} />
                   <CampoTextoNumerico label="% financiamento" value={currentDraft.percentual_financiamento} onChange={(value) => onFieldChange("percentual_financiamento", value)} onFocus={() => onFieldFocus("percentual_financiamento")} onBlur={() => onFieldBlur("percentual_financiamento")} />
-                  <CampoTextoNumerico label="Prestação mensal financiamento" value={currentDraft.prestacao_mensal_financiamento} onChange={(value) => onFieldChange("prestacao_mensal_financiamento", value)} onFocus={() => onFieldFocus("prestacao_mensal_financiamento")} onBlur={() => onFieldBlur("prestacao_mensal_financiamento")} />
                   <CampoTextoNumerico label="Valor estimado da venda" value={currentDraft.valor_estimado_venda} onChange={(value) => onFieldChange("valor_estimado_venda", value)} onFocus={() => onFieldFocus("valor_estimado_venda")} onBlur={() => onFieldBlur("valor_estimado_venda")} />
                 </section>
 
                 <section className="prospects-analise-section prospects-analise-section--quarter">
-                  <h4>Custos únicos</h4>
+                  <h4>Despesas únicas</h4>
                   <CampoTextoNumerico label="Reforma" value={currentDraft.reforma} onChange={(value) => onFieldChange("reforma", value)} onFocus={() => onFieldFocus("reforma")} onBlur={() => onFieldBlur("reforma")} />
                   <CampoTextoNumerico label="Condomínio em atraso" value={currentDraft.condominio_atraso} onChange={(value) => onFieldChange("condominio_atraso", value)} onFocus={() => onFieldFocus("condominio_atraso")} onBlur={() => onFieldBlur("condominio_atraso")} />
                   <CampoTextoNumerico label="IPTU em atraso" value={currentDraft.iptu_atraso} onChange={(value) => onFieldChange("iptu_atraso", value)} onFocus={() => onFieldFocus("iptu_atraso")} onBlur={() => onFieldBlur("iptu_atraso")} />
@@ -829,8 +841,9 @@ function AnaliseModal({
                   <CampoTextoNumerico label="Luz" value={currentDraft.manutencao_luz_mensal} onChange={(value) => onFieldChange("manutencao_luz_mensal", value)} onFocus={() => onFieldFocus("manutencao_luz_mensal")} onBlur={() => onFieldBlur("manutencao_luz_mensal")} />
                   <CampoTextoNumerico label="Condomínio" value={currentDraft.manutencao_condominio_mensal} onChange={(value) => onFieldChange("manutencao_condominio_mensal", value)} onFocus={() => onFieldFocus("manutencao_condominio_mensal")} onBlur={() => onFieldBlur("manutencao_condominio_mensal")} />
                   <CampoTextoNumerico label="IPTU" value={currentDraft.manutencao_iptu_mensal} onChange={(value) => onFieldChange("manutencao_iptu_mensal", value)} onFocus={() => onFieldFocus("manutencao_iptu_mensal")} onBlur={() => onFieldBlur("manutencao_iptu_mensal")} />
+                  <CampoTextoNumerico label="Prestação mensal financiamento" value={currentDraft.prestacao_mensal_financiamento} onChange={(value) => onFieldChange("prestacao_mensal_financiamento", value)} onFocus={() => onFieldFocus("prestacao_mensal_financiamento")} onBlur={() => onFieldBlur("prestacao_mensal_financiamento")} />
                   <div className="prospects-analise-inline-note">
-                    Projeção automática: {formatarMoeda(calculos.despesas_mensais_projetadas)} em {inputs.tempo_operacao_meses} meses.
+                    Projeção automática: {formatarMoeda(calculos.despesas_mensais_projetadas)} em {inputs.tempo_operacao_meses} meses, incluindo a prestação.
                   </div>
                 </section>
 
@@ -913,23 +926,27 @@ function AnaliseModal({
                   <h4>Indicadores</h4>
                   <div className="prospects-analise-kpis">
                     <div className="prospects-analise-kpi">
-                      <span>Despesa mensal total</span>
-                      <strong>{formatarMoeda(calculos.despesa_mensal_total)}</strong>
+                      <span>Mensal operacional</span>
+                      <strong>{formatarMoeda(calculos.despesa_mensal_operacional)}</strong>
                     </div>
                     <div className="prospects-analise-kpi">
                       <span>Prestação mensal</span>
                       <strong>{formatarMoeda(inputs.prestacao_mensal_financiamento)}</strong>
                     </div>
                     <div className="prospects-analise-kpi">
-                      <span>Financiamento no período</span>
-                      <strong>{formatarMoeda(calculos.custo_financiamento_projetado)}</strong>
+                      <span>Desembolso mensal total</span>
+                      <strong>{formatarMoeda(calculos.despesa_mensal_total)}</strong>
                     </div>
                     <div className="prospects-analise-kpi">
                       <span>Capital investido</span>
                       <strong>{formatarMoeda(calculos.capital_investido_estimado)}</strong>
                     </div>
                     <div className="prospects-analise-kpi">
-                      <span>Lucro esperado</span>
+                      <span>Custo total do imóvel</span>
+                      <strong>{formatarMoeda(calculos.custo_total_imovel)}</strong>
+                    </div>
+                    <div className="prospects-analise-kpi">
+                      <span>Lucro líquido esperado</span>
                       <strong>{formatarMoeda(calculos.lucro_esperado_valor)}</strong>
                     </div>
                   </div>
