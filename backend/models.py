@@ -2242,14 +2242,17 @@ def calcular_analise_prospeccao(dados):
     despesas_unicas = _round_money(
         reforma + condominio_atraso + iptu_atraso + desocupacao + documentacao + itbi_valor
     )
-    despesa_mensal_total = _round_money(
+    despesa_mensal_operacional = _round_money(
         manutencao_agua_mensal +
         manutencao_luz_mensal +
         manutencao_condominio_mensal +
         manutencao_iptu_mensal
     )
-    despesas_mensais_projetadas = _round_money(despesa_mensal_total * tempo_operacao_meses)
     custo_financiamento_projetado = _round_money(prestacao_mensal_financiamento * tempo_operacao_meses)
+    despesa_mensal_total = _round_money(
+        despesa_mensal_operacional + prestacao_mensal_financiamento
+    )
+    despesas_mensais_projetadas = _round_money(despesa_mensal_total * tempo_operacao_meses)
 
     valor_financiado = _round_money(valor_maximo_lance * (percentual_financiamento / 100))
     desembolso_aquisicao = _round_money(
@@ -2257,16 +2260,15 @@ def calcular_analise_prospeccao(dados):
     )
 
     custo_total_imovel = _round_money(
-        valor_maximo_lance +
-        comissao_leiloeiro_valor +
+        valor_financiado +
+        desembolso_aquisicao +
         despesas_unicas +
         despesas_mensais_projetadas
     )
     capital_investido_estimado = _round_money(
         desembolso_aquisicao +
         despesas_unicas +
-        despesas_mensais_projetadas +
-        custo_financiamento_projetado
+        despesas_mensais_projetadas
     )
 
     base_ganho_capital = _round_money(max(

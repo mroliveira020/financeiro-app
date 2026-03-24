@@ -388,18 +388,21 @@ const computeAnalise = (draft, pairModes) => {
   const despesasUnicas = roundMoney(
     reforma + condominioAtraso + iptuAtraso + desocupacao + documentacao + itbi.valor
   );
-  const despesaMensalTotal = roundMoney(
+  const despesaMensalOperacional = roundMoney(
     manutencaoAguaMensal + manutencaoLuzMensal + manutencaoCondominioMensal + manutencaoIptuMensal
   );
-  const despesasMensaisProjetadas = roundMoney(despesaMensalTotal * tempoOperacaoMeses);
   const custoFinanciamentoProjetado = roundMoney(prestacaoMensalFinanciamento * tempoOperacaoMeses);
+  const despesaMensalTotal = roundMoney(
+    despesaMensalOperacional + prestacaoMensalFinanciamento
+  );
+  const despesasMensaisProjetadas = roundMoney(despesaMensalTotal * tempoOperacaoMeses);
   const valorFinanciado = roundMoney(valorMaximoLance * (percentualFinanciamento / 100));
   const desembolsoAquisicao = roundMoney(valorMaximoLance - valorFinanciado + leiloeiro.valor);
   const custoTotalImovel = roundMoney(
-    valorMaximoLance + leiloeiro.valor + despesasUnicas + despesasMensaisProjetadas
+    valorFinanciado + desembolsoAquisicao + despesasUnicas + despesasMensaisProjetadas
   );
   const capitalInvestidoEstimado = roundMoney(
-    desembolsoAquisicao + despesasUnicas + despesasMensaisProjetadas + custoFinanciamentoProjetado
+    desembolsoAquisicao + despesasUnicas + despesasMensaisProjetadas
   );
   const baseGanhoCapital = roundMoney(Math.max((valorEstimadoVenda - corretor.valor) - custoTotalImovel, 0));
   const ganhoCapital = resolvePair(
