@@ -10,9 +10,25 @@ import { useAuth } from "./context/AuthContext";
 import Usuarios from "./pages/Usuarios";
 import PrimeiroAcesso from "./pages/PrimeiroAcesso";
 
+const MOBILE_BREAKPOINT = 900;
+
+function isMobileDevice() {
+  if (typeof window === "undefined") return false;
+  const width = window.innerWidth <= MOBILE_BREAKPOINT;
+  const coarsePointer = typeof window.matchMedia === "function"
+    ? window.matchMedia("(pointer: coarse)").matches
+    : false;
+  const touchPoints = navigator.maxTouchPoints || 0;
+  const userAgent = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent || "");
+  return width && (coarsePointer || touchPoints > 0 || userAgent);
+}
+
 function HomeEntry() {
   const { user } = useAuth();
   if (user?.role === "prospector") {
+    return <Navigate to="/prospeccoes" replace />;
+  }
+  if (isMobileDevice()) {
     return <Navigate to="/prospeccoes" replace />;
   }
   return <Home />;

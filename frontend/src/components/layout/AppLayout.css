@@ -136,20 +136,38 @@
   }
 
   .app-shell__topbar {
-    padding: 20px 20px 16px;
+    padding: 18px 16px 14px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
   }
 
   .app-shell__headline {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
   }
 
   .app-shell__headline-extra {
     width: 100%;
   }
 
+  .app-shell__title {
+    font-size: 18px;
+    margin-bottom: 0;
+  }
+
+  .app-shell__subtitle {
+    font-size: 11px;
+    line-height: 1.45;
+    max-width: 22ch;
+  }
+
+  .app-shell__session {
+    width: 100%;
+  }
+
   .app-shell__main {
-    padding: 24px 20px 32px;
+    padding: 18px 16px 28px;
   }
 }

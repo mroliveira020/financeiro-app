@@ -65,11 +65,22 @@
 
 @media (max-width: 768px) {
   .editor-bar {
-    padding: 8px;
-    gap: 12px;
+    width: 100%;
+    padding: 8px 10px;
+    gap: 10px;
+    border-radius: 22px;
   }
 
   .editor-bar__email {
-    max-width: 160px;
+    max-width: 100%;
+    font-size: 11px;
+  }
+
+  .editor-bar__info {
+    flex: 1;
+  }
+
+  .editor-bar__logout {
+    flex-shrink: 0;
   }
 }
