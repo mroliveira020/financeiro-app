@@ -1294,6 +1294,25 @@ function MobileSelecionadosList({
   loading,
   erro,
   onBack,
+  searchValue,
+  onSearchChange,
+  selectedUfFilter,
+  onUfFilterChange,
+  ufOptions,
+  selectedPrioridadeFilter,
+  onPrioridadeFilterChange,
+  selectedResponsavelFilter,
+  onResponsavelFilterChange,
+  selectedSortBy,
+  onSortByChange,
+  selectedSortDir,
+  onSortDirChange,
+  selectedUserFilter,
+  onUserFilterChange,
+  selectedUserOptions,
+  canFilterByUser,
+  selectedMetrics,
+  onResetFilters,
   onEditarObservacoes,
   onAbrirAnalise,
   onEditarPrioridade,
@@ -1326,6 +1345,92 @@ function MobileSelecionadosList({
               <span>Menu mobile</span>
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="prospects-card prospects-mobile-filters">
+        <label className="prospects-toolbar-field prospects-toolbar-field--search">
+          <span>Buscar na fila</span>
+          <input
+            type="search"
+            value={searchValue}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Código, cidade, responsável ou observação"
+          />
+        </label>
+
+        <div className="prospects-mobile-filters__grid">
+          <label className="prospects-toolbar-field">
+            <span>UF</span>
+            <select value={selectedUfFilter} onChange={(e) => onUfFilterChange(e.target.value)}>
+              <option value="todos">Todas</option>
+              {ufOptions.map((uf) => (
+                <option key={uf} value={uf}>{uf}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="prospects-toolbar-field">
+            <span>Prioridade</span>
+            <select value={selectedPrioridadeFilter} onChange={(e) => onPrioridadeFilterChange(e.target.value)}>
+              <option value="todas">Todas</option>
+              {PRIORIDADE_OPTIONS.map((option) => (
+                <option key={option.value} value={String(option.value)}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="prospects-toolbar-field">
+            <span>Responsáveis</span>
+            <select value={selectedResponsavelFilter} onChange={(e) => onResponsavelFilterChange(e.target.value)}>
+              <option value="todos">Todos</option>
+              <option value="com">Com responsáveis</option>
+              <option value="sem">Sem responsáveis</option>
+              <option value="meus">Atribuídos a mim</option>
+            </select>
+          </label>
+
+          {canFilterByUser ? (
+            <label className="prospects-toolbar-field">
+              <span>Usuário</span>
+              <select value={selectedUserFilter} onChange={(e) => onUserFilterChange(e.target.value)}>
+                <option value="todos">Todos</option>
+                {selectedUserOptions.map((option) => (
+                  <option key={option.id} value={option.id}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          <label className="prospects-toolbar-field">
+            <span>Ordenar por</span>
+            <select value={selectedSortBy} onChange={(e) => onSortByChange(e.target.value)}>
+              <option value="dataLeilao">Data do leilão</option>
+              <option value="prioridade">Prioridade</option>
+              <option value="cidade">Cidade</option>
+              <option value="valorMaximo">Valor máximo</option>
+              <option value="roi">ROI</option>
+            </select>
+          </label>
+
+          <label className="prospects-toolbar-field">
+            <span>Direção</span>
+            <select value={selectedSortDir} onChange={(e) => onSortDirChange(e.target.value)}>
+              <option value="asc">Crescente</option>
+              <option value="desc">Decrescente</option>
+            </select>
+          </label>
+        </div>
+
+        <div className="prospects-mobile-filters__footer">
+          <div className="prospects-mobile-filters__metrics">
+            <span className="prospects-pill">{dados.length} na visão</span>
+            <span className="prospects-pill prospects-pill--muted">{selectedMetrics.comAnalise} com análise</span>
+            <span className="prospects-pill prospects-pill--muted">{selectedMetrics.altaPrioridade} alta prioridade</span>
+          </div>
+          <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onResetFilters}>
+            Limpar visão
+          </button>
         </div>
       </div>
 
@@ -1367,9 +1472,24 @@ function MobileSelecionadosList({
                   <span>Valor máximo</span>
                   <strong>{formatarMoeda(item.valorMaximo)}</strong>
                 </div>
+                <div>
+                  <span>Responsáveis</span>
+                  <strong>{item.responsaveis?.length ? item.responsaveis.map((responsavel) => responsavel.name || responsavel.email).join(", ") : "Não definido"}</strong>
+                </div>
+                <div>
+                  <span>Autor</span>
+                  <strong>{item.createdByName || "Não informado"}</strong>
+                </div>
               </div>
 
               <p className="prospects-mobile-item-card__description">{item.descricao || "Sem descrição cadastrada."}</p>
+
+              {item.observacoes ? (
+                <div className="prospects-mobile-item-card__note">
+                  <span>Observação atual</span>
+                  <strong>{item.observacoes}</strong>
+                </div>
+              ) : null}
 
               <div className="prospects-mobile-item-card__actions">
                 <button
@@ -2107,6 +2227,33 @@ export default function Prospeccoes() {
               loading={loadingSel}
               erro={erroSel}
               onBack={() => setMobileSection("hub")}
+              searchValue={selectedSearch}
+              onSearchChange={setSelectedSearch}
+              selectedUfFilter={selectedUfFilter}
+              onUfFilterChange={setSelectedUfFilter}
+              ufOptions={selectedUfOptions}
+              selectedPrioridadeFilter={selectedPrioridadeFilter}
+              onPrioridadeFilterChange={setSelectedPrioridadeFilter}
+              selectedResponsavelFilter={selectedResponsavelFilter}
+              onResponsavelFilterChange={setSelectedResponsavelFilter}
+              selectedSortBy={selectedSortBy}
+              onSortByChange={setSelectedSortBy}
+              selectedSortDir={selectedSortDir}
+              onSortDirChange={setSelectedSortDir}
+              selectedUserFilter={selectedUserFilter}
+              onUserFilterChange={setSelectedUserFilter}
+              selectedUserOptions={selectedUserOptions}
+              canFilterByUser={user?.role === "admin"}
+              selectedMetrics={selectedMetrics}
+              onResetFilters={() => {
+                setSelectedSearch("");
+                setSelectedUfFilter("todos");
+                setSelectedPrioridadeFilter("todas");
+                setSelectedResponsavelFilter("todos");
+                setSelectedUserFilter("todos");
+                setSelectedSortBy("dataLeilao");
+                setSelectedSortDir("asc");
+              }}
               onEditarObservacoes={openObservacoesModal}
               onAbrirAnalise={openAnaliseModal}
               onEditarPrioridade={openPrioridadeModal}

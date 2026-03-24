@@ -315,6 +315,32 @@
   gap: 12px;
 }
 
+.prospects-mobile-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prospects-mobile-filters__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prospects-mobile-filters__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.prospects-mobile-filters__metrics {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .prospects-mobile-item-card {
   padding: 16px;
   border: 1px solid var(--prospects-line);
@@ -399,6 +425,32 @@
   color: #334155;
   font-size: 13px;
   line-height: 1.55;
+}
+
+.prospects-mobile-item-card__note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f8fbff;
+  border: 1px solid #d9e5f7;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prospects-mobile-item-card__note span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--prospects-muted);
+  font-weight: 700;
+}
+
+.prospects-mobile-item-card__note strong {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #23324d;
+  font-weight: 600;
 }
 
 .prospects-mobile-item-card__actions {
@@ -1294,6 +1346,23 @@
   .prospects-analise-section--quarter,
   .prospects-analise-section--half {
     grid-column: 1 / -1;
+  }
+
+  .prospects-mobile-hub-card {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .prospects-mobile-hub-card__meta {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .prospects-mobile-filters__grid,
+  .prospects-mobile-item-card__meta,
+  .prospects-mobile-item-card__actions {
+    grid-template-columns: 1fr;
   }
 
   .prospects-table {
