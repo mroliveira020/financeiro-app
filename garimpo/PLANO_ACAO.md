@@ -161,7 +161,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
 7. [ ] **Adicionar ficha de análise e viabilidade do imóvel selecionado**
    7.0. [x] Decisão atual: considerar a ficha de análise suficientemente boa para a fase atual; manter pendências finas desta seção em backlog, sem priorização imediata.
    7.1. [x] Modelagem: criar estrutura persistente para análise do selecionado, vinculada a `imoveis_selecionados.numero_bem`, preservando autoria e `updated_at`.
-   7.2. [ ] Modelagem: incluir campos manuais de entrada:
+   7.2. [x] Modelagem: incluir campos manuais de entrada:
         - valor base da operação
         - tempo da operação em meses (default `12`)
         - reforma
@@ -180,7 +180,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    7.3. [x] Backend/API: expor endpoint de leitura/gravação da ficha de análise por imóvel selecionado.
    7.4. [x] Frontend: criar formulário de análise no imóvel selecionado com cálculos dinâmicos em tempo real, sem persistir cada alteração automaticamente.
    7.5. [x] Regra de persistência: cálculos e alterações de campos ficam locais na UI enquanto o usuário edita; gravação ocorre apenas ao clicar em `Salvar`.
-   7.6. [ ] Cálculos dinâmicos esperados:
+   7.6. [x] Cálculos dinâmicos esperados:
         - valor do ITBI e seu respectivo percentual (sincronizados)
         - valor da comissão do leiloeiro e seu respectivo percentual (sincronizados)
         - valor do ganho de capital e seu respectivo percentual (sincronizados)
@@ -190,7 +190,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - estimativa de capital investido
         - ROI esperado em `%`
         - ROI esperado em valor
-   7.7. [ ] Definir fórmula operacional dos cálculos:
+   7.7. [x] Definir fórmula operacional dos cálculos:
         - considerar `% de financiamento` sobre o valor de aquisição
         - definir qual campo usa `valor base` como referência de cálculo para ITBI, comissão e ganho de capital
         - separar claramente despesas únicas vs. despesas mensais recorrentes
@@ -203,7 +203,7 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - manter ganho de capital com edição bidirecional entre `%` e valor
         - separar claramente desembolso de aquisição, custos acessórios, custo total do imóvel e capital total investido
         - não incluir comissão do corretor nem IR/ganho de capital no `custo_total_imovel`, pois esses pagamentos ocorrem apenas após a venda
-        - não incluir a prestação mensal do financiamento no `custo_total_imovel`; esse valor deve entrar apenas no `capital_investido_estimado`
+        - incluir a prestação mensal do financiamento nas despesas do período e, por consequência, no `custo_total_imovel` e no `capital_investido_estimado`
         - manter fórmula auditável e documentada para evitar divergência entre tela e backend
    7.7.1. [x] Especificação base confirmada:
         - `valor_base_operacao`: sugerir `valor_maximo_lance`, mas permitir edição manual
@@ -223,18 +223,23 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - quando a base for `0`, o percentual calculado deve retornar `0` para evitar divisão inválida
    7.7.3. [x] Fórmulas de despesas e aquisição confirmadas:
         - `despesas_unicas = reforma + condominio_atraso + iptu_atraso + desocupacao + documentacao + itbi_valor`
-        - `despesa_mensal_total = manutencao_agua_mensal + manutencao_luz_mensal + manutencao_condominio_mensal + manutencao_iptu_mensal`
+        - `despesa_mensal_operacional = manutencao_agua_mensal + manutencao_luz_mensal + manutencao_condominio_mensal + manutencao_iptu_mensal`
+        - `despesa_mensal_total = despesa_mensal_operacional + prestacao_mensal_financiamento`
         - `despesas_mensais_projetadas = despesa_mensal_total * tempo_operacao_meses`
         - `custo_financiamento_projetado = prestacao_mensal_financiamento * tempo_operacao_meses`
         - `valor_financiado = valor_maximo_lance * (percentual_financiamento / 100)`
         - `desembolso_aquisicao = valor_maximo_lance - valor_financiado + comissao_leiloeiro_valor`
-        - `custo_total_imovel = valor_maximo_lance + comissao_leiloeiro_valor + despesas_unicas + despesas_mensais_projetadas`
-        - `capital_investido_estimado = desembolso_aquisicao + despesas_unicas + despesas_mensais_projetadas + custo_financiamento_projetado`
+        - `custo_total_imovel = valor_financiado + desembolso_aquisicao + despesas_unicas + despesas_mensais_projetadas`
+        - `capital_investido_estimado = desembolso_aquisicao + despesas_unicas + despesas_mensais_projetadas`
    7.7.4. [x] Fórmulas de venda e resultado confirmadas:
         - `lucro_esperado_valor = valor_estimado_venda - comissao_corretor_valor - ganho_capital_valor - custo_total_imovel`
+        - `despesas_pos_venda = comissao_corretor_valor + ganho_capital_valor`
         - `roi_esperado_percentual = (lucro_esperado_valor / capital_investido_estimado) * 100`
         - `roi_esperado_valor = lucro_esperado_valor`
-   7.8. [ ] UX: destacar campos digitáveis vs. campos calculados; exibir resumo financeiro em bloco visual claro; permitir edição confortável sem poluir a tabela principal.
+   7.8. [x] UX: destacar campos digitáveis vs. campos calculados; exibir resumo financeiro em bloco visual claro; permitir edição confortável sem poluir a tabela principal.
+        - resumo reorganizado em duas linhas de cards, separando capital investido, venda, despesas pós-venda, lucro líquido esperado e ROI;
+        - nomenclatura padronizada para `Despesas únicas`, `Despesas mensais` e `Despesas do período`;
+        - `Prestação mensal financiamento` movida para o bloco de despesas mensais, evitando duplicidade/confusão visual.
    7.9. [ ] Critério de aceite:
         - usuário consegue preencher a análise do imóvel sem sair da rotina de prospecção;
         - cálculos reagem imediatamente às alterações dos campos;
@@ -277,12 +282,14 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
         - [x] card `Controle financeiro` aponta para a home quando o usuário tem acesso;
         - [x] card `Selecionados para prospecção` abre a primeira experiência mobile da fila;
         - [x] primeira versão mobile da fila prioriza consulta rápida, notas e viabilidade;
-        - ao identificar acesso em viewport/dispositivo móvel, exibir uma tela inicial simplificada em vez da grade completa desktop;
-        - essa entrada mobile deve abrir com cards-resumo de navegação operacional;
-        - card `Controle financeiro` exibe quantidade de imóveis e só aparece/habilita quando o usuário tiver acesso a essa área;
-        - card `Selecionados para prospecção` exibe quantidade de imóveis da fila acessível ao usuário;
-        - a partir desse menu inicial, o usuário entra na experiência mobile otimizada de cada módulo, começando por `Selecionados`;
-        - a detecção mobile deve combinar viewport responsiva e sinais de dispositivo/toque, sem depender apenas de `userAgent`.
+        - [x] ao identificar acesso em viewport/dispositivo móvel, exibir uma tela inicial simplificada em vez da grade completa desktop;
+        - [x] essa entrada mobile deve abrir com cards-resumo de navegação operacional;
+        - [x] card `Controle financeiro` exibe quantidade de imóveis e só aparece/habilita quando o usuário tiver acesso a essa área;
+        - [x] card `Selecionados para prospecção` exibe quantidade de imóveis da fila acessível ao usuário;
+        - [x] a partir desse menu inicial, o usuário entra na experiência mobile otimizada de cada módulo, começando por `Selecionados`;
+        - [x] a detecção mobile deve combinar viewport responsiva e sinais de dispositivo/toque, sem depender apenas de `userAgent`;
+        - [x] a rota inicial no celular redireciona para `Prospecções`, evitando queda indevida na home financeira;
+        - [x] o shell mobile (topbar/sessão) foi ajustado para evitar quebra visual em telas pequenas.
    8.5. [ ] Critério de aceite:
         - usuário consegue alterar prioridade na lista;
         - lista de selecionados exibe com clareza quem selecionou o imóvel, integrado aos responsáveis;
@@ -336,9 +343,11 @@ Adaptar os scrapers do garimpo à nova estrutura do site da CAIXA e à planilha-
    - Refinar somente os pontos finos ainda abertos na página principal.
    - Avaliar se a aba `Base completa` ainda pede mais acabamento visual em relação à aba de selecionados.
    - Decidir se o tooltip de observação atual será mantido como solução final ou trocado por componente visual dedicado.
-   - Incluir versão mobile com menu inicial em cards para `Controle financeiro` e `Selecionados para prospecção`.
-   - Definir a regra técnica de entrada mobile usando viewport responsiva + sinais de dispositivo.
-   - Implementar a experiência mobile de `Selecionados` com foco em consulta rápida, notas e viabilidade.
+   - [x] Incluir versão mobile com menu inicial em cards para `Controle financeiro` e `Selecionados para prospecção`.
+   - [x] Definir a regra técnica de entrada mobile usando viewport responsiva + sinais de dispositivo.
+   - [x] Implementar a experiência mobile de `Selecionados` com foco em consulta rápida, notas e viabilidade.
+   - [x] Corrigir a entrada mobile para abrir `Prospecções` em vez da home financeira no celular.
+   - [x] Reorganizar a ficha de viabilidade para refletir capital investido, despesas do período, despesas pós-venda, lucro líquido esperado e ROI.
 
 4. [ ] **Validar operação e qualidade**
    - Decisão atual: adiar para depois da rodada de UX e da inclusão manual.
