@@ -22,7 +22,14 @@ class AuthError(Exception):
 
 
 PROSPECTOR_ALLOWED_PREFIXES = ("/prospeccoes", "/auth", "/healthz")
-FINANCE_ALLOWED_PREFIXES = ("/imoveis", "/categorias", "/lancamentos", "/orcamentos", "/dashboard")
+FINANCE_ALLOWED_PREFIXES = (
+    "/imoveis",
+    "/imoveis-financeiro-acessiveis",
+    "/categorias",
+    "/lancamentos",
+    "/orcamentos",
+    "/dashboard",
+)
 
 
 def _log_auth_failure(reason: str, status: int) -> None:
