@@ -23,7 +23,7 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
   const { hasRole, user } = useAuth();
   const canEdit = hasRole("editor", "admin");
   const isAdmin = user?.role === "admin";
-  const { categorias, imoveis } = useCatalogos();
+  const { categorias, imoveis } = useCatalogos({ includeImoveis: isAdmin });
 
   const categoriasOrdenadas = useMemo(
     () => [...categorias].sort((a, b) => a.categoria.localeCompare(b.categoria, "pt-BR")),

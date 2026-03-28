@@ -80,7 +80,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const { hasRole, user } = useAuth();
   const canEdit = hasRole("editor", "admin");
   const isAdmin = user?.role === "admin";
-  const { categorias, imoveis } = useCatalogos();
+  const { categorias, imoveis } = useCatalogos({ includeImoveis: isAdmin });
 
   const totais = useMemo(() => ({
     quantidade: summary.total || 0,

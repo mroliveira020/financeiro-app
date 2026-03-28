@@ -370,7 +370,11 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - restrição da Home financeira do sócio para carregar apenas imóveis acessíveis;
   - proteção de acesso por `id_imovel` no backend e bloqueio de navegação indevida pela URL;
   - modal `Trocar imóvel` filtrado pelos imóveis acessíveis ao usuário;
-  - refinamento inicial do dashboard com card de dados cadastrais mais compacto, mapa sob demanda e remoção de uma chamada redundante no resumo financeiro.
+  - refinamento inicial do dashboard com card de dados cadastrais mais compacto, exibindo apenas nome do imóvel, endereço e mapa;
+  - mapa sob demanda no card superior, carregado apenas quando o usuário solicitar;
+  - remoção de uma chamada redundante no resumo financeiro;
+  - carregamento progressivo das seções mais pesadas do dashboard;
+  - cache curto para imóveis acessíveis no frontend, reduzindo chamadas repetidas.
 - Evidências já confirmadas em smoke técnico:
   - `13` imóveis atuais vinculados ao usuário padrão no backfill societário;
   - `851` lançamentos legados atualizados com `paid_by_user_id` padrão quando ausente;
@@ -380,7 +384,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - testar o fluxo completo no app rodando com o imóvel piloto, especialmente edição individual, lote, restrição de imóveis por sócio e leitura do card compartilhado;
   - revisar minuciosamente a leitura do dashboard compartilhado antes de fechar a interface final;
   - confirmar cenários reais de equalização entre sócios no imóvel piloto;
-  - medir o ganho real das primeiras melhorias de performance e identificar os próximos gargalos de carregamento.
+  - medir o ganho real das primeiras melhorias de performance e identificar os próximos gargalos de carregamento;
+  - validar se o card superior mais compacto melhorou a leitura e a navegação do dashboard no uso diário.
 - Situação atual dos testes operacionais:
   - a UI mínima de cadastro societário e `pix_key` já existe, então o fluxo compartilhado pode ser validado com dados reais;
   - o bloqueio principal deixou de ser cadastro/vínculo e passou a ser refinamento funcional do dashboard compartilhado e da equalização entre sócios.
@@ -787,6 +792,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    - equalizações registradas.
 3. [x] Entregar uma primeira melhoria de apresentação do dashboard base:
    - card de dados cadastrais mais compacto e menos dominante;
+   - card superior simplificado para nome do imóvel, endereço e mapa;
+   - remoção de `ganho de capital` e `valor de venda` do topo do dashboard;
    - mapa sob demanda, carregado apenas quando o usuário solicitar;
    - resumo visual mais contido no topo do dashboard.
 4. [ ] Revisar minuciosamente com o usuário:
@@ -950,11 +957,15 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    - revisar leitura dos números;
    - confirmar clareza entre valores totais vs. proporcionais;
    - avaliar regra de compensação e posição devedor/credor;
-   - validar a primeira melhoria visual do card superior e do mapa sob demanda;
+   - validar a primeira melhoria visual do card superior simplificado e do mapa sob demanda;
    - só então desenhar a interface final do dashboard compartilhado.
 
 3. [ ] **Agora — Melhorar desempenho percebido e operacional**
-   - consolidar requisições repetidas do dashboard por imóvel;
+   - medir o ganho real da rodada já aplicada:
+     cache curto de imóveis acessíveis,
+     carregamento progressivo das seções pesadas
+     e remoção de chamada redundante no resumo financeiro;
+   - consolidar novas requisições repetidas do dashboard por imóvel;
    - revisar carregamento da Home financeira e dos cards mais pesados;
    - definir uma linha de base simples de tempo de carregamento para comparar otimizações;
    - seguir removendo chamadas redundantes e componentes caros no carregamento inicial.
@@ -992,9 +1003,18 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    2.4. [ ] Mapear esforço para mover frontend e backend juntos ou separar serviços por responsabilidade.
 
 3. [ ] **Melhorar desempenho percebido e operacional**
-   3.1. [ ] Levantar gargalos atuais de inicialização, carregamento do frontend e latência da API.
+   3.1. [~] Levantar gargalos atuais de inicialização, carregamento do frontend e latência da API.
+        - [x] Identificado no dashboard: excesso de requisições simultâneas no mount, seções pesadas carregadas cedo demais e repetição de busca dos imóveis acessíveis.
+        - [x] Identificado no frontend: bundle principal ainda grande no build (`index` acima do limite de warning do Vite).
+        - [ ] Mapear com mais precisão os gargalos restantes da Home e dos gráficos/modais mais pesados.
    3.2. [ ] Identificar ganhos esperados com mudança de hospedagem vs. otimizações no próprio código/configuração.
    3.3. [ ] Definir baseline simples de performance para comparar Hostinger, Render e ambiente atual.
+   3.4. [x] Primeira rodada de otimização já aplicada:
+        - mapa do dashboard sob demanda;
+        - card superior reduzido para melhorar a experiência e diminuir peso visual;
+        - carregamento progressivo de seções pesadas do dashboard;
+        - cache curto de imóveis acessíveis no frontend;
+        - remoção de chamada redundante no resumo financeiro.
 
 4. [ ] **Critérios de aceite**
    4.1. [ ] Existe decisão documentada de domínio e provedor principal de hospedagem.

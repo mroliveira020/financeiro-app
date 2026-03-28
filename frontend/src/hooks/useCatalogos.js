@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchCategorias, fetchImoveis } from "../services/api";
 
 const cache = {
@@ -57,12 +57,26 @@ export function invalidateCatalogo(tipo) {
   }
 }
 
-export function useCatalogos() {
+export function useCatalogos(options = {}) {
+  const {
+    includeCategorias = true,
+    includeImoveis = true,
+  } = options;
+
+  const estadoInicial = useMemo(
+    () => ({
+      categorias: includeCategorias ? cache.categorias : [],
+      imoveis: includeImoveis ? cache.imoveis : [],
+      carregando:
+        (includeCategorias && !cache.categorias) ||
+        (includeImoveis && !cache.imoveis),
+      erro: null,
+    }),
+    [includeCategorias, includeImoveis]
+  );
+
   const [estado, setEstado] = useState({
-    categorias: cache.categorias,
-    imoveis: cache.imoveis,
-    carregando: !cache.categorias || !cache.imoveis,
-    erro: null,
+    ...estadoInicial,
   });
 
   useEffect(() => {
@@ -71,8 +85,8 @@ export function useCatalogos() {
     async function carregar() {
       try {
         const [categorias, imoveis] = await Promise.all([
-          carregarCategorias(),
-          carregarImoveis(),
+          includeCategorias ? carregarCategorias() : Promise.resolve([]),
+          includeImoveis ? carregarImoveis() : Promise.resolve([]),
         ]);
         if (!ativo) return;
         setEstado({ categorias, imoveis, carregando: false, erro: null });
@@ -86,10 +100,18 @@ export function useCatalogos() {
       }
     }
 
-    if (!cache.categorias || !cache.imoveis) {
+    const precisaCategorias = includeCategorias && !cache.categorias;
+    const precisaImoveis = includeImoveis && !cache.imoveis;
+
+    if (precisaCategorias || precisaImoveis) {
       carregar();
     } else {
-      setEstado({ categorias: cache.categorias, imoveis: cache.imoveis, carregando: false, erro: null });
+      setEstado({
+        categorias: includeCategorias ? cache.categorias : [],
+        imoveis: includeImoveis ? cache.imoveis : [],
+        carregando: false,
+        erro: null,
+      });
     }
 
     const listener = () => {
@@ -107,12 +129,21 @@ export function useCatalogos() {
         window.removeEventListener("catalogo:invalidate", listener);
       }
     };
-  }, []);
+  }, [includeCategorias, includeImoveis]);
 
   const recarregar = () => {
-    invalidateCatalogo();
+    if (includeCategorias && includeImoveis) {
+      invalidateCatalogo();
+    } else if (includeCategorias) {
+      invalidateCatalogo("categorias");
+    } else if (includeImoveis) {
+      invalidateCatalogo("imoveis");
+    }
     setEstado((prev) => ({ ...prev, carregando: true }));
-    Promise.all([carregarCategorias(), carregarImoveis()])
+    Promise.all([
+      includeCategorias ? carregarCategorias() : Promise.resolve([]),
+      includeImoveis ? carregarImoveis() : Promise.resolve([]),
+    ])
       .then(([categorias, imoveis]) => {
         setEstado({ categorias, imoveis, carregando: false, erro: null });
       })

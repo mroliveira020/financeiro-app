@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   fetchImoveis,
@@ -16,10 +16,11 @@ import {
 import "bootstrap/dist/css/bootstrap.min.css";
 import { useAuth } from "../context/AuthContext";
 import "./Home.css";
-import GastosMensaisChart from "../components/GastosMensaisChart";
-import ImovelGrupoPieChart from "../components/ImovelGrupoPieChart";
-import GastosMensaisDetalhesModal from "../components/GastosMensaisDetalhesModal";
 import { invalidateCatalogo } from "../hooks/useCatalogos";
+
+const GastosMensaisChart = lazy(() => import("../components/GastosMensaisChart"));
+const ImovelGrupoPieChart = lazy(() => import("../components/ImovelGrupoPieChart"));
+const GastosMensaisDetalhesModal = lazy(() => import("../components/GastosMensaisDetalhesModal"));
 
 const GRAFICO_PREF_KEY = "financeiro:gastos-pref";
 const DEFAULT_CHART_PREF = { meses: 6, excluir: [8, 15, 18] };
@@ -876,7 +877,9 @@ function Home() {
               </button>
             </div>
           ) : (
-            <GastosMensaisChart dados={gastosMensais} onSegmentClick={handleAbrirDetalhesMensais} />
+            <Suspense fallback={<div className="text-center text-muted py-4">Preparando gráfico...</div>}>
+              <GastosMensaisChart dados={gastosMensais} onSegmentClick={handleAbrirDetalhesMensais} />
+            </Suspense>
           )}
         </div>
       </section>
@@ -1037,7 +1040,9 @@ function Home() {
                         </div>
                       </div>
                       <div className="property-card__summary-aside">
-                        <ImovelGrupoPieChart grupos={imovel.grupos} />
+                        <Suspense fallback={<div className="text-center text-muted py-3 small">Carregando gráfico...</div>}>
+                          <ImovelGrupoPieChart grupos={imovel.grupos} />
+                        </Suspense>
                       </div>
                     </div>
 
@@ -1115,19 +1120,23 @@ function Home() {
         </button>
       </div>
 
-      <GastosMensaisDetalhesModal
-        show={detalhesMensaisModal.aberto}
-        onClose={handleFecharDetalhesMensais}
-        carregando={detalhesMensaisModal.carregando}
-        erro={detalhesMensaisModal.erro}
-        detalhes={detalhesMensaisModal.dados}
-        mesLabel={detalhesMensaisModal.mesRotulo || formatarMesExtenso(detalhesMensaisModal.mesISO)}
-        nomeImovel={detalhesMensaisModal.nomeImovel}
-        valorSegmento={detalhesMensaisModal.valorSegmento}
-        mesISO={detalhesMensaisModal.mesISO}
-        onCarregarTransacoes={handleCarregarTransacoesCategoria}
-        transacoesPorCategoria={detalhesMensaisModal.transacoesPorCategoria}
-      />
+      {detalhesMensaisModal.aberto && (
+        <Suspense fallback={null}>
+          <GastosMensaisDetalhesModal
+            show={detalhesMensaisModal.aberto}
+            onClose={handleFecharDetalhesMensais}
+            carregando={detalhesMensaisModal.carregando}
+            erro={detalhesMensaisModal.erro}
+            detalhes={detalhesMensaisModal.dados}
+            mesLabel={detalhesMensaisModal.mesRotulo || formatarMesExtenso(detalhesMensaisModal.mesISO)}
+            nomeImovel={detalhesMensaisModal.nomeImovel}
+            valorSegmento={detalhesMensaisModal.valorSegmento}
+            mesISO={detalhesMensaisModal.mesISO}
+            onCarregarTransacoes={handleCarregarTransacoesCategoria}
+            transacoesPorCategoria={detalhesMensaisModal.transacoesPorCategoria}
+          />
+        </Suspense>
+      )}
 
       {/* Modal simples para últimos lançamentos */}
       {showUltimos && (
