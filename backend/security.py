@@ -223,7 +223,9 @@ def requires_editor_token(fn):
         if READ_ONLY:
             path = request.path.rstrip("/")
             if not (
-                path.startswith("/dashboard/lancamentos/")
+                path == "/imoveis"
+                or path.startswith("/imoveis/")
+                or path.startswith("/dashboard/lancamentos/")
                 or path == "/dashboard/lancamentos/lote"
                 or path.endswith("/socios")
             ):
