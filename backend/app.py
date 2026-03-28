@@ -596,7 +596,13 @@ def get_resumo_financeiro(id_imovel):
         return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
     try:
         dados = listar_resumo_financeiro(id_imovel)
-        return jsonify(dados)
+        imovel = buscar_imovel_por_id(id_imovel)
+        return jsonify(
+            {
+                "items": dados,
+                "ganho_capital": imovel.get("ganho_capital") if imovel else None,
+            }
+        )
     except Exception as e:
         print(f"Erro ao buscar resumo financeiro: {e}")
         return jsonify({"error": "Erro ao buscar resumo financeiro"}), 500

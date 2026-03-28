@@ -19,20 +19,12 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
     if (!id_imovel) return;
     try {
       const { data } = await api.get(`/dashboard/resumo-financeiro/${id_imovel}`);
-      setResumo(data);
-    } catch (error) {
-      console.error("Erro ao buscar resumo financeiro", error);
-    }
-  }, [id_imovel]);
-
-  const carregarAliquotaGanhoCapital = useCallback(async () => {
-    if (!id_imovel) return;
-    try {
-      const { data } = await api.get(`/imoveis/${id_imovel}`);
+      const itens = Array.isArray(data) ? data : data?.items || [];
+      setResumo(itens);
       const taxa = Number(data?.ganho_capital);
       setAliquotaGanhoCapital(Number.isFinite(taxa) && taxa >= 0 ? taxa : 0.15);
     } catch (error) {
-      console.error("Erro ao buscar aliquota de ganho de capital", error);
+      console.error("Erro ao buscar resumo financeiro", error);
       setAliquotaGanhoCapital(0.15);
     }
   }, [id_imovel]);
@@ -40,10 +32,6 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
   useEffect(() => {
     carregarResumo();
   }, [carregarResumo, refreshKey]);
-
-  useEffect(() => {
-    carregarAliquotaGanhoCapital();
-  }, [carregarAliquotaGanhoCapital, refreshKey]);
 
   // Funções auxiliares
   const calcularEfetivadoMaisContratacao = (item) => {

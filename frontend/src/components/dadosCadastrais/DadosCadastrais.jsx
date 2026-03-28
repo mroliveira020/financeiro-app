@@ -13,6 +13,7 @@ function DadosCadastrais() {
   const [expandir, setExpandir] = useState(false);
   const [mostrarModalImoveis, setMostrarModalImoveis] = useState(false);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
+  const [mostrarMapa, setMostrarMapa] = useState(false);
   const { hasRole } = useAuth();
   const canEdit = hasRole("editor", "admin");
 
@@ -32,6 +33,10 @@ function DadosCadastrais() {
     fetchImovel();
   }, [fetchImovel]);
 
+  useEffect(() => {
+    setMostrarMapa(false);
+  }, [id]);
+
   const trocarImovel = (novoId) => {
     setMostrarModalImoveis(false);
     navigate(`/dashboard/${novoId}`);
@@ -48,6 +53,23 @@ function DadosCadastrais() {
   const renderMapa = () => {
     if (!mapaDisponivel) {
       return <div className="dados-card__map--placeholder">Localização não informada</div>;
+    }
+    if (!mostrarMapa) {
+      return (
+        <div className="dados-card__map--placeholder dados-card__map--placeholder-action">
+          <div className="dados-card__map-copy">
+            <strong>Mapa do imóvel</strong>
+            <span>Carregue o mapa apenas quando precisar consultar a localização.</span>
+          </div>
+          <button
+            type="button"
+            className="dados-card__map-inline-button"
+            onClick={() => setMostrarMapa(true)}
+          >
+            Carregar mapa
+          </button>
+        </div>
+      );
     }
     return (
       <iframe
@@ -106,11 +128,11 @@ function DadosCadastrais() {
       <section className="dashboard-card dados-card">
         <div className="dados-card__actions">
           <button type="button" onClick={() => setMostrarModalImoveis(true)}>
-            🏠 Trocar imóvel
+            Trocar imóvel
           </button>
           {canEdit && (
             <button type="button" onClick={() => setMostrarModalEditar(true)}>
-              ✏️ Editar dados
+              Editar dados
             </button>
           )}
           <button type="button" onClick={() => setExpandir((prev) => !prev)}>
@@ -145,6 +167,20 @@ function DadosCadastrais() {
               {imovel.vendido ? "Imóvel vendido" : "Imóvel em andamento"}
             </span>
             <h2>{imovel.nome}</h2>
+            <div className="dados-card__summary">
+              <div>
+                <span>Endereço</span>
+                <strong>{imovel.endereco || "Não informado"}</strong>
+              </div>
+              <div>
+                <span>Valor de venda</span>
+                <strong>{formatarMoeda(imovel.valor_venda)}</strong>
+              </div>
+              <div>
+                <span>Ganho de capital</span>
+                <strong>{formatarPorcentagem(imovel.ganho_capital)}</strong>
+              </div>
+            </div>
           </div>
         </div>
 
