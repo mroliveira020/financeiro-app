@@ -173,7 +173,13 @@ def requires_editor_token(fn):
         if request.method == "OPTIONS":
             return ("", 204)
         if READ_ONLY:
-            return jsonify({"error": "Somente leitura"}), 405
+            path = request.path.rstrip("/")
+            if not (
+                path.startswith("/dashboard/lancamentos/")
+                or path == "/dashboard/lancamentos/lote"
+                or path.endswith("/socios")
+            ):
+                return jsonify({"error": "Somente leitura"}), 405
 
         try:
             user = _ensure_user_loaded()
