@@ -46,7 +46,7 @@ export default function AppLayout() {
   const { user } = useAuth();
   const location = useLocation();
   const [topbarContent, setTopbarContent] = useState(null);
-  const isProspector = user?.role === "prospector";
+  const canAccessFinance = user?.finance_access ?? user?.role !== "prospector";
   const isAdmin = user?.role === "admin";
   const isProspeccoesPage = location.pathname.startsWith("/prospeccoes");
   const pageTitle = isProspeccoesPage ? "Prospecções" : "Financeiro";
@@ -61,7 +61,7 @@ export default function AppLayout() {
           <img src={logo} alt="Financeiro" />
         </div>
         <nav className="app-shell__nav">
-          {!isProspector && <SidebarLink to="/" icon={icons.home} label="Financeiro" />}
+          {canAccessFinance && <SidebarLink to="/" icon={icons.home} label="Financeiro" />}
           <SidebarLink to="/prospeccoes" icon={icons.prospects} label="Prospec." />
           {isAdmin && <SidebarLink to="/usuarios" icon={icons.users} label="Usuários" />}
         </nav>

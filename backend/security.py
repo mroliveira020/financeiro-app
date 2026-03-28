@@ -5,6 +5,7 @@ import json
 
 import jwt
 from flask import g, jsonify, request
+from db_connection import conectar
 
 from config import (
     JWT_EXPIRES_MINUTES,
@@ -21,6 +22,7 @@ class AuthError(Exception):
 
 
 PROSPECTOR_ALLOWED_PREFIXES = ("/prospeccoes", "/auth", "/healthz")
+FINANCE_ALLOWED_PREFIXES = ("/imoveis", "/categorias", "/lancamentos", "/orcamentos", "/dashboard")
 
 
 def _log_auth_failure(reason: str, status: int) -> None:
@@ -83,10 +85,49 @@ def _is_allowed_path_for_prospector(path: str) -> bool:
     return False
 
 
+def _is_allowed_finance_path(path: str) -> bool:
+    if not path:
+        return False
+    normalized = path.rstrip("/") or "/"
+    for prefix in FINANCE_ALLOWED_PREFIXES:
+        if normalized == prefix or normalized.startswith(prefix + "/"):
+            return True
+    return False
+
+
+def user_has_finance_access(user_id: int | None, role: str | None = None) -> bool:
+    role_norm = (role or "").strip().lower()
+    if role_norm in {"viewer", "editor", "admin"}:
+        return True
+    if role_norm != "prospector" or not user_id:
+        return False
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT 1
+            FROM imovel_socios
+            WHERE user_id = %s
+              AND ativo = TRUE
+              AND percentual_participacao > 0
+            LIMIT 1
+            """,
+            (user_id,),
+        )
+        return bool(cur.fetchone())
+    except Exception:
+        return False
+    finally:
+        conn.close()
+
+
 def _ensure_module_access(user: Dict[str, Any]) -> Optional[tuple]:
     if user.get("role") != "prospector":
         return None
     if _is_allowed_path_for_prospector(request.path):
+        return None
+    if user_has_finance_access(user.get("id"), user.get("role")) and _is_allowed_finance_path(request.path):
         return None
     _log_auth_failure("Módulo não permitido para este perfil", 403)
     return jsonify({"error": "Permissão insuficiente para este módulo"}), 403

@@ -15,7 +15,7 @@ from models import (
     obter_usuario_por_id,
 )
 from ratelimit import limiter
-from security import generate_access_token, get_current_user, requires_auth, requires_role
+from security import generate_access_token, get_current_user, requires_auth, requires_role, user_has_finance_access
 from config import FRONTEND_APP_URL
 
 auth_bp = Blueprint("auth", __name__)
@@ -65,6 +65,7 @@ def login() -> Any:
                     "email": user["email"],
                     "role": user.get("role", "viewer"),
                     "pix_key": user.get("pix_key"),
+                    "finance_access": user_has_finance_access(user.get("id"), user.get("role")),
                 },
             }
         ),
@@ -91,6 +92,7 @@ def me() -> Any:
                 "email": db_user["email"],
                 "role": db_user.get("role", "viewer"),
                 "pix_key": db_user.get("pix_key"),
+                "finance_access": user_has_finance_access(db_user.get("id"), db_user.get("role")),
             }
         ),
         200,

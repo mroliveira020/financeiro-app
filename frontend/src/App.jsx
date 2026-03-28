@@ -25,7 +25,7 @@ function isMobileDevice() {
 
 function HomeEntry() {
   const { user } = useAuth();
-  if (user?.role === "prospector") {
+  if (user?.role === "prospector" && !user?.finance_access) {
     return <Navigate to="/prospeccoes" replace />;
   }
   if (isMobileDevice()) {
@@ -36,7 +36,7 @@ function HomeEntry() {
 
 function DashboardEntry() {
   const { user } = useAuth();
-  if (user?.role === "prospector") {
+  if (user?.role === "prospector" && !user?.finance_access) {
     return <Navigate to="/prospeccoes" replace />;
   }
   return <Dashboard />;

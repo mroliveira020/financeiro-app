@@ -376,6 +376,9 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
 - Bloqueio atual para testes operacionais:
   - ainda não existe tela administrativa para cadastrar usuário com perfil societário e vinculá-lo a um imóvel com percentual de participação;
   - por isso, os testes completos do fluxo compartilhado ficam limitados ao cenário legado de `100%` para `matheus.mro@gmail.com`.
+- Regra transitória já aplicada:
+  - enquanto a capacidade explícita `socio` não existir no modelo de autenticação, o acesso ao Financeiro pode ser liberado para usuário `prospector` que tenha participação ativa em pelo menos um imóvel;
+  - essa liberação é temporária e deve ser substituída por permissão explícita baseada em capacidade/papel societário.
 
 ### Premissas de Implementação Segura
 - a aplicação não pode parar durante a introdução do financeiro compartilhado;
@@ -485,7 +488,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    3.3. [ ] Criar view consolidada por usuário, por exemplo `vw_saldos_socios_consolidado`, para alimentar dashboard de “tenho a receber / tenho a pagar”.
    3.4. [ ] Manter as views atuais do dashboard financeiro funcionando sem dependência obrigatória das novas views na primeira etapa.
 
-4. [ ] **Compatibilidade de autenticação e autorização**
+   4. [ ] **Compatibilidade de autenticação e autorização**
    4.1. [ ] Evoluir o token para carregar:
         - `role` legado, enquanto necessário;
         - `capabilities` como lista oficial para a nova autorização.
@@ -495,6 +498,9 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - acesso ao Financeiro compartilhado por `socio`, `editor` ou `admin`;
         - `admin` com acesso integral;
         - `prospector` sem acesso financeiro por padrão.
+   4.3.1. [ ] Regra transitória aceita no rollout atual:
+        - enquanto `socio` ainda não existir como capacidade formal, o sistema pode liberar o módulo Financeiro para usuário `prospector` com vínculo ativo em `imovel_socios`;
+        - essa exceção existe apenas para não travar a operação antes da migração para papéis acumuláveis.
    4.4. [ ] Só remover dependência de `users.role` quando frontend, backend e sessão estiverem plenamente adaptados.
 
 5. [ ] **Rotas/API mínimas da primeira fase**
@@ -594,6 +600,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - sócio que sair pode ficar com `0%` de participação ou ser marcado como inativo para não aparecer mais como participante ativo;
         - a soma das participações ativas deve ser `100%` para imóveis compartilhados já configurados;
         - imóveis sem configuração explícita seguem operando como legados até o backfill.
+   2.2.1. [ ] Enquanto a capacidade `socio` não for formalizada, participação ativa em `imovel_socios` pode funcionar como sinal transitório de acesso ao Financeiro para usuários originalmente `prospector`.
    2.3. [ ] `lancamentos`
         - `paid_by_user_id` representa quem desembolsou o valor;
         - `created_by_user_id` representa quem lançou no sistema;
@@ -843,7 +850,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - manter `admin` com visão e atuação total sobre todos os módulos;
         - concentrar a gestão de capacidade `socio` e o vínculo societário na tela de usuários;
         - revisar autenticação/sessão para expor a lista de papéis/capacidades do usuário, e não apenas um `role` único;
-        - incluir no cadastro do usuário um campo de chave Pix para facilitar transferências e equalizações entre sócios.
+        - incluir no cadastro do usuário um campo de chave Pix para facilitar transferências e equalizações entre sócios;
+        - tratar a liberação por vínculo societário ativo como regra transitória, não como modelo final de permissão.
    12.3. [ ] **Lançamentos financeiros com autoria pagadora**
         - permitir que cada lançamento do financeiro registre quem efetivamente pagou (`paid_by_user_id`);
         - ao lançar uma despesa, permitir selecionar explicitamente qual sócio realizou o pagamento;
@@ -882,7 +890,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - apenas `admin` pode registrar entrada de novo sócio ou saída de sócio da composição do imóvel;
         - `socio` vê apenas imóveis em que participa e os respectivos lançamentos/saldos;
         - `prospector` não ganha acesso ao financeiro por ser prospector; o acesso financeiro depende da capacidade de `socio`, `editor` ou `admin`;
-        - revisar regras atuais de frontend e backend que hoje assumem um único `role`.
+        - revisar regras atuais de frontend e backend que hoje assumem um único `role`;
+        - durante a transição, um `prospector` com vínculo ativo em `imovel_socios` pode receber acesso financeiro para não bloquear a operação, mas essa exceção deve ser removida quando a capacidade explícita `socio` entrar em produção.
    12.8. [ ] **Critérios de aceite iniciais**
         - um imóvel pode ter um ou mais sócios com percentuais definidos;
         - o mesmo sócio pode aparecer em vários imóveis com percentuais diferentes;
@@ -920,6 +929,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
 2. [ ] **Agora — Validar o fluxo compartilhado no imóvel piloto**
    - cadastrar ao menos um segundo sócio real;
    - vincular esse sócio ao imóvel com participação definida;
+   - confirmar que o usuário consegue acessar o Financeiro mesmo antes da formalização da capacidade `socio`, via regra transitória de vínculo ativo;
    - testar seleção de `Quem pagou` em edição individual e em lote;
    - conferir restrição de imóveis acessíveis e leitura do card técnico compartilhado.
 
