@@ -228,6 +228,9 @@ def add_imovel():
 @app.route("/imoveis/<int:imovel_id>", methods=["GET"])
 @requires_auth
 def get_imovel_by_id(imovel_id):
+    current_user = get_current_user() or {}
+    if not _usuario_pode_ver_financeiro_compartilhado(imovel_id, current_user):
+        return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
     imovel = buscar_imovel_por_id(imovel_id)
     if not imovel:
         return jsonify({"error": "Imóvel não encontrado"}), 404
@@ -490,7 +493,7 @@ def delete_imovel(imovel_id):
 def _usuario_pode_ver_financeiro_compartilhado(imovel_id, current_user):
     if not current_user:
         return False
-    if current_user.get("role") == "admin":
+    if current_user.get("role") in {"admin", "editor", "viewer"}:
         return True
     return usuario_participa_imovel(imovel_id, current_user.get("id"))
 
@@ -588,6 +591,9 @@ def get_lancamentos():
 @app.route("/dashboard/resumo-financeiro/<int:id_imovel>", methods=["GET"])
 @requires_auth
 def get_resumo_financeiro(id_imovel):
+    current_user = get_current_user() or {}
+    if not _usuario_pode_ver_financeiro_compartilhado(id_imovel, current_user):
+        return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
     try:
         dados = listar_resumo_financeiro(id_imovel)
         return jsonify(dados)
@@ -599,6 +605,9 @@ def get_resumo_financeiro(id_imovel):
 @app.route("/dashboard/orcamento_execucao/<int:id_imovel>", methods=["GET"])
 @requires_auth
 def get_orcamento_execucao(id_imovel):
+    current_user = get_current_user() or {}
+    if not _usuario_pode_ver_financeiro_compartilhado(id_imovel, current_user):
+        return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
     try:
         dados = listar_resumo_financeiro(id_imovel)
         return jsonify(dados)
@@ -629,6 +638,9 @@ def get_resumo_imoveis():
 @app.route("/orcamentos/<int:id_imovel>", methods=["GET"])
 @requires_auth
 def get_orcamentos_por_imovel(id_imovel):
+    current_user = get_current_user() or {}
+    if not _usuario_pode_ver_financeiro_compartilhado(id_imovel, current_user):
+        return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
     orcamentos = listar_orcamentos_por_imovel(id_imovel)
     return jsonify(orcamentos), 200
 

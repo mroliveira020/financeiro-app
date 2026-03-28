@@ -1,21 +1,25 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import api from "../../services/http";
+import { useAuth } from "../../context/AuthContext";
 
 function ModalSelecionarImovel({ onClose, onSelectImovel }) {
   const [imoveis, setImoveis] = useState([]);
+  const { hasRole } = useAuth();
+  const canAccessAllFinance = hasRole("viewer", "editor", "admin");
 
-  useEffect(() => {
-    fetchImoveis();
-  }, []);
-
-  const fetchImoveis = async () => {
+  const fetchImoveis = useCallback(async () => {
     try {
-      const { data } = await api.get(`/imoveis`);
+      const endpoint = canAccessAllFinance ? "/imoveis" : "/imoveis-financeiro-acessiveis";
+      const { data } = await api.get(endpoint);
       setImoveis(data);
     } catch (error) {
       console.error("Erro ao buscar imóveis", error);
     }
-  };
+  }, [canAccessAllFinance]);
+
+  useEffect(() => {
+    fetchImoveis();
+  }, [fetchImoveis]);
 
   return (
     <>
@@ -32,6 +36,9 @@ function ModalSelecionarImovel({ onClose, onSelectImovel }) {
             </div>
             <div className="modal-body">
               <ul className="list-group">
+                {imoveis.length === 0 && (
+                  <li className="list-group-item text-muted">Nenhum imóvel disponível para este usuário.</li>
+                )}
                 {imoveis.map((imovel) => (
                   <li
                     key={imovel.id}

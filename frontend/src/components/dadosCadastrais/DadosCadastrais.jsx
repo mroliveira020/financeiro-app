@@ -22,8 +22,11 @@ function DadosCadastrais() {
       setImovel(data);
     } catch (error) {
       console.error("Erro ao buscar dados do imóvel", error);
+      if (error?.response?.status === 403) {
+        navigate("/", { replace: true });
+      }
     }
-  }, [id]);
+  }, [id, navigate]);
 
   useEffect(() => {
     fetchImovel();

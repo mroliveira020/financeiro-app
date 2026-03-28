@@ -2,7 +2,7 @@ from flask import request, jsonify
 from flask_cors import cross_origin
 from . import dashboard_bp
 from config import ALLOWED_ORIGINS_LIST, RATE_LIMIT_EDIT
-from security import requires_auth, requires_editor_token
+from security import requires_auth, requires_editor_token, get_current_user
 from ratelimit import limiter
 from models import (
     listar_lancamentos_incompletos_view,
@@ -14,7 +14,17 @@ from models import (
     listar_totais_mensais_por_imovel,
     listar_detalhes_gastos_mensais,
     listar_transacoes_mensais,
+    usuario_participa_imovel,
 )
+
+
+def _usuario_pode_acessar_imovel_financeiro(id_imovel):
+    current_user = get_current_user() or {}
+    if not current_user:
+        return False
+    if current_user.get("role") in {"admin", "editor", "viewer"}:
+        return True
+    return usuario_participa_imovel(id_imovel, current_user.get("id"))
 
 
 def _obter_parametros_paginacao():
@@ -30,6 +40,8 @@ def _obter_parametros_paginacao():
 @requires_auth
 @cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
 def get_lancamentos_incompletos(id_imovel):
+    if not _usuario_pode_acessar_imovel_financeiro(id_imovel):
+        return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
     try:
         page_size, page = _obter_parametros_paginacao()
         resultados = listar_lancamentos_incompletos_view(
@@ -49,6 +61,8 @@ def get_lancamentos_incompletos(id_imovel):
 @requires_auth
 @cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
 def get_lancamentos_completos(id_imovel):
+    if not _usuario_pode_acessar_imovel_financeiro(id_imovel):
+        return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
     try:
         page_size, page = _obter_parametros_paginacao()
         resultados = listar_lancamentos_completos_view(
@@ -243,6 +257,8 @@ def get_gastos_mensais_detalhes():
         mes = request.args.get('mes', '').strip()
         if not imovel_id or not mes:
             return jsonify({"error": "Parâmetros 'imovelId' e 'mes' são obrigatórios"}), 400
+        if not _usuario_pode_acessar_imovel_financeiro(imovel_id):
+            return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
 
         excluir_raw = request.args.get('excluir', '').strip()
         categorias_excluidas = None
@@ -277,6 +293,8 @@ def get_gastos_mensais_transacoes():
 
         if not imovel_id or not mes:
             return jsonify({"error": "Parâmetros 'imovelId' e 'mes' são obrigatórios"}), 400
+        if not _usuario_pode_acessar_imovel_financeiro(imovel_id):
+            return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
 
         transacoes = listar_transacoes_mensais(imovel_id, mes, categoria_id)
         return jsonify(transacoes), 200
