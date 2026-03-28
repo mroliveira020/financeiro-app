@@ -188,6 +188,7 @@ def _garantir_tabela_usuarios():
                   AND table_name = 'users'
                   AND column_name IN (
                     'name',
+                    'pix_key',
                     'password_reset_required',
                     'invite_token_hash',
                     'invite_expires_at',
@@ -198,6 +199,7 @@ def _garantir_tabela_usuarios():
             existing = {row[0] for row in cur.fetchall()}
             required = {
                 "name",
+                "pix_key",
                 "password_reset_required",
                 "invite_token_hash",
                 "invite_expires_at",
@@ -219,6 +221,7 @@ def _garantir_tabela_usuarios():
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'viewer',
+                pix_key TEXT,
                 is_active BOOLEAN NOT NULL DEFAULT TRUE,
                 password_reset_required BOOLEAN NOT NULL DEFAULT FALSE,
                 invite_token_hash TEXT,
@@ -239,6 +242,12 @@ def _garantir_tabela_usuarios():
             """
             ALTER TABLE users
             ADD COLUMN IF NOT EXISTS password_reset_required BOOLEAN NOT NULL DEFAULT FALSE
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS pix_key TEXT
             """
         )
         cur.execute(
@@ -293,6 +302,7 @@ def criar_usuario(
     role: str = "viewer",
     is_active: bool = True,
     nome: str | None = None,
+    pix_key: str | None = None,
 ) -> dict:
     _garantir_tabela_usuarios()
     nome_norm = (nome or "").strip()
@@ -304,17 +314,18 @@ def criar_usuario(
     role_norm = (role or "viewer").strip().lower()
     if role_norm not in {"viewer", "editor", "admin", "prospector"}:
         raise ValueError("Papel inválido")
+    pix_key_norm = (pix_key or "").strip() or None
     senha_hash = generate_password_hash(senha, method="pbkdf2:sha256", salt_length=16)
 
     conn, cur = conectar()
     try:
         cur.execute(
             """
-            INSERT INTO users (name, email, password_hash, role, is_active)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id, name, email, role, is_active, created_at, updated_at
+            INSERT INTO users (name, email, password_hash, role, pix_key, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id, name, email, role, pix_key, is_active, created_at, updated_at
             """,
-            (nome_norm, email_norm, senha_hash, role_norm, is_active),
+            (nome_norm, email_norm, senha_hash, role_norm, pix_key_norm, is_active),
         )
         row = cur.fetchone()
         conn.commit()
@@ -554,7 +565,8 @@ def listar_socios_imovel(id_imovel, incluir_inativos: bool = False):
                 s.updated_at,
                 u.name AS user_name,
                 u.email AS user_email,
-                u.role AS user_role
+                u.role AS user_role,
+                u.pix_key AS user_pix_key
             FROM imovel_socios s
             JOIN users u ON u.id = s.user_id
             WHERE {' AND '.join(filtros)}
@@ -1033,6 +1045,7 @@ def listar_usuarios() -> list[dict]:
                 name,
                 email,
                 role,
+                pix_key,
                 is_active,
                 created_at,
                 updated_at,
@@ -1055,6 +1068,7 @@ def criar_convite_usuario(
     role: str = "viewer",
     is_active: bool = True,
     invite_hours: int = 72,
+    pix_key: str | None = None,
 ) -> dict:
     _garantir_tabela_usuarios()
 
@@ -1067,6 +1081,7 @@ def criar_convite_usuario(
     role_norm = (role or "viewer").strip().lower()
     if role_norm not in {"viewer", "editor", "admin", "prospector"}:
         raise ValueError("Papel inválido")
+    pix_key_norm = (pix_key or "").strip() or None
 
     invite_hours = max(1, int(invite_hours or 72))
     invite_token = secrets.token_urlsafe(24)
@@ -1088,6 +1103,7 @@ def criar_convite_usuario(
                 SET
                     name = %s,
                     role = %s,
+                    pix_key = %s,
                     is_active = %s,
                     invite_token_hash = %s,
                     invite_expires_at = %s,
@@ -1095,9 +1111,9 @@ def criar_convite_usuario(
                     password_reset_required = TRUE,
                     updated_at = NOW()
                 WHERE email = %s
-                RETURNING id, name, email, role, is_active, invite_expires_at
+                RETURNING id, name, email, role, pix_key, is_active, invite_expires_at
                 """,
-                (nome_norm, role_norm, is_active, invite_token_hash, invite_expires_at, email_norm),
+                (nome_norm, role_norm, pix_key_norm, is_active, invite_token_hash, invite_expires_at, email_norm),
             )
         else:
             placeholder_hash = generate_password_hash(
@@ -1112,6 +1128,7 @@ def criar_convite_usuario(
                     email,
                     password_hash,
                     role,
+                    pix_key,
                     is_active,
                     invite_token_hash,
                     invite_expires_at,
@@ -1119,13 +1136,14 @@ def criar_convite_usuario(
                     password_reset_required
                 )
                 VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), TRUE)
-                RETURNING id, name, email, role, is_active, invite_expires_at
+                RETURNING id, name, email, role, pix_key, is_active, invite_expires_at
                 """,
                 (
                     nome_norm,
                     email_norm,
                     placeholder_hash,
                     role_norm,
+                    pix_key_norm,
                     is_active,
                     invite_token_hash,
                     invite_expires_at,
@@ -1212,7 +1230,7 @@ def obter_usuario_por_email(email: str) -> dict | None:
     try:
         cur.execute(
             """
-            SELECT id, name, email, password_hash, role, is_active, password_reset_required
+            SELECT id, name, email, password_hash, role, pix_key, is_active, password_reset_required
             FROM users
             WHERE email = %s
             LIMIT 1
@@ -1231,7 +1249,7 @@ def obter_usuario_por_id(user_id: int) -> dict | None:
     try:
         cur.execute(
             """
-            SELECT id, name, email, role, is_active
+            SELECT id, name, email, role, pix_key, is_active
             FROM users
             WHERE id = %s
             """,
@@ -1263,11 +1281,12 @@ def atualizar_status_usuario(user_id: int, is_active: bool) -> None:
         conn.close()
 
 
-def atualizar_usuario(user_id: int, nome: str, is_active: bool) -> dict | None:
+def atualizar_usuario(user_id: int, nome: str, is_active: bool, pix_key: str | None = None) -> dict | None:
     _garantir_tabela_usuarios()
     nome_norm = (nome or "").strip()
     if not nome_norm:
         raise ValueError("Nome obrigatório")
+    pix_key_norm = (pix_key or "").strip() or None
 
     conn, cur = conectar()
     try:
@@ -1276,14 +1295,15 @@ def atualizar_usuario(user_id: int, nome: str, is_active: bool) -> dict | None:
             UPDATE users
             SET
                 name = %s,
+                pix_key = %s,
                 is_active = %s,
                 updated_at = NOW()
             WHERE id = %s
-            RETURNING id, name, email, role, is_active, created_at, updated_at,
+            RETURNING id, name, email, role, pix_key, is_active, created_at, updated_at,
                       password_reset_required, invite_expires_at,
                       (invite_token_hash IS NOT NULL) AS invite_pending
             """,
-            (nome_norm, is_active, user_id),
+            (nome_norm, pix_key_norm, is_active, user_id),
         )
         row = cur.fetchone()
         conn.commit()

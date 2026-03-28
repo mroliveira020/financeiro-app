@@ -353,6 +353,30 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
 
 ## Frente Financeiro Compartilhado
 
+### Status Atual da Frente
+- Implementado em código e com smoke técnico concluído:
+  - tabela `imovel_socios` e colunas compartilhadas em `lancamentos`;
+  - backfill idempotente dos imóveis atuais para `matheus.mro@gmail.com` com `100%`;
+  - backfill idempotente de `paid_by_user_id` legado quando ausente;
+  - endpoints mínimos para sócios do imóvel, posição financeira compartilhada e imóveis acessíveis no contexto societário;
+  - seleção de `Quem pagou` na edição de lançamentos;
+  - exigência de `Quem pagou` no lançamento em lote;
+  - card técnico inicial de financeiro compartilhado no dashboard;
+  - correção do filtro de `Transações Incompletas` por imóvel atual;
+  - restauração de `Transações Completas` e inclusão da coluna `Quem pagou`.
+- Evidências já confirmadas em smoke técnico:
+  - `13` imóveis atuais vinculados ao usuário padrão no backfill societário;
+  - `851` lançamentos legados atualizados com `paid_by_user_id` padrão quando ausente;
+  - consulta de `Transações Incompletas` validada com filtro por imóvel;
+  - consulta de `Transações Completas` validada após correção da query ambígua.
+- Ainda pendente de validação operacional pelo usuário:
+  - testar o fluxo completo no app rodando, especialmente edição individual, lote, restrição de imóveis por sócio e leitura do card compartilhado;
+  - revisar minuciosamente a leitura do dashboard compartilhado antes de fechar a interface final;
+  - confirmar cenários reais de equalização entre sócios no imóvel piloto.
+- Bloqueio atual para testes operacionais:
+  - ainda não existe tela administrativa para cadastrar usuário com perfil societário e vinculá-lo a um imóvel com percentual de participação;
+  - por isso, os testes completos do fluxo compartilhado ficam limitados ao cenário legado de `100%` para `matheus.mro@gmail.com`.
+
 ### Premissas de Implementação Segura
 - a aplicação não pode parar durante a introdução do financeiro compartilhado;
 - nenhum dado existente pode ser perdido, sobrescrito sem rastreabilidade ou reclassificado sem critério documentado;
@@ -368,7 +392,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    1.4. [ ] Só migrar telas, consultas e cálculos principais depois de validar que toda a base histórica relevante já recebeu vínculo societário mínimo.
 
 2. [ ] **Modelo mínimo de dados sugerido**
-   2.1. [ ] Criar tabela de participação por imóvel, por exemplo `imovel_socios`, com:
+   2.1. [x] Criar tabela de participação por imóvel, por exemplo `imovel_socios`, com:
         - `id`
         - `imovel_id`
         - `user_id`
@@ -380,25 +404,25 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    2.1.3. [ ] O modelo também deve permitir entrada de novo sócio e saída de sócio existente, tratando a saída como participação `0%` na configuração atual do imóvel.
    2.2. [ ] Garantir regra de integridade para impedir mais de `100%` de participação ativa por imóvel e evitar duplicidade de sócio ativo no mesmo período.
    2.2.1. [ ] A soma dos percentuais ativos do imóvel deve continuar fechando em `100%` após entrada, saída ou redistribuição de participação entre sócios.
-   2.3. [ ] Adicionar em lançamentos financeiros o campo `paid_by_user_id` como opcional no primeiro rollout.
-   2.4. [ ] Adicionar tipo/classificação para distinguir:
+   2.3. [x] Adicionar em lançamentos financeiros o campo `paid_by_user_id` como opcional no primeiro rollout.
+   2.4. [x] Adicionar tipo/classificação para distinguir:
         - despesa do imóvel;
         - receita do imóvel;
         - transferência de equalização entre sócios.
    2.5. [ ] Evitar reescrever lançamentos históricos; o compartilhamento deve ser inferido por vínculo do imóvel e por campos complementares novos.
 
 3. [ ] **Migração inicial da base sem perda de dados**
-   3.1. [ ] Criar primeiro o registro societário padrão de todos os imóveis atuais para `matheus.mro@gmail.com` com `100%` de participação.
-   3.2. [ ] Preencher `paid_by_user_id` legado apenas quando a origem do pagamento não existir e documentar a premissa adotada.
-   3.3. [ ] Executar backfill idempotente, para que a rotina possa rodar novamente sem duplicar vínculos ou corromper dados.
-   3.4. [ ] Registrar relatório pós-migração com quantidade de imóveis vinculados, lançamentos atualizados e eventuais exceções.
+   3.1. [x] Criar primeiro o registro societário padrão de todos os imóveis atuais para `matheus.mro@gmail.com` com `100%` de participação.
+   3.2. [x] Preencher `paid_by_user_id` legado apenas quando a origem do pagamento não existir e documentar a premissa adotada.
+   3.3. [x] Executar backfill idempotente, para que a rotina possa rodar novamente sem duplicar vínculos ou corromper dados.
+   3.4. [x] Registrar relatório pós-migração com quantidade de imóveis vinculados, lançamentos atualizados e eventuais exceções.
    3.5. [ ] Fazer backup completo antes da migração e validar amostra depois do backfill, comparando totais financeiros antes vs. depois.
 
 4. [ ] **Compatibilidade da aplicação durante a transição**
-   4.1. [ ] Se o imóvel não tiver configuração societária explícita, o sistema deve continuar funcionando como imóvel individual.
-   4.2. [ ] Cálculos antigos do financeiro não podem quebrar caso `paid_by_user_id` ou participação ainda estejam ausentes.
+   4.1. [x] Se o imóvel não tiver configuração societária explícita, o sistema deve continuar funcionando como imóvel individual.
+   4.2. [x] Cálculos antigos do financeiro não podem quebrar caso `paid_by_user_id` ou participação ainda estejam ausentes.
    4.3. [ ] A UI só deve exibir visão compartilhada quando os dados mínimos do imóvel estiverem consistentes.
-   4.4. [ ] APIs existentes devem continuar respondendo no formato atual até que o frontend esteja adaptado ao modelo novo.
+   4.4. [x] APIs existentes devem continuar respondendo no formato atual até que o frontend esteja adaptado ao modelo novo.
 
 5. [ ] **Cálculo e auditabilidade**
    5.1. [ ] Calcular saldo societário sempre a partir dos lançamentos originais e dos percentuais vigentes do imóvel.
@@ -413,9 +437,9 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    5.6. [ ] Quando um sócio sair da sociedade ou um novo sócio entrar, o dashboard deve recalcular automaticamente a posição entre os participantes com base na composição atual.
 
 6. [ ] **Sequência recomendada de implementação**
-   6.1. [ ] Fase 1: criar schema novo e backfill dos imóveis atuais para participação de `100%`.
-   6.2. [ ] Fase 2: adicionar `paid_by_user_id` e adaptar formulários de lançamento sem obrigatoriedade imediata.
-   6.3. [ ] Fase 3: criar consultas/cálculos de saldo entre sócios e transferências de equalização.
+   6.1. [x] Fase 1: criar schema novo e backfill dos imóveis atuais para participação de `100%`.
+   6.2. [x] Fase 2: adicionar `paid_by_user_id` e adaptar formulários de lançamento sem obrigatoriedade imediata.
+   6.3. [x] Fase 3: criar consultas/cálculos de saldo entre sócios e transferências de equalização.
    6.4. [ ] Fase 4: liberar visão do dashboard com chave `Total` vs. `Minha participação`.
    6.5. [ ] Fase 5: revisar permissões, consolidar papéis acumuláveis e só então simplificar legados que deixarem de ser necessários.
 
@@ -435,7 +459,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - `created_by` opcional
         - unicidade por `user_id + capability`
    2.2. [ ] Manter `users.role` no primeiro momento como campo legado de compatibilidade, alimentado em paralelo até a aplicação migrar completamente para capacidades.
-   2.3. [ ] Criar tabela `imovel_socios`:
+   2.3. [x] Criar tabela `imovel_socios`:
         - `id`
         - `imovel_id` FK para `imoveis`
         - `user_id` FK para `users`
@@ -444,7 +468,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - `observacao` opcional
         - `created_at` / `updated_at`
    2.3.1. [ ] O mesmo `user_id` pode aparecer em múltiplos imóveis, com `percentual_participacao` diferente em cada vínculo.
-   2.4. [ ] Adicionar em `lancamentos` novas colunas opcionais no primeiro rollout:
+   2.4. [x] Adicionar em `lancamentos` novas colunas opcionais no primeiro rollout:
         - `paid_by_user_id` FK para `users`
         - `beneficiary_user_id` FK para `users`, usada apenas em acertos entre sócios
         - `tipo_movimentacao` (`despesa_imovel`, `receita_imovel`, `equalizacao_socios`)
@@ -475,9 +499,9 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
 
 5. [ ] **Rotas/API mínimas da primeira fase**
    5.1. [ ] Adicionar endpoint administrativo para listar vínculos societários por usuário e por imóvel.
-   5.2. [ ] Adicionar endpoint administrativo para salvar/editar quadro societário de um imóvel com validação de soma de percentuais.
-   5.3. [ ] Adaptar criação/edição de lançamentos para aceitar `paid_by_user_id` sem torná-lo obrigatório no primeiro deploy.
-   5.4. [ ] Adicionar endpoint de leitura da posição societária do imóvel:
+   5.2. [x] Adicionar endpoint administrativo para salvar/editar quadro societário de um imóvel com validação de soma de percentuais.
+   5.3. [x] Adaptar criação/edição de lançamentos para aceitar `paid_by_user_id` sem torná-lo obrigatório no primeiro deploy.
+   5.4. [x] Adicionar endpoint de leitura da posição societária do imóvel:
         - sócios ativos;
         - percentual de cada um;
         - total pago;
@@ -488,6 +512,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - `view_mode=total`
         - `view_mode=ownership`
    5.6. [ ] Garantir que endpoints antigos do dashboard continuem respondendo sem exigir contexto societário explícito.
+   5.7. [ ] Adicionar suporte ao cadastro de `pix_key` no usuário para facilitar transferências entre sócios.
 
 6. [ ] **Migração segura recomendada**
    6.1. [ ] Deploy 1:
@@ -526,12 +551,12 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
 
 ### Desenho Executivo de Implementação
 1. [ ] **Migrations planejadas em ordem**
-   1.1. [ ] `001_imovel_socios.sql`
+   1.1. [x] `001_imovel_socios.sql` ou equivalente via helper idempotente em [models.py](/Users/matheusoliveira/Documents/Leiloes/Aplicacoes/Financeiro/backend/models.py)
         - criar tabela `imovel_socios`;
         - criar índice por `imovel_id`;
         - criar índice por `user_id`;
         - criar validações mínimas de percentual positivo e ativo.
-   1.2. [ ] `002_lancamentos_shared_fields.sql`
+   1.2. [x] `002_lancamentos_shared_fields.sql` ou equivalente via helper idempotente em [models.py](/Users/matheusoliveira/Documents/Leiloes/Aplicacoes/Financeiro/backend/models.py)
         - adicionar `paid_by_user_id` em `lancamentos`;
         - adicionar `beneficiary_user_id` em `lancamentos`;
         - adicionar `tipo_movimentacao` em `lancamentos`;
@@ -541,11 +566,11 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - criar `vw_imovel_socios_ativos`;
         - criar `vw_imovel_saldos_socios`;
         - criar `vw_saldos_socios_consolidado`.
-   1.4. [ ] `004_backfill_imoveis_socios_legacy.sql`
+   1.4. [x] `004_backfill_imoveis_socios_legacy.sql` ou equivalente via rotina idempotente em [models.py](/Users/matheusoliveira/Documents/Leiloes/Aplicacoes/Financeiro/backend/models.py)
         - localizar usuário `matheus.mro@gmail.com`;
         - vincular todos os imóveis atuais com participação de `100%`;
         - gerar relatório de quantos imóveis ficaram cobertos.
-   1.5. [ ] `005_backfill_lancamentos_paid_by.sql`
+   1.5. [x] `005_backfill_lancamentos_paid_by.sql` ou equivalente via rotina idempotente em [models.py](/Users/matheusoliveira/Documents/Leiloes/Aplicacoes/Financeiro/backend/models.py)
         - preencher `paid_by_user_id` apenas para lançamentos sem pagador explícito;
         - aplicar premissa documentada do usuário padrão;
         - registrar contagem de linhas afetadas.
@@ -582,7 +607,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    3.1.1. [ ] Rotas de usuários:
         - a tela de controle de usuários passa a concentrar a gestão administrativa de capacidade `socio` e os vínculos societários por imóvel;
         - essa centralização entra depois que banco, APIs e dashboard compartilhado estiverem estáveis;
-        - apenas `admin` pode criar, editar ou remover vínculos de sócios em imóveis.
+        - apenas `admin` pode criar, editar ou remover vínculos de sócios em imóveis;
+        - o cadastro do usuário deve suportar chave Pix para consulta rápida no fluxo de equalização e transferências.
    3.2. [ ] Rotas de Prospecções:
         - devem migrar de validação por `role` para validação por capacidade;
         - não devem sofrer mudança funcional imediata para o usuário final.
@@ -590,7 +616,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - leitura atual do imóvel continua igual em `view_mode=total`;
         - nova camada de leitura adiciona `view_mode=ownership`;
         - endpoints antigos não devem exigir dados de sócio para continuar respondendo.
-   3.4. [ ] Rotas de lançamentos:
+   3.4. [x] Rotas de lançamentos:
         - `POST/PATCH` passam a aceitar `paid_by_user_id`, `tipo_movimentacao` e `beneficiary_user_id`;
         - payload antigo continua válido.
    3.5. [ ] Rotas novas:
@@ -604,21 +630,22 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    3.5.3. [ ] O ajuste administrativo também deve suportar entrada de novo sócio e saída de sócio atual, refletindo imediatamente a nova composição no dashboard.
 
 4. [ ] **Sequência de backend por fase**
-   4.1. [ ] Fase A — Preparação silenciosa
+   4.1. [x] Fase A — Preparação silenciosa
         - criar schema novo;
         - manter toda autorização atual funcionando;
         - não depender ainda da tela de usuários para operar o compartilhamento.
-   4.2. [ ] Fase B — Compatibilidade de segurança
+   4.2. [x] Fase B — Compatibilidade de segurança
         - adicionar verificações mínimas de acesso por participação no imóvel e por `admin`;
         - manter fallback para o modelo atual de `role`;
         - adiar a evolução completa de `capabilities` para uma fase posterior.
-   4.3. [ ] Fase C — Financeiro compartilhado no backend
+   4.3. [x] Fase C — Financeiro compartilhado no backend
         - adaptar queries de lançamentos;
         - criar queries de saldo societário;
         - criar endpoints novos sem trocar a UI antiga imediatamente;
         - permitir operação compartilhada mesmo antes da centralização completa na tela de usuários.
    4.4. [ ] Fase D — Frontend incremental
-        - expor quadro societário no dashboard do imóvel ou em fluxo administrativo mínimo;
+        - criar camada administrativa mínima para viabilizar teste real do compartilhamento antes da consolidação completa em `/usuarios`;
+        - essa camada precisa permitir cadastrar/editar usuário sócio, informar chave Pix e vincular participação por imóvel;
         - liberar seleção de pagador;
         - liberar leitura de saldo e equalizações;
         - liberar toggle `Total` vs. `Minha participação`.
@@ -655,12 +682,12 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    6.9. [x] Confirmado: a parte de dashboard compartilhado será revisada minuciosamente antes da interface final, com checkpoint explícito de validação funcional e visual.
 
 ### Primeira Entrega Real Recomendada
-1. [ ] **Escopo mínimo da primeira entrega**
-   1.1. [ ] Criar `imovel_socios` com participação por imóvel.
-   1.2. [ ] Adicionar `paid_by_user_id` e `tipo_movimentacao` em `lancamentos`.
-   1.3. [ ] Fazer backfill dos imóveis atuais para `matheus.mro@gmail.com` com `100%`.
-   1.4. [ ] Permitir registrar despesa informando qual sócio pagou.
-   1.5. [ ] Expor backend e consultas necessários para o dashboard compartilhado, sem fechar ainda a interface final.
+1. [x] **Escopo mínimo da primeira entrega**
+   1.1. [x] Criar `imovel_socios` com participação por imóvel.
+   1.2. [x] Adicionar `paid_by_user_id` e `tipo_movimentacao` em `lancamentos`.
+   1.3. [x] Fazer backfill dos imóveis atuais para `matheus.mro@gmail.com` com `100%`.
+   1.4. [x] Permitir registrar despesa informando qual sócio pagou.
+   1.5. [x] Expor backend e consultas necessários para o dashboard compartilhado, sem fechar ainda a interface final.
 
 2. [ ] **O que fica fora da primeira entrega**
    2.1. [ ] Tela completa de administração societária dentro de `/usuarios`.
@@ -669,60 +696,65 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    2.4. [ ] Refinamentos avançados de UX para gestão societária.
    2.5. [ ] Regras temporais/históricas de vigência.
    2.6. [ ] Interface final do dashboard compartilhado antes da sua revisão detalhada.
+   2.7. [ ] Observação: uma camada administrativa mínima de cadastro/vinculação de sócios deixou de ser “opcional”, porque ela é pré-requisito para testar o fluxo compartilhado com dados reais.
 
-3. [ ] **Fluxo operacional esperado no MVP**
-   3.1. [ ] Administrador configura os sócios do imóvel diretamente por mecanismo mínimo de backend/admin.
-   3.2. [ ] Usuário registra despesas informando quem pagou.
-   3.3. [ ] Backend calcula automaticamente quanto cada sócio deveria ter pago e quanto efetivamente pagou.
+3. [x] **Fluxo operacional esperado no MVP**
+   3.1. [x] Administrador configura os sócios do imóvel diretamente por mecanismo mínimo de backend/admin.
+   3.2. [x] Usuário registra despesas informando quem pagou.
+   3.3. [x] Backend calcula automaticamente quanto cada sócio deveria ter pago e quanto efetivamente pagou.
    3.4. [ ] Se um sócio comprar parte do outro, o administrador ajusta os percentuais atuais.
    3.5. [ ] O sócio que ficou devendo registra um lançamento de equalização ao outro.
 
 4. [ ] **Critério de sucesso da primeira entrega**
    4.1. [ ] Um imóvel compartilhado real pode ser operado sem planilha externa.
-   4.2. [ ] O backend retorna saldo coerente entre sócios após despesas e equalizações.
-   4.3. [ ] A aplicação continua operando normalmente para imóveis pessoais.
-   4.4. [ ] Não é necessário parar a aplicação nem migrar toda a gestão de usuários para usar o compartilhamento.
+   4.2. [x] O backend retorna saldo coerente entre sócios após despesas e equalizações.
+   4.3. [x] A aplicação continua operando normalmente para imóveis pessoais.
+   4.4. [x] Não é necessário parar a aplicação nem migrar toda a gestão de usuários para usar o compartilhamento.
+   4.5. [ ] Validar manualmente no app o fluxo de edição individual, lote, restrição de imóveis por sócio e leitura do card compartilhado.
+   4.6. [ ] Conseguir cadastrar ao menos um segundo sócio, informar sua chave Pix e vinculá-lo a um imóvel piloto antes da validação final do dashboard.
 
 ### Tarefas Técnicas da Primeira Entrega
-1. [ ] **Banco de dados**
-   1.1. [ ] Criar helper/migração para garantir tabela `imovel_socios`.
-   1.2. [ ] Criar helper/migração para adicionar em `lancamentos`:
+1. [x] **Banco de dados**
+   1.1. [x] Criar helper/migração para garantir tabela `imovel_socios`.
+   1.2. [x] Criar helper/migração para adicionar em `lancamentos`:
         - `paid_by_user_id`
         - `beneficiary_user_id`
         - `tipo_movimentacao`
         - `created_by_user_id`
-   1.3. [ ] Definir defaults seguros para não quebrar dados legados.
-   1.4. [ ] Criar backfill idempotente atribuindo imóveis atuais a `matheus.mro@gmail.com` com `100%`.
-   1.5. [ ] Criar backfill opcional e seguro para `paid_by_user_id` legado.
+   1.3. [x] Definir defaults seguros para não quebrar dados legados.
+   1.4. [x] Criar backfill idempotente atribuindo imóveis atuais a `matheus.mro@gmail.com` com `100%`.
+   1.5. [x] Criar backfill opcional e seguro para `paid_by_user_id` legado.
 
-2. [ ] **Backend — models**
-   2.1. [ ] Adicionar funções de garantia de schema em [models.py](/Users/matheusoliveira/Documents/Leiloes/Aplicacoes/Financeiro/backend/models.py).
-   2.2. [ ] Criar operações de leitura/gravação da composição societária por imóvel.
-   2.3. [ ] Adaptar inserção e atualização de lançamentos para aceitar `paid_by_user_id` e `tipo_movimentacao`.
-   2.4. [ ] Criar função de cálculo de posição societária por imóvel:
+2. [x] **Backend — models**
+   2.1. [x] Adicionar funções de garantia de schema em [models.py](/Users/matheusoliveira/Documents/Leiloes/Aplicacoes/Financeiro/backend/models.py).
+   2.2. [x] Criar operações de leitura/gravação da composição societária por imóvel.
+   2.3. [x] Adaptar inserção e atualização de lançamentos para aceitar `paid_by_user_id` e `tipo_movimentacao`.
+   2.4. [x] Criar função de cálculo de posição societária por imóvel:
         - total pago por sócio;
         - valor devido por participação;
         - saldo líquido;
         - equalizações registradas.
-   2.5. [ ] Garantir fallback para imóvel sem configuração societária explícita.
+   2.5. [x] Garantir fallback para imóvel sem configuração societária explícita.
 
-3. [ ] **Backend — rotas**
-   3.1. [ ] Criar endpoint mínimo administrativo para definir sócios de um imóvel.
-   3.2. [ ] Criar endpoint para consultar sócios ativos de um imóvel.
-   3.3. [ ] Criar endpoint para consultar posição financeira compartilhada do imóvel.
-   3.4. [ ] Adaptar rotas de lançamentos para receber novos campos sem quebrar payload antigo.
-   3.5. [ ] Restringir edição do quadro societário a `admin`.
+3. [x] **Backend — rotas**
+   3.1. [x] Criar endpoint mínimo administrativo para definir sócios de um imóvel.
+   3.2. [x] Criar endpoint para consultar sócios ativos de um imóvel.
+   3.3. [x] Criar endpoint para consultar posição financeira compartilhada do imóvel.
+   3.4. [x] Adaptar rotas de lançamentos para receber novos campos sem quebrar payload antigo.
+   3.5. [x] Restringir edição do quadro societário a `admin`.
 
-4. [ ] **Segurança e compatibilidade**
-   4.1. [ ] Manter o modelo atual de `role` funcionando durante toda a primeira entrega.
-   4.2. [ ] Adicionar apenas verificações mínimas para proteger acesso ao imóvel compartilhado.
-   4.3. [ ] Garantir que imóveis pessoais continuem funcionando sem configuração extra.
+4. [x] **Segurança e compatibilidade**
+   4.1. [x] Manter o modelo atual de `role` funcionando durante toda a primeira entrega.
+   4.2. [x] Adicionar apenas verificações mínimas para proteger acesso ao imóvel compartilhado.
+   4.3. [x] Garantir que imóveis pessoais continuem funcionando sem configuração extra.
 
 5. [ ] **Testes mínimos**
-   5.1. [ ] Testar migração/backfill sem duplicação de vínculos.
-   5.2. [ ] Testar cálculo do saldo entre sócios para imóvel com 2 participantes.
+   5.1. [x] Testar migração/backfill sem duplicação de vínculos.
+   5.2. [x] Testar cálculo do saldo entre sócios para imóvel com 2 participantes em smoke técnico/backend.
    5.3. [ ] Testar lançamento de equalização sem distorcer custo operacional do imóvel.
-   5.4. [ ] Testar regressão de imóvel pessoal com `100%` de participação em um único usuário.
+   5.4. [ ] Testar regressão de imóvel pessoal com `100%` de participação em um único usuário no app, com validação manual.
+   5.5. [ ] Executar os testes operacionais recomendados no frontend e no dashboard com uso real.
+   5.6. [ ] Desbloquear esses testes com UI mínima para cadastro do sócio, chave Pix e vínculo com imóvel/participação.
 
 6. [ ] **Arquivos mais prováveis de impacto**
    6.1. [ ] [models.py](/Users/matheusoliveira/Documents/Leiloes/Aplicacoes/Financeiro/backend/models.py)
@@ -731,8 +763,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    6.4. [ ] Arquivos do dashboard financeiro no frontend, apenas em etapa posterior e controlada.
 
 ### Dashboard Compartilhado — Etapa de Revisão Dedicada
-1. [ ] Implementar o dashboard compartilhado apenas depois de banco e backend estarem estáveis no primeiro imóvel piloto.
-2. [ ] Preparar uma versão inicial com:
+1. [x] Implementar o dashboard compartilhado apenas depois de banco e backend estarem estáveis no primeiro imóvel piloto.
+2. [x] Preparar uma versão inicial com:
    - composição dos sócios;
    - total pago por sócio;
    - valor devido por participação;
@@ -745,6 +777,56 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    - posição devedor/credor;
    - apresentação visual e fluxo operacional.
 4. [ ] Só fechar a interface final do dashboard depois dessa revisão detalhada.
+
+### Próxima Etapa Imediata — UI Mínima de Sócios e Pix
+1. [ ] **Objetivo da etapa**
+   1.1. [ ] Desbloquear o uso real do financeiro compartilhado sem esperar a versão final da tela de usuários.
+   1.2. [ ] Permitir cadastrar/editar usuário com dados suficientes para operação societária.
+   1.3. [ ] Permitir vincular usuário a imóvel com percentual de participação.
+   1.4. [ ] Permitir consultar rapidamente a chave Pix do sócio para equalizações e transferências.
+
+2. [ ] **Escopo mínimo recomendado**
+   2.1. [ ] Adicionar campo `pix_key` no cadastro de usuários.
+   2.2. [ ] Exibir/editar `pix_key` apenas para `admin` no primeiro momento.
+   2.3. [ ] Criar fluxo administrativo mínimo para vincular um ou mais usuários a um imóvel com `% de participação`.
+   2.4. [ ] Permitir ativar/inativar vínculo societário sem apagar histórico estrutural.
+   2.5. [ ] Reaproveitar os endpoints já criados de sócios por imóvel, evitando retrabalho.
+
+3. [ ] **Tarefas técnicas da etapa**
+   3.1. [ ] Banco/backend:
+        - adicionar coluna `pix_key` em `users` com rollout aditivo e retrocompatível;
+        - adaptar leitura e gravação de usuários para aceitar `pix_key`;
+        - revisar serialização de usuário em login/sessão/listagem para incluir `pix_key` quando apropriado;
+        - manter permissão restrita de edição para `admin`.
+   3.2. [ ] Frontend:
+        - atualizar tela de usuários para incluir campo `chave Pix`;
+        - adicionar UI mínima para administrar participações por imóvel;
+        - permitir selecionar imóvel, sócio e percentual de participação;
+        - mostrar composição atual do imóvel de forma simples e auditável.
+   3.3. [ ] Compatibilidade:
+        - não quebrar o fluxo atual de edição/criação de usuários;
+        - manter imóveis pessoais funcionando como hoje;
+        - não exigir `pix_key` para usuários legados.
+
+4. [ ] **Critério de pronto da etapa**
+   4.1. [ ] `admin` consegue cadastrar ou editar um usuário com chave Pix.
+   4.2. [ ] `admin` consegue vincular esse usuário a um imóvel com percentual definido.
+   4.3. [ ] o vínculo passa a refletir na seleção de `Quem pagou` e nas restrições por imóvel acessível.
+   4.4. [ ] a base legada continua íntegra e sem necessidade de parada.
+
+5. [ ] **Testes que precisam ser feitos depois desta etapa**
+   5.1. [ ] Cadastrar um novo usuário com chave Pix válida e confirmar persistência após salvar e recarregar.
+   5.2. [ ] Editar usuário existente adicionando/alterando `pix_key` sem quebrar outros campos.
+   5.3. [ ] Vincular um segundo sócio a um imóvel piloto com percentual diferente de `0%`.
+   5.4. [ ] Confirmar que a soma de participações do imóvel fecha em `100%`.
+   5.5. [ ] Confirmar que usuário não-admin não consegue editar quadro societário nem chave Pix de terceiros.
+   5.6. [ ] Abrir o dashboard do imóvel piloto e verificar se o seletor `Quem pagou` passa a listar os sócios corretos.
+   5.7. [ ] Testar edição individual de lançamento escolhendo cada sócio como pagador.
+   5.8. [ ] Testar lançamento em lote exigindo `Quem pagou` e conferindo o preenchimento automático quando houver sócio único.
+   5.9. [ ] Confirmar que `Transações Incompletas` continuam filtradas pelo imóvel atual.
+   5.10. [ ] Confirmar que `Transações Completas` continuam exibindo `Quem pagou`.
+   5.11. [ ] Validar um imóvel pessoal legado para garantir que nada regrediu no cenário `100%` individual.
+   5.12. [ ] Revisar o card técnico de financeiro compartilhado com dados reais antes de qualquer refinamento visual.
 
 12. [ ] **Planejar controle financeiro compartilhado entre sócios**
    12.1. [ ] **Modelagem de participação por imóvel**
@@ -760,7 +842,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - permitir que um mesmo usuário seja simultaneamente `prospector` e `socio`;
         - manter `admin` com visão e atuação total sobre todos os módulos;
         - concentrar a gestão de capacidade `socio` e o vínculo societário na tela de usuários;
-        - revisar autenticação/sessão para expor a lista de papéis/capacidades do usuário, e não apenas um `role` único.
+        - revisar autenticação/sessão para expor a lista de papéis/capacidades do usuário, e não apenas um `role` único;
+        - incluir no cadastro do usuário um campo de chave Pix para facilitar transferências e equalizações entre sócios.
    12.3. [ ] **Lançamentos financeiros com autoria pagadora**
         - permitir que cada lançamento do financeiro registre quem efetivamente pagou (`paid_by_user_id`);
         - ao lançar uma despesa, permitir selecionar explicitamente qual sócio realizou o pagamento;
@@ -821,37 +904,43 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - `admin` mantém visão integral da operação.
 
 ## Priorização Atual
-- Prioridade imediata: planejar e preparar o controle financeiro compartilhado para suportar imóvel adquirido com sócio.
-- Primeira entrega de maior valor agora: modelagem societária, papéis acumuláveis e regras de rateio/equalização.
-- Prospecções continua importante, mas passa a ser frente secundária até o desenho mínimo do financeiro compartilhado ficar fechado.
+- Prioridade imediata: implementar a UI mínima administrativa para cadastro de sócios, chave Pix e vínculo de participação por imóvel.
+- Primeira entrega de maior valor agora: destravar o teste real do imóvel compartilhado já suportado no backend.
+- O próximo bloco, depois disso, é validar o fluxo completo de lançamentos e revisar o dashboard compartilhado com dados reais.
+- Prospecções continua importante, mas passa a ser frente secundária até o primeiro imóvel compartilhado estar operacional ponta a ponta.
 - Em paralelo, manter apenas validação operacional mínima do garimpo/Supabase para não acumular risco silencioso.
 
 ## Próximos Passos Objetivos
-1. [ ] **Agora — Fechar o desenho funcional do financeiro compartilhado**
-   - Validar a modelagem de sócios por imóvel e percentuais de participação.
-   - Definir como um sócio registra uma despesa indicando qual sócio efetivamente pagou.
-   - Fechar a regra de rateio entre sócios por participação e a formação do saldo líquido.
-   - Separar claramente despesas do imóvel vs. transferências de equalização entre sócios.
-   - Definir a migração inicial dos imóveis atuais para `matheus.mro@gmail.com` com participação de `100%`.
+1. [ ] **Agora — Implementar UI mínima de usuários para o financeiro compartilhado**
+   - adicionar `pix_key` no cadastro de usuários;
+   - permitir cadastrar/editar usuário com dados societários mínimos;
+   - criar fluxo administrativo mínimo para vincular usuário a imóvel com `% de participação`;
+   - garantir que apenas `admin` faça essa gestão.
 
-2. [ ] **Agora — Fechar identidade e permissões do modelo compartilhado**
-   - Definir a estratégia de múltiplos papéis por usuário (`prospector`, `socio`, `admin` etc.).
-   - Mapear quais permissões mudam no backend e no frontend que hoje assumem `role` único.
-   - Garantir que um mesmo usuário possa atuar simultaneamente como prospector e sócio.
-   - Confirmar que `admin` mantém visão integral e capacidade total de operação.
+2. [ ] **Agora — Validar o fluxo compartilhado no imóvel piloto**
+   - cadastrar ao menos um segundo sócio real;
+   - vincular esse sócio ao imóvel com participação definida;
+   - testar seleção de `Quem pagou` em edição individual e em lote;
+   - conferir restrição de imóveis acessíveis e leitura do card técnico compartilhado.
 
-3. [ ] **Agora — Planejar a UX do dashboard compartilhado**
-   - Definir a chave entre `Visão total do imóvel` e `Minha participação`.
-   - Especificar quais indicadores aparecem proporcionais à participação do sócio logado.
-   - Deixar explícito na interface quando os números forem totais vs. proporcionais.
-   - Planejar a leitura de despesas, lucro projetado, orçamento e saldos na visão do sócio.
+3. [ ] **Depois — Revisar o dashboard compartilhado com profundidade**
+   - revisar leitura dos números;
+   - confirmar clareza entre valores totais vs. proporcionais;
+   - avaliar regra de compensação e posição devedor/credor;
+   - só então desenhar a interface final do dashboard compartilhado.
 
-4. [ ] **Depois — Retomar frentes operacionais já abertas**
+4. [ ] **Depois — Fechar identidade e permissões do modelo compartilhado**
+   - definir a estratégia de múltiplos papéis por usuário (`prospector`, `socio`, `admin` etc.);
+   - mapear quais permissões mudam no backend e no frontend que hoje assumem `role` único;
+   - garantir que um mesmo usuário possa atuar simultaneamente como prospector e sócio;
+   - confirmar que `admin` mantém visão integral e capacidade total de operação.
+
+5. [ ] **Depois — Retomar frentes operacionais já abertas**
    - Fechar inclusão manual de imóveis na fila de selecionados.
    - Concluir acabamentos finos de UX ainda pendentes em Prospecções.
    - Consolidar a experiência já entregue de mobile e ficha de viabilidade, corrigindo apenas arestas finais.
 
-5. [ ] **Depois — Validar operação, testes e documentação**
+6. [ ] **Depois — Validar operação, testes e documentação**
    - Validar amostra real no painel do Supabase.
    - Validar execução local do garimpo com `.env`.
    - Fechar telemetria mínima de bloqueio `403` no garimpo antes da próxima carga grande.

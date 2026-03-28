@@ -64,6 +64,7 @@ def login() -> Any:
                     "name": user.get("name"),
                     "email": user["email"],
                     "role": user.get("role", "viewer"),
+                    "pix_key": user.get("pix_key"),
                 },
             }
         ),
@@ -89,6 +90,7 @@ def me() -> Any:
                 "name": db_user.get("name"),
                 "email": db_user["email"],
                 "role": db_user.get("role", "viewer"),
+                "pix_key": db_user.get("pix_key"),
             }
         ),
         200,
@@ -110,6 +112,7 @@ def create_user() -> Any:
     email = (payload.get("email") or "").strip().lower()
     password = payload.get("password") or ""
     role = (payload.get("role") or "viewer").strip().lower()
+    pix_key = (payload.get("pix_key") or "").strip() or None
     is_active = bool(payload.get("is_active", True))
 
     if role not in {"viewer", "editor", "admin", "prospector"}:
@@ -118,7 +121,14 @@ def create_user() -> Any:
         return jsonify({"error": "Nome, e-mail e senha são obrigatórios"}), 400
 
     try:
-        user = criar_usuario(email=email, senha=password, role=role, is_active=is_active, nome=nome)
+        user = criar_usuario(
+            email=email,
+            senha=password,
+            role=role,
+            is_active=is_active,
+            nome=nome,
+            pix_key=pix_key,
+        )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except errors.UniqueViolation:
@@ -133,6 +143,7 @@ def create_user() -> Any:
                 "name": user.get("name"),
                 "email": user["email"],
                 "role": user.get("role", "viewer"),
+                "pix_key": user.get("pix_key"),
                 "is_active": user.get("is_active", True),
             }
         ),
@@ -152,10 +163,11 @@ def list_users() -> Any:
 def update_user(user_id: int) -> Any:
     payload: Dict[str, Any] = request.get_json(silent=True) or {}
     nome = (payload.get("name") or "").strip()
+    pix_key = (payload.get("pix_key") or "").strip() or None
     is_active = bool(payload.get("is_active", True))
 
     try:
-        user = atualizar_usuario(user_id=user_id, nome=nome, is_active=is_active)
+        user = atualizar_usuario(user_id=user_id, nome=nome, is_active=is_active, pix_key=pix_key)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:  # noqa: BLE001
@@ -174,6 +186,7 @@ def create_user_invite() -> Any:
     nome = (payload.get("name") or "").strip()
     email = (payload.get("email") or "").strip().lower()
     role = (payload.get("role") or "prospector").strip().lower()
+    pix_key = (payload.get("pix_key") or "").strip() or None
     is_active = bool(payload.get("is_active", True))
     invite_hours = int(payload.get("invite_hours", 72))
 
@@ -189,6 +202,7 @@ def create_user_invite() -> Any:
             role=role,
             is_active=is_active,
             invite_hours=invite_hours,
+            pix_key=pix_key,
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -207,6 +221,7 @@ def create_user_invite() -> Any:
                     "name": invited.get("name"),
                     "email": invited["email"],
                     "role": invited["role"],
+                    "pix_key": invited.get("pix_key"),
                     "is_active": invited["is_active"],
                     "invite_expires_at": invited.get("invite_expires_at"),
                 },
