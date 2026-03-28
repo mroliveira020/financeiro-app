@@ -13,7 +13,6 @@ import {
   fetchDetalhesGastosMensais,
   fetchTransacoesMensais,
 } from "../services/api";
-import "bootstrap/dist/css/bootstrap.min.css";
 import { useAuth } from "../context/AuthContext";
 import "./Home.css";
 import { invalidateCatalogo } from "../hooks/useCatalogos";

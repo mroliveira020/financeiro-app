@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import "bootstrap/dist/css/bootstrap.min.css";
 
 import DadosCadastrais from "../components/dadosCadastrais/DadosCadastrais";
 import FinanceiroCompartilhadoCard from "../components/FinanceiroCompartilhadoCard";
