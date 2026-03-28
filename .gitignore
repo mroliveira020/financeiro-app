@@ -27,3 +27,6 @@ frontend_server.log
 # Garimpo input local
 garimpo/data/input/*
 !garimpo/data/input/.gitignore
+
+# Backups locais
+.local_backups/

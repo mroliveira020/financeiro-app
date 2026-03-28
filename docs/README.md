@@ -55,6 +55,26 @@
   - Frontend: `frontend/.env` (de `.env.example`) com `VITE_API_URL` (ex.: `http://127.0.0.1:5000`).
 - Portas: API `http://127.0.0.1:5000`, Vite `http://127.0.0.1:5173`
 
+## Backup do Supabase
+
+- Objetivo: gerar um backup local do schema `public` e dos dados atuais do Supabase, sem versionar os artefatos.
+- Script oficial do projeto: `scripts/backup_supabase.py`
+- Execução recomendada:
+  - `backend/venv/bin/python scripts/backup_supabase.py`
+- Pré-requisito:
+  - `backend/.env` deve conter `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` e `DB_PORT`
+  - o `backend/venv` precisa ter `psycopg2` instalado
+- Saída padrão:
+  - diretório local `.local_backups/supabase/`
+  - arquivo compactado com o padrão `YYYYMMDD HHMM Backup Supabase.zip`
+- Estrutura gerada:
+  - `schema_objects.txt`: DDL de tabelas, constraints, índices, RLS/policies, funções, views, materialized views, triggers, sequences e extensões
+  - `manifest.txt`: relação das tabelas exportadas
+  - `tabelas/<nome>.txt`: dados de cada tabela em CSV com cabeçalho
+- Segurança operacional:
+  - os arquivos ficam somente na máquina local
+  - `.local_backups/` está ignorado no Git e não deve ser publicado
+
 ## Autenticação e Provisionamento
 
 - Criação inicial de usuário: com o venv ativo e variáveis de banco configuradas, execute `python backend/create_user.py --email admin@empresa.com --role admin` e informe a senha quando solicitado. O script utiliza `backend/models.py` para aplicar hash seguro (Werkzeug) e grava o registro na tabela `users`.
