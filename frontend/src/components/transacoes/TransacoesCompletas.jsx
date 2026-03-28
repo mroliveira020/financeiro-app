@@ -5,7 +5,7 @@ import api from "../../services/http";
 import LancamentosTable from "./LancamentosTable";
 import ModalEdicao from "./ModalEdicao";
 import { useAuth } from "../../context/AuthContext";
-import { fetchLancamentosCompletos } from "../../services/api";
+import { fetchImoveisFinanceiroAcessiveis, fetchLancamentosCompletos } from "../../services/api";
 import { useCatalogos } from "../../hooks/useCatalogos";
 
 const PAGE_SIZE = 30;
@@ -19,8 +19,10 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
   const [summary, setSummary] = useState({ total: 0, soma: 0, categorias: 0 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
-  const { hasRole } = useAuth();
+  const [imoveisAcessiveis, setImoveisAcessiveis] = useState([]);
+  const { hasRole, user } = useAuth();
   const canEdit = hasRole("editor", "admin");
+  const isAdmin = user?.role === "admin";
   const { categorias, imoveis } = useCatalogos();
 
   const categoriasOrdenadas = useMemo(
@@ -28,8 +30,8 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
     [categorias],
   );
   const imoveisOrdenados = useMemo(
-    () => [...imoveis].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
-    [imoveis],
+    () => [...(isAdmin ? imoveis : imoveisAcessiveis)].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
+    [imoveis, imoveisAcessiveis, isAdmin],
   );
 
   const totais = useMemo(() => {
@@ -81,6 +83,23 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
   useEffect(() => {
     setPage(1);
   }, [id]);
+
+  useEffect(() => {
+    let ativo = true;
+    fetchImoveisFinanceiroAcessiveis()
+      .then((lista) => {
+        if (!ativo) return;
+        setImoveisAcessiveis(lista || []);
+      })
+      .catch((error) => {
+        console.error("Erro ao buscar imóveis acessíveis", error);
+        if (!ativo) return;
+        setImoveisAcessiveis([]);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   useEffect(() => {
     carregarLancamentos(page);

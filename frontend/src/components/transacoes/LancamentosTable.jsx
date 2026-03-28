@@ -140,6 +140,14 @@ function LancamentosTable({
             )}
             {tipo === "completo" && (
               <th
+                className={enableSorting ? "cursor-pointer" : undefined}
+                onClick={enableSorting ? () => handleSort("paid_by_user_name") : undefined}
+              >
+                Quem pagou {sortConfig.key === "paid_by_user_name" && (sortConfig.direction === "asc" ? "▲" : "▼")}
+              </th>
+            )}
+            {tipo === "completo" && (
+              <th
                 className={enableSorting ? "cursor-pointer text-end" : "text-end"}
                 onClick={enableSorting ? () => handleSort("valor") : undefined}
               >
@@ -153,13 +161,13 @@ function LancamentosTable({
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={tipo === "completo" ? 5 : 4} className="text-center">
+              <td colSpan={tipo === "completo" ? 6 : 4} className="text-center">
                 Carregando...
               </td>
             </tr>
           ) : !loading && paginatedLancamentos.length === 0 ? (
             <tr>
-              <td colSpan={tipo === "completo" ? 5 : 4} className="text-center">
+              <td colSpan={tipo === "completo" ? 6 : 4} className="text-center">
                 Nenhuma transação encontrada.
               </td>
             </tr>
@@ -187,6 +195,12 @@ function LancamentosTable({
                     <span className="transacoes-table__chip" title={lancamento.nome_categoria}>
                       {lancamento.nome_categoria}
                     </span>
+                  </td>
+                )}
+
+                {tipo === "completo" && (
+                  <td className="transacoes-table__cell">
+                    {lancamento.paid_by_user_name || lancamento.paid_by_user_email || "—"}
                   </td>
                 )}
 

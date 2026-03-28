@@ -34,6 +34,7 @@ from models import (
     salvar_socios_imovel,
     obter_posicao_financeira_compartilhada,
     usuario_participa_imovel,
+    listar_imoveis_financeiro_acessiveis,
 )
 from analytics import analytics_bp
 from gpt import gpt_bp
@@ -201,6 +202,21 @@ def handle_exceptions(e):
 @requires_auth
 def get_imoveis():
     return jsonify(listar_imoveis())
+
+
+@app.route("/imoveis-financeiro-acessiveis", methods=["GET"])
+@requires_auth
+def get_imoveis_financeiro_acessiveis():
+    current_user = get_current_user() or {}
+    try:
+        dados = listar_imoveis_financeiro_acessiveis(
+            viewer_user_id=current_user.get("id"),
+            viewer_role=current_user.get("role"),
+        )
+        return jsonify(dados), 200
+    except Exception as exc:
+        print(f"Erro ao buscar imóveis acessíveis do financeiro: {exc}")
+        return jsonify({"error": "Erro ao buscar imóveis acessíveis"}), 500
 
 @app.route("/imoveis", methods=["POST"])
 @requires_editor_token

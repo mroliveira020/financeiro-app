@@ -33,7 +33,7 @@ def get_lancamentos_incompletos(id_imovel):
     try:
         page_size, page = _obter_parametros_paginacao()
         resultados = listar_lancamentos_incompletos_view(
-            id_imovel=None,
+            id_imovel=id_imovel,
             limit=page_size,
             page=page,
         )

@@ -60,6 +60,11 @@ export async function fetchImoveis(options = {}) {
   return response.data;
 }
 
+export async function fetchImoveisFinanceiroAcessiveis(options = {}) {
+  const response = await getWithRetry(() => api.get('/imoveis-financeiro-acessiveis'), options);
+  return response.data;
+}
+
 // ✅ Excluir um imóvel
 export async function deleteImovel(id) {
   const { data } = await api.delete(`/imoveis/${id}`);

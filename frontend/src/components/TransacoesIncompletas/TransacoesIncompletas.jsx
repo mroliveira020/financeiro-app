@@ -3,7 +3,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../../services/http";
-import { atualizarLancamentosBatch, fetchLancamentosIncompletos } from "../../services/api";
+import {
+  atualizarLancamentosBatch,
+  fetchImoveisFinanceiroAcessiveis,
+  fetchLancamentosIncompletos,
+  fetchSociosImovel,
+} from "../../services/api";
 import LancamentosTable from "./LancamentosTable";
 import ModalEdicao from "./ModalEdicao";
 import ModalLote from "./ModalLote";
@@ -61,6 +66,10 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const [editandoLancamento, setEditandoLancamento] = useState(null);
   const [formEdicao, setFormEdicao] = useState({});
   const [textoLote, setTextoLote] = useState('');
+  const [paidByUserIdLote, setPaidByUserIdLote] = useState("");
+  const [sociosImovel, setSociosImovel] = useState([]);
+  const [carregandoSociosImovel, setCarregandoSociosImovel] = useState(false);
+  const [imoveisAcessiveis, setImoveisAcessiveis] = useState([]);
 
   const [originals, setOriginals] = useState({});
   const [drafts, setDrafts] = useState({});
@@ -68,8 +77,9 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const [rowSaving, setRowSaving] = useState({});
   const [savingAll, setSavingAll] = useState(false);
 
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const canEdit = hasRole("editor", "admin");
+  const isAdmin = user?.role === "admin";
   const { categorias, imoveis } = useCatalogos();
 
   const totais = useMemo(() => ({
@@ -82,8 +92,8 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   ), [categorias]);
 
   const imoveisOrdenados = useMemo(() => (
-    [...imoveis].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
-  ), [imoveis]);
+    [...(isAdmin ? imoveis : imoveisAcessiveis)].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+  ), [isAdmin, imoveis, imoveisAcessiveis]);
 
   const formatarMoeda = (valor) =>
     Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -125,6 +135,57 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   useEffect(() => {
     setPage(1);
   }, [id]);
+
+  useEffect(() => {
+    let ativo = true;
+    fetchImoveisFinanceiroAcessiveis()
+      .then((lista) => {
+        if (!ativo) return;
+        setImoveisAcessiveis(lista || []);
+      })
+      .catch((error) => {
+        console.error("Erro ao buscar imóveis acessíveis", error);
+        if (!ativo) return;
+        setImoveisAcessiveis([]);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let ativo = true;
+    if (!id) {
+      setSociosImovel([]);
+      setPaidByUserIdLote("");
+      return;
+    }
+    setCarregandoSociosImovel(true);
+    fetchSociosImovel(id, { incluirInativos: false })
+      .then((lista) => {
+        if (!ativo) return;
+        const socios = lista || [];
+        setSociosImovel(socios);
+        if (socios.length === 1) {
+          setPaidByUserIdLote(String(socios[0].user_id));
+        } else {
+          setPaidByUserIdLote("");
+        }
+      })
+      .catch((error) => {
+        console.error("Erro ao buscar sócios do imóvel", error);
+        if (!ativo) return;
+        setSociosImovel([]);
+        setPaidByUserIdLote("");
+      })
+      .finally(() => {
+        if (!ativo) return;
+        setCarregandoSociosImovel(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [id, refreshKey]);
 
   useEffect(() => {
     carregarLancamentos(page);
@@ -355,6 +416,10 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
 
   const enviarLote = async () => {
     try {
+      if (!paidByUserIdLote) {
+        alert("Selecione quem pagou antes de importar o lote.");
+        return;
+      }
       if (!textoLote.trim()) {
         alert("Cole os dados do Excel antes de enviar.");
         return;
@@ -380,6 +445,8 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
           id_categoria: 0,
           id_situacao: 0,
           ativo: 1,
+          paid_by_user_id: parseInt(paidByUserIdLote, 10),
+          tipo_movimentacao: "despesa_imovel",
         };
       });
 
@@ -391,6 +458,9 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       const modal = bootstrap.Modal.getInstance(document.getElementById('modalLote'));
       modal.hide();
       setTextoLote('');
+      if (sociosImovel.length !== 1) {
+        setPaidByUserIdLote("");
+      }
     } catch (error) {
       console.error('Erro ao adicionar lançamentos em lote:', error);
       alert(`Erro: ${error.message}`);
@@ -474,6 +544,10 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
         textoLote={textoLote}
         setTextoLote={setTextoLote}
         enviarLote={enviarLote}
+        socios={sociosImovel}
+        paidByUserId={paidByUserIdLote}
+        setPaidByUserId={setPaidByUserIdLote}
+        carregandoSocios={carregandoSociosImovel}
       />
     </>
   );

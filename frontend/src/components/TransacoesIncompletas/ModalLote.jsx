@@ -1,6 +1,14 @@
 import React from "react";
 
-const ModalLote = ({ textoLote, setTextoLote, enviarLote }) => {
+const ModalLote = ({
+  textoLote,
+  setTextoLote,
+  enviarLote,
+  socios = [],
+  paidByUserId = "",
+  setPaidByUserId,
+  carregandoSocios = false,
+}) => {
   return (
     <div
       className="modal fade"
@@ -24,6 +32,24 @@ const ModalLote = ({ textoLote, setTextoLote, enviarLote }) => {
           </div>
 
           <div className="modal-body small">
+            <div className="mb-3">
+              <label className="form-label">Quem pagou</label>
+              <select
+                className="form-select form-select-sm"
+                value={paidByUserId}
+                onChange={(e) => setPaidByUserId?.(e.target.value)}
+                disabled={carregandoSocios}
+              >
+                <option value="">Selecione um sócio</option>
+                {socios.map((socio) => (
+                  <option key={socio.user_id} value={socio.user_id}>
+                    {socio.user_name || socio.user_email}
+                    {` (${Number(socio.percentual_participacao || 0).toLocaleString("pt-BR")}%)`}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <textarea
               className="form-control form-control-sm"
               rows="10"

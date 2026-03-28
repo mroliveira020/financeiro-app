@@ -506,6 +506,32 @@ def backfill_imovel_socios_legacy(email_padrao: str = DEFAULT_SHARED_OWNER_EMAIL
         conn.close()
 
 
+def backfill_lancamentos_paid_by_legacy(email_padrao: str = DEFAULT_SHARED_OWNER_EMAIL):
+    _garantir_colunas_lancamentos_compartilhado()
+    usuario = _obter_usuario_por_email(email_padrao)
+    if not usuario:
+        return {"user_found": False, "updated": 0, "user_id": None}
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            UPDATE lancamentos
+               SET paid_by_user_id = %s
+             WHERE paid_by_user_id IS NULL
+            """,
+            (usuario["id"],),
+        )
+        updated = cur.rowcount or 0
+        conn.commit()
+        return {"user_found": True, "updated": updated, "user_id": usuario["id"]}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def listar_socios_imovel(id_imovel, incluir_inativos: bool = False):
     _garantir_tabela_imovel_socios()
     backfill_imovel_socios_legacy()
@@ -539,6 +565,39 @@ def listar_socios_imovel(id_imovel, incluir_inativos: bool = False):
         return [dict(row) for row in cur.fetchall()]
     finally:
         conn.close()
+
+
+def listar_imoveis_financeiro_acessiveis(viewer_user_id=None, viewer_role=None):
+    _garantir_tabela_imovel_socios()
+    backfill_imovel_socios_legacy()
+
+    todos = listar_imoveis()
+    if viewer_role == "admin":
+        return todos
+
+    if not viewer_user_id:
+        return []
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT DISTINCT id_imovel
+            FROM imovel_socios
+            WHERE user_id = %s
+              AND ativo = TRUE
+              AND percentual_participacao > 0
+            """,
+            (viewer_user_id,),
+        )
+        permitidos = {
+            row["id_imovel"] if isinstance(row, dict) else row[0]
+            for row in cur.fetchall()
+        }
+    finally:
+        conn.close()
+
+    return [item for item in todos if item.get("id") in permitidos]
 
 
 def usuario_participa_imovel(id_imovel, user_id):
@@ -672,6 +731,7 @@ def obter_posicao_financeira_compartilhada(id_imovel):
     _garantir_tabela_imovel_socios()
     _garantir_colunas_lancamentos_compartilhado()
     backfill_imovel_socios_legacy()
+    backfill_lancamentos_paid_by_legacy()
 
     socios = listar_socios_imovel(id_imovel)
     if not socios:
@@ -1643,6 +1703,7 @@ def _normalizar_paginacao(limit, page, limit_padrao=50, limit_maximo=200):
 def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
     limit_val, page_val, offset_val = _normalizar_paginacao(limit, page)
     _garantir_colunas_lancamentos_compartilhado()
+    backfill_lancamentos_paid_by_legacy()
 
     conn, cur = conectar()
     try:
@@ -1650,12 +1711,12 @@ def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
             """
             SELECT
                 id_lancamento,
-                data,
-                descricao,
-                valor,
-                id_imovel,
-                id_categoria,
-                id_situacao,
+                v.data,
+                v.descricao,
+                v.valor,
+                v.id_imovel,
+                v.id_categoria,
+                v.id_situacao,
                 nome_imovel,
                 nome_categoria,
                 nome_situacao,
@@ -1672,7 +1733,7 @@ def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
             LEFT JOIN users u_paid ON u_paid.id = l.paid_by_user_id
             LEFT JOIN users u_benef ON u_benef.id = l.beneficiary_user_id
             WHERE v.id_imovel = %s
-            ORDER BY data DESC, id_lancamento DESC
+            ORDER BY v.data DESC, id_lancamento DESC
             LIMIT %s OFFSET %s
             """,
             (id_imovel, limit_val, offset_val),
@@ -1721,6 +1782,7 @@ def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
 def listar_lancamentos_incompletos_view(id_imovel=None, *, limit=50, page=1):
     limit_val, page_val, offset_val = _normalizar_paginacao(limit, page)
     _garantir_colunas_lancamentos_compartilhado()
+    backfill_lancamentos_paid_by_legacy()
 
     conn, cur = conectar()
     try:
