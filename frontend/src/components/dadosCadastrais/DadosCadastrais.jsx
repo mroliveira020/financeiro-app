@@ -81,23 +81,6 @@ function DadosCadastrais() {
     );
   };
 
-  const formatarPorcentagem = (valor) => {
-    if (valor === null || valor === undefined || Number.isNaN(Number(valor))) {
-      return "0,00%";
-    }
-    return `${(parseFloat(valor) * 100).toFixed(2).replace(".", ",")}%`;
-  };
-
-  const formatarMoeda = (valor) => {
-    if (valor === null || valor === undefined || Number.isNaN(parseFloat(valor))) {
-      return "R$ 0,00";
-    }
-    return Number(valor).toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    });
-  };
-
   const detalhes = useMemo(() => {
     if (!imovel) {
       return [];
@@ -109,9 +92,6 @@ function DadosCadastrais() {
       { label: "Latitude", value: imovel.latitude || "Não informado" },
       { label: "Longitude", value: imovel.longitude || "Não informado" },
       { label: "Status", value: imovel.vendido ? "Vendido" : "Disponível" },
-      { label: "Corretagem", value: formatarPorcentagem(imovel.corretagem) },
-      { label: "Ganho de Capital", value: formatarPorcentagem(imovel.ganho_capital) },
-      { label: "Valor de Venda", value: formatarMoeda(imovel.valor_venda) },
     ];
   }, [imovel]);
 
@@ -142,13 +122,8 @@ function DadosCadastrais() {
 
         <div className="dados-card__layout">
           <div className="dados-card__media">
-            {imovel.foto_url ? (
-              <figure className="dados-card__photo">
-                <img src={imovel.foto_url} alt={`Foto do imóvel ${imovel.nome}`} />
-              </figure>
-            ) : null}
             <div
-              className={`dados-card__map ${imovel.foto_url ? "dados-card__map--compact" : "dados-card__map--full"}`}
+              className="dados-card__map dados-card__map--full"
             >
               {renderMapa()}
             </div>
@@ -171,14 +146,6 @@ function DadosCadastrais() {
               <div>
                 <span>Endereço</span>
                 <strong>{imovel.endereco || "Não informado"}</strong>
-              </div>
-              <div>
-                <span>Valor de venda</span>
-                <strong>{formatarMoeda(imovel.valor_venda)}</strong>
-              </div>
-              <div>
-                <span>Ganho de capital</span>
-                <strong>{formatarPorcentagem(imovel.ganho_capital)}</strong>
               </div>
             </div>
           </div>

@@ -359,23 +359,31 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - backfill idempotente dos imóveis atuais para `matheus.mro@gmail.com` com `100%`;
   - backfill idempotente de `paid_by_user_id` legado quando ausente;
   - endpoints mínimos para sócios do imóvel, posição financeira compartilhada e imóveis acessíveis no contexto societário;
+  - campo `pix_key` no cadastro de usuários e serialização de sessão/login;
+  - tela `/usuarios` com camada administrativa mínima para compor a participação societária por imóvel;
   - seleção de `Quem pagou` na edição de lançamentos;
   - exigência de `Quem pagou` no lançamento em lote;
   - card técnico inicial de financeiro compartilhado no dashboard;
   - correção do filtro de `Transações Incompletas` por imóvel atual;
-  - restauração de `Transações Completas` e inclusão da coluna `Quem pagou`.
+  - restauração de `Transações Completas` e inclusão da coluna `Quem pagou`;
+  - liberação transitória do módulo Financeiro para usuário `prospector` com vínculo ativo em `imovel_socios`;
+  - restrição da Home financeira do sócio para carregar apenas imóveis acessíveis;
+  - proteção de acesso por `id_imovel` no backend e bloqueio de navegação indevida pela URL;
+  - modal `Trocar imóvel` filtrado pelos imóveis acessíveis ao usuário;
+  - refinamento inicial do dashboard com card de dados cadastrais mais compacto, mapa sob demanda e remoção de uma chamada redundante no resumo financeiro.
 - Evidências já confirmadas em smoke técnico:
   - `13` imóveis atuais vinculados ao usuário padrão no backfill societário;
   - `851` lançamentos legados atualizados com `paid_by_user_id` padrão quando ausente;
   - consulta de `Transações Incompletas` validada com filtro por imóvel;
   - consulta de `Transações Completas` validada após correção da query ambígua.
 - Ainda pendente de validação operacional pelo usuário:
-  - testar o fluxo completo no app rodando, especialmente edição individual, lote, restrição de imóveis por sócio e leitura do card compartilhado;
+  - testar o fluxo completo no app rodando com o imóvel piloto, especialmente edição individual, lote, restrição de imóveis por sócio e leitura do card compartilhado;
   - revisar minuciosamente a leitura do dashboard compartilhado antes de fechar a interface final;
-  - confirmar cenários reais de equalização entre sócios no imóvel piloto.
-- Bloqueio atual para testes operacionais:
-  - ainda não existe tela administrativa para cadastrar usuário com perfil societário e vinculá-lo a um imóvel com percentual de participação;
-  - por isso, os testes completos do fluxo compartilhado ficam limitados ao cenário legado de `100%` para `matheus.mro@gmail.com`.
+  - confirmar cenários reais de equalização entre sócios no imóvel piloto;
+  - medir o ganho real das primeiras melhorias de performance e identificar os próximos gargalos de carregamento.
+- Situação atual dos testes operacionais:
+  - a UI mínima de cadastro societário e `pix_key` já existe, então o fluxo compartilhado pode ser validado com dados reais;
+  - o bloqueio principal deixou de ser cadastro/vínculo e passou a ser refinamento funcional do dashboard compartilhado e da equalização entre sócios.
 - Regra transitória já aplicada:
   - enquanto a capacidade explícita `socio` não existir no modelo de autenticação, o acesso ao Financeiro pode ser liberado para usuário `prospector` que tenha participação ativa em pelo menos um imóvel;
   - essa liberação é temporária e deve ser substituída por permissão explícita baseada em capacidade/papel societário.
@@ -651,11 +659,11 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - criar endpoints novos sem trocar a UI antiga imediatamente;
         - permitir operação compartilhada mesmo antes da centralização completa na tela de usuários.
    4.4. [ ] Fase D — Frontend incremental
-        - criar camada administrativa mínima para viabilizar teste real do compartilhamento antes da consolidação completa em `/usuarios`;
-        - essa camada precisa permitir cadastrar/editar usuário sócio, informar chave Pix e vincular participação por imóvel;
-        - liberar seleção de pagador;
-        - liberar leitura de saldo e equalizações;
-        - liberar toggle `Total` vs. `Minha participação`.
+        - [x] criar camada administrativa mínima para viabilizar teste real do compartilhamento antes da consolidação completa em `/usuarios`;
+        - [x] essa camada precisa permitir cadastrar/editar usuário sócio, informar chave Pix e vincular participação por imóvel;
+        - [x] liberar seleção de pagador;
+        - [x] liberar leitura inicial de saldo e composição compartilhada;
+        - [ ] liberar toggle `Total` vs. `Minha participação`.
    4.5. [ ] Fase E — Consolidação
         - revisar logs e métricas;
         - comparar números com imóveis reais;
@@ -777,49 +785,57 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    - valor devido por participação;
    - saldo líquido entre sócios;
    - equalizações registradas.
-3. [ ] Revisar minuciosamente com o usuário:
+3. [x] Entregar uma primeira melhoria de apresentação do dashboard base:
+   - card de dados cadastrais mais compacto e menos dominante;
+   - mapa sob demanda, carregado apenas quando o usuário solicitar;
+   - resumo visual mais contido no topo do dashboard.
+4. [ ] Revisar minuciosamente com o usuário:
    - leitura dos números;
    - clareza entre valores totais vs. proporcionais;
    - regra de compensação;
    - posição devedor/credor;
    - apresentação visual e fluxo operacional.
-4. [ ] Só fechar a interface final do dashboard depois dessa revisão detalhada.
+5. [ ] Só fechar a interface final do dashboard depois dessa revisão detalhada.
 
 ### Próxima Etapa Imediata — UI Mínima de Sócios e Pix
-1. [ ] **Objetivo da etapa**
-   1.1. [ ] Desbloquear o uso real do financeiro compartilhado sem esperar a versão final da tela de usuários.
-   1.2. [ ] Permitir cadastrar/editar usuário com dados suficientes para operação societária.
-   1.3. [ ] Permitir vincular usuário a imóvel com percentual de participação.
-   1.4. [ ] Permitir consultar rapidamente a chave Pix do sócio para equalizações e transferências.
+1. [x] **Objetivo da etapa**
+   1.1. [x] Desbloquear o uso real do financeiro compartilhado sem esperar a versão final da tela de usuários.
+   1.2. [x] Permitir cadastrar/editar usuário com dados suficientes para operação societária.
+   1.3. [x] Permitir vincular usuário a imóvel com percentual de participação.
+   1.4. [x] Permitir consultar rapidamente a chave Pix do sócio para equalizações e transferências.
 
-2. [ ] **Escopo mínimo recomendado**
-   2.1. [ ] Adicionar campo `pix_key` no cadastro de usuários.
-   2.2. [ ] Exibir/editar `pix_key` apenas para `admin` no primeiro momento.
-   2.3. [ ] Criar fluxo administrativo mínimo para vincular um ou mais usuários a um imóvel com `% de participação`.
-   2.4. [ ] Permitir ativar/inativar vínculo societário sem apagar histórico estrutural.
-   2.5. [ ] Reaproveitar os endpoints já criados de sócios por imóvel, evitando retrabalho.
+2. [x] **Escopo mínimo recomendado**
+   2.1. [x] Adicionar campo `pix_key` no cadastro de usuários.
+   2.2. [x] Exibir/editar `pix_key` apenas para `admin` no primeiro momento.
+   2.3. [x] Criar fluxo administrativo mínimo para vincular um ou mais usuários a um imóvel com `% de participação`.
+   2.4. [x] Permitir gerenciar a composição societária atual do imóvel sem depender da interface final.
+   2.5. [x] Reaproveitar os endpoints já criados de sócios por imóvel, evitando retrabalho.
 
-3. [ ] **Tarefas técnicas da etapa**
-   3.1. [ ] Banco/backend:
+3. [x] **Tarefas técnicas da etapa**
+   3.1. [x] Banco/backend:
         - adicionar coluna `pix_key` em `users` com rollout aditivo e retrocompatível;
         - adaptar leitura e gravação de usuários para aceitar `pix_key`;
         - revisar serialização de usuário em login/sessão/listagem para incluir `pix_key` quando apropriado;
         - manter permissão restrita de edição para `admin`.
-   3.2. [ ] Frontend:
+   3.2. [x] Frontend:
         - atualizar tela de usuários para incluir campo `chave Pix`;
         - adicionar UI mínima para administrar participações por imóvel;
         - permitir selecionar imóvel, sócio e percentual de participação;
         - mostrar composição atual do imóvel de forma simples e auditável.
-   3.3. [ ] Compatibilidade:
+   3.2.1. [x] Ajustes visuais já aplicados:
+        - bloco de composição societária movido para a parte inferior da tela;
+        - `pix_key` removido da grade de composição societária;
+        - tipografia da página de usuários reduzida para uma densidade mais administrativa.
+   3.3. [x] Compatibilidade:
         - não quebrar o fluxo atual de edição/criação de usuários;
         - manter imóveis pessoais funcionando como hoje;
         - não exigir `pix_key` para usuários legados.
 
-4. [ ] **Critério de pronto da etapa**
-   4.1. [ ] `admin` consegue cadastrar ou editar um usuário com chave Pix.
-   4.2. [ ] `admin` consegue vincular esse usuário a um imóvel com percentual definido.
-   4.3. [ ] o vínculo passa a refletir na seleção de `Quem pagou` e nas restrições por imóvel acessível.
-   4.4. [ ] a base legada continua íntegra e sem necessidade de parada.
+4. [x] **Critério de pronto da etapa**
+   4.1. [x] `admin` consegue cadastrar ou editar um usuário com chave Pix.
+   4.2. [x] `admin` consegue vincular esse usuário a um imóvel com percentual definido.
+   4.3. [x] o vínculo passa a refletir na seleção de `Quem pagou` e nas restrições por imóvel acessível.
+   4.4. [x] a base legada continua íntegra e sem necessidade de parada.
 
 5. [ ] **Testes que precisam ser feitos depois desta etapa**
    5.1. [ ] Cadastrar um novo usuário com chave Pix válida e confirmar persistência após salvar e recarregar.
@@ -833,7 +849,10 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    5.9. [ ] Confirmar que `Transações Incompletas` continuam filtradas pelo imóvel atual.
    5.10. [ ] Confirmar que `Transações Completas` continuam exibindo `Quem pagou`.
    5.11. [ ] Validar um imóvel pessoal legado para garantir que nada regrediu no cenário `100%` individual.
-   5.12. [ ] Revisar o card técnico de financeiro compartilhado com dados reais antes de qualquer refinamento visual.
+   5.12. [ ] Revisar o card técnico de financeiro compartilhado com dados reais antes de qualquer refinamento visual final.
+   5.13. [ ] Confirmar que usuário sócio não consegue abrir imóvel indevido trocando o `id` pela URL.
+   5.14. [ ] Confirmar que o modal `Trocar imóvel` lista apenas imóveis acessíveis ao sócio.
+   5.15. [ ] Confirmar que a Home financeira do sócio não mostra métricas e gráficos globais da carteira inteira.
 
 12. [ ] **Planejar controle financeiro compartilhado entre sócios**
    12.1. [ ] **Modelagem de participação por imóvel**
@@ -913,31 +932,32 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - `admin` mantém visão integral da operação.
 
 ## Priorização Atual
-- Prioridade imediata: implementar a UI mínima administrativa para cadastro de sócios, chave Pix e vínculo de participação por imóvel.
-- Primeira entrega de maior valor agora: destravar o teste real do imóvel compartilhado já suportado no backend.
-- O próximo bloco, depois disso, é validar o fluxo completo de lançamentos e revisar o dashboard compartilhado com dados reais.
+- Prioridade imediata: validar em uso real o primeiro imóvel compartilhado já suportado por backend, permissões e UI mínima de sócios/Pix.
+- Primeira entrega de maior valor agora: revisar o fluxo compartilhado ponta a ponta com o imóvel piloto e consolidar a leitura do dashboard.
+- O próximo bloco, depois disso, é equalização entre sócios e melhoria de desempenho percebido nas páginas financeiras.
 - Prospecções continua importante, mas passa a ser frente secundária até o primeiro imóvel compartilhado estar operacional ponta a ponta.
 - Em paralelo, manter apenas validação operacional mínima do garimpo/Supabase para não acumular risco silencioso.
 
 ## Próximos Passos Objetivos
-1. [ ] **Agora — Implementar UI mínima de usuários para o financeiro compartilhado**
-   - adicionar `pix_key` no cadastro de usuários;
-   - permitir cadastrar/editar usuário com dados societários mínimos;
-   - criar fluxo administrativo mínimo para vincular usuário a imóvel com `% de participação`;
-   - garantir que apenas `admin` faça essa gestão.
-
-2. [ ] **Agora — Validar o fluxo compartilhado no imóvel piloto**
+1. [ ] **Agora — Validar o fluxo compartilhado no imóvel piloto**
    - cadastrar ao menos um segundo sócio real;
    - vincular esse sócio ao imóvel com participação definida;
-   - confirmar que o usuário consegue acessar o Financeiro mesmo antes da formalização da capacidade `socio`, via regra transitória de vínculo ativo;
+   - confirmar que o usuário consegue acessar o Financeiro via regra transitória de vínculo ativo;
    - testar seleção de `Quem pagou` em edição individual e em lote;
-   - conferir restrição de imóveis acessíveis e leitura do card técnico compartilhado.
+   - conferir restrição de imóveis acessíveis, Home financeira e leitura do card técnico compartilhado.
 
-3. [ ] **Depois — Revisar o dashboard compartilhado com profundidade**
+2. [ ] **Agora — Revisar o dashboard compartilhado com profundidade**
    - revisar leitura dos números;
    - confirmar clareza entre valores totais vs. proporcionais;
    - avaliar regra de compensação e posição devedor/credor;
+   - validar a primeira melhoria visual do card superior e do mapa sob demanda;
    - só então desenhar a interface final do dashboard compartilhado.
+
+3. [ ] **Agora — Melhorar desempenho percebido e operacional**
+   - consolidar requisições repetidas do dashboard por imóvel;
+   - revisar carregamento da Home financeira e dos cards mais pesados;
+   - definir uma linha de base simples de tempo de carregamento para comparar otimizações;
+   - seguir removendo chamadas redundantes e componentes caros no carregamento inicial.
 
 4. [ ] **Depois — Fechar identidade e permissões do modelo compartilhado**
    - definir a estratégia de múltiplos papéis por usuário (`prospector`, `socio`, `admin` etc.);

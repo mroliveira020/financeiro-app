@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -9,6 +9,43 @@ import TransacoesIncompletas from "../components/TransacoesIncompletas/Transacoe
 import TransacoesCompletas from "../components/transacoes/TransacoesCompletas";
 
 import "./Dashboard.css";
+
+function DeferredSection({ children, placeholder = "Carregando seção...", rootMargin = "240px" }) {
+  const [ativado, setAtivado] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    if (ativado) return undefined;
+    const node = containerRef.current;
+    if (!node) return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visivel = entries.some((entry) => entry.isIntersecting);
+        if (visivel) {
+          setAtivado(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [ativado, rootMargin]);
+
+  return (
+    <div ref={containerRef}>
+      {ativado ? (
+        children
+      ) : (
+        <section className="dashboard-card dashboard-section-placeholder">
+          <span>{placeholder}</span>
+        </section>
+      )}
+    </div>
+  );
+}
 
 function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -34,12 +71,18 @@ function Dashboard() {
         <section className="dashboard-main">
           <DadosCadastrais />
           <ResumoFinanceiro refreshKey={refreshKey} />
-          <FinanceiroCompartilhadoCard refreshKey={refreshKey} />
+          <DeferredSection placeholder="Preparando posição compartilhada...">
+            <FinanceiroCompartilhadoCard refreshKey={refreshKey} />
+          </DeferredSection>
         </section>
 
         <section className="dashboard-transactions">
-          <TransacoesIncompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
-          <TransacoesCompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
+          <DeferredSection placeholder="Preparando transações incompletas...">
+            <TransacoesIncompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
+          </DeferredSection>
+          <DeferredSection placeholder="Preparando transações completas...">
+            <TransacoesCompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
+          </DeferredSection>
         </section>
       </div>
     </div>

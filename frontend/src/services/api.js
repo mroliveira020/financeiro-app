@@ -1,6 +1,13 @@
 import api from './http';
 
 const DEFAULT_RETRY_DELAY_MS = 1500;
+const IMOVEIS_ACESSIVEIS_CACHE_TTL_MS = 30 * 1000;
+
+let imoveisFinanceiroAcessiveisCache = {
+  data: null,
+  expiresAt: 0,
+  pending: null,
+};
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -61,8 +68,40 @@ export async function fetchImoveis(options = {}) {
 }
 
 export async function fetchImoveisFinanceiroAcessiveis(options = {}) {
-  const response = await getWithRetry(() => api.get('/imoveis-financeiro-acessiveis'), options);
-  return response.data;
+  const forceRefresh = options?.forceRefresh === true;
+  const agora = Date.now();
+
+  if (!forceRefresh && imoveisFinanceiroAcessiveisCache.data && imoveisFinanceiroAcessiveisCache.expiresAt > agora) {
+    return imoveisFinanceiroAcessiveisCache.data;
+  }
+
+  if (!forceRefresh && imoveisFinanceiroAcessiveisCache.pending) {
+    return imoveisFinanceiroAcessiveisCache.pending;
+  }
+
+  const requisicao = getWithRetry(() => api.get('/imoveis-financeiro-acessiveis'), options)
+    .then((response) => {
+      imoveisFinanceiroAcessiveisCache = {
+        data: response.data,
+        expiresAt: Date.now() + IMOVEIS_ACESSIVEIS_CACHE_TTL_MS,
+        pending: null,
+      };
+      return response.data;
+    })
+    .catch((error) => {
+      imoveisFinanceiroAcessiveisCache = {
+        ...imoveisFinanceiroAcessiveisCache,
+        pending: null,
+      };
+      throw error;
+    });
+
+  imoveisFinanceiroAcessiveisCache = {
+    ...imoveisFinanceiroAcessiveisCache,
+    pending: requisicao,
+  };
+
+  return requisicao;
 }
 
 // ✅ Excluir um imóvel
