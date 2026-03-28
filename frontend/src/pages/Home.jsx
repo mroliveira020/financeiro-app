@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   fetchImoveis,
+  fetchImoveisFinanceiroAcessiveis,
   deleteImovel,
   addImovel,
   fetchUltimaAtualizacao,
@@ -107,6 +108,29 @@ const RESUMO_INICIAL = {
   imoveisConsiderados: 0,
 };
 
+const calcularResumoPorImoveis = (lista = []) => {
+  const totais = lista.reduce(
+    (acc, item) => {
+      acc.totalEfetivado += toNumber(item.valorEfetivado, toNumber(item.totalInvestido));
+      acc.totalAInvestir += toNumber(item.valorAInvestir);
+      acc.lucroProjetado += toNumber(item.lucroProjetado);
+      acc.investimentoTotal += toNumber(item.investimentoTotal);
+      return acc;
+    },
+    {
+      totalEfetivado: 0,
+      totalAInvestir: 0,
+      lucroProjetado: 0,
+      investimentoTotal: 0,
+    }
+  );
+
+  return {
+    ...totais,
+    imoveisConsiderados: lista.length,
+  };
+};
+
 function Home() {
   const [imoveis, setImoveis] = useState([]);
   const [loadingImoveis, setLoadingImoveis] = useState(true);
@@ -161,8 +185,10 @@ function Home() {
     totalAttempts: TOTAL_GASTOS_ATTEMPTS,
   });
   const [gastosReloadKey, setGastosReloadKey] = useState(0);
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const canEdit = hasRole("editor", "admin");
+  const hasFullFinanceAccess = hasRole("viewer", "editor", "admin");
+  const hasRestrictedFinanceAccess = !hasFullFinanceAccess && Boolean(user?.finance_access);
 
   const imoveisVisiveis = useMemo(() => {
     if (mostrarVendidos) {
@@ -217,7 +243,8 @@ function Home() {
     setImoveisRetryState({ status: "running", attempt: 1, totalAttempts: TOTAL_IMOVEIS_ATTEMPTS });
 
     try {
-      const data = await fetchImoveis({
+      const fetcher = hasRestrictedFinanceAccess ? fetchImoveisFinanceiroAcessiveis : fetchImoveis;
+      const data = await fetcher({
         retries: IMOVEIS_MAX_RETRIES,
         baseDelayMs: RETRY_BASE_DELAY_MS,
         onRetry: ({ attempt }) => {
@@ -273,7 +300,7 @@ function Home() {
     } finally {
       setLoadingImoveis(false);
     }
-  }, []);
+  }, [hasRestrictedFinanceAccess]);
 
   useEffect(() => {
     carregarImoveis();
@@ -286,6 +313,14 @@ function Home() {
   useEffect(() => {
     setLoadingResumo(true);
     setErroResumo(false);
+
+    if (hasRestrictedFinanceAccess) {
+      const base = mostrarVendidos ? imoveis : imoveis.filter((imovel) => !imovel.vendido);
+      setResumoImoveis(calcularResumoPorImoveis(base));
+      setErroResumo(false);
+      setLoadingResumo(false);
+      return;
+    }
 
     fetchResumoImoveis(mostrarVendidos)
       .then((dados) => {
@@ -304,7 +339,7 @@ function Home() {
         setErroResumo(true);
       })
       .finally(() => setLoadingResumo(false));
-  }, [mostrarVendidos]);
+  }, [mostrarVendidos, hasRestrictedFinanceAccess, imoveis]);
 
   const chartPrefExclusoesArray = useMemo(() => chartPref.excluir || [], [chartPref.excluir]);
   const chartPrefExclusoes = useMemo(() => chartPrefExclusoesArray.join(","), [chartPrefExclusoesArray]);
@@ -334,7 +369,13 @@ function Home() {
     })
       .then((dados) => {
         if (!ativo) return;
-        setGastosMensais(dados || []);
+        const lista = dados || [];
+        if (hasRestrictedFinanceAccess) {
+          const idsPermitidos = new Set(imoveis.map((item) => item.id));
+          setGastosMensais(lista.filter((item) => idsPermitidos.has(item.id_imovel)));
+        } else {
+          setGastosMensais(lista);
+        }
         setErroGastos(false);
         setGastosRetryState({ status: "success", attempt: 1, totalAttempts: TOTAL_GASTOS_ATTEMPTS });
       })
@@ -358,7 +399,7 @@ function Home() {
     return () => {
       ativo = false;
     };
-  }, [prefReady, chartPref.meses, chartPrefExclusoes, chartPrefExclusoesArray, gastosReloadKey, mostrarVendidos]);
+  }, [prefReady, chartPref.meses, chartPrefExclusoes, chartPrefExclusoesArray, gastosReloadKey, mostrarVendidos, hasRestrictedFinanceAccess, imoveis]);
 
   const handleTentarNovamenteImoveis = () => {
     carregarImoveis();

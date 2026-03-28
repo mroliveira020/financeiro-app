@@ -48,7 +48,7 @@
 - Variáveis:
   - Backend (copie `backend/.env.example` para `backend/.env`): `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` (padrão 5432)
     - Flags: `APP_ENV` (development|production), `READ_ONLY` (true|false), `ENABLE_SQL_ENDPOINT` (true|false), `ENABLE_SEARCH_API` (true|false), `ALLOWED_ORIGINS` (origens separadas por vírgula).
-    - Autenticação: `JWT_SECRET` (obrigatório em produção), `JWT_EXPIRES_MINUTES` (padrão 60 minutos), `ADMIN_TOKEN` (opcional para `/sql`).
+    - Autenticação: `JWT_SECRET` (obrigatório em produção), `JWT_EXPIRES_MINUTES` (padrão 720 minutos / 12 horas), `ADMIN_TOKEN` (opcional para `/sql`).
     - Rate limiting: `RATE_LIMIT_STORAGE_URI` (ex.: `memory://` ou `redis://...`), `RATE_LIMIT_EDIT` (ex.: `30/minute`), `RATE_LIMIT_ADMIN` (ex.: `10/minute`), `RATE_LIMIT_SEARCH` (ex.: `60/minute`), `RATE_LIMIT_GLOBAL` (opcional, ex.: `300/minute`), `TRUST_PROXY` (true em produção no Render).
     - GPT Write: `ENABLE_GPT_WRITE` (true|false), `GPT_TOKEN` (token do agente), `RATE_LIMIT_GPT_WRITE` (ex.: `20/minute`).
     - Performance: `DB_POOL_MIN`/`DB_POOL_MAX` (pool de conexões), `PERF_WARN_THRESHOLD_MS` (padrão 700ms para log de requisições lentas).
