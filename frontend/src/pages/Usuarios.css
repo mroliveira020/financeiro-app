@@ -5,12 +5,13 @@
 
 .users-header h1 {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: 1.35rem;
 }
 
 .users-header p {
   margin: 6px 0 0;
   color: #4b5563;
+  font-size: 0.92rem;
 }
 
 .users-form {
@@ -29,7 +30,7 @@
 }
 
 .users-form__row label {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   color: #374151;
 }
 
@@ -37,7 +38,8 @@
 .users-form__row select {
   border: 1px solid #d1d5db;
   border-radius: 8px;
-  padding: 9px 10px;
+  padding: 8px 9px;
+  font-size: 0.9rem;
 }
 
 .users-form__check {
@@ -49,6 +51,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 0.88rem;
 }
 
 .users-form button {
@@ -56,8 +59,9 @@
   border-radius: 8px;
   background: #0f766e;
   color: #fff;
-  padding: 10px 14px;
+  padding: 9px 13px;
   font-weight: 600;
+  font-size: 0.88rem;
 }
 
 .users-form button:disabled {
@@ -68,6 +72,7 @@
   margin: 0;
   padding: 10px 12px;
   border-radius: 8px;
+  font-size: 0.88rem;
 }
 
 .users-alert--error {
@@ -89,6 +94,7 @@
 
 .users-invite p {
   margin: 0 0 8px;
+  font-size: 0.88rem;
 }
 
 .users-invite__box {
@@ -107,6 +113,7 @@
   flex: 1;
   color: #1e3a8a;
   text-decoration: none;
+  font-size: 0.84rem;
 }
 
 .users-invite__box button {
@@ -115,6 +122,7 @@
   background: #fff;
   color: #1d4ed8;
   padding: 6px 10px;
+  font-size: 0.84rem;
 }
 
 .users-section {
@@ -130,7 +138,7 @@
 
 .users-section__header h2 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.98rem;
 }
 
 .users-section__header span {
@@ -158,14 +166,15 @@
 
 .users-table th,
 .users-table td {
-  padding: 10px;
+  padding: 8px 9px;
   border-bottom: 1px solid #f1f5f9;
   text-align: left;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
 }
 
 .users-table th {
   background: #f8fafc;
+  font-size: 0.8rem;
 }
 
 .users-table__input {
@@ -173,13 +182,15 @@
   min-width: 180px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 7px 9px;
+  font-size: 0.84rem;
 }
 
 .users-table__check {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  font-size: 0.84rem;
 }
 
 .users-table__actions {
@@ -194,6 +205,7 @@
   background: #fff;
   color: #1f2937;
   padding: 6px 10px;
+  font-size: 0.82rem;
 }
 
 .users-table__button--primary {
@@ -225,11 +237,13 @@
   color: #0f172a;
   border: 1px solid #e2e8f0;
   white-space: nowrap;
+  font-size: 0.84rem;
 }
 
 .users-socios-card__hint {
   margin: 0;
   color: #475569;
+  font-size: 0.84rem;
 }
 
 .users-socios-grid {
@@ -240,7 +254,7 @@
 }
 
 .users-socios-grid__head {
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: #475569;
   text-transform: uppercase;
@@ -252,11 +266,12 @@
   width: 100%;
   border: 1px solid #d1d5db;
   border-radius: 8px;
-  padding: 9px 10px;
+  padding: 8px 9px;
+  font-size: 0.84rem;
 }
 
 .users-socios-grid__cell--muted {
-  padding: 9px 10px;
+  padding: 8px 9px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #f8fafc;
@@ -264,6 +279,7 @@
   min-height: 40px;
   display: flex;
   align-items: center;
+  font-size: 0.82rem;
 }
 
 .users-socios-grid__cell--actions {
@@ -277,6 +293,7 @@
   border-radius: 8px;
   background: #f8fafc;
   color: #475569;
+  font-size: 0.84rem;
 }
 
 .users-socios-card__actions {

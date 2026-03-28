@@ -504,6 +504,22 @@ export default function Usuarios() {
 
       <section className="users-section">
         <div className="users-section__header">
+          <h2>Usuários ativos</h2>
+          <span>{activeUsers.length}</span>
+        </div>
+        {renderTable(activeUsers, "Nenhum usuário ativo encontrado.")}
+      </section>
+
+      <section className="users-section">
+        <div className="users-section__header">
+          <h2>Usuários inativos</h2>
+          <span>{inactiveUsers.length}</span>
+        </div>
+        {renderTable(inactiveUsers, "Nenhum usuário inativo encontrado.")}
+      </section>
+
+      <section className="users-section">
+        <div className="users-section__header">
           <h2>Composição societária por imóvel</h2>
           <span>{selectedImovelId ? formatPercent(sociosTotalAtivo) : "—"}</span>
         </div>
@@ -538,7 +554,7 @@ export default function Usuarios() {
           <div className="users-socios-grid">
             <div className="users-socios-grid__head">Usuário</div>
             <div className="users-socios-grid__head">% participação</div>
-            <div className="users-socios-grid__head">Chave Pix</div>
+            <div className="users-socios-grid__head">Resumo</div>
             <div className="users-socios-grid__head">Observação</div>
             <div className="users-socios-grid__head">Ações</div>
 
@@ -578,7 +594,7 @@ export default function Usuarios() {
                       />
                     </div>
                     <div className="users-socios-grid__cell users-socios-grid__cell--muted">
-                      {selectedUser?.pix_key || "—"}
+                      {selectedUser ? `${selectedUser.name || selectedUser.email} (${selectedUser.email})` : "—"}
                     </div>
                     <div className="users-socios-grid__cell">
                       <input
@@ -612,22 +628,6 @@ export default function Usuarios() {
             </button>
           </div>
         </div>
-      </section>
-
-      <section className="users-section">
-        <div className="users-section__header">
-          <h2>Usuários ativos</h2>
-          <span>{activeUsers.length}</span>
-        </div>
-        {renderTable(activeUsers, "Nenhum usuário ativo encontrado.")}
-      </section>
-
-      <section className="users-section">
-        <div className="users-section__header">
-          <h2>Usuários inativos</h2>
-          <span>{inactiveUsers.length}</span>
-        </div>
-        {renderTable(inactiveUsers, "Nenhum usuário inativo encontrado.")}
       </section>
     </div>
   );
