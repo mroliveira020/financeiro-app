@@ -112,6 +112,8 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
       id_categoria: lancamento.id_categoria,
       id_imovel: lancamento.id_imovel,
       id_situacao: lancamento.id_situacao,
+      paid_by_user_id: lancamento.paid_by_user_id ?? "",
+      tipo_movimentacao: lancamento.tipo_movimentacao || "despesa_imovel",
     });
 
     const modal = new bootstrap.Modal(document.getElementById("modalEdicaoCompleto"));
@@ -129,6 +131,8 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
         id_categoria: parseInt(formEdicao.id_categoria),
         id_imovel: parseInt(formEdicao.id_imovel),
         id_situacao: parseInt(formEdicao.id_situacao),
+        paid_by_user_id: formEdicao.paid_by_user_id ? parseInt(formEdicao.paid_by_user_id, 10) : null,
+        tipo_movimentacao: formEdicao.tipo_movimentacao || "despesa_imovel",
       };
 
       await api.patch(`/dashboard/lancamentos/${editandoLancamento}`, payload);

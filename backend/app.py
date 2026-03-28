@@ -30,6 +30,10 @@ from models import (
     salvar_analise_prospeccao_selecionado,
     listar_prospectores_ativos,
     salvar_responsaveis_prospeccao_selecionado,
+    listar_socios_imovel,
+    salvar_socios_imovel,
+    obter_posicao_financeira_compartilhada,
+    usuario_participa_imovel,
 )
 from analytics import analytics_bp
 from gpt import gpt_bp
@@ -462,6 +466,68 @@ def update_imovel(imovel_id):
 @limiter.limit(RATE_LIMIT_EDIT)
 def delete_imovel(imovel_id):
     return jsonify(deletar_imovel(imovel_id))
+
+
+def _usuario_pode_ver_financeiro_compartilhado(imovel_id, current_user):
+    if not current_user:
+        return False
+    if current_user.get("role") == "admin":
+        return True
+    return usuario_participa_imovel(imovel_id, current_user.get("id"))
+
+
+@app.route("/imoveis/<int:imovel_id>/socios", methods=["GET"])
+@requires_auth
+def get_socios_imovel(imovel_id):
+    current_user = get_current_user() or {}
+    if not _usuario_pode_ver_financeiro_compartilhado(imovel_id, current_user):
+        return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
+    incluir_inativos = request.args.get("incluir_inativos", "").lower() in {"1", "true", "sim", "yes"}
+    try:
+        dados = listar_socios_imovel(imovel_id, incluir_inativos=incluir_inativos)
+        return jsonify({"data": dados}), 200
+    except Exception as exc:
+        print(f"Erro ao buscar sócios do imóvel {imovel_id}: {exc}")
+        return jsonify({"error": "Erro ao buscar sócios do imóvel"}), 500
+
+
+@app.route("/imoveis/<int:imovel_id>/socios", methods=["PUT"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def put_socios_imovel(imovel_id):
+    current_user = get_current_user() or {}
+    if current_user.get("role") != "admin":
+        return jsonify({"error": "Apenas administradores podem alterar o quadro societário."}), 403
+
+    payload = request.get_json(force=True, silent=True) or {}
+    socios = payload.get("socios")
+    if not isinstance(socios, list):
+        return jsonify({"error": "Payload inválido. Use a chave 'socios' com uma lista."}), 400
+
+    try:
+        dados = salvar_socios_imovel(imovel_id, socios, current_user_id=current_user.get("id"))
+        return jsonify(dados), 200
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        print(f"Erro ao salvar sócios do imóvel {imovel_id}: {exc}")
+        return jsonify({"error": "Erro ao salvar quadro societário"}), 500
+
+
+@app.route("/imoveis/<int:imovel_id>/financeiro-compartilhado", methods=["GET"])
+@requires_auth
+def get_financeiro_compartilhado_imovel(imovel_id):
+    current_user = get_current_user() or {}
+    if not _usuario_pode_ver_financeiro_compartilhado(imovel_id, current_user):
+        return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
+    try:
+        dados = obter_posicao_financeira_compartilhada(imovel_id)
+        return jsonify(dados), 200
+    except Exception as exc:
+        print(f"Erro ao buscar financeiro compartilhado do imóvel {imovel_id}: {exc}")
+        return jsonify({"error": "Erro ao buscar posição financeira compartilhada"}), 500
 
 # =====================================================
 # 🔹 ROTAS CATEGORIAS

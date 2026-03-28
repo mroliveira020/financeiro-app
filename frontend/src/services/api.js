@@ -152,6 +152,26 @@ export async function fetchLancamentosIncompletos({ imovelId = 0, page = 1, page
   return data;
 }
 
+export async function fetchSociosImovel(imovelId, { incluirInativos = false } = {}) {
+  if (!imovelId) {
+    throw new Error('fetchSociosImovel requer o id do imóvel.');
+  }
+  const params = new URLSearchParams();
+  if (incluirInativos) {
+    params.append('incluir_inativos', 'true');
+  }
+  const { data } = await api.get(`/imoveis/${imovelId}/socios${params.toString() ? `?${params.toString()}` : ''}`);
+  return data?.data || [];
+}
+
+export async function fetchFinanceiroCompartilhado(imovelId) {
+  if (!imovelId) {
+    throw new Error('fetchFinanceiroCompartilhado requer o id do imóvel.');
+  }
+  const { data } = await api.get(`/imoveis/${imovelId}/financeiro-compartilhado`);
+  return data;
+}
+
 export async function fetchDetalhesGastosMensais({
   imovelId,
   mes,

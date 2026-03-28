@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 import DadosCadastrais from "../components/dadosCadastrais/DadosCadastrais";
+import FinanceiroCompartilhadoCard from "../components/FinanceiroCompartilhadoCard";
 import ResumoFinanceiro from "../components/ResumoFinanceiro";
 import TransacoesIncompletas from "../components/TransacoesIncompletas/TransacoesIncompletas";
 import TransacoesCompletas from "../components/transacoes/TransacoesCompletas";
@@ -33,6 +34,7 @@ function Dashboard() {
         <section className="dashboard-main">
           <DadosCadastrais />
           <ResumoFinanceiro refreshKey={refreshKey} />
+          <FinanceiroCompartilhadoCard refreshKey={refreshKey} />
         </section>
 
         <section className="dashboard-transactions">

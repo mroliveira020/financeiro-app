@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { fetchSociosImovel } from "../../services/api";
 
 function ModalEdicao({
   idModal,
@@ -8,6 +9,39 @@ function ModalEdicao({
   categorias,
   imoveis
 }) {
+  const [socios, setSocios] = useState([]);
+  const [carregandoSocios, setCarregandoSocios] = useState(false);
+
+  useEffect(() => {
+    const idImovel = formEdicao?.id_imovel;
+    if (!idImovel) {
+      setSocios([]);
+      return;
+    }
+
+    let ativo = true;
+    setCarregandoSocios(true);
+    fetchSociosImovel(idImovel, { incluirInativos: false })
+      .then((lista) => {
+        if (!ativo) return;
+        setSocios(lista);
+      })
+      .catch(() => {
+        if (!ativo) return;
+        setSocios([]);
+      })
+      .finally(() => {
+        if (!ativo) return;
+        setCarregandoSocios(false);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [formEdicao?.id_imovel]);
+
+  const deveMostrarPagador = socios.length > 0;
+
   if (!formEdicao) return null;
 
   return (
@@ -134,6 +168,31 @@ function ModalEdicao({
                 <option value={1}>Confirmado</option>
               </select>
             </div>
+
+            {deveMostrarPagador && (
+              <div className="mb-2">
+                <label className="form-label">Quem pagou</label>
+                <select
+                  className="form-select form-select-sm"
+                  value={formEdicao.paid_by_user_id ?? ""}
+                  onChange={(e) =>
+                    setFormEdicao({
+                      ...formEdicao,
+                      paid_by_user_id: e.target.value,
+                    })
+                  }
+                  disabled={carregandoSocios}
+                >
+                  <option value="">Selecione um sócio</option>
+                  {socios.map((socio) => (
+                    <option key={socio.user_id} value={socio.user_id}>
+                      {socio.user_name || socio.user_email}
+                      {` (${Number(socio.percentual_participacao || 0).toLocaleString("pt-BR")}%)`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="modal-footer">

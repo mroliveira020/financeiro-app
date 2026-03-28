@@ -24,6 +24,22 @@ def _to_float(valor):
         return 0.0
 
 
+def _to_int_or_none(valor):
+    if valor in (None, "", "null"):
+        return None
+    try:
+        return int(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalizar_tipo_movimentacao(valor):
+    tipo = (valor or "despesa_imovel").strip().lower()
+    if tipo not in {"despesa_imovel", "receita_imovel", "equalizacao_socios"}:
+        raise ValueError("Tipo de movimentação inválido")
+    return tipo
+
+
 def _aliquota_ganho_capital(valor):
     taxa = _to_float(valor)
     if taxa < 0:
@@ -312,6 +328,466 @@ def criar_usuario(
 
 def _hash_invite_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+DEFAULT_SHARED_OWNER_EMAIL = "matheus.mro@gmail.com"
+
+
+@lru_cache(maxsize=1)
+def _garantir_tabela_imovel_socios():
+    _garantir_tabela_usuarios()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS imovel_socios (
+                id SERIAL PRIMARY KEY,
+                id_imovel INTEGER NOT NULL REFERENCES imoveis(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                percentual_participacao NUMERIC(7,4) NOT NULL DEFAULT 0,
+                ativo BOOLEAN NOT NULL DEFAULT TRUE,
+                observacao TEXT,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                UNIQUE (id_imovel, user_id)
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_imovel_socios_imovel
+            ON imovel_socios (id_imovel)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_imovel_socios_user
+            ON imovel_socios (user_id)
+            """
+        )
+        cur.execute(
+            """
+            DROP TRIGGER IF EXISTS trg_imovel_socios_updated_at ON imovel_socios;
+            CREATE TRIGGER trg_imovel_socios_updated_at
+            BEFORE UPDATE ON imovel_socios
+            FOR EACH ROW
+            EXECUTE FUNCTION set_updated_at();
+            """
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+@lru_cache(maxsize=1)
+def _garantir_colunas_lancamentos_compartilhado():
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            ALTER TABLE lancamentos
+            ADD COLUMN IF NOT EXISTS paid_by_user_id INTEGER
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE lancamentos
+            ADD COLUMN IF NOT EXISTS beneficiary_user_id INTEGER
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE lancamentos
+            ADD COLUMN IF NOT EXISTS tipo_movimentacao TEXT
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE lancamentos
+            ADD COLUMN IF NOT EXISTS created_by_user_id INTEGER
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE lancamentos
+            ALTER COLUMN tipo_movimentacao SET DEFAULT 'despesa_imovel'
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_lancamentos_paid_by_user_id
+            ON lancamentos (paid_by_user_id)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_lancamentos_beneficiary_user_id
+            ON lancamentos (beneficiary_user_id)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_lancamentos_tipo_movimentacao
+            ON lancamentos (tipo_movimentacao)
+            """
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _obter_usuario_por_email(email: str):
+    if not email:
+        return None
+    _garantir_tabela_usuarios()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT id, name, email, role, is_active
+            FROM users
+            WHERE LOWER(email) = LOWER(%s)
+            LIMIT 1
+            """,
+            (email.strip(),),
+        )
+        row = cur.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def _validar_usuario_existe(cur, user_id):
+    cur.execute("SELECT 1 FROM users WHERE id = %s AND is_active = TRUE", (user_id,))
+    return bool(cur.fetchone())
+
+
+def _validar_imovel_existe(cur, imovel_id):
+    cur.execute("SELECT 1 FROM imoveis WHERE id = %s", (imovel_id,))
+    return bool(cur.fetchone())
+
+
+def backfill_imovel_socios_legacy(email_padrao: str = DEFAULT_SHARED_OWNER_EMAIL):
+    _garantir_tabela_imovel_socios()
+    usuario = _obter_usuario_por_email(email_padrao)
+    if not usuario:
+        return {"user_found": False, "inserted": 0, "user_id": None}
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            INSERT INTO imovel_socios (id_imovel, user_id, percentual_participacao, ativo, observacao)
+            SELECT i.id, %s, 100, TRUE, 'Backfill inicial do financeiro compartilhado'
+            FROM imoveis i
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM imovel_socios s
+                WHERE s.id_imovel = i.id
+                  AND s.ativo = TRUE
+            )
+            ON CONFLICT (id_imovel, user_id) DO NOTHING
+            """,
+            (usuario["id"],),
+        )
+        inserted = cur.rowcount or 0
+        conn.commit()
+        return {"user_found": True, "inserted": inserted, "user_id": usuario["id"]}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def listar_socios_imovel(id_imovel, incluir_inativos: bool = False):
+    _garantir_tabela_imovel_socios()
+    backfill_imovel_socios_legacy()
+    conn, cur = conectar()
+    try:
+        filtros = ["s.id_imovel = %s"]
+        params = [id_imovel]
+        if not incluir_inativos:
+            filtros.append("s.ativo = TRUE")
+        cur.execute(
+            f"""
+            SELECT
+                s.id,
+                s.id_imovel,
+                s.user_id,
+                s.percentual_participacao,
+                s.ativo,
+                s.observacao,
+                s.created_at,
+                s.updated_at,
+                u.name AS user_name,
+                u.email AS user_email,
+                u.role AS user_role
+            FROM imovel_socios s
+            JOIN users u ON u.id = s.user_id
+            WHERE {' AND '.join(filtros)}
+            ORDER BY s.ativo DESC, s.percentual_participacao DESC, u.name ASC, u.email ASC
+            """,
+            tuple(params),
+        )
+        return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def usuario_participa_imovel(id_imovel, user_id):
+    if not user_id:
+        return False
+    _garantir_tabela_imovel_socios()
+    backfill_imovel_socios_legacy()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT 1
+            FROM imovel_socios
+            WHERE id_imovel = %s
+              AND user_id = %s
+              AND ativo = TRUE
+              AND percentual_participacao > 0
+            LIMIT 1
+            """,
+            (id_imovel, user_id),
+        )
+        return bool(cur.fetchone())
+    finally:
+        conn.close()
+
+
+def salvar_socios_imovel(id_imovel, socios, current_user_id=None):
+    _garantir_tabela_imovel_socios()
+    backfill_imovel_socios_legacy()
+
+    if not isinstance(socios, list) or not socios:
+        raise ValueError("Informe ao menos um sócio")
+
+    normalizados = []
+    vistos = set()
+    total_ativo = 0.0
+
+    for item in socios:
+        if not isinstance(item, dict):
+            raise ValueError("Formato de sócio inválido")
+        user_id = _to_int_or_none(item.get("user_id"))
+        if not user_id:
+            raise ValueError("Sócio inválido")
+        if user_id in vistos:
+            raise ValueError("Sócio duplicado no mesmo imóvel")
+        vistos.add(user_id)
+        percentual = round(_to_float(item.get("percentual_participacao")), 4)
+        if percentual < 0 or percentual > 100:
+            raise ValueError("Percentual de participação inválido")
+        ativo = percentual > 0
+        if ativo:
+            total_ativo += percentual
+        normalizados.append(
+            {
+                "user_id": user_id,
+                "percentual_participacao": percentual,
+                "ativo": ativo,
+                "observacao": (item.get("observacao") or "").strip() or None,
+            }
+        )
+
+    if normalizados and abs(total_ativo - 100.0) > 0.01:
+        raise ValueError("A soma das participações ativas deve ser 100%")
+
+    conn, cur = conectar()
+    try:
+        if not _validar_imovel_existe(cur, id_imovel):
+            raise LookupError("Imóvel não encontrado")
+
+        for item in normalizados:
+            if not _validar_usuario_existe(cur, item["user_id"]):
+                raise ValueError("Sócio não encontrado ou inativo")
+
+        ids_payload = [item["user_id"] for item in normalizados]
+
+        if ids_payload:
+            cur.execute(
+                """
+                UPDATE imovel_socios
+                   SET percentual_participacao = 0,
+                       ativo = FALSE,
+                       observacao = COALESCE(observacao, 'Removido da composição atual')
+                 WHERE id_imovel = %s
+                   AND user_id <> ALL(%s)
+                """,
+                (id_imovel, ids_payload),
+            )
+
+        for item in normalizados:
+            cur.execute(
+                """
+                INSERT INTO imovel_socios (
+                    id_imovel,
+                    user_id,
+                    percentual_participacao,
+                    ativo,
+                    observacao
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (id_imovel, user_id)
+                DO UPDATE SET
+                    percentual_participacao = EXCLUDED.percentual_participacao,
+                    ativo = EXCLUDED.ativo,
+                    observacao = EXCLUDED.observacao,
+                    updated_at = NOW()
+                """,
+                (
+                    id_imovel,
+                    item["user_id"],
+                    item["percentual_participacao"],
+                    item["ativo"],
+                    item["observacao"],
+                ),
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return {
+        "id_imovel": id_imovel,
+        "socios": listar_socios_imovel(id_imovel, incluir_inativos=True),
+        "updated_by_user_id": current_user_id,
+    }
+
+
+def obter_posicao_financeira_compartilhada(id_imovel):
+    _garantir_tabela_imovel_socios()
+    _garantir_colunas_lancamentos_compartilhado()
+    backfill_imovel_socios_legacy()
+
+    socios = listar_socios_imovel(id_imovel)
+    if not socios:
+        return {
+            "id_imovel": id_imovel,
+            "socios": [],
+            "totais": {
+                "total_despesas_operacionais": 0.0,
+                "total_equalizacoes": 0.0,
+                "total_nao_atribuido": 0.0,
+            },
+            "equalizacoes": [],
+        }
+
+    socios_por_id = {}
+    for socio in socios:
+        user_id = socio["user_id"]
+        socios_por_id[user_id] = {
+            **socio,
+            "total_pago_operacional": 0.0,
+            "valor_devido_participacao": 0.0,
+            "equalizacao_enviada": 0.0,
+            "equalizacao_recebida": 0.0,
+            "saldo_liquido": 0.0,
+        }
+
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT
+                id,
+                data,
+                descricao,
+                valor,
+                paid_by_user_id,
+                beneficiary_user_id,
+                COALESCE(tipo_movimentacao, 'despesa_imovel') AS tipo_movimentacao,
+                id_situacao,
+                ativo
+            FROM lancamentos
+            WHERE id_imovel = %s
+              AND id_situacao = 1
+              AND (ativo IS DISTINCT FROM FALSE)
+            ORDER BY data DESC, id DESC
+            """,
+            (id_imovel,),
+        )
+        lancamentos = [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+    total_despesas_operacionais = 0.0
+    total_equalizacoes = 0.0
+    total_nao_atribuido = 0.0
+    equalizacoes = []
+
+    unico_socio_id = socios[0]["user_id"] if len(socios) == 1 else None
+
+    for lancamento in lancamentos:
+        valor = _to_float(lancamento.get("valor"))
+        tipo = lancamento.get("tipo_movimentacao") or "despesa_imovel"
+        paid_by_user_id = _to_int_or_none(lancamento.get("paid_by_user_id")) or unico_socio_id
+        beneficiary_user_id = _to_int_or_none(lancamento.get("beneficiary_user_id"))
+
+        if tipo == "equalizacao_socios":
+            total_equalizacoes += valor
+            if paid_by_user_id in socios_por_id:
+                socios_por_id[paid_by_user_id]["equalizacao_enviada"] += valor
+            if beneficiary_user_id in socios_por_id:
+                socios_por_id[beneficiary_user_id]["equalizacao_recebida"] += valor
+            equalizacoes.append(
+                {
+                    "id": lancamento["id"],
+                    "data": lancamento["data"],
+                    "descricao": lancamento["descricao"],
+                    "valor": valor,
+                    "paid_by_user_id": paid_by_user_id,
+                    "beneficiary_user_id": beneficiary_user_id,
+                }
+            )
+            continue
+
+        if tipo == "receita_imovel":
+            continue
+
+        total_despesas_operacionais += valor
+        if paid_by_user_id in socios_por_id:
+            socios_por_id[paid_by_user_id]["total_pago_operacional"] += valor
+        else:
+            total_nao_atribuido += valor
+
+    for socio in socios_por_id.values():
+        percentual = _to_float(socio.get("percentual_participacao"))
+        socio["valor_devido_participacao"] = round(total_despesas_operacionais * (percentual / 100.0), 2)
+        socio["saldo_liquido"] = round(
+            socio["total_pago_operacional"]
+            - socio["valor_devido_participacao"]
+            + socio["equalizacao_enviada"]
+            - socio["equalizacao_recebida"],
+            2,
+        )
+        socio["total_pago_operacional"] = round(socio["total_pago_operacional"], 2)
+        socio["equalizacao_enviada"] = round(socio["equalizacao_enviada"], 2)
+        socio["equalizacao_recebida"] = round(socio["equalizacao_recebida"], 2)
+
+    return {
+        "id_imovel": id_imovel,
+        "socios": list(socios_por_id.values()),
+        "totais": {
+            "total_despesas_operacionais": round(total_despesas_operacionais, 2),
+            "total_equalizacoes": round(total_equalizacoes, 2),
+            "total_nao_atribuido": round(total_nao_atribuido, 2),
+        },
+        "equalizacoes": equalizacoes,
+    }
 
 
 @lru_cache(maxsize=1)
@@ -1019,19 +1495,58 @@ def deletar_categoria(categoria_id):
 # ======================================================
 
 def listar_lancamentos():
+    _garantir_colunas_lancamentos_compartilhado()
     conn, cur = conectar()
     cur.execute("SELECT * FROM lancamentos ORDER BY data DESC")
     resultados = cur.fetchall()
     conn.close()
     return [dict(row) for row in resultados]
 
-def adicionar_lancamento(data, id_imovel, id_categoria, id_situacao, descricao, valor, ativo):
+def adicionar_lancamento(
+    data,
+    id_imovel,
+    id_categoria,
+    id_situacao,
+    descricao,
+    valor,
+    ativo,
+    paid_by_user_id=None,
+    beneficiary_user_id=None,
+    tipo_movimentacao="despesa_imovel",
+    created_by_user_id=None,
+):
+    _garantir_colunas_lancamentos_compartilhado()
+    tipo_norm = _normalizar_tipo_movimentacao(tipo_movimentacao)
     conn, cur = conectar()
     cur.execute("""
-        INSERT INTO lancamentos (data, id_imovel, id_categoria, id_situacao, descricao, valor, ativo) 
-        VALUES (%s, %s, %s, %s, %s, %s, %s) 
+        INSERT INTO lancamentos (
+            data,
+            id_imovel,
+            id_categoria,
+            id_situacao,
+            descricao,
+            valor,
+            ativo,
+            paid_by_user_id,
+            beneficiary_user_id,
+            tipo_movimentacao,
+            created_by_user_id
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id
-    """, (data, id_imovel, id_categoria, id_situacao, descricao, valor, ativo))
+    """, (
+        data,
+        id_imovel,
+        id_categoria,
+        id_situacao,
+        descricao,
+        valor,
+        ativo,
+        _to_int_or_none(paid_by_user_id),
+        _to_int_or_none(beneficiary_user_id),
+        tipo_norm,
+        _to_int_or_none(created_by_user_id),
+    ))
     lancamento_id = cur.fetchone()[0]
     conn.commit()
     conn.close()
@@ -1040,17 +1555,31 @@ def adicionar_lancamento(data, id_imovel, id_categoria, id_situacao, descricao, 
 def adicionar_lancamentos_em_lote(lista_lancamentos):
     """Adiciona uma lista de lançamentos em lote, aceitando datas em
     DD/MM/YYYY ou YYYY-MM-DD, persistindo sempre em ISO (YYYY-MM-DD)."""
+    _garantir_colunas_lancamentos_compartilhado()
     conn, cur = conectar()
 
     query = """
-        INSERT INTO lancamentos (data, id_imovel, id_categoria, id_situacao, descricao, valor, ativo)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        INSERT INTO lancamentos (
+            data,
+            id_imovel,
+            id_categoria,
+            id_situacao,
+            descricao,
+            valor,
+            ativo,
+            paid_by_user_id,
+            beneficiary_user_id,
+            tipo_movimentacao,
+            created_by_user_id
+        )
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
     for lancamento in lista_lancamentos:
         # Normaliza a data para ISO usando o conversor padrão
         data_str = lancamento.get('data', '').strip()
         data_formatada = converter_data(data_str)
+        tipo_norm = _normalizar_tipo_movimentacao(lancamento.get("tipo_movimentacao"))
 
         cur.execute(query, (
             data_formatada,
@@ -1059,7 +1588,11 @@ def adicionar_lancamentos_em_lote(lista_lancamentos):
             lancamento.get('id_situacao', 1),
             lancamento['descricao'],
             lancamento['valor'],
-            True  # ativo
+            True,  # ativo
+            _to_int_or_none(lancamento.get("paid_by_user_id")),
+            _to_int_or_none(lancamento.get("beneficiary_user_id")),
+            tipo_norm,
+            _to_int_or_none(lancamento.get("created_by_user_id")),
         ))
 
     conn.commit()
@@ -1109,6 +1642,7 @@ def _normalizar_paginacao(limit, page, limit_padrao=50, limit_maximo=200):
 
 def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
     limit_val, page_val, offset_val = _normalizar_paginacao(limit, page)
+    _garantir_colunas_lancamentos_compartilhado()
 
     conn, cur = conectar()
     try:
@@ -1125,9 +1659,19 @@ def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
                 nome_imovel,
                 nome_categoria,
                 nome_situacao,
+                l.paid_by_user_id,
+                l.beneficiary_user_id,
+                COALESCE(l.tipo_movimentacao, 'despesa_imovel') AS tipo_movimentacao,
+                u_paid.name AS paid_by_user_name,
+                u_paid.email AS paid_by_user_email,
+                u_benef.name AS beneficiary_user_name,
+                u_benef.email AS beneficiary_user_email,
                 COUNT(*) OVER () AS total_registros
-            FROM vw_lancamentos_completos
-            WHERE id_imovel = %s
+            FROM vw_lancamentos_completos v
+            JOIN lancamentos l ON l.id = v.id_lancamento
+            LEFT JOIN users u_paid ON u_paid.id = l.paid_by_user_id
+            LEFT JOIN users u_benef ON u_benef.id = l.beneficiary_user_id
+            WHERE v.id_imovel = %s
             ORDER BY data DESC, id_lancamento DESC
             LIMIT %s OFFSET %s
             """,
@@ -1176,6 +1720,7 @@ def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
 
 def listar_lancamentos_incompletos_view(id_imovel=None, *, limit=50, page=1):
     limit_val, page_val, offset_val = _normalizar_paginacao(limit, page)
+    _garantir_colunas_lancamentos_compartilhado()
 
     conn, cur = conectar()
     try:
@@ -1202,9 +1747,19 @@ def listar_lancamentos_incompletos_view(id_imovel=None, *, limit=50, page=1):
                 v.nome_imovel,
                 COALESCE(c.categoria, 'Sem categoria') AS nome_categoria,
                 v.nome_situacao,
+                l.paid_by_user_id,
+                l.beneficiary_user_id,
+                COALESCE(l.tipo_movimentacao, 'despesa_imovel') AS tipo_movimentacao,
+                u_paid.name AS paid_by_user_name,
+                u_paid.email AS paid_by_user_email,
+                u_benef.name AS beneficiary_user_name,
+                u_benef.email AS beneficiary_user_email,
                 COUNT(*) OVER () AS total_registros
             FROM vw_lancamentos_incompletos v
+            JOIN lancamentos l ON l.id = v.id_lancamento
             LEFT JOIN categorias c ON c.id = v.id_categoria
+            LEFT JOIN users u_paid ON u_paid.id = l.paid_by_user_id
+            LEFT JOIN users u_benef ON u_benef.id = l.beneficiary_user_id
             {where_clause}
             ORDER BY v.data DESC, v.id_lancamento DESC
             LIMIT %s OFFSET %s
@@ -2905,6 +3460,7 @@ def atualizar_inserir_orcamentos(id_imovel, orcamentos):
 
 
 def alterar_lancamento(id_lancamento, dados):
+    _garantir_colunas_lancamentos_compartilhado()
     conn, cur = conectar()
 
     try:
@@ -2917,12 +3473,16 @@ def alterar_lancamento(id_lancamento, dados):
                     valor = %s,
                     id_categoria = %s,
                     id_imovel = %s,
-                    id_situacao = %s
+                    id_situacao = %s,
+                    paid_by_user_id = %s,
+                    beneficiary_user_id = %s,
+                    tipo_movimentacao = %s
                 WHERE id = %s
             """
 
             # Converte a data antes de salvar
             data_formatada = converter_data(dados['data'])
+            tipo_norm = _normalizar_tipo_movimentacao(dados.get("tipo_movimentacao"))
 
             cur.execute(query, (
                 data_formatada,
@@ -2931,6 +3491,9 @@ def alterar_lancamento(id_lancamento, dados):
                 dados['id_categoria'],
                 dados['id_imovel'],
                 dados['id_situacao'],
+                _to_int_or_none(dados.get("paid_by_user_id")),
+                _to_int_or_none(dados.get("beneficiary_user_id")),
+                tipo_norm,
                 id_lancamento
             ))
 
@@ -2965,6 +3528,7 @@ def converter_data(data_str):
 
 
 def atualizar_lancamentos_em_lote(ids, updates):
+    _garantir_colunas_lancamentos_compartilhado()
     if not isinstance(ids, list) or not ids:
         raise ValueError("Selecione pelo menos um lançamento")
 
@@ -2973,7 +3537,17 @@ def atualizar_lancamentos_em_lote(ids, updates):
     except Exception as exc:
         raise ValueError("IDs inválidos") from exc
 
-    campos_permitidos = {"id_categoria", "id_imovel", "id_situacao", "data", "valor", "descricao"}
+    campos_permitidos = {
+        "id_categoria",
+        "id_imovel",
+        "id_situacao",
+        "data",
+        "valor",
+        "descricao",
+        "paid_by_user_id",
+        "beneficiary_user_id",
+        "tipo_movimentacao",
+    }
     if not isinstance(updates, dict) or not any(chave in campos_permitidos for chave in updates.keys()):
         raise ValueError("Informe pelo menos um campo para atualização")
 
@@ -3057,6 +3631,25 @@ def atualizar_lancamentos_em_lote(ids, updates):
                 raise ValueError("Descrição inválida")
             set_clauses.append("descricao = %s")
             valores.append(descricao_raw)
+
+        if "paid_by_user_id" in updates:
+            paid_by_user_id = _to_int_or_none(updates.get("paid_by_user_id"))
+            if paid_by_user_id is not None and not _validar_usuario_existe(cur, paid_by_user_id):
+                raise ValueError("Pagador não encontrado ou inativo")
+            set_clauses.append("paid_by_user_id = %s")
+            valores.append(paid_by_user_id)
+
+        if "beneficiary_user_id" in updates:
+            beneficiary_user_id = _to_int_or_none(updates.get("beneficiary_user_id"))
+            if beneficiary_user_id is not None and not _validar_usuario_existe(cur, beneficiary_user_id):
+                raise ValueError("Beneficiário não encontrado ou inativo")
+            set_clauses.append("beneficiary_user_id = %s")
+            valores.append(beneficiary_user_id)
+
+        if "tipo_movimentacao" in updates:
+            tipo_norm = _normalizar_tipo_movimentacao(updates.get("tipo_movimentacao"))
+            set_clauses.append("tipo_movimentacao = %s")
+            valores.append(tipo_norm)
 
         if not set_clauses:
             raise ValueError("Nenhum campo válido para atualizar")
