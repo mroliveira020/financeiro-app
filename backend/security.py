@@ -225,6 +225,7 @@ def requires_editor_token(fn):
             if not (
                 path == "/imoveis"
                 or path.startswith("/imoveis/")
+                or path.startswith("/orcamentos/")
                 or path.startswith("/dashboard/lancamentos/")
                 or path == "/dashboard/lancamentos/lote"
                 or path.endswith("/socios")

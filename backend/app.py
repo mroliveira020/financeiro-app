@@ -117,6 +117,7 @@ def enforce_read_only():
             or path.startswith("/prospeccoes/")
             or path == "/imoveis"
             or path.startswith("/imoveis/")
+            or path.startswith("/orcamentos/")
             or path.startswith("/dashboard/lancamentos/")
             or path == "/dashboard/lancamentos/lote"
             or path.endswith("/socios")
