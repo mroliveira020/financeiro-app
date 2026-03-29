@@ -1135,7 +1135,7 @@ def criar_convite_usuario(
                     invite_created_at,
                     password_reset_required
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), TRUE)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), TRUE)
                 RETURNING id, name, email, role, pix_key, is_active, invite_expires_at
                 """,
                 (
