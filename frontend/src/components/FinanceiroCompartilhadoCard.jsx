@@ -8,6 +8,28 @@ const formatarMoeda = (valor) =>
 
 const dataHojeIso = () => new Date().toISOString().slice(0, 10);
 
+const formatarDataBrasil = (valor) => {
+  if (!valor) return "—";
+
+  if (typeof valor === "string") {
+    const matchIso = valor.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (matchIso) {
+      const [, ano, mes, dia] = matchIso;
+      return `${dia}/${mes}/${ano}`;
+    }
+
+    const matchBr = valor.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (matchBr) {
+      return valor;
+    }
+  }
+
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return String(valor);
+
+  return data.toLocaleDateString("pt-BR");
+};
+
 function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
   const { id } = useParams();
   const { hasRole, user } = useAuth();
@@ -58,6 +80,23 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
   const totais = estado.dados?.totais || {};
   const canRegisterEqualizacao = hasRole("admin", "editor") || Boolean(user?.finance_access);
   const podeExibirFormulario = canRegisterEqualizacao && socios.length >= 2;
+  const sociosPorId = useMemo(
+    () =>
+      socios.reduce((acc, socio) => {
+        acc[String(socio.user_id)] = socio;
+        return acc;
+      }, {}),
+    [socios]
+  );
+
+  const formatarNomeSocio = useCallback(
+    (userId) => {
+      const socio = sociosPorId[String(userId)];
+      if (!socio) return "—";
+      return socio.user_name || socio.user_email || `Usuário ${userId}`;
+    },
+    [sociosPorId]
+  );
 
   useEffect(() => {
     if (socios.length === 2 && !form.paid_by_user_id && !form.beneficiary_user_id) {
@@ -297,6 +336,8 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
                   <thead>
                     <tr>
                       <th>Data</th>
+                      <th>Quem pagou</th>
+                      <th>Quem recebeu</th>
                       <th>Descrição</th>
                       <th className="text-end">Valor</th>
                     </tr>
@@ -304,7 +345,9 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
                   <tbody>
                     {equalizacoes.map((item) => (
                       <tr key={item.id}>
-                        <td>{item.data || "—"}</td>
+                        <td>{formatarDataBrasil(item.data)}</td>
+                        <td>{formatarNomeSocio(item.paid_by_user_id)}</td>
+                        <td>{formatarNomeSocio(item.beneficiary_user_id)}</td>
                         <td>{item.descricao || "Equalização entre sócios"}</td>
                         <td className="text-end">{formatarMoeda(item.valor)}</td>
                       </tr>

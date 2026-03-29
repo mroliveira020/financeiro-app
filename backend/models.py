@@ -1753,6 +1753,7 @@ def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
             LEFT JOIN users u_paid ON u_paid.id = l.paid_by_user_id
             LEFT JOIN users u_benef ON u_benef.id = l.beneficiary_user_id
             WHERE v.id_imovel = %s
+              AND COALESCE(l.tipo_movimentacao, 'despesa_imovel') <> 'equalizacao_socios'
             ORDER BY v.data DESC, id_lancamento DESC
             LIMIT %s OFFSET %s
             """,
@@ -1766,8 +1767,10 @@ def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
                 COUNT(*) AS total_registros,
                 COALESCE(SUM(valor), 0) AS soma_valores,
                 COUNT(DISTINCT nome_categoria) AS categorias_distintas
-            FROM vw_lancamentos_completos
-            WHERE id_imovel = %s
+            FROM vw_lancamentos_completos v
+            JOIN lancamentos l ON l.id = v.id_lancamento
+            WHERE v.id_imovel = %s
+              AND COALESCE(l.tipo_movimentacao, 'despesa_imovel') <> 'equalizacao_socios'
             """,
             (id_imovel,),
         )
@@ -1811,6 +1814,7 @@ def listar_lancamentos_incompletos_view(id_imovel=None, *, limit=50, page=1):
         if id_imovel is not None:
             filtros.append("v.id_imovel = %s")
             base_params.append(id_imovel)
+        filtros.append("COALESCE(l.tipo_movimentacao, 'despesa_imovel') <> 'equalizacao_socios'")
 
         where_clause = ""
         if filtros:
@@ -1856,6 +1860,7 @@ def listar_lancamentos_incompletos_view(id_imovel=None, *, limit=50, page=1):
                 COUNT(*) AS total_registros,
                 COALESCE(SUM(v.valor), 0) AS soma_valores
             FROM vw_lancamentos_incompletos v
+            JOIN lancamentos l ON l.id = v.id_lancamento
             {where_clause}
             """,
             tuple(base_params),
