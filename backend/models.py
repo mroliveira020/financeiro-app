@@ -1765,7 +1765,7 @@ def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):
             """
             SELECT
                 COUNT(*) AS total_registros,
-                COALESCE(SUM(valor), 0) AS soma_valores,
+                COALESCE(SUM(v.valor), 0) AS soma_valores,
                 COUNT(DISTINCT nome_categoria) AS categorias_distintas
             FROM vw_lancamentos_completos v
             JOIN lancamentos l ON l.id = v.id_lancamento
