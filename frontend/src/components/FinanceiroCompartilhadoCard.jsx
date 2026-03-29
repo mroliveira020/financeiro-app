@@ -1,19 +1,32 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { fetchFinanceiroCompartilhado } from "../services/api";
+import { fetchFinanceiroCompartilhado, registrarEqualizacao } from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 const formatarMoeda = (valor) =>
   Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-function FinanceiroCompartilhadoCard({ refreshKey = 0 }) {
+const dataHojeIso = () => new Date().toISOString().slice(0, 10);
+
+function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
   const { id } = useParams();
+  const { hasRole, user } = useAuth();
   const [estado, setEstado] = useState({
     carregando: true,
     erro: "",
     dados: null,
   });
+  const [form, setForm] = useState({
+    data: dataHojeIso(),
+    paid_by_user_id: "",
+    beneficiary_user_id: "",
+    valor: "",
+    descricao: "",
+  });
+  const [salvandoEqualizacao, setSalvandoEqualizacao] = useState(false);
+  const [erroEqualizacao, setErroEqualizacao] = useState("");
 
-  useEffect(() => {
+  const carregar = useCallback(() => {
     let ativo = true;
     setEstado((prev) => ({ ...prev, carregando: true, erro: "" }));
 
@@ -34,11 +47,79 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0 }) {
     return () => {
       ativo = false;
     };
-  }, [id, refreshKey]);
+  }, [id]);
+
+  useEffect(() => {
+    return carregar();
+  }, [carregar, refreshKey]);
 
   const socios = useMemo(() => estado.dados?.socios || [], [estado.dados]);
   const equalizacoes = useMemo(() => estado.dados?.equalizacoes || [], [estado.dados]);
   const totais = estado.dados?.totais || {};
+  const canRegisterEqualizacao = hasRole("admin", "editor") || Boolean(user?.finance_access);
+  const podeExibirFormulario = canRegisterEqualizacao && socios.length >= 2;
+
+  useEffect(() => {
+    if (socios.length === 2 && !form.paid_by_user_id && !form.beneficiary_user_id) {
+      setForm((prev) => ({
+        ...prev,
+        paid_by_user_id: String(socios[0].user_id),
+        beneficiary_user_id: String(socios[1].user_id),
+      }));
+    }
+  }, [socios, form.paid_by_user_id, form.beneficiary_user_id]);
+
+  const handleChange = (campo, valor) => {
+    setForm((prev) => ({ ...prev, [campo]: valor }));
+  };
+
+  const handleSubmitEqualizacao = async (event) => {
+    event.preventDefault();
+    setErroEqualizacao("");
+
+    if (!form.paid_by_user_id || !form.beneficiary_user_id) {
+      setErroEqualizacao("Selecione quem pagou e quem recebeu.");
+      return;
+    }
+    if (form.paid_by_user_id === form.beneficiary_user_id) {
+      setErroEqualizacao("Pagador e recebedor devem ser diferentes.");
+      return;
+    }
+
+    const valorNormalizado = Number(String(form.valor || "").replace(/\./g, "").replace(",", "."));
+    if (!Number.isFinite(valorNormalizado) || valorNormalizado <= 0) {
+      setErroEqualizacao("Informe um valor válido para a equalização.");
+      return;
+    }
+
+    setSalvandoEqualizacao(true);
+    try {
+      await registrarEqualizacao(id, {
+        data: form.data,
+        paid_by_user_id: Number(form.paid_by_user_id),
+        beneficiary_user_id: Number(form.beneficiary_user_id),
+        valor: valorNormalizado,
+        descricao: form.descricao?.trim() || "Equalização entre sócios",
+      });
+      setForm({
+        data: dataHojeIso(),
+        paid_by_user_id: form.paid_by_user_id,
+        beneficiary_user_id: form.beneficiary_user_id,
+        valor: "",
+        descricao: "",
+      });
+      onChanged?.();
+      carregar();
+    } catch (error) {
+      setErroEqualizacao(
+        error?.response?.data?.error ||
+        error?.message ||
+        "Não foi possível registrar a equalização."
+      );
+    } finally {
+      setSalvandoEqualizacao(false);
+    }
+  };
 
   return (
     <section className="dashboard-card financeiro-compartilhado-card">
@@ -73,6 +154,97 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0 }) {
               <strong>{formatarMoeda(totais.total_nao_atribuido)}</strong>
             </article>
           </div>
+
+          {podeExibirFormulario && (
+            <div className="financeiro-compartilhado-card__section">
+              <div className="financeiro-compartilhado-card__section-head">
+                <h3>Registrar equalização</h3>
+                <span className="text-muted small">
+                  Lançe um acerto entre sócios sem distorcer o custo operacional do imóvel.
+                </span>
+              </div>
+              <form className="financeiro-compartilhado-card__form" onSubmit={handleSubmitEqualizacao}>
+                <div>
+                  <label className="form-label">Data</label>
+                  <input
+                    type="date"
+                    className="form-control form-control-sm"
+                    value={form.data}
+                    onChange={(e) => handleChange("data", e.target.value)}
+                    disabled={salvandoEqualizacao}
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Quem pagou</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={form.paid_by_user_id}
+                    onChange={(e) => handleChange("paid_by_user_id", e.target.value)}
+                    disabled={salvandoEqualizacao}
+                  >
+                    <option value="">Selecione</option>
+                    {socios.map((socio) => (
+                      <option key={socio.user_id} value={socio.user_id}>
+                        {socio.user_name || socio.user_email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Quem recebeu</label>
+                  <select
+                    className="form-select form-select-sm"
+                    value={form.beneficiary_user_id}
+                    onChange={(e) => handleChange("beneficiary_user_id", e.target.value)}
+                    disabled={salvandoEqualizacao}
+                  >
+                    <option value="">Selecione</option>
+                    {socios.map((socio) => (
+                      <option key={socio.user_id} value={socio.user_id}>
+                        {socio.user_name || socio.user_email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Valor</label>
+                  <input
+                    type="text"
+                    className="form-control form-control-sm text-end"
+                    value={form.valor}
+                    onChange={(e) => handleChange("valor", e.target.value)}
+                    placeholder="0,00"
+                    disabled={salvandoEqualizacao}
+                  />
+                </div>
+                <div className="financeiro-compartilhado-card__form-note">
+                  <label className="form-label">Observação</label>
+                  <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    value={form.descricao}
+                    onChange={(e) => handleChange("descricao", e.target.value)}
+                    placeholder="Opcional"
+                    disabled={salvandoEqualizacao}
+                  />
+                </div>
+                {erroEqualizacao ? (
+                  <div className="alert alert-warning py-2 mb-0" role="alert">
+                    {erroEqualizacao}
+                  </div>
+                ) : null}
+                <div className="financeiro-compartilhado-card__form-actions">
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-sm"
+                    disabled={salvandoEqualizacao}
+                  >
+                    {salvandoEqualizacao ? "Registrando..." : "Registrar equalização"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           <div className="financeiro-compartilhado-card__section">
             <h3>Sócios e posição atual</h3>

@@ -71,7 +71,7 @@ function Dashboard() {
           <DadosCadastrais />
           <ResumoFinanceiro refreshKey={refreshKey} />
           <DeferredSection placeholder="Preparando posição compartilhada...">
-            <FinanceiroCompartilhadoCard refreshKey={refreshKey} />
+            <FinanceiroCompartilhadoCard refreshKey={refreshKey} onChanged={dispararAtualizacao} />
           </DeferredSection>
         </section>
 

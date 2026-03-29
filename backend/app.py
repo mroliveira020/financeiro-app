@@ -501,6 +501,14 @@ def _usuario_pode_ver_financeiro_compartilhado(imovel_id, current_user):
     return usuario_participa_imovel(imovel_id, current_user.get("id"))
 
 
+def _usuario_pode_escrever_financeiro_compartilhado(imovel_id, current_user):
+    if not current_user:
+        return False
+    if current_user.get("role") in {"admin", "editor"}:
+        return True
+    return usuario_participa_imovel(imovel_id, current_user.get("id"))
+
+
 @app.route("/imoveis/<int:imovel_id>/socios", methods=["GET"])
 @requires_auth
 def get_socios_imovel(imovel_id):
@@ -553,6 +561,63 @@ def get_financeiro_compartilhado_imovel(imovel_id):
     except Exception as exc:
         print(f"Erro ao buscar financeiro compartilhado do imóvel {imovel_id}: {exc}")
         return jsonify({"error": "Erro ao buscar posição financeira compartilhada"}), 500
+
+
+@app.route("/imoveis/<int:imovel_id>/equalizacoes", methods=["POST"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def post_equalizacao_imovel(imovel_id):
+    current_user = get_current_user() or {}
+    if not _usuario_pode_escrever_financeiro_compartilhado(imovel_id, current_user):
+        return jsonify({"error": "Permissão insuficiente para registrar equalização neste imóvel"}), 403
+
+    payload = request.get_json(force=True, silent=True) or {}
+    paid_by_user_id = payload.get("paid_by_user_id")
+    beneficiary_user_id = payload.get("beneficiary_user_id")
+    valor = payload.get("valor")
+    data = payload.get("data")
+    descricao = (payload.get("descricao") or "").strip()
+
+    if not paid_by_user_id or not beneficiary_user_id:
+        return jsonify({"error": "Informe quem pagou e quem recebeu a equalização."}), 400
+    if str(paid_by_user_id) == str(beneficiary_user_id):
+        return jsonify({"error": "Pagador e recebedor da equalização devem ser diferentes."}), 400
+    if valor in (None, "", 0, "0", "0.00", "0,00"):
+        return jsonify({"error": "Informe um valor válido para a equalização."}), 400
+    if not data:
+        return jsonify({"error": "Informe a data da equalização."}), 400
+
+    socios_ativos = listar_socios_imovel(imovel_id, incluir_inativos=False)
+    socios_ids = {str(item.get("user_id")) for item in socios_ativos}
+    if str(paid_by_user_id) not in socios_ids or str(beneficiary_user_id) not in socios_ids:
+        return jsonify({"error": "Pagador e recebedor precisam ser sócios ativos do imóvel."}), 400
+
+    descricao_final = descricao or "Equalização entre sócios"
+
+    try:
+        total = adicionar_lancamentos_em_lote([
+            {
+                "data": data,
+                "id_imovel": imovel_id,
+                "id_categoria": 0,
+                "id_situacao": 1,
+                "descricao": descricao_final,
+                "valor": valor,
+                "paid_by_user_id": paid_by_user_id,
+                "beneficiary_user_id": beneficiary_user_id,
+                "tipo_movimentacao": "equalizacao_socios",
+                "created_by_user_id": current_user.get("id"),
+            }
+        ])
+        return jsonify({
+            "message": "Equalização registrada com sucesso.",
+            "total": total,
+        }), 201
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        print(f"Erro ao registrar equalização do imóvel {imovel_id}: {exc}")
+        return jsonify({"error": "Erro ao registrar equalização"}), 500
 
 # =====================================================
 # 🔹 ROTAS CATEGORIAS

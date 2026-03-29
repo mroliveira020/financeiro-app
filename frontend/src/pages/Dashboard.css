@@ -369,6 +369,35 @@
   color: #1f2a3f;
 }
 
+.financeiro-compartilhado-card__section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.85rem;
+}
+
+.financeiro-compartilhado-card__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.85rem;
+}
+
+.financeiro-compartilhado-card__form .form-label {
+  font-size: 0.78rem;
+  color: #6f7f9d;
+  margin-bottom: 0.3rem;
+}
+
+.financeiro-compartilhado-card__form-note {
+  grid-column: 1 / -1;
+}
+
+.financeiro-compartilhado-card__form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .financeiro-compartilhado-card__person {
   display: flex;
   flex-direction: column;

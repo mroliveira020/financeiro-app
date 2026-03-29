@@ -216,6 +216,14 @@ export async function fetchFinanceiroCompartilhado(imovelId) {
   return data;
 }
 
+export async function registrarEqualizacao(imovelId, payload) {
+  if (!imovelId) {
+    throw new Error('registrarEqualizacao requer o id do imóvel.');
+  }
+  const { data } = await api.post(`/imoveis/${imovelId}/equalizacoes`, payload);
+  return data;
+}
+
 export async function fetchDetalhesGastosMensais({
   imovelId,
   mes,
