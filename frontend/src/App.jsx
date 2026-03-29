@@ -34,6 +34,14 @@ function HomeEntry() {
   return <Home />;
 }
 
+function FinanceiroEntry() {
+  const { user } = useAuth();
+  if (user?.role === "prospector" && !user?.finance_access) {
+    return <Navigate to="/prospeccoes" replace />;
+  }
+  return <Home />;
+}
+
 function DashboardEntry() {
   const { user } = useAuth();
   if (user?.role === "prospector" && !user?.finance_access) {
@@ -59,6 +67,7 @@ function App() {
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
             <Route path="/" element={<HomeEntry />} />
+            <Route path="/financeiro" element={<FinanceiroEntry />} />
             <Route path="/prospeccoes" element={<Prospeccoes />} />
             <Route path="/dashboard/:id" element={<DashboardEntry />} />
             <Route path="/usuarios" element={<UsuariosEntry />} />

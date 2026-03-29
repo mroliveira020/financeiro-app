@@ -13,7 +13,7 @@ import {
   fetchResponsaveisDisponiveis,
   salvarResponsaveisSelecionado,
 } from "../services/prospeccoes";
-import { fetchImoveis } from "../services/api";
+import { fetchImoveisFinanceiroAcessiveis } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 
 const PRIORIDADE_OPTIONS = [
@@ -1625,9 +1625,9 @@ export default function Prospeccoes() {
   const [mobileAccess, setMobileAccess] = useState(() => detectMobileAccess());
   const [mobileSection, setMobileSection] = useState("hub");
   const [financeiroCount, setFinanceiroCount] = useState(null);
+  const [financeiroImoveis, setFinanceiroImoveis] = useState([]);
   const deferredSelectedSearch = useDeferredValue(selectedSearch);
   const canAccessFinance = hasRole("viewer", "editor", "admin");
-
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const handleViewportChange = () => {
@@ -1708,20 +1708,43 @@ export default function Prospeccoes() {
   useEffect(() => {
     if (!mobileAccess || !canAccessFinance) return undefined;
     let active = true;
-    fetchImoveis()
+    fetchImoveisFinanceiroAcessiveis()
       .then((data) => {
         if (!active) return;
         const ativos = (data || []).filter((item) => !item?.vendido);
+        setFinanceiroImoveis(ativos);
         setFinanceiroCount(ativos.length);
       })
       .catch(() => {
         if (!active) return;
+        setFinanceiroImoveis([]);
         setFinanceiroCount(0);
       });
     return () => {
       active = false;
     };
   }, [mobileAccess, canAccessFinance]);
+
+  const financeiroDestino = useMemo(() => {
+    if (!canAccessFinance) return undefined;
+    if (financeiroImoveis.length === 1) {
+      return `/dashboard/${financeiroImoveis[0].id}`;
+    }
+    return "/financeiro";
+  }, [canAccessFinance, financeiroImoveis]);
+
+  const descricaoFinanceiroMobile = useMemo(() => {
+    if (!canAccessFinance) {
+      return "Seu perfil atual não possui acesso ao controle financeiro.";
+    }
+    if (financeiroImoveis.length === 1) {
+      return "Abra direto o dashboard do imóvel disponível no seu perfil.";
+    }
+    if (financeiroImoveis.length > 1) {
+      return "Acompanhe os imóveis adquiridos e escolha rapidamente o imóvel que deseja operar.";
+    }
+    return "Abra o módulo financeiro e acompanhe os imóveis adquiridos.";
+  }, [canAccessFinance, financeiroImoveis]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2221,14 +2244,10 @@ export default function Prospeccoes() {
                 <MobileHubCard
                   eyebrow="Financeiro"
                   title="Controle financeiro"
-                  description={
-                    canAccessFinance
-                      ? "Acompanhe os imóveis adquiridos e siga para o controle financeiro."
-                      : "Seu perfil atual não possui acesso ao controle financeiro."
-                  }
+                  description={descricaoFinanceiroMobile}
                   count={financeiroCount ?? 0}
                   icon={<FinanceIcon />}
-                  to={canAccessFinance ? "/" : undefined}
+                  to={canAccessFinance ? financeiroDestino : undefined}
                   disabled={!canAccessFinance}
                 />
                 <MobileHubCard
