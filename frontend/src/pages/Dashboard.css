@@ -414,6 +414,123 @@
   color: #7381a3;
 }
 
+.financeiro-compartilhado-card__mobile-list,
+.resumo-card__mobile-list,
+.transacoes-mobile-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.financeiro-compartilhado-card__mobile-item,
+.resumo-card__mobile-item,
+.transacoes-mobile-card {
+  border: 1px solid rgba(35, 50, 74, 0.08);
+  border-radius: 16px;
+  background: #fbfcff;
+  padding: 0.95rem 1rem;
+}
+
+.financeiro-compartilhado-card__mobile-item dl,
+.resumo-card__mobile-item dl {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.75rem 0 0;
+}
+
+.financeiro-compartilhado-card__mobile-item dl div,
+.resumo-card__mobile-item dl div,
+.resumo-card__mobile-line,
+.transacoes-mobile-card__body div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.financeiro-compartilhado-card__mobile-item dt,
+.resumo-card__mobile-item dt,
+.resumo-card__mobile-line span,
+.transacoes-mobile-card__body span {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7381a3;
+}
+
+.financeiro-compartilhado-card__mobile-item dd,
+.resumo-card__mobile-item dd,
+.resumo-card__mobile-line strong,
+.transacoes-mobile-card__body strong {
+  margin: 0;
+  text-align: right;
+  color: #1f2d47;
+  font-weight: 700;
+}
+
+.transacoes-mobile-card__field {
+  min-width: 150px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.transacoes-mobile-card__field .form-select {
+  min-width: 150px;
+}
+
+.resumo-card__mobile-item header,
+.transacoes-mobile-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.resumo-card__mobile-item header strong,
+.transacoes-mobile-card__head strong {
+  color: #1f2d47;
+  font-size: 0.98rem;
+}
+
+.resumo-card__mobile-item--total,
+.resumo-card__mobile-line--highlight,
+.transacoes-mobile-card.is-dirty {
+  background: linear-gradient(135deg, rgba(56, 89, 255, 0.08), rgba(56, 89, 255, 0.01));
+  border-color: rgba(56, 89, 255, 0.12);
+}
+
+.resumo-card__mobile-list--closing {
+  gap: 0.6rem;
+}
+
+.transacoes-mobile-card__head span {
+  color: #7381a3;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.transacoes-mobile-card__body {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.transacoes-mobile-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.transacoes-mobile-empty {
+  border: 1px dashed rgba(35, 50, 74, 0.12);
+  border-radius: 14px;
+  padding: 1rem;
+  color: #7381a3;
+  text-align: center;
+  background: #fbfcff;
+}
+
 .resumo-card__metrics {
   display: grid;
   gap: 0.75rem;
@@ -689,20 +806,135 @@
 
 @media (max-width: 640px) {
   .dashboard-page {
-    padding: 1.5rem 0 2.5rem;
+    padding: 1rem 0 2rem;
+  }
+
+  .dashboard-container {
+    width: min(100%, calc(100vw - 1rem));
+    gap: 1rem;
+  }
+
+  .dashboard-header {
+    gap: 0.75rem;
+  }
+
+  .dashboard-header__title h1 {
+    font-size: 1.35rem;
+  }
+
+  .dashboard-header__title span {
+    font-size: 0.85rem;
+  }
+
+  .dashboard-header__actions {
+    width: 100%;
+  }
+
+  .dashboard-header__actions .btn-outline-secondary {
+    width: 100%;
+    justify-content: center;
   }
 
   .dashboard-card {
-    padding: 1.25rem;
+    padding: 1rem;
+    border-radius: 18px;
   }
 
   .dados-card__layout {
     grid-template-columns: 1fr;
   }
 
+  .dados-card__media {
+    gap: 0.5rem;
+  }
+
+  .dados-card__map {
+    min-height: 104px;
+  }
+
+  .dados-card__summary {
+    max-width: none;
+  }
+
   .dados-card__actions {
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .dados-card__actions button {
+    flex: 1 1 calc(50% - 0.3rem);
+    justify-content: center;
+  }
+
+  .resumo-card__metrics,
+  .financeiro-compartilhado-card__metrics,
+  .transacoes-card__stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+  }
+
+  .resumo-card__metric,
+  .financeiro-compartilhado-card__metric,
+  .transacoes-card__stat {
+    min-width: 0;
+    padding: 0.85rem 0.9rem;
+  }
+
+  .resumo-card__toggle {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: 0;
+  }
+
+  .resumo-card__toggle .btn,
+  .resumo-card__toggle-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .financeiro-compartilhado-card__form {
+    grid-template-columns: 1fr;
+  }
+
+  .financeiro-compartilhado-card__form-actions {
+    justify-content: stretch;
+  }
+
+  .financeiro-compartilhado-card__form-actions .btn {
+    width: 100%;
+  }
+
+  .transacoes-card__header {
+    gap: 0.85rem;
+  }
+
+  .transacoes-card__stats {
+    display: grid;
+    width: 100%;
+  }
+
+  .transacoes-card__table-wrapper {
+    overflow: visible;
+    border: none;
+    background: transparent;
+  }
+
+  .transacoes-table__pagination {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.65rem;
+  }
+
+  .transacoes-table__pagination-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.65rem;
+  }
+
+  .transacoes-table__pagination-actions .btn {
+    min-width: 0;
+    margin: 0 !important;
   }
 
   .dashboard-section-placeholder {

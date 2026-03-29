@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useCompactLayout } from "../../hooks/useCompactLayout";
 
 function LancamentosTable({
   lancamentos,
@@ -17,6 +18,7 @@ function LancamentosTable({
   loading = false,
 }) {
   const [sortConfig, setSortConfig] = useState({ key: "data", direction: "desc" });
+  const compactLayout = useCompactLayout();
   const isServerMode = Boolean(serverPagination);
   const totalRegistros = isServerMode ? serverPagination.total ?? 0 : lancamentos.length;
   const pageSize = isServerMode ? serverPagination.pageSize || 50 : totalRegistros || 1;
@@ -140,6 +142,113 @@ function LancamentosTable({
       </select>
     );
   };
+
+  if (compactLayout) {
+    return (
+      <div className="transacoes-mobile-list">
+        {loading ? (
+          <div className="transacoes-mobile-empty">Carregando...</div>
+        ) : !loading && sortedLancamentos.length === 0 ? (
+          <div className="transacoes-mobile-empty">Nenhum lançamento incompleto.</div>
+        ) : (
+          sortedLancamentos.map((lancamento) => {
+            const rowDirty = !!dirtyMap[lancamento.id_lancamento];
+            const saving = !!rowSaving[lancamento.id_lancamento];
+            const podeAplicar = rowDirty && !saving;
+            return (
+              <article
+                key={lancamento.id_lancamento}
+                className={`transacoes-mobile-card ${rowDirty ? "is-dirty" : ""}`.trim()}
+              >
+                <div className="transacoes-mobile-card__head">
+                  <strong>{lancamento.descricao}</strong>
+                  <span>{lancamento.data}</span>
+                </div>
+                <div className="transacoes-mobile-card__body">
+                  <div>
+                    <span>Categoria</span>
+                    <div className="transacoes-mobile-card__field">{renderCategoriaSelect(lancamento)}</div>
+                  </div>
+                  <div>
+                    <span>Imóvel</span>
+                    <div className="transacoes-mobile-card__field">{renderImovelSelect(lancamento)}</div>
+                  </div>
+                  <div>
+                    <span>Situação</span>
+                    <div className="transacoes-mobile-card__field">{renderSituacaoSelect(lancamento)}</div>
+                  </div>
+                  <div>
+                    <span>Valor</span>
+                    <strong>
+                      {Number(lancamento.valor).toLocaleString("pt-BR", {
+                        style: "currency",
+                        currency: "BRL",
+                      })}
+                    </strong>
+                  </div>
+                </div>
+                <div className="transacoes-mobile-card__actions">
+                  {editable && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => onApplyRow?.(lancamento.id_lancamento)}
+                      disabled={!podeAplicar}
+                    >
+                      {saving ? "Salvando..." : "Aplicar"}
+                    </button>
+                  )}
+                  {editable && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => onEdit?.(lancamento)}
+                    >
+                      Editar
+                    </button>
+                  )}
+                  {editable && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger btn-sm"
+                      onClick={() => onDelete?.(lancamento.id_lancamento)}
+                    >
+                      Excluir
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          })
+        )}
+        <div className="transacoes-table__pagination d-flex justify-content-between align-items-center mt-2">
+          <small className="text-muted">
+            Página {totalPages === 0 ? 0 : currentPage} de {totalPages}
+          </small>
+          {isServerMode && (
+            <div className="transacoes-table__pagination-actions">
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm me-2"
+                onClick={() => serverPagination.onPageChange?.(Math.max(1, currentPage - 1))}
+                disabled={loading || currentPage <= 1}
+              >
+                ◀ Anterior
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-secondary btn-sm"
+                onClick={() => serverPagination.onPageChange?.(Math.min(totalPages, currentPage + 1))}
+                disabled={loading || currentPage >= totalPages}
+              >
+                Próxima ▶
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="table-responsive small">

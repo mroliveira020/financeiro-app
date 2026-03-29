@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import api from "../services/http";
 import ModalEditarOrcamento from "./ModalEditarOrcamento";
 import { useAuth } from "../context/AuthContext";
+import { useCompactLayout } from "../hooks/useCompactLayout";
 
 function ResumoFinanceiro({ refreshKey = 0 }) {
   const [resumo, setResumo] = useState([]);
@@ -11,6 +12,7 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
   const [mostrarSegundaTabela, setMostrarSegundaTabela] = useState(false);
   const { hasRole } = useAuth();
   const canEdit = hasRole("editor", "admin");
+  const compactLayout = useCompactLayout();
 
   const { id: idImovelParam } = useParams();
   const id_imovel = idImovelParam;
@@ -176,6 +178,75 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
     </div>
   );
 
+  const tabelaPrimeiraCompacta = (
+    <div className="resumo-card__mobile-list">
+      {primeiraTabela.map((item) => (
+        <article key={item.id_grupo} className="resumo-card__mobile-item">
+          <header>
+            <strong>{item.grupo}</strong>
+          </header>
+          <dl>
+            <div>
+              <dt>Orçamento</dt>
+              <dd>{formatarMoeda(item.orcamento)}</dd>
+            </div>
+            <div>
+              <dt>Efetivado</dt>
+              <dd>{formatarMoeda(item.valor_efetivado)}</dd>
+            </div>
+            <div>
+              <dt>Em contratação</dt>
+              <dd>{formatarMoeda(item.valor_em_contratacao)}</dd>
+            </div>
+            <div>
+              <dt>Efetivado + contratação</dt>
+              <dd>{formatarMoeda(calcularEfetivadoMaisContratacao(item))}</dd>
+            </div>
+            <div>
+              <dt>Saldo a investir</dt>
+              <dd>{formatarMoeda(calcularSaldoAInvestir(item))}</dd>
+            </div>
+            <div>
+              <dt>Total estimado</dt>
+              <dd>{formatarMoeda(calcularTotalEstimado(item))}</dd>
+            </div>
+          </dl>
+        </article>
+      ))}
+      <article className="resumo-card__mobile-item resumo-card__mobile-item--total">
+        <header>
+          <strong>Total</strong>
+        </header>
+        <dl>
+          <div>
+            <dt>Orçamento</dt>
+            <dd>{formatarMoeda(totaisPrimeira.orcamento)}</dd>
+          </div>
+          <div>
+            <dt>Efetivado</dt>
+            <dd>{formatarMoeda(totaisPrimeira.valor_efetivado)}</dd>
+          </div>
+          <div>
+            <dt>Em contratação</dt>
+            <dd>{formatarMoeda(totaisPrimeira.valor_em_contratacao)}</dd>
+          </div>
+          <div>
+            <dt>Efetivado + contratação</dt>
+            <dd>{formatarMoeda(totaisPrimeira.efetivado_mais_contratacao)}</dd>
+          </div>
+          <div>
+            <dt>Saldo a investir</dt>
+            <dd>{formatarMoeda(totaisPrimeira.saldo_a_investir_total)}</dd>
+          </div>
+          <div>
+            <dt>Total estimado</dt>
+            <dd>{formatarMoeda(totaisPrimeira.valor_total_estimado)}</dd>
+          </div>
+        </dl>
+      </article>
+    </div>
+  );
+
   const tabelaFechamento = (
     <div className="resumo-card__table resumo-card__closing">
       <table className="table align-middle mb-0">
@@ -225,6 +296,38 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
     </div>
   );
 
+  const tabelaFechamentoCompacta = (
+    <div className="resumo-card__mobile-list resumo-card__mobile-list--closing">
+      {[
+        ["Investimento Total", investimentoTotal],
+        ["Financiamento a Quitar", totalEstimadoGrupo6],
+        ["Custo do Imóvel", custoDoImovel, true],
+        ["Valor de Venda", valorDeVenda],
+        ["Corretor", corretor],
+        ["IR Ganho de Capital", irGanhoDeCapital],
+        ["Resultado Líquido", resultadoLiquido, true],
+      ].map(([label, valor, destaque]) => (
+        <article
+          key={label}
+          className={`resumo-card__mobile-line ${destaque ? "resumo-card__mobile-line--highlight" : ""}`.trim()}
+        >
+          <span>{label}</span>
+          <strong>{formatarMoeda(valor)}</strong>
+        </article>
+      ))}
+      <article className="resumo-card__mobile-line resumo-card__mobile-line--highlight">
+        <span>ROI</span>
+        <strong>
+          {(roi * 100).toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+          %
+        </strong>
+      </article>
+    </div>
+  );
+
   const tabelaFechamentoDetalhada = mostrarSegundaTabela ? (
     <div className="resumo-card__table table-responsive">
       <h3 className="fs-6 fw-bold mb-2">Detalhamento Fechamento</h3>
@@ -252,6 +355,40 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
           ))}
         </tbody>
       </table>
+    </div>
+  ) : null;
+
+  const tabelaFechamentoDetalhadaCompacta = mostrarSegundaTabela ? (
+    <div className="resumo-card__mobile-list">
+      {terceiraTabela.map((item) => (
+        <article key={item.id_grupo} className="resumo-card__mobile-item">
+          <header>
+            <strong>{item.grupo}</strong>
+          </header>
+          <dl>
+            <div>
+              <dt>Orçamento</dt>
+              <dd>{formatarMoeda(item.orcamento)}</dd>
+            </div>
+            <div>
+              <dt>Efetivado</dt>
+              <dd>{formatarMoeda(item.valor_efetivado)}</dd>
+            </div>
+            <div>
+              <dt>Em contratação</dt>
+              <dd>{formatarMoeda(item.valor_em_contratacao)}</dd>
+            </div>
+            <div>
+              <dt>Efetivado + contratação</dt>
+              <dd>{formatarMoeda(calcularEfetivadoMaisContratacao(item))}</dd>
+            </div>
+            <div>
+              <dt>Total estimado</dt>
+              <dd>{formatarMoeda(calcularTotalEstimado(item))}</dd>
+            </div>
+          </dl>
+        </article>
+      ))}
     </div>
   ) : null;
 
@@ -288,9 +425,9 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
           ))}
         </div>
 
-        {tabelaPrimeira}
-        {tabelaFechamento}
-        {tabelaFechamentoDetalhada}
+        {compactLayout ? tabelaPrimeiraCompacta : tabelaPrimeira}
+        {compactLayout ? tabelaFechamentoCompacta : tabelaFechamento}
+        {compactLayout ? tabelaFechamentoDetalhadaCompacta : tabelaFechamentoDetalhada}
       </section>
 
       {mostrarModalOrcamento && (

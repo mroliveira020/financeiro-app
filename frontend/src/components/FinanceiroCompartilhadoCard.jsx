@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { fetchFinanceiroCompartilhado, registrarEqualizacao } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useCompactLayout } from "../hooks/useCompactLayout";
 
 const formatarMoeda = (valor) =>
   Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -47,6 +48,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
   });
   const [salvandoEqualizacao, setSalvandoEqualizacao] = useState(false);
   const [erroEqualizacao, setErroEqualizacao] = useState("");
+  const compactLayout = useCompactLayout();
 
   const carregar = useCallback(() => {
     let ativo = true;
@@ -288,41 +290,82 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
           <div className="financeiro-compartilhado-card__section">
             <h3>Sócios e posição atual</h3>
             {socios.length ? (
-              <div className="table-responsive">
-                <table className="table table-sm align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th>Sócio</th>
-                      <th className="text-end">Participação</th>
-                      <th className="text-end">Pago</th>
-                      <th className="text-end">Devido</th>
-                      <th className="text-end">Env. equalização</th>
-                      <th className="text-end">Rec. equalização</th>
-                      <th className="text-end">Saldo líquido</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {socios.map((socio) => (
-                      <tr key={socio.user_id}>
-                        <td>
-                          <div className="financeiro-compartilhado-card__person">
-                            <strong>{socio.user_name || socio.user_email || `Usuário ${socio.user_id}`}</strong>
-                            <span>{socio.user_email || "Sem e-mail"}</span>
-                          </div>
-                        </td>
-                        <td className="text-end">{Number(socio.percentual_participacao || 0).toLocaleString("pt-BR")} %</td>
-                        <td className="text-end">{formatarMoeda(socio.total_pago_operacional)}</td>
-                        <td className="text-end">{formatarMoeda(socio.valor_devido_participacao)}</td>
-                        <td className="text-end">{formatarMoeda(socio.equalizacao_enviada)}</td>
-                        <td className="text-end">{formatarMoeda(socio.equalizacao_recebida)}</td>
-                        <td className={`text-end ${Number(socio.saldo_liquido || 0) >= 0 ? "text-success" : "text-danger"}`}>
-                          {formatarMoeda(socio.saldo_liquido)}
-                        </td>
+              compactLayout ? (
+                <div className="financeiro-compartilhado-card__mobile-list">
+                  {socios.map((socio) => (
+                    <article key={socio.user_id} className="financeiro-compartilhado-card__mobile-item">
+                      <div className="financeiro-compartilhado-card__person">
+                        <strong>{socio.user_name || socio.user_email || `Usuário ${socio.user_id}`}</strong>
+                        <span>{socio.user_email || "Sem e-mail"}</span>
+                      </div>
+                      <dl>
+                        <div>
+                          <dt>Participação</dt>
+                          <dd>{Number(socio.percentual_participacao || 0).toLocaleString("pt-BR")} %</dd>
+                        </div>
+                        <div>
+                          <dt>Pago</dt>
+                          <dd>{formatarMoeda(socio.total_pago_operacional)}</dd>
+                        </div>
+                        <div>
+                          <dt>Devido</dt>
+                          <dd>{formatarMoeda(socio.valor_devido_participacao)}</dd>
+                        </div>
+                        <div>
+                          <dt>Env. equalização</dt>
+                          <dd>{formatarMoeda(socio.equalizacao_enviada)}</dd>
+                        </div>
+                        <div>
+                          <dt>Rec. equalização</dt>
+                          <dd>{formatarMoeda(socio.equalizacao_recebida)}</dd>
+                        </div>
+                        <div>
+                          <dt>Saldo líquido</dt>
+                          <dd className={Number(socio.saldo_liquido || 0) >= 0 ? "text-success" : "text-danger"}>
+                            {formatarMoeda(socio.saldo_liquido)}
+                          </dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Sócio</th>
+                        <th className="text-end">Participação</th>
+                        <th className="text-end">Pago</th>
+                        <th className="text-end">Devido</th>
+                        <th className="text-end">Env. equalização</th>
+                        <th className="text-end">Rec. equalização</th>
+                        <th className="text-end">Saldo líquido</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {socios.map((socio) => (
+                        <tr key={socio.user_id}>
+                          <td>
+                            <div className="financeiro-compartilhado-card__person">
+                              <strong>{socio.user_name || socio.user_email || `Usuário ${socio.user_id}`}</strong>
+                              <span>{socio.user_email || "Sem e-mail"}</span>
+                            </div>
+                          </td>
+                          <td className="text-end">{Number(socio.percentual_participacao || 0).toLocaleString("pt-BR")} %</td>
+                          <td className="text-end">{formatarMoeda(socio.total_pago_operacional)}</td>
+                          <td className="text-end">{formatarMoeda(socio.valor_devido_participacao)}</td>
+                          <td className="text-end">{formatarMoeda(socio.equalizacao_enviada)}</td>
+                          <td className="text-end">{formatarMoeda(socio.equalizacao_recebida)}</td>
+                          <td className={`text-end ${Number(socio.saldo_liquido || 0) >= 0 ? "text-success" : "text-danger"}`}>
+                            {formatarMoeda(socio.saldo_liquido)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
             ) : (
               <p className="text-muted mb-0">Nenhum sócio configurado para este imóvel.</p>
             )}
@@ -331,30 +374,61 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
           <div className="financeiro-compartilhado-card__section">
             <h3>Equalizações registradas</h3>
             {equalizacoes.length ? (
-              <div className="table-responsive">
-                <table className="table table-sm align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th>Data</th>
-                      <th>Quem pagou</th>
-                      <th>Quem recebeu</th>
-                      <th>Descrição</th>
-                      <th className="text-end">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {equalizacoes.map((item) => (
-                      <tr key={item.id}>
-                        <td>{formatarDataBrasil(item.data)}</td>
-                        <td>{formatarNomeSocio(item.paid_by_user_id)}</td>
-                        <td>{formatarNomeSocio(item.beneficiary_user_id)}</td>
-                        <td>{item.descricao || "Equalização entre sócios"}</td>
-                        <td className="text-end">{formatarMoeda(item.valor)}</td>
+              compactLayout ? (
+                <div className="financeiro-compartilhado-card__mobile-list">
+                  {equalizacoes.map((item) => (
+                    <article key={item.id} className="financeiro-compartilhado-card__mobile-item">
+                      <dl>
+                        <div>
+                          <dt>Data</dt>
+                          <dd>{formatarDataBrasil(item.data)}</dd>
+                        </div>
+                        <div>
+                          <dt>Quem pagou</dt>
+                          <dd>{formatarNomeSocio(item.paid_by_user_id)}</dd>
+                        </div>
+                        <div>
+                          <dt>Quem recebeu</dt>
+                          <dd>{formatarNomeSocio(item.beneficiary_user_id)}</dd>
+                        </div>
+                        <div>
+                          <dt>Descrição</dt>
+                          <dd>{item.descricao || "Equalização entre sócios"}</dd>
+                        </div>
+                        <div>
+                          <dt>Valor</dt>
+                          <dd>{formatarMoeda(item.valor)}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Data</th>
+                        <th>Quem pagou</th>
+                        <th>Quem recebeu</th>
+                        <th>Descrição</th>
+                        <th className="text-end">Valor</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {equalizacoes.map((item) => (
+                        <tr key={item.id}>
+                          <td>{formatarDataBrasil(item.data)}</td>
+                          <td>{formatarNomeSocio(item.paid_by_user_id)}</td>
+                          <td>{formatarNomeSocio(item.beneficiary_user_id)}</td>
+                          <td>{item.descricao || "Equalização entre sócios"}</td>
+                          <td className="text-end">{formatarMoeda(item.valor)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
             ) : (
               <p className="text-muted mb-0">Nenhuma equalização registrada até o momento.</p>
             )}
