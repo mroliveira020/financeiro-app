@@ -366,11 +366,13 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - exigência de `Quem pagou` no lançamento em lote;
   - card técnico inicial de financeiro compartilhado no dashboard;
   - registro de equalização entre sócios direto no card compartilhado do dashboard;
+  - fluxo de equalização refinado para abrir em modal, com CTA exibido apenas quando houver saldo a pagar e com valor sugerido no próprio botão;
   - tabela de equalizações com data no padrão brasileiro e colunas `Quem pagou` / `Quem recebeu`;
   - equalizações filtradas para aparecer apenas no card compartilhado, sem poluir `Transações Incompletas` e `Transações Completas`;
   - correção do filtro de `Transações Incompletas` por imóvel atual;
   - restauração de `Transações Completas` e inclusão da coluna `Quem pagou`;
   - correções adicionais nas queries de `Transações Completas` para evitar que o quadro fique vazio após os filtros novos;
+  - inclusão direta de nova transação confirmada via botão `+ Incluir transação`, sem depender do fluxo de pendências;
   - liberação transitória do módulo Financeiro para usuário `prospector` com vínculo ativo em `imovel_socios`;
   - restrição da Home financeira do sócio para carregar apenas imóveis acessíveis;
   - proteção de acesso por `id_imovel` no backend e bloqueio de navegação indevida pela URL;
@@ -379,6 +381,9 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - mapa sob demanda no card superior, carregado apenas quando o usuário solicitar;
   - correção do atalho mobile do `Controle financeiro`, com entrada própria em `/financeiro` e navegação direta para o dashboard quando houver apenas um imóvel acessível;
   - contagem do card mobile de Financeiro baseada na lista real de imóveis acessíveis ao usuário;
+  - versão mobile dedicada do dashboard financeiro para `Resumo Financeiro`, `Financeiro Compartilhado` e grades de transações, substituindo tabelas espremidas por cards/listas empilhadas;
+  - leitura do orçamento no mobile simplificada, com detalhamento sob demanda;
+  - primeira leitura gráfica do orçamento no dashboard, como apoio visual ao comparativo por grupo;
   - remoção de uma chamada redundante no resumo financeiro;
   - carregamento progressivo das seções mais pesadas do dashboard;
   - cache curto para imóveis acessíveis no frontend, reduzindo chamadas repetidas.
@@ -391,9 +396,12 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - testar o fluxo completo no app rodando com o imóvel piloto, especialmente edição individual, lote, restrição de imóveis por sócio e leitura do card compartilhado;
   - revisar minuciosamente a leitura do dashboard compartilhado antes de fechar a interface final;
   - confirmar cenários reais de equalização entre sócios no imóvel piloto, incluindo reflexo correto do saldo após registro do acerto;
+  - validar se o CTA de equalização por saldo sugerido está mais claro do que o formulário sempre aberto;
+  - validar se o fluxo `+ Incluir transação` ficou mais natural do que depender do card de pendências;
   - medir o ganho real das primeiras melhorias de performance e identificar os próximos gargalos de carregamento;
   - validar se o card superior mais compacto melhorou a leitura e a navegação do dashboard no uso diário;
-  - validar a nova entrada mobile do Financeiro em cenários com um e com vários imóveis acessíveis.
+  - validar a nova entrada mobile do Financeiro em cenários com um e com vários imóveis acessíveis;
+  - validar se a nova apresentação mobile do dashboard ficou adequada em aparelho real.
 - Situação atual dos testes operacionais:
   - a UI mínima de cadastro societário e `pix_key` já existe, então o fluxo compartilhado pode ser validado com dados reais;
   - o bloqueio principal deixou de ser cadastro/vínculo e passou a ser refinamento funcional do dashboard compartilhado, da equalização entre sócios e da navegação mobile do Financeiro.
@@ -798,13 +806,16 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - valor devido por participação;
   - saldo líquido entre sócios;
   - equalizações registradas.
-  - formulário de registro de equalização entre sócios no próprio card.
+  - registro de equalização entre sócios no próprio card.
 3. [x] Entregar uma primeira melhoria de apresentação do dashboard base:
-   - card de dados cadastrais mais compacto e menos dominante;
-   - card superior simplificado para nome do imóvel, endereço e mapa;
-   - remoção de `ganho de capital` e `valor de venda` do topo do dashboard;
-   - mapa sob demanda, carregado apenas quando o usuário solicitar;
-   - resumo visual mais contido no topo do dashboard.
+  - card de dados cadastrais mais compacto e menos dominante;
+  - card superior simplificado para nome do imóvel, endereço e mapa;
+  - remoção de `ganho de capital` e `valor de venda` do topo do dashboard;
+  - mapa sob demanda, carregado apenas quando o usuário solicitar;
+   - resumo visual mais contido no topo do dashboard;
+   - versão mobile com cards/listas no lugar de tabelas comprimidas;
+   - detalhamento do orçamento oculto por padrão no mobile;
+   - CTA de equalização por saldo sugerido e modal de ação.
 4. [ ] Revisar minuciosamente com o usuário:
    - leitura dos números;
    - clareza entre valores totais vs. proporcionais;
@@ -861,8 +872,9 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    5.5. [ ] Confirmar que usuário não-admin não consegue editar quadro societário nem chave Pix de terceiros.
    5.6. [ ] Abrir o dashboard do imóvel piloto e verificar se o seletor `Quem pagou` passa a listar os sócios corretos.
    5.7. [ ] Testar edição individual de lançamento escolhendo cada sócio como pagador.
-   5.8. [ ] Testar lançamento em lote exigindo `Quem pagou` e conferindo o preenchimento automático quando houver sócio único.
-   5.9. [ ] Confirmar que `Transações Incompletas` continuam filtradas pelo imóvel atual.
+  5.8. [ ] Testar lançamento em lote exigindo `Quem pagou` e conferindo o preenchimento automático quando houver sócio único.
+  5.8.1. [ ] Testar `+ Incluir transação` confirmada e validar que ela cai direto em `Transações Completas`.
+  5.9. [ ] Confirmar que `Transações Incompletas` continuam filtradas pelo imóvel atual.
   5.10. [ ] Confirmar que `Transações Completas` continuam exibindo `Quem pagou`.
   5.10.1. [ ] Confirmar que equalizações não aparecem nem em `Transações Incompletas` nem em `Transações Completas`.
   5.11. [ ] Validar um imóvel pessoal legado para garantir que nada regrediu no cenário `100%` individual.
@@ -874,6 +886,14 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   5.17. [ ] Validar a navegação mobile do `Controle financeiro`:
        - com 1 imóvel acessível, deve abrir direto o dashboard;
        - com mais de 1 imóvel, deve abrir a entrada do Financeiro sem retornar para `Prospecções`.
+  5.18. [ ] Validar o CTA de equalização:
+       - botão só aparece quando houver saldo a pagar;
+       - botão mostra o valor sugerido;
+       - modal abre com recebedor e valor coerentes.
+  5.19. [ ] Validar a leitura mobile do orçamento:
+       - detalhamento não aparece aberto por padrão;
+       - ação de `Detalhar orçamento` funciona;
+       - leitura em cards/listas ficou adequada em tela pequena.
 
 12. [ ] **Planejar controle financeiro compartilhado entre sócios**
    12.1. [ ] **Modelagem de participação por imóvel**
@@ -956,7 +976,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
 - Prioridade imediata: validar em uso real o primeiro imóvel compartilhado já suportado por backend, permissões e UI mínima de sócios/Pix.
 - Primeira entrega de maior valor agora: revisar o fluxo compartilhado ponta a ponta com o imóvel piloto e consolidar a leitura do dashboard.
 - Equalização entre sócios já está implementada na primeira versão; o próximo bloco agora é validar o uso real e refinar a experiência.
-- Em paralelo, a navegação mobile do Financeiro já recebeu correção estrutural e precisa apenas de validação operacional.
+- Em paralelo, a navegação mobile do Financeiro e a nova apresentação mobile do dashboard já receberam correção estrutural e precisam de validação operacional.
 - Prospecções continua importante, mas passa a ser frente secundária até o primeiro imóvel compartilhado estar operacional ponta a ponta.
 - Em paralelo, manter apenas validação operacional mínima do garimpo/Supabase para não acumular risco silencioso.
 
@@ -974,6 +994,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - confirmar clareza entre valores totais vs. proporcionais;
   - avaliar regra de compensação e posição devedor/credor;
   - validar a tabela de equalizações com data brasileira, pagador e recebedor;
+  - validar o CTA de equalização com saldo sugerido;
+  - validar o novo fluxo de `+ Incluir transação`;
   - validar a primeira melhoria visual do card superior simplificado e do mapa sob demanda;
   - só então desenhar a interface final do dashboard compartilhado.
 
@@ -981,7 +1003,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - confirmar abertura correta do `Controle financeiro` pelo celular;
   - verificar contador com base nos imóveis realmente acessíveis;
   - confirmar abertura direta do dashboard quando houver um único imóvel;
-  - revisar se a entrada `/financeiro` faz sentido também para cenários com múltiplos imóveis.
+  - revisar se a entrada `/financeiro` faz sentido também para cenários com múltiplos imóveis;
+  - validar a nova leitura mobile de orçamento, compartilhamento e transações.
 
 4. [ ] **Agora — Melhorar desempenho percebido e operacional**
   - medir o ganho real da rodada já aplicada:

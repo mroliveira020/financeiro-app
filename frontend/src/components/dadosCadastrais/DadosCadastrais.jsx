@@ -4,6 +4,7 @@ import api from "../../services/http";
 import ModalSelecionarImovel from "./ModalSelecionarImovel";
 import ModalEditarImovel from "./ModalEditarImovel";
 import { useAuth } from "../../context/AuthContext";
+import { useCompactLayout } from "../../hooks/useCompactLayout";
 
 function DadosCadastrais() {
   const { id } = useParams();
@@ -16,6 +17,7 @@ function DadosCadastrais() {
   const [mostrarMapa, setMostrarMapa] = useState(false);
   const { hasRole } = useAuth();
   const canEdit = hasRole("editor", "admin");
+  const compactLayout = useCompactLayout();
 
   const fetchImovel = useCallback(async () => {
     try {
@@ -53,6 +55,28 @@ function DadosCadastrais() {
   const renderMapa = () => {
     if (!mapaDisponivel) {
       return <div className="dados-card__map--placeholder">Localização não informada</div>;
+    }
+    if (compactLayout && !mostrarMapa) {
+      return (
+        <div className="dados-card__map-mobile-actions">
+          <button
+            type="button"
+            className="dados-card__map-inline-button"
+            onClick={() => setMostrarMapa(true)}
+          >
+            Carregar mapa
+          </button>
+          {mapaLink && (
+            <button
+              type="button"
+              className="dados-card__map-button"
+              onClick={() => window.open(mapaLink, "_blank", "noopener")}
+            >
+              Abrir no Google Maps
+            </button>
+          )}
+        </div>
+      );
     }
     if (!mostrarMapa) {
       return (
@@ -122,12 +146,14 @@ function DadosCadastrais() {
 
         <div className="dados-card__layout">
           <div className="dados-card__media">
-            <div
-              className="dados-card__map dados-card__map--full"
-            >
-              {renderMapa()}
-            </div>
-            {mapaLink && (
+            {(!compactLayout || mostrarMapa || !mapaDisponivel) && (
+              <div
+                className="dados-card__map dados-card__map--full"
+              >
+                {renderMapa()}
+              </div>
+            )}
+            {mapaLink && !compactLayout && (
               <button
                 type="button"
                 className="dados-card__map-button"

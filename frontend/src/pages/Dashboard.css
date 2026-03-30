@@ -157,6 +157,12 @@
   padding: 0.42rem 0.76rem;
 }
 
+.dados-card__map-mobile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
 .dados-card__map-button {
   border: 1px solid rgba(56, 89, 255, 0.12);
   background: #f6f8ff;
@@ -978,7 +984,26 @@
   }
 
   .dados-card__map {
-    min-height: 104px;
+    min-height: 88px;
+  }
+
+  .dados-card__map--full {
+    aspect-ratio: 16 / 9;
+  }
+
+  .dados-card__map--placeholder-action {
+    padding: 0.75rem;
+  }
+
+  .dados-card__map-copy span {
+    font-size: 0.76rem;
+  }
+
+  .dados-card__map-mobile-actions .dados-card__map-inline-button,
+  .dados-card__map-mobile-actions .dados-card__map-button {
+    flex: 1 1 100%;
+    width: 100%;
+    justify-content: center;
   }
 
   .dados-card__summary {
