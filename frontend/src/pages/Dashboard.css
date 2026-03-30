@@ -339,6 +339,31 @@
   line-height: 1.2;
 }
 
+.dados-card__quick-badge {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(56, 89, 255, 0.1);
+  color: #3551d7;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.dados-card__quick-badge.is-positive {
+  background: rgba(37, 184, 120, 0.12);
+  color: #147d54;
+}
+
+.dados-card__quick-badge.is-warning {
+  background: rgba(255, 193, 7, 0.18);
+  color: #936200;
+}
+
 .dashboard-section-placeholder {
   min-height: 220px;
   display: flex;
@@ -1062,14 +1087,15 @@
   }
 
   .dashboard-card {
-    padding: 0;
-    border-radius: 28px;
-    overflow: hidden;
+    padding: 0.9rem;
+    border-radius: 18px;
   }
 
   .dados-card {
     gap: 0;
     padding: 0;
+    border-radius: 28px;
+    overflow: hidden;
   }
 
   .dados-card__mobile-shell {
@@ -1186,6 +1212,11 @@
   .dados-card__quick-button span:last-child {
     font-size: 0.72rem;
     line-height: 1.15;
+  }
+
+  .dados-card__quick-badge {
+    font-size: 0.62rem;
+    padding: 0.16rem 0.42rem;
   }
 
   .dados-card__actions {

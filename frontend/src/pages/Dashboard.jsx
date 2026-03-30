@@ -55,7 +55,7 @@ function Dashboard() {
     <div className="dashboard-page">
       <div className="dashboard-container">
         <section className="dashboard-main">
-          <DadosCadastrais />
+          <DadosCadastrais refreshKey={refreshKey} />
           <section id="resumo-financeiro">
             <ResumoFinanceiro refreshKey={refreshKey} />
           </section>

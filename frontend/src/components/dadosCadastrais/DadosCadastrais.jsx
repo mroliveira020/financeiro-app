@@ -5,8 +5,13 @@ import ModalSelecionarImovel from "./ModalSelecionarImovel";
 import ModalEditarImovel from "./ModalEditarImovel";
 import { useAuth } from "../../context/AuthContext";
 import { useCompactLayout } from "../../hooks/useCompactLayout";
+import {
+  fetchFinanceiroCompartilhado,
+  fetchLancamentosCompletos,
+  fetchLancamentosIncompletos,
+} from "../../services/api";
 
-function DadosCadastrais() {
+function DadosCadastrais({ refreshKey = 0 }) {
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -15,7 +20,12 @@ function DadosCadastrais() {
   const [mostrarModalImoveis, setMostrarModalImoveis] = useState(false);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
   const [mostrarMapa, setMostrarMapa] = useState(false);
-  const { hasRole } = useAuth();
+  const [quickStats, setQuickStats] = useState({
+    pendencias: 0,
+    historico: 0,
+    saldo: null,
+  });
+  const { hasRole, user } = useAuth();
   const canEdit = hasRole("editor", "admin");
   const compactLayout = useCompactLayout();
 
@@ -48,6 +58,42 @@ function DadosCadastrais() {
   useEffect(() => {
     setMostrarMapa(false);
   }, [id]);
+
+  useEffect(() => {
+    let ativo = true;
+    if (!compactLayout || !id) return undefined;
+
+    Promise.all([
+      fetchLancamentosIncompletos({ imovelId: id, page: 1, pageSize: 1 }),
+      fetchLancamentosCompletos({ imovelId: id, page: 1, pageSize: 1 }),
+      fetchFinanceiroCompartilhado(id),
+    ])
+      .then(([incompletas, completas, compartilhado]) => {
+        if (!ativo) return;
+        const socios = compartilhado?.socios || [];
+        const socioAtual = socios.find((socio) => Number(socio.user_id) === Number(user?.id));
+        const saldo = Number(socioAtual?.saldo_liquido || 0);
+        setQuickStats({
+          pendencias: Number(incompletas?.summary?.total || incompletas?.total || 0),
+          historico: Number(completas?.summary?.total || completas?.total || 0),
+          saldo:
+            saldo > 0
+              ? { tipo: "receber", valor: saldo }
+              : saldo < 0
+                ? { tipo: "pagar", valor: Math.abs(saldo) }
+                : null,
+        });
+      })
+      .catch((error) => {
+        console.error("Erro ao carregar indicadores rápidos do imóvel", error);
+        if (!ativo) return;
+        setQuickStats({ pendencias: 0, historico: 0, saldo: null });
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [compactLayout, id, refreshKey, user?.id]);
 
   const trocarImovel = (novoId) => {
     setMostrarModalImoveis(false);
@@ -137,6 +183,17 @@ function DadosCadastrais() {
     }, 80);
   }, []);
 
+  const formatarBadgeMoeda = useCallback(
+    (valor) =>
+      Number(valor || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }),
+    []
+  );
+
   if (!imovel) {
     return (
       <section className="dashboard-card dados-card">
@@ -195,14 +252,25 @@ function DadosCadastrais() {
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("financeiro-compartilhado")}>
                   <span className="dados-card__quick-icon" aria-hidden="true">🤝</span>
                   <span>Sócios</span>
+                  {quickStats.saldo ? (
+                    <small className={`dados-card__quick-badge ${quickStats.saldo.tipo === "receber" ? "is-positive" : "is-warning"}`}>
+                      {quickStats.saldo.tipo === "receber" ? "A receber" : "A pagar"} {formatarBadgeMoeda(quickStats.saldo.valor)}
+                    </small>
+                  ) : null}
                 </button>
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("transacoes-incompletas")}>
                   <span className="dados-card__quick-icon" aria-hidden="true">⏳</span>
                   <span>Pendências</span>
+                  {quickStats.pendencias > 0 ? (
+                    <small className="dados-card__quick-badge is-warning">Pendências {quickStats.pendencias}</small>
+                  ) : null}
                 </button>
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("transacoes-completas")}>
                   <span className="dados-card__quick-icon" aria-hidden="true">✅</span>
                   <span>Histórico</span>
+                  {quickStats.historico > 0 ? (
+                    <small className="dados-card__quick-badge">Histórico {quickStats.historico}</small>
+                  ) : null}
                 </button>
                 <button type="button" className="dados-card__quick-button" onClick={abrirDetalhes}>
                   <span className="dados-card__quick-icon" aria-hidden="true">📋</span>
