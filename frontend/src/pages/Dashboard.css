@@ -398,6 +398,19 @@
   justify-content: flex-end;
 }
 
+.financeiro-compartilhado-card__cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.financeiro-compartilhado-card__cta strong {
+  color: #1f2d47;
+  font-size: 1rem;
+}
+
 .financeiro-compartilhado-card__person {
   display: flex;
   flex-direction: column;
@@ -669,6 +682,10 @@
 
 .resumo-card__chart-legend i.estimate {
   background: rgba(56, 89, 255, 0.22);
+}
+
+.resumo-card__toggle--mobile {
+  margin-top: -0.15rem;
 }
 
 .resumo-card__table table {
@@ -1019,6 +1036,14 @@
   }
 
   .financeiro-compartilhado-card__form-actions .btn {
+    width: 100%;
+  }
+
+  .financeiro-compartilhado-card__cta {
+    align-items: stretch;
+  }
+
+  .financeiro-compartilhado-card__cta .btn {
     width: 100%;
   }
 

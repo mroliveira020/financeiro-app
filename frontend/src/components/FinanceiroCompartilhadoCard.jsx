@@ -48,6 +48,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
   });
   const [salvandoEqualizacao, setSalvandoEqualizacao] = useState(false);
   const [erroEqualizacao, setErroEqualizacao] = useState("");
+  const [modalEqualizacaoAberto, setModalEqualizacaoAberto] = useState(false);
   const compactLayout = useCompactLayout();
 
   const carregar = useCallback(() => {
@@ -81,7 +82,6 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
   const equalizacoes = useMemo(() => estado.dados?.equalizacoes || [], [estado.dados]);
   const totais = estado.dados?.totais || {};
   const canRegisterEqualizacao = hasRole("admin", "editor") || Boolean(user?.finance_access);
-  const podeExibirFormulario = canRegisterEqualizacao && socios.length >= 2;
   const sociosPorId = useMemo(
     () =>
       socios.reduce((acc, socio) => {
@@ -100,15 +100,37 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
     [sociosPorId]
   );
 
+  const socioAtual = useMemo(() => socios.find((socio) => Number(socio.user_id) === Number(user?.id)) || null, [socios, user?.id]);
+  const saldoAPagar = useMemo(() => {
+    const saldo = Number(socioAtual?.saldo_liquido || 0);
+    return saldo < 0 ? Math.abs(saldo) : 0;
+  }, [socioAtual]);
+  const credores = useMemo(
+    () =>
+      socios
+        .filter((socio) => Number(socio.user_id) !== Number(user?.id) && Number(socio.saldo_liquido || 0) > 0)
+        .sort((a, b) => Number(b.saldo_liquido || 0) - Number(a.saldo_liquido || 0)),
+    [socios, user?.id]
+  );
+  const podeRegistrarMinhaEqualizacao =
+    canRegisterEqualizacao &&
+    Number(user?.id) > 0 &&
+    saldoAPagar > 0 &&
+    credores.length > 0;
+
   useEffect(() => {
-    if (socios.length === 2 && !form.paid_by_user_id && !form.beneficiary_user_id) {
+    if (podeRegistrarMinhaEqualizacao && !form.paid_by_user_id && !form.beneficiary_user_id) {
       setForm((prev) => ({
         ...prev,
-        paid_by_user_id: String(socios[0].user_id),
-        beneficiary_user_id: String(socios[1].user_id),
+        paid_by_user_id: String(user.id),
+        beneficiary_user_id: String(credores[0].user_id),
+        valor: saldoAPagar.toLocaleString("pt-BR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }),
       }));
     }
-  }, [socios, form.paid_by_user_id, form.beneficiary_user_id]);
+  }, [credores, form.beneficiary_user_id, form.paid_by_user_id, podeRegistrarMinhaEqualizacao, saldoAPagar, user?.id]);
 
   const handleChange = (campo, valor) => {
     setForm((prev) => ({ ...prev, [campo]: valor }));
@@ -144,11 +166,12 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
       });
       setForm({
         data: dataHojeIso(),
-        paid_by_user_id: form.paid_by_user_id,
-        beneficiary_user_id: form.beneficiary_user_id,
+        paid_by_user_id: String(user?.id || ""),
+        beneficiary_user_id: credores[0] ? String(credores[0].user_id) : "",
         valor: "",
         descricao: "",
       });
+      setModalEqualizacaoAberto(false);
       onChanged?.();
       carregar();
     } catch (error) {
@@ -196,94 +219,24 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
             </article>
           </div>
 
-          {podeExibirFormulario && (
+          {podeRegistrarMinhaEqualizacao && (
             <div className="financeiro-compartilhado-card__section">
               <div className="financeiro-compartilhado-card__section-head">
-                <h3>Registrar equalização</h3>
+                <h3>Equalização sugerida</h3>
                 <span className="text-muted small">
-                  Lançe um acerto entre sócios sem distorcer o custo operacional do imóvel.
+                  Você está com saldo a pagar. Registre o acerto sem distorcer o custo operacional do imóvel.
                 </span>
               </div>
-              <form className="financeiro-compartilhado-card__form" onSubmit={handleSubmitEqualizacao}>
-                <div>
-                  <label className="form-label">Data</label>
-                  <input
-                    type="date"
-                    className="form-control form-control-sm"
-                    value={form.data}
-                    onChange={(e) => handleChange("data", e.target.value)}
-                    disabled={salvandoEqualizacao}
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Quem pagou</label>
-                  <select
-                    className="form-select form-select-sm"
-                    value={form.paid_by_user_id}
-                    onChange={(e) => handleChange("paid_by_user_id", e.target.value)}
-                    disabled={salvandoEqualizacao}
-                  >
-                    <option value="">Selecione</option>
-                    {socios.map((socio) => (
-                      <option key={socio.user_id} value={socio.user_id}>
-                        {socio.user_name || socio.user_email}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label">Quem recebeu</label>
-                  <select
-                    className="form-select form-select-sm"
-                    value={form.beneficiary_user_id}
-                    onChange={(e) => handleChange("beneficiary_user_id", e.target.value)}
-                    disabled={salvandoEqualizacao}
-                  >
-                    <option value="">Selecione</option>
-                    {socios.map((socio) => (
-                      <option key={socio.user_id} value={socio.user_id}>
-                        {socio.user_name || socio.user_email}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label">Valor</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm text-end"
-                    value={form.valor}
-                    onChange={(e) => handleChange("valor", e.target.value)}
-                    placeholder="0,00"
-                    disabled={salvandoEqualizacao}
-                  />
-                </div>
-                <div className="financeiro-compartilhado-card__form-note">
-                  <label className="form-label">Observação</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    value={form.descricao}
-                    onChange={(e) => handleChange("descricao", e.target.value)}
-                    placeholder="Opcional"
-                    disabled={salvandoEqualizacao}
-                  />
-                </div>
-                {erroEqualizacao ? (
-                  <div className="alert alert-warning py-2 mb-0" role="alert">
-                    {erroEqualizacao}
-                  </div>
-                ) : null}
-                <div className="financeiro-compartilhado-card__form-actions">
-                  <button
-                    type="submit"
-                    className="btn btn-primary btn-sm"
-                    disabled={salvandoEqualizacao}
-                  >
-                    {salvandoEqualizacao ? "Registrando..." : "Registrar equalização"}
-                  </button>
-                </div>
-              </form>
+              <div className="financeiro-compartilhado-card__cta">
+                <strong>{formatarMoeda(saldoAPagar)}</strong>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setModalEqualizacaoAberto(true)}
+                >
+                  Registrar equalização de {formatarMoeda(saldoAPagar)}
+                </button>
+              </div>
             </div>
           )}
 
@@ -435,6 +388,93 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
           </div>
         </div>
       )}
+
+      {modalEqualizacaoAberto ? (
+        <div className="modal fade show" style={{ display: "block" }} tabIndex="-1" aria-hidden="true">
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Registrar equalização</h5>
+                <button type="button" className="btn-close" aria-label="Fechar" onClick={() => setModalEqualizacaoAberto(false)}></button>
+              </div>
+              <form onSubmit={handleSubmitEqualizacao}>
+                <div className="modal-body">
+                  <div className="mb-2">
+                    <label className="form-label">Data</label>
+                    <input
+                      type="date"
+                      className="form-control form-control-sm"
+                      value={form.data}
+                      onChange={(e) => handleChange("data", e.target.value)}
+                      disabled={salvandoEqualizacao}
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label">Quem pagou</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      value={formatarNomeSocio(form.paid_by_user_id)}
+                      disabled
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label">Quem recebeu</label>
+                    <select
+                      className="form-select form-select-sm"
+                      value={form.beneficiary_user_id}
+                      onChange={(e) => handleChange("beneficiary_user_id", e.target.value)}
+                      disabled={salvandoEqualizacao}
+                    >
+                      <option value="">Selecione</option>
+                      {credores.map((socio) => (
+                        <option key={socio.user_id} value={socio.user_id}>
+                          {socio.user_name || socio.user_email}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label">Valor</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm text-end"
+                      value={form.valor}
+                      onChange={(e) => handleChange("valor", e.target.value)}
+                      placeholder="0,00"
+                      disabled={salvandoEqualizacao}
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label">Observação</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      value={form.descricao}
+                      onChange={(e) => handleChange("descricao", e.target.value)}
+                      placeholder="Opcional"
+                      disabled={salvandoEqualizacao}
+                    />
+                  </div>
+                  {erroEqualizacao ? (
+                    <div className="alert alert-warning py-2 mb-0" role="alert">
+                      {erroEqualizacao}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setModalEqualizacaoAberto(false)}>
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={salvandoEqualizacao}>
+                    {salvandoEqualizacao ? "Registrando..." : "Registrar equalização"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

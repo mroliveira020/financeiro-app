@@ -10,6 +10,7 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
   const [aliquotaGanhoCapital, setAliquotaGanhoCapital] = useState(0.15);
   const [mostrarModalOrcamento, setMostrarModalOrcamento] = useState(false);
   const [mostrarSegundaTabela, setMostrarSegundaTabela] = useState(false);
+  const [mostrarDetalheOrcamentoMobile, setMostrarDetalheOrcamentoMobile] = useState(false);
   const { hasRole } = useAuth();
   const canEdit = hasRole("editor", "admin");
   const compactLayout = useCompactLayout();
@@ -151,13 +152,14 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
       ),
     }));
 
-    const maximo = itens.reduce((acc, item) => Math.max(acc, item.totalEstimado, item.orcamento), 0) || 1;
-
     return itens.map((item) => ({
       ...item,
-      orcamentoPct: Math.min(100, (item.orcamento / maximo) * 100),
-      totalEstimadoPct: Math.min(100, (item.totalEstimado / maximo) * 100),
-      efetivadoPct: Math.min(100, ((item.efetivado + item.contratado) / maximo) * 100),
+      orcamentoPct: item.totalEstimado > 0 ? Math.min(100, (item.orcamento / item.totalEstimado) * 100) : 0,
+      totalEstimadoPct: item.totalEstimado > 0 ? 100 : 0,
+      efetivadoPct:
+        item.totalEstimado > 0
+          ? Math.min(100, ((item.efetivado + item.contratado) / item.totalEstimado) * 100)
+          : 0,
     }));
   }, [primeiraTabela]);
 
@@ -491,7 +493,19 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
           </div>
         </section>
 
-        {compactLayout ? tabelaPrimeiraCompacta : tabelaPrimeira}
+        {compactLayout ? (
+          <div className="resumo-card__toggle resumo-card__toggle--mobile">
+            <button
+              type="button"
+              className="resumo-card__toggle-btn"
+              onClick={() => setMostrarDetalheOrcamentoMobile((prev) => !prev)}
+            >
+              {mostrarDetalheOrcamentoMobile ? "Ocultar detalhamento do orçamento" : "Detalhar orçamento"}
+            </button>
+          </div>
+        ) : null}
+
+        {compactLayout ? (mostrarDetalheOrcamentoMobile ? tabelaPrimeiraCompacta : null) : tabelaPrimeira}
         {compactLayout ? tabelaFechamentoCompacta : tabelaFechamento}
         {compactLayout ? tabelaFechamentoDetalhadaCompacta : tabelaFechamentoDetalhada}
       </section>
