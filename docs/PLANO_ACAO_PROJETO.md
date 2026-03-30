@@ -383,8 +383,13 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - contagem do card mobile de Financeiro baseada na lista real de imóveis acessíveis ao usuário;
   - versão mobile dedicada do dashboard financeiro para `Resumo Financeiro`, `Financeiro Compartilhado` e grades de transações, substituindo tabelas espremidas por cards/listas empilhadas;
   - leitura do orçamento no mobile simplificada, com detalhamento sob demanda;
+  - primeira dobra do dashboard mobile redesenhada para funcionar como menu operacional do imóvel, com atalhos por ícone para orçamento, sócios, histórico, detalhes, edição e ações rápidas;
+  - badges operacionais no menu mobile indicando pendências, histórico e posição resumida de equalização (`a pagar` / `a receber`);
+  - inclusão de nova transação no mobile movida para o primeiro card do imóvel, sem depender do quadro de pendências;
+  - visão de `Transações Incompletas` removida do mobile, mantendo apenas o fluxo de inclusão direta de transação confirmada;
   - primeira leitura gráfica do orçamento no dashboard, como apoio visual ao comparativo por grupo;
   - remoção do espaço reservado ao mapa no topo do dashboard quando o imóvel não possui geolocalização salva;
+  - refinamento do topo mobile para estados com e sem geolocalização, evitando blocos vazios e excesso de área desperdiçada;
   - remoção de uma chamada redundante no resumo financeiro;
   - carregamento progressivo das seções mais pesadas do dashboard;
   - cache curto para imóveis acessíveis no frontend, reduzindo chamadas repetidas.
@@ -398,11 +403,12 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - revisar minuciosamente a leitura do dashboard compartilhado antes de fechar a interface final;
   - confirmar cenários reais de equalização entre sócios no imóvel piloto, incluindo reflexo correto do saldo após registro do acerto;
   - validar se o CTA de equalização por saldo sugerido está mais claro do que o formulário sempre aberto;
+  - validar se os novos textos do bloco de equalização ficaram mais claros para cenários de pagamento e recebimento;
   - validar se o fluxo `+ Incluir transação` ficou mais natural do que depender do card de pendências;
   - medir o ganho real das primeiras melhorias de performance e identificar os próximos gargalos de carregamento;
   - validar se o card superior mais compacto melhorou a leitura e a navegação do dashboard no uso diário;
   - validar a nova entrada mobile do Financeiro em cenários com um e com vários imóveis acessíveis;
-  - validar se a nova apresentação mobile do dashboard ficou adequada em aparelho real;
+  - validar se a nova apresentação mobile do dashboard ficou adequada em aparelho real, especialmente a primeira dobra em formato de menu operacional;
   - validar se o topo do dashboard sem geolocalização ficou mais limpo e sem espaço desperdiçado.
 - Situação atual dos testes operacionais:
   - a UI mínima de cadastro societário e `pix_key` já existe, então o fluxo compartilhado pode ser validado com dados reais;
@@ -818,7 +824,10 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    - resumo visual mais contido no topo do dashboard;
    - versão mobile com cards/listas no lugar de tabelas comprimidas;
    - detalhamento do orçamento oculto por padrão no mobile;
-   - CTA de equalização por saldo sugerido e modal de ação.
+   - CTA de equalização por saldo sugerido e modal de ação;
+   - menu inicial mobile do imóvel com atalhos por ícone e badges operacionais;
+   - inclusão direta de transação no primeiro card do mobile;
+   - remoção da visão de `Transações Incompletas` do mobile.
 4. [ ] Revisar minuciosamente com o usuário:
    - leitura dos números;
    - clareza entre valores totais vs. proporcionais;
@@ -890,9 +899,9 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
        - com 1 imóvel acessível, deve abrir direto o dashboard;
        - com mais de 1 imóvel, deve abrir a entrada do Financeiro sem retornar para `Prospecções`.
   5.18. [ ] Validar o CTA de equalização:
-       - botão só aparece quando houver saldo a pagar;
-       - botão mostra o valor sugerido;
-       - modal abre com recebedor e valor coerentes.
+       - botão aparece corretamente em cenário de saldo a pagar e em cenário de saldo a receber;
+       - texto orienta claramente quando fazer o pagamento e quando registrar o recebimento;
+       - modal abre com pagador/recebedor coerentes e chave Pix relevante.
   5.19. [ ] Validar a leitura mobile do orçamento:
        - detalhamento não aparece aberto por padrão;
        - ação de `Detalhar orçamento` funciona;
@@ -900,6 +909,11 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   5.20. [ ] Validar imóveis sem geolocalização:
        - o topo do dashboard não reserva espaço para mapa;
        - a leitura do nome/endereço aproveita melhor a largura disponível.
+  5.21. [ ] Validar o novo menu inicial mobile do imóvel:
+       - atalhos ficam legíveis e bem distribuídos;
+       - badges de `Pendências`, `Histórico` e `A pagar/A receber` aparecem de forma discreta e útil;
+       - botão `Incluir` abre o modal e a transação salva corretamente;
+       - a ausência do quadro de `Transações Incompletas` no mobile não faz falta na operação.
 
 12. [ ] **Planejar controle financeiro compartilhado entre sócios**
    12.1. [ ] **Modelagem de participação por imóvel**
@@ -1001,8 +1015,10 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - avaliar regra de compensação e posição devedor/credor;
   - validar a tabela de equalizações com data brasileira, pagador e recebedor;
   - validar o CTA de equalização com saldo sugerido;
+  - validar o CTA de equalização com texto orientado para pagar vs. receber;
   - validar o novo fluxo de `+ Incluir transação`;
   - validar a primeira melhoria visual do card superior simplificado, do mapa sob demanda e do estado sem geolocalização;
+  - validar a nova primeira dobra mobile em formato de menu do imóvel;
   - só então desenhar a interface final do dashboard compartilhado.
 
 3. [ ] **Agora — Validar a navegação mobile do Financeiro**
@@ -1010,7 +1026,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - verificar contador com base nos imóveis realmente acessíveis;
   - confirmar abertura direta do dashboard quando houver um único imóvel;
   - revisar se a entrada `/financeiro` faz sentido também para cenários com múltiplos imóveis;
-  - validar a nova leitura mobile de orçamento, compartilhamento e transações.
+  - validar a nova leitura mobile de orçamento, compartilhamento e transações;
+  - confirmar que o mobile opera sem o quadro visual de `Transações Incompletas`, usando o botão `Incluir` no primeiro card.
 
 4. [ ] **Agora — Melhorar desempenho percebido e operacional**
   - medir o ganho real da rodada já aplicada:

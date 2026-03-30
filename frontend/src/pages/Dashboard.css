@@ -1201,16 +1201,30 @@
     gap: 0.55rem;
   }
 
-  .dados-card__quick-button {
-    min-height: 88px;
-    padding: 0.7rem 0.55rem;
-    border-radius: 18px;
+.dados-card__quick-button {
+  min-height: 88px;
+  padding: 0.7rem 0.55rem;
+  border-radius: 18px;
     background: linear-gradient(180deg, #fbfcff 0%, #f4f7ff 100%);
     box-shadow: 0 12px 24px -20px rgba(56, 89, 255, 0.45);
     position: relative;
     align-items: flex-start;
-    justify-content: flex-start;
-  }
+  justify-content: flex-start;
+}
+
+.dados-card__quick-button--primary {
+  background: linear-gradient(180deg, #edf4ff 0%, #dfe9ff 100%);
+  border-color: rgba(56, 89, 255, 0.22);
+  box-shadow: 0 18px 32px -24px rgba(56, 89, 255, 0.55);
+}
+
+.dados-card__quick-button--primary .dados-card__quick-icon-wrap {
+  background: rgba(56, 89, 255, 0.14);
+}
+
+.dados-card__quick-button--primary .dados-card__quick-label {
+  color: #1d3fcb;
+}
 
   .dados-card__quick-icon-wrap {
     width: 2.1rem;

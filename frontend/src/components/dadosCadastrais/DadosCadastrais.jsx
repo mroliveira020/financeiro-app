@@ -326,18 +326,18 @@ function DadosCadastrais({ refreshKey = 0, onChanged }) {
               </div>
 
               <div className="dados-card__quick-menu">
-                <button type="button" className="dados-card__quick-button" onClick={() => setMostrarModalImoveis(true)}>
-                  <span className="dados-card__quick-icon-wrap">
-                    <span className="dados-card__quick-icon" aria-hidden="true">🔁</span>
-                  </span>
-                  <span className="dados-card__quick-label">Trocar</span>
-                </button>
-                <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("resumo-financeiro")}>
-                  <span className="dados-card__quick-icon-wrap">
-                    <span className="dados-card__quick-icon" aria-hidden="true">📊</span>
-                  </span>
-                  <span className="dados-card__quick-label">Orçamento</span>
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    className="dados-card__quick-button dados-card__quick-button--primary"
+                    onClick={abrirNovaTransacao}
+                  >
+                    <span className="dados-card__quick-icon-wrap">
+                      <span className="dados-card__quick-icon" aria-hidden="true">➕</span>
+                    </span>
+                    <span className="dados-card__quick-label">Nova despesa</span>
+                  </button>
+                )}
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("financeiro-compartilhado")}>
                   <span className="dados-card__quick-icon-wrap">
                     <span className="dados-card__quick-icon" aria-hidden="true">🤝</span>
@@ -349,21 +349,12 @@ function DadosCadastrais({ refreshKey = 0, onChanged }) {
                     </small>
                   ) : null}
                 </button>
-                {canEdit && (
-                  <button
-                    type="button"
-                    className="dados-card__quick-button"
-                    onClick={abrirNovaTransacao}
-                  >
-                    <span className="dados-card__quick-icon-wrap">
-                      <span className="dados-card__quick-icon" aria-hidden="true">➕</span>
-                    </span>
-                    <span className="dados-card__quick-label">Incluir</span>
-                    {quickStats.pendencias > 0 ? (
-                      <small className="dados-card__quick-badge is-warning">{quickStats.pendencias}</small>
-                    ) : null}
-                  </button>
-                )}
+                <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("resumo-financeiro")}>
+                  <span className="dados-card__quick-icon-wrap">
+                    <span className="dados-card__quick-icon" aria-hidden="true">📊</span>
+                  </span>
+                  <span className="dados-card__quick-label">Orçamento</span>
+                </button>
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("transacoes-completas")}>
                   <span className="dados-card__quick-icon-wrap">
                     <span className="dados-card__quick-icon" aria-hidden="true">✅</span>
@@ -373,6 +364,15 @@ function DadosCadastrais({ refreshKey = 0, onChanged }) {
                     <small className="dados-card__quick-badge">{quickStats.historico}</small>
                   ) : null}
                 </button>
+                {quickStats.pendencias > 0 ? (
+                  <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("transacoes-completas")}>
+                    <span className="dados-card__quick-icon-wrap">
+                      <span className="dados-card__quick-icon" aria-hidden="true">⏳</span>
+                    </span>
+                    <span className="dados-card__quick-label">Pendências</span>
+                    <small className="dados-card__quick-badge is-warning">{quickStats.pendencias}</small>
+                  </button>
+                ) : null}
                 <button type="button" className="dados-card__quick-button" onClick={abrirDetalhes}>
                   <span className="dados-card__quick-icon-wrap">
                     <span className="dados-card__quick-icon" aria-hidden="true">📋</span>
@@ -399,6 +399,12 @@ function DadosCadastrais({ refreshKey = 0, onChanged }) {
                     <span className="dados-card__quick-label">Mapa</span>
                   </button>
                 )}
+                <button type="button" className="dados-card__quick-button" onClick={() => setMostrarModalImoveis(true)}>
+                  <span className="dados-card__quick-icon-wrap">
+                    <span className="dados-card__quick-icon" aria-hidden="true">🔁</span>
+                  </span>
+                  <span className="dados-card__quick-label">Trocar imóvel</span>
+                </button>
               </div>
             </div>
           </div>
