@@ -84,6 +84,10 @@
   padding: 1.25rem 1.35rem;
 }
 
+.dados-card__mobile-shell {
+  display: none;
+}
+
 .dados-card__layout {
   display: grid;
   grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
@@ -106,6 +110,11 @@
 
 .dados-card__map--full {
   aspect-ratio: 4 / 3;
+}
+
+.dados-card__map--hero {
+  height: 100%;
+  min-height: 190px;
 }
 
 .dados-card__map iframe {
@@ -273,6 +282,22 @@
   color: #1d2d4b;
   font-size: 0.92rem;
   line-height: 1.45;
+}
+
+.dados-card__mobile-summary {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.dados-card__mobile-summary strong {
+  font-size: 1.02rem;
+  color: #19263f;
+  line-height: 1.3;
+}
+
+.dados-card__mobile-summary span {
+  color: #6f7f9d;
+  font-size: 0.84rem;
 }
 
 .dados-card__quick-menu {
@@ -1037,93 +1062,134 @@
   }
 
   .dashboard-card {
-    padding: 0.9rem;
-    border-radius: 18px;
+    padding: 0;
+    border-radius: 28px;
+    overflow: hidden;
+  }
+
+  .dados-card {
+    gap: 0;
+    padding: 0;
+  }
+
+  .dados-card__mobile-shell {
+    display: block;
+    width: 100%;
   }
 
   .dados-card__layout {
-    grid-template-columns: 1fr;
-    gap: 0.75rem;
+    display: none;
   }
 
-  .dados-card__media {
-    gap: 0.5rem;
+  .dados-card__mobile-hero {
+    position: relative;
+    min-height: 180px;
+    background:
+      radial-gradient(circle at top right, rgba(56, 89, 255, 0.24), transparent 42%),
+      linear-gradient(160deg, #20345b 0%, #2f4572 40%, #e7eefb 100%);
   }
 
-  .dados-card__map {
-    min-height: 88px;
+  .dados-card__mobile-hero--fallback {
+    min-height: 120px;
+    background:
+      radial-gradient(circle at top right, rgba(56, 89, 255, 0.18), transparent 42%),
+      linear-gradient(160deg, #eef3ff 0%, #e4ebfb 100%);
   }
 
-  .dados-card__map--full {
-    aspect-ratio: 16 / 9;
+  .dados-card__mobile-hero-map {
+    position: absolute;
+    inset: 0;
   }
 
-  .dados-card__map--placeholder-action {
-    padding: 0.75rem;
+  .dados-card__mobile-hero .dados-card__map {
+    height: 100%;
+    min-height: 180px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
   }
 
-  .dados-card__map-copy span {
-    font-size: 0.76rem;
-  }
-
-  .dados-card__map-mobile-actions .dados-card__map-inline-button,
-  .dados-card__map-mobile-actions .dados-card__map-button {
-    flex: 1 1 100%;
+  .dados-card__hero-map-trigger {
     width: 100%;
-    justify-content: center;
+    height: 100%;
+    min-height: 180px;
+    border: none;
+    background:
+      linear-gradient(180deg, rgba(10, 19, 36, 0.08), rgba(10, 19, 36, 0.42)),
+      linear-gradient(160deg, #344f82 0%, #27426e 40%, #10213d 100%);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 1.1rem;
+    text-align: left;
+    gap: 0.2rem;
+  }
+
+  .dados-card__hero-map-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.8;
+  }
+
+  .dados-card__hero-map-trigger strong {
+    font-size: 1.02rem;
+    font-weight: 700;
+  }
+
+  .dados-card__mobile-panel {
+    margin-top: -1.75rem;
+    position: relative;
+    z-index: 2;
+    background: #fff;
+    border-radius: 28px 28px 0 0;
+    padding: 1rem 1rem 1.1rem;
+    display: grid;
+    gap: 1rem;
+    box-shadow: 0 -8px 22px -18px rgba(15, 35, 95, 0.32);
+  }
+
+  .dados-card__name--mobile {
+    gap: 0.55rem;
+    align-items: flex-start;
+  }
+
+  .dados-card__name--mobile h2 {
+    font-size: 2.05rem;
+    line-height: 0.98;
+    letter-spacing: -0.03em;
   }
 
   .dados-card__summary {
     max-width: none;
   }
 
-  .dados-card__name {
-    gap: 0.5rem;
-  }
-
-  .dados-card__name h2 {
-    font-size: 1.9rem;
-  }
-
-  .dados-card__summary div {
-    padding: 0.75rem 0.85rem;
-  }
-
-  .dados-card__summary strong {
-    font-size: 0.88rem;
-    line-height: 1.35;
-  }
-
   .dados-card__quick-menu {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.55rem;
   }
 
   .dados-card__quick-button {
-    min-height: 72px;
-    padding: 0.7rem 0.65rem;
-    border-radius: 14px;
+    min-height: 74px;
+    padding: 0.7rem 0.55rem;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #fbfcff 0%, #f4f7ff 100%);
+    box-shadow: 0 12px 24px -20px rgba(56, 89, 255, 0.45);
+  }
+
+  .dados-card__quick-icon {
+    font-size: 1.05rem;
   }
 
   .dados-card__quick-button span:last-child {
-    font-size: 0.76rem;
+    font-size: 0.72rem;
+    line-height: 1.15;
   }
 
   .dados-card__actions {
-    justify-content: flex-start;
-    gap: 0.5rem;
-  }
-
-  .dados-card__actions button {
-    flex: 1 1 calc(50% - 0.3rem);
-    justify-content: center;
-    min-height: 42px;
-    padding: 0.55rem 0.7rem;
-    font-size: 0.8rem;
-  }
-
-  .dados-card__actions button:last-child {
-    flex-basis: 100%;
+    display: none;
   }
 
   .resumo-card__metrics,

@@ -148,44 +148,45 @@ function DadosCadastrais() {
   return (
     <>
       <section className="dashboard-card dados-card">
-        <div className="dados-card__layout">
-          {mapaDisponivel && !compactLayout ? (
-            <div className="dados-card__media">
-              {(!compactLayout || mostrarMapa) && (
-                <div
-                  className="dados-card__map dados-card__map--full"
-                >
-                  {renderMapa()}
+        {compactLayout ? (
+          <div className={`dados-card__mobile-shell ${mapaDisponivel ? "has-map" : "no-map"}`}>
+            {mapaDisponivel ? (
+              <div className="dados-card__mobile-hero">
+                <div className="dados-card__mobile-hero-map">
+                  {mostrarMapa ? (
+                    <div className="dados-card__map dados-card__map--hero">{renderMapa()}</div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="dados-card__hero-map-trigger"
+                      onClick={() => setMostrarMapa(true)}
+                    >
+                      <span className="dados-card__hero-map-label">Mapa do imóvel</span>
+                      <strong>Toque para abrir</strong>
+                    </button>
+                  )}
                 </div>
-              )}
-              {mapaLink && !compactLayout && (
-                <button
-                  type="button"
-                  className="dados-card__map-button"
-                  onClick={() => window.open(mapaLink, "_blank", "noopener")}
-                >
-                  🌐 Abrir mapa ampliado
-                </button>
-              )}
-              {compactLayout && !mostrarMapa ? renderMapa() : null}
-            </div>
-          ) : null}
-          <div className="dados-card__name">
-            <span className="dados-card__status" data-status={imovel.vendido ? "vendido" : "disponivel"}>
-              {imovel.vendido ? "Imóvel vendido" : "Imóvel em andamento"}
-            </span>
-            <h2>{imovel.nome}</h2>
-            <div className={`dados-card__summary ${!mapaDisponivel ? "dados-card__summary--wide" : ""}`.trim()}>
-              <div>
-                <span>Endereço</span>
-                <strong>{imovel.endereco || "Não informado"}</strong>
               </div>
-            </div>
-            {compactLayout && (
+            ) : (
+              <div className="dados-card__mobile-hero dados-card__mobile-hero--fallback" />
+            )}
+
+            <div className="dados-card__mobile-panel">
+              <div className="dados-card__name dados-card__name--mobile">
+                <span className="dados-card__status" data-status={imovel.vendido ? "vendido" : "disponivel"}>
+                  {imovel.vendido ? "Imóvel vendido" : "Imóvel em andamento"}
+                </span>
+                <h2>{imovel.nome}</h2>
+                <div className="dados-card__mobile-summary">
+                  <strong>{imovel.endereco || "Endereço não informado"}</strong>
+                  <span>{mapaDisponivel ? "Localização pronta para consulta" : "Sem geolocalização salva"}</span>
+                </div>
+              </div>
+
               <div className="dados-card__quick-menu">
                 <button type="button" className="dados-card__quick-button" onClick={() => setMostrarModalImoveis(true)}>
                   <span className="dados-card__quick-icon" aria-hidden="true">🔁</span>
-                  <span>Trocar imóvel</span>
+                  <span>Trocar</span>
                 </button>
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("resumo-financeiro")}>
                   <span className="dados-card__quick-icon" aria-hidden="true">📊</span>
@@ -220,13 +221,48 @@ function DadosCadastrais() {
                     onClick={() => window.open(mapaLink, "_blank", "noopener")}
                   >
                     <span className="dados-card__quick-icon" aria-hidden="true">📍</span>
-                    <span>Mapa</span>
+                    <span>Maps</span>
                   </button>
                 )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="dados-card__layout">
+            {mapaDisponivel ? (
+              <div className="dados-card__media">
+                {(!compactLayout || mostrarMapa) && (
+                  <div
+                    className="dados-card__map dados-card__map--full"
+                  >
+                    {renderMapa()}
+                  </div>
+                )}
+                {mapaLink && !compactLayout && (
+                  <button
+                    type="button"
+                    className="dados-card__map-button"
+                    onClick={() => window.open(mapaLink, "_blank", "noopener")}
+                  >
+                    🌐 Abrir mapa ampliado
+                  </button>
+                )}
+              </div>
+            ) : null}
+            <div className="dados-card__name">
+              <span className="dados-card__status" data-status={imovel.vendido ? "vendido" : "disponivel"}>
+                {imovel.vendido ? "Imóvel vendido" : "Imóvel em andamento"}
+              </span>
+              <h2>{imovel.nome}</h2>
+              <div className={`dados-card__summary ${!mapaDisponivel ? "dados-card__summary--wide" : ""}`.trim()}>
+                <div>
+                  <span>Endereço</span>
+                  <strong>{imovel.endereco || "Não informado"}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {!compactLayout && (
           <div className="dados-card__actions">
