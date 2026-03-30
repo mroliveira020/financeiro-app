@@ -200,6 +200,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .dados-card__actions button {
@@ -945,42 +946,22 @@
 
 @media (max-width: 640px) {
   .dashboard-page {
-    padding: 1rem 0 2rem;
+    padding: 0.35rem 0 2rem;
   }
 
   .dashboard-container {
     width: min(100%, calc(100vw - 1rem));
-    gap: 1rem;
-  }
-
-  .dashboard-header {
-    gap: 0.75rem;
-  }
-
-  .dashboard-header__title h1 {
-    font-size: 1.35rem;
-  }
-
-  .dashboard-header__title span {
-    font-size: 0.85rem;
-  }
-
-  .dashboard-header__actions {
-    width: 100%;
-  }
-
-  .dashboard-header__actions .btn-outline-secondary {
-    width: 100%;
-    justify-content: center;
+    gap: 0.85rem;
   }
 
   .dashboard-card {
-    padding: 1rem;
+    padding: 0.9rem;
     border-radius: 18px;
   }
 
   .dados-card__layout {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 
   .dados-card__media {
@@ -1014,14 +995,38 @@
     max-width: none;
   }
 
+  .dados-card__name {
+    gap: 0.5rem;
+  }
+
+  .dados-card__name h2 {
+    font-size: 1.9rem;
+  }
+
+  .dados-card__summary div {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .dados-card__summary strong {
+    font-size: 0.88rem;
+    line-height: 1.35;
+  }
+
   .dados-card__actions {
     justify-content: flex-start;
-    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   .dados-card__actions button {
     flex: 1 1 calc(50% - 0.3rem);
     justify-content: center;
+    min-height: 42px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.8rem;
+  }
+
+  .dados-card__actions button:last-child {
+    flex-basis: 100%;
   }
 
   .resumo-card__metrics,

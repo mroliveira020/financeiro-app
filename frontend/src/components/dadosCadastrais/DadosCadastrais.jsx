@@ -128,20 +128,6 @@ function DadosCadastrais() {
   return (
     <>
       <section className="dashboard-card dados-card">
-        <div className="dados-card__actions">
-          <button type="button" onClick={() => setMostrarModalImoveis(true)}>
-            Trocar imóvel
-          </button>
-          {canEdit && (
-            <button type="button" onClick={() => setMostrarModalEditar(true)}>
-              Editar dados
-            </button>
-          )}
-          <button type="button" onClick={() => setExpandir((prev) => !prev)}>
-            {expandir ? "Ocultar detalhes" : "Mostrar detalhes"}
-          </button>
-        </div>
-
         <div className="dados-card__layout">
           {mapaDisponivel ? (
             <div className="dados-card__media">
@@ -176,6 +162,20 @@ function DadosCadastrais() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="dados-card__actions">
+          <button type="button" onClick={() => setMostrarModalImoveis(true)}>
+            Trocar imóvel
+          </button>
+          {canEdit && (
+            <button type="button" onClick={() => setMostrarModalEditar(true)}>
+              Editar dados
+            </button>
+          )}
+          <button type="button" onClick={() => setExpandir((prev) => !prev)}>
+            {expandir ? "Ocultar detalhes" : "Mostrar detalhes"}
+          </button>
         </div>
 
         {expandir && (
