@@ -56,19 +56,27 @@ function Dashboard() {
       <div className="dashboard-container">
         <section className="dashboard-main">
           <DadosCadastrais />
-          <ResumoFinanceiro refreshKey={refreshKey} />
-          <DeferredSection placeholder="Preparando posição compartilhada...">
-            <FinanceiroCompartilhadoCard refreshKey={refreshKey} onChanged={dispararAtualizacao} />
-          </DeferredSection>
+          <section id="resumo-financeiro">
+            <ResumoFinanceiro refreshKey={refreshKey} />
+          </section>
+          <section id="financeiro-compartilhado">
+            <DeferredSection placeholder="Preparando posição compartilhada...">
+              <FinanceiroCompartilhadoCard refreshKey={refreshKey} onChanged={dispararAtualizacao} />
+            </DeferredSection>
+          </section>
         </section>
 
         <section className="dashboard-transactions">
-          <DeferredSection placeholder="Preparando transações incompletas...">
-            <TransacoesIncompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
-          </DeferredSection>
-          <DeferredSection placeholder="Preparando transações completas...">
-            <TransacoesCompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
-          </DeferredSection>
+          <section id="transacoes-incompletas">
+            <DeferredSection placeholder="Preparando transações incompletas...">
+              <TransacoesIncompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
+            </DeferredSection>
+          </section>
+          <section id="transacoes-completas">
+            <DeferredSection placeholder="Preparando transações completas...">
+              <TransacoesCompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
+            </DeferredSection>
+          </section>
         </section>
       </div>
     </div>

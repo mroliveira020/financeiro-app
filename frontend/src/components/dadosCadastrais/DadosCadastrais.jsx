@@ -19,6 +19,16 @@ function DadosCadastrais() {
   const canEdit = hasRole("editor", "admin");
   const compactLayout = useCompactLayout();
 
+  const irParaSecao = useCallback((sectionId) => {
+    if (!sectionId) return;
+    window.requestAnimationFrame(() => {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  }, []);
+
   const fetchImovel = useCallback(async () => {
     try {
       const { data } = await api.get(`/imoveis/${id}`);
@@ -117,6 +127,16 @@ function DadosCadastrais() {
     ];
   }, [imovel]);
 
+  const abrirDetalhes = useCallback(() => {
+    setExpandir(true);
+    window.setTimeout(() => {
+      const element = document.getElementById("dados-detalhes-imovel");
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 80);
+  }, []);
+
   if (!imovel) {
     return (
       <section className="dashboard-card dados-card">
@@ -129,7 +149,7 @@ function DadosCadastrais() {
     <>
       <section className="dashboard-card dados-card">
         <div className="dados-card__layout">
-          {mapaDisponivel ? (
+          {mapaDisponivel && !compactLayout ? (
             <div className="dados-card__media">
               {(!compactLayout || mostrarMapa) && (
                 <div
@@ -161,25 +181,71 @@ function DadosCadastrais() {
                 <strong>{imovel.endereco || "Não informado"}</strong>
               </div>
             </div>
+            {compactLayout && (
+              <div className="dados-card__quick-menu">
+                <button type="button" className="dados-card__quick-button" onClick={() => setMostrarModalImoveis(true)}>
+                  <span className="dados-card__quick-icon" aria-hidden="true">🔁</span>
+                  <span>Trocar imóvel</span>
+                </button>
+                <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("resumo-financeiro")}>
+                  <span className="dados-card__quick-icon" aria-hidden="true">📊</span>
+                  <span>Orçamento</span>
+                </button>
+                <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("financeiro-compartilhado")}>
+                  <span className="dados-card__quick-icon" aria-hidden="true">🤝</span>
+                  <span>Sócios</span>
+                </button>
+                <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("transacoes-incompletas")}>
+                  <span className="dados-card__quick-icon" aria-hidden="true">⏳</span>
+                  <span>Pendências</span>
+                </button>
+                <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("transacoes-completas")}>
+                  <span className="dados-card__quick-icon" aria-hidden="true">✅</span>
+                  <span>Histórico</span>
+                </button>
+                <button type="button" className="dados-card__quick-button" onClick={abrirDetalhes}>
+                  <span className="dados-card__quick-icon" aria-hidden="true">📋</span>
+                  <span>Detalhes</span>
+                </button>
+                {canEdit && (
+                  <button type="button" className="dados-card__quick-button" onClick={() => setMostrarModalEditar(true)}>
+                    <span className="dados-card__quick-icon" aria-hidden="true">✏️</span>
+                    <span>Editar</span>
+                  </button>
+                )}
+                {mapaLink && (
+                  <button
+                    type="button"
+                    className="dados-card__quick-button"
+                    onClick={() => window.open(mapaLink, "_blank", "noopener")}
+                  >
+                    <span className="dados-card__quick-icon" aria-hidden="true">📍</span>
+                    <span>Mapa</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="dados-card__actions">
-          <button type="button" onClick={() => setMostrarModalImoveis(true)}>
-            Trocar imóvel
-          </button>
-          {canEdit && (
-            <button type="button" onClick={() => setMostrarModalEditar(true)}>
-              Editar dados
+        {!compactLayout && (
+          <div className="dados-card__actions">
+            <button type="button" onClick={() => setMostrarModalImoveis(true)}>
+              Trocar imóvel
             </button>
-          )}
-          <button type="button" onClick={() => setExpandir((prev) => !prev)}>
-            {expandir ? "Ocultar detalhes" : "Mostrar detalhes"}
-          </button>
-        </div>
+            {canEdit && (
+              <button type="button" onClick={() => setMostrarModalEditar(true)}>
+                Editar dados
+              </button>
+            )}
+            <button type="button" onClick={() => setExpandir((prev) => !prev)}>
+              {expandir ? "Ocultar detalhes" : "Mostrar detalhes"}
+            </button>
+          </div>
+        )}
 
         {expandir && (
-          <dl className="dados-card__details">
+          <dl id="dados-detalhes-imovel" className="dados-card__details">
             {detalhes.map((item) => (
               <div key={item.label}>
                 <dt>{item.label}</dt>
