@@ -53,9 +53,7 @@ function DadosCadastrais() {
     : null;
 
   const renderMapa = () => {
-    if (!mapaDisponivel) {
-      return <div className="dados-card__map--placeholder">Localização não informada</div>;
-    }
+    if (!mapaDisponivel) return null;
     if (compactLayout && !mostrarMapa) {
       return (
         <div className="dados-card__map-mobile-actions">
@@ -145,30 +143,33 @@ function DadosCadastrais() {
         </div>
 
         <div className="dados-card__layout">
-          <div className="dados-card__media">
-            {(!compactLayout || mostrarMapa || !mapaDisponivel) && (
-              <div
-                className="dados-card__map dados-card__map--full"
-              >
-                {renderMapa()}
-              </div>
-            )}
-            {mapaLink && !compactLayout && (
-              <button
-                type="button"
-                className="dados-card__map-button"
-                onClick={() => window.open(mapaLink, "_blank", "noopener")}
-              >
-                🌐 Abrir mapa ampliado
-              </button>
-            )}
-          </div>
+          {mapaDisponivel ? (
+            <div className="dados-card__media">
+              {(!compactLayout || mostrarMapa) && (
+                <div
+                  className="dados-card__map dados-card__map--full"
+                >
+                  {renderMapa()}
+                </div>
+              )}
+              {mapaLink && !compactLayout && (
+                <button
+                  type="button"
+                  className="dados-card__map-button"
+                  onClick={() => window.open(mapaLink, "_blank", "noopener")}
+                >
+                  🌐 Abrir mapa ampliado
+                </button>
+              )}
+              {compactLayout && !mostrarMapa ? renderMapa() : null}
+            </div>
+          ) : null}
           <div className="dados-card__name">
             <span className="dados-card__status" data-status={imovel.vendido ? "vendido" : "disponivel"}>
               {imovel.vendido ? "Imóvel vendido" : "Imóvel em andamento"}
             </span>
             <h2>{imovel.nome}</h2>
-            <div className="dados-card__summary">
+            <div className={`dados-card__summary ${!mapaDisponivel ? "dados-card__summary--wide" : ""}`.trim()}>
               <div>
                 <span>Endereço</span>
                 <strong>{imovel.endereco || "Não informado"}</strong>

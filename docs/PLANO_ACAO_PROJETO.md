@@ -384,6 +384,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - versão mobile dedicada do dashboard financeiro para `Resumo Financeiro`, `Financeiro Compartilhado` e grades de transações, substituindo tabelas espremidas por cards/listas empilhadas;
   - leitura do orçamento no mobile simplificada, com detalhamento sob demanda;
   - primeira leitura gráfica do orçamento no dashboard, como apoio visual ao comparativo por grupo;
+  - remoção do espaço reservado ao mapa no topo do dashboard quando o imóvel não possui geolocalização salva;
   - remoção de uma chamada redundante no resumo financeiro;
   - carregamento progressivo das seções mais pesadas do dashboard;
   - cache curto para imóveis acessíveis no frontend, reduzindo chamadas repetidas.
@@ -401,7 +402,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - medir o ganho real das primeiras melhorias de performance e identificar os próximos gargalos de carregamento;
   - validar se o card superior mais compacto melhorou a leitura e a navegação do dashboard no uso diário;
   - validar a nova entrada mobile do Financeiro em cenários com um e com vários imóveis acessíveis;
-  - validar se a nova apresentação mobile do dashboard ficou adequada em aparelho real.
+  - validar se a nova apresentação mobile do dashboard ficou adequada em aparelho real;
+  - validar se o topo do dashboard sem geolocalização ficou mais limpo e sem espaço desperdiçado.
 - Situação atual dos testes operacionais:
   - a UI mínima de cadastro societário e `pix_key` já existe, então o fluxo compartilhado pode ser validado com dados reais;
   - o bloqueio principal deixou de ser cadastro/vínculo e passou a ser refinamento funcional do dashboard compartilhado, da equalização entre sócios e da navegação mobile do Financeiro.
@@ -812,6 +814,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - card superior simplificado para nome do imóvel, endereço e mapa;
   - remoção de `ganho de capital` e `valor de venda` do topo do dashboard;
   - mapa sob demanda, carregado apenas quando o usuário solicitar;
+   - quando não houver geolocalização, o topo não reserva área para mapa;
    - resumo visual mais contido no topo do dashboard;
    - versão mobile com cards/listas no lugar de tabelas comprimidas;
    - detalhamento do orçamento oculto por padrão no mobile;
@@ -894,6 +897,9 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
        - detalhamento não aparece aberto por padrão;
        - ação de `Detalhar orçamento` funciona;
        - leitura em cards/listas ficou adequada em tela pequena.
+  5.20. [ ] Validar imóveis sem geolocalização:
+       - o topo do dashboard não reserva espaço para mapa;
+       - a leitura do nome/endereço aproveita melhor a largura disponível.
 
 12. [ ] **Planejar controle financeiro compartilhado entre sócios**
    12.1. [ ] **Modelagem de participação por imóvel**
@@ -996,7 +1002,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - validar a tabela de equalizações com data brasileira, pagador e recebedor;
   - validar o CTA de equalização com saldo sugerido;
   - validar o novo fluxo de `+ Incluir transação`;
-  - validar a primeira melhoria visual do card superior simplificado e do mapa sob demanda;
+  - validar a primeira melhoria visual do card superior simplificado, do mapa sob demanda e do estado sem geolocalização;
   - só então desenhar a interface final do dashboard compartilhado.
 
 3. [ ] **Agora — Validar a navegação mobile do Financeiro**

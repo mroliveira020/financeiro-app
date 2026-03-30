@@ -248,6 +248,10 @@
   max-width: 520px;
 }
 
+.dados-card__summary--wide {
+  max-width: 100%;
+}
+
 .dados-card__summary div {
   padding: 0.8rem 0.9rem;
   border-radius: 14px;
