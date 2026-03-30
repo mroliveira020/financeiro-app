@@ -12,6 +12,7 @@ import {
 import LancamentosTable from "./LancamentosTable";
 import ModalEdicao from "./ModalEdicao";
 import ModalLote from "./ModalLote";
+import ModalNovaTransacao from "./ModalNovaTransacao";
 import { useAuth } from "../../context/AuthContext";
 import { useCatalogos } from "../../hooks/useCatalogos";
 
@@ -67,6 +68,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const [formEdicao, setFormEdicao] = useState({});
   const [textoLote, setTextoLote] = useState('');
   const [paidByUserIdLote, setPaidByUserIdLote] = useState("");
+  const [novaTransacao, setNovaTransacao] = useState(null);
   const [sociosImovel, setSociosImovel] = useState([]);
   const [carregandoSociosImovel, setCarregandoSociosImovel] = useState(false);
   const [imoveisAcessiveis, setImoveisAcessiveis] = useState([]);
@@ -414,6 +416,19 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
     modal.show();
   };
 
+  const abrirModalNovaTransacao = () => {
+    setNovaTransacao({
+      data: new Date().toLocaleDateString("pt-BR"),
+      descricao: "",
+      valor: "",
+      id_categoria: "",
+      id_imovel: String(id || ""),
+      paid_by_user_id: sociosImovel.length === 1 ? String(sociosImovel[0].user_id) : "",
+    });
+    const modal = new bootstrap.Modal(document.getElementById("modalNovaTransacao"));
+    modal.show();
+  };
+
   const enviarLote = async () => {
     try {
       if (!paidByUserIdLote) {
@@ -467,6 +482,44 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
     }
   };
 
+  const salvarNovaTransacao = async () => {
+    try {
+      if (!novaTransacao?.data || !novaTransacao?.descricao?.trim() || !novaTransacao?.valor) {
+        alert("Preencha data, descrição e valor.");
+        return;
+      }
+      if (!novaTransacao?.id_categoria || !novaTransacao?.id_imovel) {
+        alert("Selecione categoria e imóvel.");
+        return;
+      }
+
+      await api.post("/dashboard/lancamentos/lote", [
+        {
+          data: novaTransacao.data.trim(),
+          descricao: novaTransacao.descricao.trim(),
+          valor: normalizarValor(novaTransacao.valor, "nova transação"),
+          id_imovel: parseInt(novaTransacao.id_imovel, 10),
+          id_categoria: parseInt(novaTransacao.id_categoria, 10),
+          id_situacao: 1,
+          ativo: 1,
+          paid_by_user_id: novaTransacao.paid_by_user_id
+            ? parseInt(novaTransacao.paid_by_user_id, 10)
+            : null,
+          tipo_movimentacao: "despesa_imovel",
+        },
+      ]);
+
+      await carregarLancamentos(page);
+      onChanged?.();
+      const modal = bootstrap.Modal.getInstance(document.getElementById("modalNovaTransacao"));
+      modal.hide();
+      setNovaTransacao(null);
+    } catch (error) {
+      console.error("Erro ao incluir transação", error);
+      alert(error?.response?.data?.error || error.message || "Erro ao incluir transação.");
+    }
+  };
+
   return (
     <>
       <section className="dashboard-card transacoes-card">
@@ -484,6 +537,16 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
               <span>Valor total</span>
               <strong>{formatarMoeda(totais.soma)}</strong>
             </div>
+            {canEdit && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={abrirModalNovaTransacao}
+                title="Adicionar transação já confirmada"
+              >
+                + Incluir transação
+              </button>
+            )}
             {canEdit && (
               <button
                 type="button"
@@ -548,6 +611,14 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
         paidByUserId={paidByUserIdLote}
         setPaidByUserId={setPaidByUserIdLote}
         carregandoSocios={carregandoSociosImovel}
+      />
+
+      <ModalNovaTransacao
+        form={novaTransacao}
+        setForm={setNovaTransacao}
+        onSave={salvarNovaTransacao}
+        categorias={categoriasOrdenadas}
+        imoveis={imoveisOrdenados}
       />
     </>
   );

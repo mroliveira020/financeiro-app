@@ -136,6 +136,31 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
     [investimentoTotal, totaisPrimeira.saldo_a_investir_total, resultadoLiquido, roi]
   );
 
+  const graficoOrcamento = useMemo(() => {
+    const itens = primeiraTabela.map((item) => ({
+      id: item.id_grupo,
+      grupo: item.grupo,
+      orcamento: Number(item.orcamento || 0),
+      efetivado: Number(item.valor_efetivado || 0),
+      contratado: Number(item.valor_em_contratacao || 0),
+      totalEstimado: Number(
+        Math.max(
+          Number(item.orcamento || 0),
+          Number(item.valor_efetivado || 0) + Number(item.valor_em_contratacao || 0)
+        ) || 0
+      ),
+    }));
+
+    const maximo = itens.reduce((acc, item) => Math.max(acc, item.totalEstimado, item.orcamento), 0) || 1;
+
+    return itens.map((item) => ({
+      ...item,
+      orcamentoPct: Math.min(100, (item.orcamento / maximo) * 100),
+      totalEstimadoPct: Math.min(100, (item.totalEstimado / maximo) * 100),
+      efetivadoPct: Math.min(100, ((item.efetivado + item.contratado) / maximo) * 100),
+    }));
+  }, [primeiraTabela]);
+
   const tabelaPrimeira = (
     <div className="resumo-card__table table-responsive">
       <table className="table align-middle">
@@ -424,6 +449,47 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
             </div>
           ))}
         </div>
+
+        <section className="resumo-card__chart">
+          <header className="resumo-card__chart-header">
+            <div>
+              <h3>Visão do orçamento</h3>
+              <p>Compare orçamento, valor comprometido e total estimado por grupo.</p>
+            </div>
+          </header>
+          <div className="resumo-card__chart-list">
+            {graficoOrcamento.map((item) => (
+              <article key={item.id} className="resumo-card__chart-item">
+                <div className="resumo-card__chart-item-head">
+                  <strong>{item.grupo}</strong>
+                  <span>{formatarMoeda(item.totalEstimado)}</span>
+                </div>
+                <div className="resumo-card__chart-bar">
+                  <div
+                    className="resumo-card__chart-bar--budget"
+                    style={{ width: `${item.orcamentoPct}%` }}
+                    title={`Orçamento: ${formatarMoeda(item.orcamento)}`}
+                  />
+                  <div
+                    className="resumo-card__chart-bar--committed"
+                    style={{ width: `${item.efetivadoPct}%` }}
+                    title={`Efetivado + contratação: ${formatarMoeda(item.efetivado + item.contratado)}`}
+                  />
+                  <div
+                    className="resumo-card__chart-bar--estimate"
+                    style={{ width: `${item.totalEstimadoPct}%` }}
+                    title={`Total estimado: ${formatarMoeda(item.totalEstimado)}`}
+                  />
+                </div>
+                <div className="resumo-card__chart-legend">
+                  <span><i className="budget"></i> Orçamento</span>
+                  <span><i className="committed"></i> Comprometido</span>
+                  <span><i className="estimate"></i> Estimado</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
 
         {compactLayout ? tabelaPrimeiraCompacta : tabelaPrimeira}
         {compactLayout ? tabelaFechamentoCompacta : tabelaFechamento}
