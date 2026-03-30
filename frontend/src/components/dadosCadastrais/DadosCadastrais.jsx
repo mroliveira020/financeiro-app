@@ -242,44 +242,58 @@ function DadosCadastrais({ refreshKey = 0 }) {
 
               <div className="dados-card__quick-menu">
                 <button type="button" className="dados-card__quick-button" onClick={() => setMostrarModalImoveis(true)}>
-                  <span className="dados-card__quick-icon" aria-hidden="true">🔁</span>
-                  <span>Trocar</span>
+                  <span className="dados-card__quick-icon-wrap">
+                    <span className="dados-card__quick-icon" aria-hidden="true">🔁</span>
+                  </span>
+                  <span className="dados-card__quick-label">Trocar</span>
                 </button>
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("resumo-financeiro")}>
-                  <span className="dados-card__quick-icon" aria-hidden="true">📊</span>
-                  <span>Orçamento</span>
+                  <span className="dados-card__quick-icon-wrap">
+                    <span className="dados-card__quick-icon" aria-hidden="true">📊</span>
+                  </span>
+                  <span className="dados-card__quick-label">Orçamento</span>
                 </button>
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("financeiro-compartilhado")}>
-                  <span className="dados-card__quick-icon" aria-hidden="true">🤝</span>
-                  <span>Sócios</span>
+                  <span className="dados-card__quick-icon-wrap">
+                    <span className="dados-card__quick-icon" aria-hidden="true">🤝</span>
+                  </span>
+                  <span className="dados-card__quick-label">Sócios</span>
                   {quickStats.saldo ? (
                     <small className={`dados-card__quick-badge ${quickStats.saldo.tipo === "receber" ? "is-positive" : "is-warning"}`}>
-                      {quickStats.saldo.tipo === "receber" ? "A receber" : "A pagar"} {formatarBadgeMoeda(quickStats.saldo.valor)}
+                      {quickStats.saldo.tipo === "receber" ? "Receber" : "Pagar"} {formatarBadgeMoeda(quickStats.saldo.valor)}
                     </small>
                   ) : null}
                 </button>
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("transacoes-incompletas")}>
-                  <span className="dados-card__quick-icon" aria-hidden="true">⏳</span>
-                  <span>Pendências</span>
+                  <span className="dados-card__quick-icon-wrap">
+                    <span className="dados-card__quick-icon" aria-hidden="true">⏳</span>
+                  </span>
+                  <span className="dados-card__quick-label">Pendências</span>
                   {quickStats.pendencias > 0 ? (
-                    <small className="dados-card__quick-badge is-warning">Pendências {quickStats.pendencias}</small>
+                    <small className="dados-card__quick-badge is-warning">{quickStats.pendencias}</small>
                   ) : null}
                 </button>
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("transacoes-completas")}>
-                  <span className="dados-card__quick-icon" aria-hidden="true">✅</span>
-                  <span>Histórico</span>
+                  <span className="dados-card__quick-icon-wrap">
+                    <span className="dados-card__quick-icon" aria-hidden="true">✅</span>
+                  </span>
+                  <span className="dados-card__quick-label">Histórico</span>
                   {quickStats.historico > 0 ? (
-                    <small className="dados-card__quick-badge">Histórico {quickStats.historico}</small>
+                    <small className="dados-card__quick-badge">{quickStats.historico}</small>
                   ) : null}
                 </button>
                 <button type="button" className="dados-card__quick-button" onClick={abrirDetalhes}>
-                  <span className="dados-card__quick-icon" aria-hidden="true">📋</span>
-                  <span>Detalhes</span>
+                  <span className="dados-card__quick-icon-wrap">
+                    <span className="dados-card__quick-icon" aria-hidden="true">📋</span>
+                  </span>
+                  <span className="dados-card__quick-label">Detalhes</span>
                 </button>
                 {canEdit && (
                   <button type="button" className="dados-card__quick-button" onClick={() => setMostrarModalEditar(true)}>
-                    <span className="dados-card__quick-icon" aria-hidden="true">✏️</span>
-                    <span>Editar</span>
+                    <span className="dados-card__quick-icon-wrap">
+                      <span className="dados-card__quick-icon" aria-hidden="true">✏️</span>
+                    </span>
+                    <span className="dados-card__quick-label">Editar</span>
                   </button>
                 )}
                 {mapaLink && (
@@ -288,8 +302,10 @@ function DadosCadastrais({ refreshKey = 0 }) {
                     className="dados-card__quick-button"
                     onClick={() => window.open(mapaLink, "_blank", "noopener")}
                   >
-                    <span className="dados-card__quick-icon" aria-hidden="true">📍</span>
-                    <span>Maps</span>
+                    <span className="dados-card__quick-icon-wrap">
+                      <span className="dados-card__quick-icon" aria-hidden="true">📍</span>
+                    </span>
+                    <span className="dados-card__quick-label">Mapa</span>
                   </button>
                 )}
               </div>
