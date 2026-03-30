@@ -105,6 +105,10 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
     const saldo = Number(socioAtual?.saldo_liquido || 0);
     return saldo < 0 ? Math.abs(saldo) : 0;
   }, [socioAtual]);
+  const saldoAReceber = useMemo(() => {
+    const saldo = Number(socioAtual?.saldo_liquido || 0);
+    return saldo > 0 ? saldo : 0;
+  }, [socioAtual]);
   const credores = useMemo(
     () =>
       socios
@@ -112,25 +116,61 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
         .sort((a, b) => Number(b.saldo_liquido || 0) - Number(a.saldo_liquido || 0)),
     [socios, user?.id]
   );
+  const devedores = useMemo(
+    () =>
+      socios
+        .filter((socio) => Number(socio.user_id) !== Number(user?.id) && Number(socio.saldo_liquido || 0) < 0)
+        .sort((a, b) => Math.abs(Number(b.saldo_liquido || 0)) - Math.abs(Number(a.saldo_liquido || 0))),
+    [socios, user?.id]
+  );
   const podeRegistrarMinhaEqualizacao =
     canRegisterEqualizacao &&
     Number(user?.id) > 0 &&
-    saldoAPagar > 0 &&
-    credores.length > 0;
+    ((saldoAPagar > 0 && credores.length > 0) || (saldoAReceber > 0 && devedores.length > 0));
+
+  const direcaoEqualizacao = saldoAPagar > 0 ? "pagar" : saldoAReceber > 0 ? "receber" : null;
+  const contrapartePrincipal = useMemo(() => {
+    if (direcaoEqualizacao === "pagar") return credores[0] || null;
+    if (direcaoEqualizacao === "receber") return devedores[0] || null;
+    return null;
+  }, [credores, devedores, direcaoEqualizacao]);
+  const chavePixAtual = socioAtual?.user_pix_key || "";
+  const chavePixContraparte = contrapartePrincipal?.user_pix_key || "";
 
   useEffect(() => {
     if (podeRegistrarMinhaEqualizacao && !form.paid_by_user_id && !form.beneficiary_user_id) {
-      setForm((prev) => ({
-        ...prev,
-        paid_by_user_id: String(user.id),
-        beneficiary_user_id: String(credores[0].user_id),
-        valor: saldoAPagar.toLocaleString("pt-BR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }),
-      }));
+      const valorSugerido = (direcaoEqualizacao === "pagar" ? saldoAPagar : saldoAReceber).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      if (direcaoEqualizacao === "pagar" && credores[0]) {
+        setForm((prev) => ({
+          ...prev,
+          paid_by_user_id: String(user.id),
+          beneficiary_user_id: String(credores[0].user_id),
+          valor: valorSugerido,
+        }));
+      }
+      if (direcaoEqualizacao === "receber" && devedores[0]) {
+        setForm((prev) => ({
+          ...prev,
+          paid_by_user_id: String(devedores[0].user_id),
+          beneficiary_user_id: String(user.id),
+          valor: valorSugerido,
+        }));
+      }
     }
-  }, [credores, form.beneficiary_user_id, form.paid_by_user_id, podeRegistrarMinhaEqualizacao, saldoAPagar, user?.id]);
+  }, [
+    credores,
+    devedores,
+    direcaoEqualizacao,
+    form.beneficiary_user_id,
+    form.paid_by_user_id,
+    podeRegistrarMinhaEqualizacao,
+    saldoAPagar,
+    saldoAReceber,
+    user?.id,
+  ]);
 
   const handleChange = (campo, valor) => {
     setForm((prev) => ({ ...prev, [campo]: valor }));
@@ -166,8 +206,14 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
       });
       setForm({
         data: dataHojeIso(),
-        paid_by_user_id: String(user?.id || ""),
-        beneficiary_user_id: credores[0] ? String(credores[0].user_id) : "",
+        paid_by_user_id:
+          direcaoEqualizacao === "receber" && devedores[0]
+            ? String(devedores[0].user_id)
+            : String(user?.id || ""),
+        beneficiary_user_id:
+          direcaoEqualizacao === "pagar"
+            ? (credores[0] ? String(credores[0].user_id) : "")
+            : String(user?.id || ""),
         valor: "",
         descricao: "",
       });
@@ -184,6 +230,17 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
       setSalvandoEqualizacao(false);
     }
   };
+
+  const statusSocio = useCallback((saldo) => {
+    const valor = Number(saldo || 0);
+    if (valor > 0) {
+      return { classe: "is-positive", icone: "↓", texto: "A receber" };
+    }
+    if (valor < 0) {
+      return { classe: "is-negative", icone: "↑", texto: "A pagar" };
+    }
+    return { classe: "is-neutral", icone: "•", texto: "Equalizado" };
+  }, []);
 
   return (
     <section className="dashboard-card financeiro-compartilhado-card">
@@ -224,17 +281,35 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
               <div className="financeiro-compartilhado-card__section-head">
                 <h3>Equalização sugerida</h3>
                 <span className="text-muted small">
-                  Você está com saldo a pagar. Registre o acerto sem distorcer o custo operacional do imóvel.
+                  {direcaoEqualizacao === "pagar"
+                    ? "Você está com saldo a pagar. Registre o acerto sem distorcer o custo operacional do imóvel."
+                    : "Você está com saldo a receber. Registre o recebimento do acerto entre sócios."}
                 </span>
               </div>
               <div className="financeiro-compartilhado-card__cta">
-                <strong>{formatarMoeda(saldoAPagar)}</strong>
+                <div className="financeiro-compartilhado-card__cta-copy">
+                  <strong>{formatarMoeda(direcaoEqualizacao === "pagar" ? saldoAPagar : saldoAReceber)}</strong>
+                  {direcaoEqualizacao === "pagar" && contrapartePrincipal ? (
+                    <span>
+                      Pagar para {contrapartePrincipal.user_name || contrapartePrincipal.user_email}
+                      {chavePixContraparte ? ` via Pix: ${chavePixContraparte}` : ""}
+                    </span>
+                  ) : null}
+                  {direcaoEqualizacao === "receber" ? (
+                    <span>
+                      Receber de {contrapartePrincipal?.user_name || contrapartePrincipal?.user_email || "sócio"}
+                      {chavePixAtual ? ` no Pix: ${chavePixAtual}` : " e informe sua chave Pix no cadastro, se necessário"}
+                    </span>
+                  ) : null}
+                </div>
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
                   onClick={() => setModalEqualizacaoAberto(true)}
                 >
-                  Registrar equalização de {formatarMoeda(saldoAPagar)}
+                  {direcaoEqualizacao === "pagar"
+                    ? `Registrar pagamento de ${formatarMoeda(saldoAPagar)}`
+                    : `Registrar recebimento de ${formatarMoeda(saldoAReceber)}`}
                 </button>
               </div>
             </div>
@@ -250,6 +325,12 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
                       <div className="financeiro-compartilhado-card__person">
                         <strong>{socio.user_name || socio.user_email || `Usuário ${socio.user_id}`}</strong>
                         <span>{socio.user_email || "Sem e-mail"}</span>
+                        <span className={`financeiro-compartilhado-card__flag ${statusSocio(socio.saldo_liquido).classe}`}>
+                          {statusSocio(socio.saldo_liquido).icone} {statusSocio(socio.saldo_liquido).texto}
+                        </span>
+                        {socio.user_pix_key ? (
+                          <span className="financeiro-compartilhado-card__pix">Pix: {socio.user_pix_key}</span>
+                        ) : null}
                       </div>
                       <dl>
                         <div>
@@ -303,6 +384,12 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
                             <div className="financeiro-compartilhado-card__person">
                               <strong>{socio.user_name || socio.user_email || `Usuário ${socio.user_id}`}</strong>
                               <span>{socio.user_email || "Sem e-mail"}</span>
+                              <span className={`financeiro-compartilhado-card__flag ${statusSocio(socio.saldo_liquido).classe}`}>
+                                {statusSocio(socio.saldo_liquido).icone} {statusSocio(socio.saldo_liquido).texto}
+                              </span>
+                              {socio.user_pix_key ? (
+                                <span className="financeiro-compartilhado-card__pix">Pix: {socio.user_pix_key}</span>
+                              ) : null}
                             </div>
                           </td>
                           <td className="text-end">{Number(socio.percentual_participacao || 0).toLocaleString("pt-BR")} %</td>
@@ -411,29 +498,64 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
                   </div>
                   <div className="mb-2">
                     <label className="form-label">Quem pagou</label>
-                    <input
-                      type="text"
-                      className="form-control form-control-sm"
-                      value={formatarNomeSocio(form.paid_by_user_id)}
-                      disabled
-                    />
+                    {direcaoEqualizacao === "receber" ? (
+                      <select
+                        className="form-select form-select-sm"
+                        value={form.paid_by_user_id}
+                        onChange={(e) => handleChange("paid_by_user_id", e.target.value)}
+                        disabled={salvandoEqualizacao}
+                      >
+                        <option value="">Selecione</option>
+                        {devedores.map((socio) => (
+                          <option key={socio.user_id} value={socio.user_id}>
+                            {socio.user_name || socio.user_email}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        value={formatarNomeSocio(form.paid_by_user_id)}
+                        disabled
+                      />
+                    )}
                   </div>
                   <div className="mb-2">
                     <label className="form-label">Quem recebeu</label>
-                    <select
-                      className="form-select form-select-sm"
-                      value={form.beneficiary_user_id}
-                      onChange={(e) => handleChange("beneficiary_user_id", e.target.value)}
-                      disabled={salvandoEqualizacao}
-                    >
-                      <option value="">Selecione</option>
-                      {credores.map((socio) => (
-                        <option key={socio.user_id} value={socio.user_id}>
-                          {socio.user_name || socio.user_email}
-                        </option>
-                      ))}
-                    </select>
+                    {direcaoEqualizacao === "pagar" ? (
+                      <select
+                        className="form-select form-select-sm"
+                        value={form.beneficiary_user_id}
+                        onChange={(e) => handleChange("beneficiary_user_id", e.target.value)}
+                        disabled={salvandoEqualizacao}
+                      >
+                        <option value="">Selecione</option>
+                        {credores.map((socio) => (
+                          <option key={socio.user_id} value={socio.user_id}>
+                            {socio.user_name || socio.user_email}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        className="form-control form-control-sm"
+                        value={formatarNomeSocio(form.beneficiary_user_id)}
+                        disabled
+                      />
+                    )}
                   </div>
+                  {direcaoEqualizacao === "pagar" && form.beneficiary_user_id ? (
+                    <div className="alert alert-info py-2 small">
+                      Chave Pix para pagamento: {sociosPorId[String(form.beneficiary_user_id)]?.user_pix_key || "não informada"}
+                    </div>
+                  ) : null}
+                  {direcaoEqualizacao === "receber" ? (
+                    <div className="alert alert-info py-2 small">
+                      Sua chave Pix para recebimento: {chavePixAtual || "não informada"}
+                    </div>
+                  ) : null}
                   <div className="mb-2">
                     <label className="form-label">Valor</label>
                     <input
