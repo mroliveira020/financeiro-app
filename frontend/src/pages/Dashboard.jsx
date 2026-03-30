@@ -5,6 +5,7 @@ import FinanceiroCompartilhadoCard from "../components/FinanceiroCompartilhadoCa
 import ResumoFinanceiro from "../components/ResumoFinanceiro";
 import TransacoesIncompletas from "../components/TransacoesIncompletas/TransacoesIncompletas";
 import TransacoesCompletas from "../components/transacoes/TransacoesCompletas";
+import { useCompactLayout } from "../hooks/useCompactLayout";
 
 import "./Dashboard.css";
 
@@ -47,6 +48,7 @@ function DeferredSection({ children, placeholder = "Carregando seção...", root
 
 function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
+  const compactLayout = useCompactLayout();
   const dispararAtualizacao = useCallback(() => {
     setRefreshKey((prev) => prev + 1);
   }, []);
@@ -55,7 +57,7 @@ function Dashboard() {
     <div className="dashboard-page">
       <div className="dashboard-container">
         <section className="dashboard-main">
-          <DadosCadastrais refreshKey={refreshKey} />
+          <DadosCadastrais refreshKey={refreshKey} onChanged={dispararAtualizacao} />
           <section id="resumo-financeiro">
             <ResumoFinanceiro refreshKey={refreshKey} />
           </section>
@@ -67,11 +69,13 @@ function Dashboard() {
         </section>
 
         <section className="dashboard-transactions">
-          <section id="transacoes-incompletas">
-            <DeferredSection placeholder="Preparando transações incompletas...">
-              <TransacoesIncompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
-            </DeferredSection>
-          </section>
+          {!compactLayout && (
+            <section id="transacoes-incompletas">
+              <DeferredSection placeholder="Preparando transações incompletas...">
+                <TransacoesIncompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />
+              </DeferredSection>
+            </section>
+          )}
           <section id="transacoes-completas">
             <DeferredSection placeholder="Preparando transações completas...">
               <TransacoesCompletas refreshKey={refreshKey} onChanged={dispararAtualizacao} />

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+/* global bootstrap */
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../services/http";
 import ModalSelecionarImovel from "./ModalSelecionarImovel";
@@ -7,11 +8,14 @@ import { useAuth } from "../../context/AuthContext";
 import { useCompactLayout } from "../../hooks/useCompactLayout";
 import {
   fetchFinanceiroCompartilhado,
+  fetchImoveisFinanceiroAcessiveis,
   fetchLancamentosCompletos,
   fetchLancamentosIncompletos,
 } from "../../services/api";
+import { useCatalogos } from "../../hooks/useCatalogos";
+import ModalNovaTransacao from "../TransacoesIncompletas/ModalNovaTransacao";
 
-function DadosCadastrais({ refreshKey = 0 }) {
+function DadosCadastrais({ refreshKey = 0, onChanged }) {
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -20,6 +24,8 @@ function DadosCadastrais({ refreshKey = 0 }) {
   const [mostrarModalImoveis, setMostrarModalImoveis] = useState(false);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
   const [mostrarMapa, setMostrarMapa] = useState(false);
+  const [novaTransacao, setNovaTransacao] = useState(null);
+  const [imoveisAcessiveis, setImoveisAcessiveis] = useState([]);
   const [quickStats, setQuickStats] = useState({
     pendencias: 0,
     historico: 0,
@@ -28,6 +34,8 @@ function DadosCadastrais({ refreshKey = 0 }) {
   const { hasRole, user } = useAuth();
   const canEdit = hasRole("editor", "admin");
   const compactLayout = useCompactLayout();
+  const isAdmin = user?.role === "admin";
+  const { categorias, imoveis } = useCatalogos({ includeImoveis: isAdmin });
 
   const irParaSecao = useCallback((sectionId) => {
     if (!sectionId) return;
@@ -58,6 +66,24 @@ function DadosCadastrais({ refreshKey = 0 }) {
   useEffect(() => {
     setMostrarMapa(false);
   }, [id]);
+
+  useEffect(() => {
+    let ativo = true;
+    if (!compactLayout || isAdmin) return undefined;
+    fetchImoveisFinanceiroAcessiveis()
+      .then((lista) => {
+        if (!ativo) return;
+        setImoveisAcessiveis(lista || []);
+      })
+      .catch((error) => {
+        console.error("Erro ao buscar imóveis acessíveis para nova transação", error);
+        if (!ativo) return;
+        setImoveisAcessiveis([]);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [compactLayout, isAdmin]);
 
   useEffect(() => {
     let ativo = true;
@@ -183,6 +209,65 @@ function DadosCadastrais({ refreshKey = 0 }) {
     }, 80);
   }, []);
 
+  const abrirNovaTransacao = useCallback(() => {
+    setNovaTransacao({
+      data: new Date().toLocaleDateString("pt-BR"),
+      descricao: "",
+      valor: "",
+      id_categoria: "",
+      id_imovel: String(id || ""),
+      paid_by_user_id: "",
+    });
+    const modal = new bootstrap.Modal(document.getElementById("modalNovaTransacaoDashboard"));
+    modal.show();
+  }, [id]);
+
+  const normalizarValor = useCallback((valorBruto) => {
+    const texto = `${valorBruto ?? ""}`.trim();
+    if (!texto) throw new Error("Preencha um valor válido.");
+    const somenteNumeros = texto.replace(/[^0-9,.-]/g, "");
+    const usaVirgula = somenteNumeros.includes(",");
+    const semMilhar = usaVirgula ? somenteNumeros.replace(/\./g, "") : somenteNumeros;
+    const numero = Number(semMilhar.replace(",", "."));
+    if (!Number.isFinite(numero)) throw new Error("Preencha um valor válido.");
+    return numero;
+  }, []);
+
+  const salvarNovaTransacao = useCallback(async () => {
+    try {
+      if (!novaTransacao?.data || !novaTransacao?.descricao?.trim() || !novaTransacao?.valor) {
+        alert("Preencha data, descrição e valor.");
+        return;
+      }
+      if (!novaTransacao?.id_categoria || !novaTransacao?.id_imovel) {
+        alert("Selecione categoria e imóvel.");
+        return;
+      }
+
+      await api.post("/dashboard/lancamentos/lote", [
+        {
+          data: novaTransacao.data.trim(),
+          descricao: novaTransacao.descricao.trim(),
+          valor: normalizarValor(novaTransacao.valor),
+          id_imovel: parseInt(novaTransacao.id_imovel, 10),
+          id_categoria: parseInt(novaTransacao.id_categoria, 10),
+          id_situacao: 1,
+          ativo: 1,
+          paid_by_user_id: novaTransacao.paid_by_user_id ? parseInt(novaTransacao.paid_by_user_id, 10) : null,
+          tipo_movimentacao: "despesa_imovel",
+        },
+      ]);
+
+      const modal = bootstrap.Modal.getInstance(document.getElementById("modalNovaTransacaoDashboard"));
+      modal?.hide();
+      setNovaTransacao(null);
+      onChanged?.();
+    } catch (error) {
+      console.error("Erro ao incluir transação pelo menu mobile", error);
+      alert(error?.response?.data?.error || error.message || "Erro ao incluir transação.");
+    }
+  }, [normalizarValor, novaTransacao, onChanged]);
+
   const formatarBadgeMoeda = useCallback(
     (valor) =>
       Number(valor || 0).toLocaleString("pt-BR", {
@@ -264,15 +349,21 @@ function DadosCadastrais({ refreshKey = 0 }) {
                     </small>
                   ) : null}
                 </button>
-                <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("transacoes-incompletas")}>
-                  <span className="dados-card__quick-icon-wrap">
-                    <span className="dados-card__quick-icon" aria-hidden="true">⏳</span>
-                  </span>
-                  <span className="dados-card__quick-label">Pendências</span>
-                  {quickStats.pendencias > 0 ? (
-                    <small className="dados-card__quick-badge is-warning">{quickStats.pendencias}</small>
-                  ) : null}
-                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    className="dados-card__quick-button"
+                    onClick={abrirNovaTransacao}
+                  >
+                    <span className="dados-card__quick-icon-wrap">
+                      <span className="dados-card__quick-icon" aria-hidden="true">➕</span>
+                    </span>
+                    <span className="dados-card__quick-label">Incluir</span>
+                    {quickStats.pendencias > 0 ? (
+                      <small className="dados-card__quick-badge is-warning">{quickStats.pendencias}</small>
+                    ) : null}
+                  </button>
+                )}
                 <button type="button" className="dados-card__quick-button" onClick={() => irParaSecao("transacoes-completas")}>
                   <span className="dados-card__quick-icon-wrap">
                     <span className="dados-card__quick-icon" aria-hidden="true">✅</span>
@@ -393,6 +484,15 @@ function DadosCadastrais({ refreshKey = 0 }) {
           }}
         />
       )}
+
+      <ModalNovaTransacao
+        form={novaTransacao}
+        setForm={setNovaTransacao}
+        onSave={salvarNovaTransacao}
+        categorias={categorias}
+        imoveis={isAdmin ? imoveis : imoveisAcessiveis}
+        idModal="modalNovaTransacaoDashboard"
+      />
     </>
   );
 }
