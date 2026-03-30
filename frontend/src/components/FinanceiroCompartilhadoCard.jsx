@@ -248,7 +248,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
         <div>
           <h2>Financeiro Compartilhado</h2>
           <span className="text-muted small">
-            Painel técnico inicial para validar composição, rateio e compensações entre sócios.
+            Acompanhe a divisão das despesas, os saldos entre sócios e os acertos de equalização deste imóvel.
           </span>
         </div>
       </header>
@@ -282,8 +282,8 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
                 <h3>Equalização sugerida</h3>
                 <span className="text-muted small">
                   {direcaoEqualizacao === "pagar"
-                    ? "Você está com saldo a pagar. Registre o acerto sem distorcer o custo operacional do imóvel."
-                    : "Você está com saldo a receber. Registre o recebimento do acerto entre sócios."}
+                    ? "Faça o pagamento e registre a equalização para manter o saldo entre sócios atualizado."
+                    : "Ao receber o valor, registre a equalização para manter o saldo entre sócios atualizado."}
                 </span>
               </div>
               <div className="financeiro-compartilhado-card__cta">
