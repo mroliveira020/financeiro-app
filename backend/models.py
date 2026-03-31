@@ -1344,6 +1344,7 @@ def listar_imoveis():
                 WHERE l.id_imovel = im.id
                   AND l.id_situacao = 1
                   AND (l.ativo IS DISTINCT FROM FALSE)
+                  AND COALESCE(l.tipo_movimentacao, 'despesa_imovel') <> 'equalizacao_socios'
                   AND (c.id IS NULL OR c.id NOT IN (4, 8, 15, 18))
             ) totais ON TRUE
             LEFT JOIN LATERAL (
@@ -1358,6 +1359,7 @@ def listar_imoveis():
                     WHERE l.id_imovel = im.id
                       AND l.id_situacao = 1
                       AND (l.ativo IS DISTINCT FROM FALSE)
+                      AND COALESCE(l.tipo_movimentacao, 'despesa_imovel') <> 'equalizacao_socios'
                       AND (c.id IS NULL OR c.id NOT IN (4, 8, 15, 18))
                     GROUP BY g.grupo
                     ORDER BY g.grupo

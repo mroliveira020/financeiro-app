@@ -678,6 +678,99 @@
   margin-top: 0.9rem;
 }
 
+.transacoes-card__summary-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(35, 50, 74, 0.08);
+  border-radius: 14px;
+  background: #fbfcff;
+  color: #7381a3;
+  font-size: 0.82rem;
+}
+
+.transacoes-card__summary-mobile strong {
+  color: #1f2d47;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.transacoes-mobile-card.is-compact {
+  padding: 0.85rem 0.9rem;
+}
+
+.transacoes-mobile-card__compact-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.transacoes-mobile-card__compact-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.transacoes-mobile-card__compact-main strong {
+  color: #1f2d47;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.transacoes-mobile-card__compact-main small {
+  color: #7381a3;
+  font-size: 0.78rem;
+}
+
+.transacoes-mobile-card__compact-value {
+  display: grid;
+  gap: 0.2rem;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.transacoes-mobile-card__compact-value strong {
+  color: #1f2d47;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.transacoes-mobile-card__compact-value span {
+  color: #7381a3;
+  font-size: 0.74rem;
+}
+
+.transacoes-mobile-card__compact-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.65rem;
+}
+
+.transacoes-mobile-card__chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.28rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(56, 89, 255, 0.08);
+  color: #3559ff;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.transacoes-mobile-card__meta-text {
+  color: #7381a3;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
 .transacoes-mobile-empty {
   border: 1px dashed rgba(35, 50, 74, 0.12);
   border-radius: 14px;
@@ -1330,10 +1423,30 @@
     width: 100%;
   }
 
+  .transacoes-card__summary-mobile {
+    gap: 0.5rem;
+    padding: 0.7rem 0.8rem;
+    flex-wrap: wrap;
+  }
+
+  .transacoes-card__summary-mobile strong {
+    width: 100%;
+  }
+
   .transacoes-card__table-wrapper {
     overflow: visible;
     border: none;
     background: transparent;
+  }
+
+  .transacoes-mobile-card__actions {
+    margin-top: 0.7rem;
+    gap: 0.45rem;
+  }
+
+  .transacoes-mobile-card__actions .btn {
+    padding: 0.32rem 0.65rem;
+    font-size: 0.82rem;
   }
 
   .transacoes-table__pagination {

@@ -7,6 +7,7 @@ import ModalEdicao from "./ModalEdicao";
 import { useAuth } from "../../context/AuthContext";
 import { fetchImoveisFinanceiroAcessiveis, fetchLancamentosCompletos } from "../../services/api";
 import { useCatalogos } from "../../hooks/useCatalogos";
+import { useCompactLayout } from "../../hooks/useCompactLayout";
 
 const PAGE_SIZE = 30;
 
@@ -23,6 +24,7 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
   const { hasRole, user } = useAuth();
   const canEdit = hasRole("editor", "admin");
   const isAdmin = user?.role === "admin";
+  const compactLayout = useCompactLayout();
   const { categorias, imoveis } = useCatalogos({ includeImoveis: isAdmin });
 
   const categoriasOrdenadas = useMemo(
@@ -178,20 +180,28 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
               {canEdit ? "Clique em uma linha para editar" : "Lista de lançamentos confirmados"}
             </span>
           </div>
-          <div className="transacoes-card__stats">
-            <div className="transacoes-card__stat">
-              <span>Registros</span>
-              <strong>{totais.quantidade}</strong>
-            </div>
-            <div className="transacoes-card__stat">
-              <span>Categoria(s)</span>
-              <strong>{totais.categorias}</strong>
-            </div>
-            <div className="transacoes-card__stat">
-              <span>Total confirmado</span>
+          {compactLayout ? (
+            <div className="transacoes-card__summary-mobile">
+              <span>{totais.quantidade} registros</span>
+              <span>{totais.categorias} categorias</span>
               <strong>{formatarMoeda(totais.soma)}</strong>
             </div>
-          </div>
+          ) : (
+            <div className="transacoes-card__stats">
+              <div className="transacoes-card__stat">
+                <span>Registros</span>
+                <strong>{totais.quantidade}</strong>
+              </div>
+              <div className="transacoes-card__stat">
+                <span>Categoria(s)</span>
+                <strong>{totais.categorias}</strong>
+              </div>
+              <div className="transacoes-card__stat">
+                <span>Total confirmado</span>
+                <strong>{formatarMoeda(totais.soma)}</strong>
+              </div>
+            </div>
+          )}
         </header>
 
         <div className="transacoes-card__table-wrapper table-responsive">

@@ -24,6 +24,12 @@ function LancamentosTable({
     return id_situacao === 1 ? "✅" : "🕒";
   };
 
+  const formatarMoeda = (valor) =>
+    Number(valor).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+
   const getSortableValue = (item, key) => {
     if (key === "data") {
       const [dia, mes, ano] = item.data.split("/");
@@ -127,46 +133,54 @@ function LancamentosTable({
             paginatedLancamentos.map((lancamento) => (
               <article
                 key={lancamento.id_lancamento}
-                className={`transacoes-mobile-card ${editable ? "is-clickable" : ""}`.trim()}
+                className={`transacoes-mobile-card ${editable ? "is-clickable" : ""} ${tipo === "completo" ? "is-compact" : ""}`.trim()}
                 onClick={() => {
                   if (editable && typeof onEdit === "function") {
                     onEdit(lancamento);
                   }
                 }}
               >
-                <div className="transacoes-mobile-card__head">
-                  <strong>{lancamento.descricao}</strong>
-                  <span>{lancamento.data}</span>
-                </div>
-                <div className="transacoes-mobile-card__body">
-                  {tipo === "completo" ? (
-                    <>
+                {tipo === "completo" ? (
+                  <>
+                    <div className="transacoes-mobile-card__compact-top">
+                      <div className="transacoes-mobile-card__compact-main">
+                        <strong>{lancamento.descricao}</strong>
+                        <small>{lancamento.data}</small>
+                      </div>
+                      <div className="transacoes-mobile-card__compact-value">
+                        <strong>{formatarMoeda(lancamento.valor)}</strong>
+                        <span>{getSituacaoIcone(lancamento.id_situacao)} {lancamento.nome_situacao || "—"}</span>
+                      </div>
+                    </div>
+                    <div className="transacoes-mobile-card__compact-meta">
+                      <span className="transacoes-mobile-card__chip">
+                        {lancamento.nome_categoria || "Sem categoria"}
+                      </span>
+                      <span className="transacoes-mobile-card__meta-text">
+                        Pago por {lancamento.paid_by_user_name || lancamento.paid_by_user_email || "—"}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="transacoes-mobile-card__head">
+                      <strong>{lancamento.descricao}</strong>
+                      <span>{lancamento.data}</span>
+                    </div>
+                    <div className="transacoes-mobile-card__body">
                       <div>
-                        <span>Categoria</span>
-                        <strong>{lancamento.nome_categoria}</strong>
+                        <span>Valor</span>
+                        <strong>{formatarMoeda(lancamento.valor)}</strong>
                       </div>
                       <div>
-                        <span>Quem pagou</span>
-                        <strong>{lancamento.paid_by_user_name || lancamento.paid_by_user_email || "—"}</strong>
+                        <span>Situação</span>
+                        <strong>
+                          {getSituacaoIcone(lancamento.id_situacao)} {lancamento.nome_situacao || "—"}
+                        </strong>
                       </div>
-                    </>
-                  ) : null}
-                  <div>
-                    <span>Valor</span>
-                    <strong>
-                      {Number(lancamento.valor).toLocaleString("pt-BR", {
-                        style: "currency",
-                        currency: "BRL",
-                      })}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Situação</span>
-                    <strong>
-                      {getSituacaoIcone(lancamento.id_situacao)} {lancamento.nome_situacao || "—"}
-                    </strong>
-                  </div>
-                </div>
+                    </div>
+                  </>
+                )}
                 <div className="transacoes-mobile-card__actions">
                   {editable && (
                     <>
