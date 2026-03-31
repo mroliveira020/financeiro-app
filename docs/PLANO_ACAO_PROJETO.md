@@ -374,6 +374,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - correções adicionais nas queries de `Transações Completas` para evitar que o quadro fique vazio após os filtros novos;
   - inclusão direta de nova transação confirmada via botão `+ Incluir transação`, sem depender do fluxo de pendências;
   - liberação transitória do módulo Financeiro para usuário `prospector` com vínculo ativo em `imovel_socios`;
+  - correção da regra do card mobile de `Controle financeiro` em Prospecções para respeitar `finance_access`, evitando falso bloqueio para sócio com perfil base `prospector`;
   - restrição da Home financeira do sócio para carregar apenas imóveis acessíveis;
   - proteção de acesso por `id_imovel` no backend e bloqueio de navegação indevida pela URL;
   - modal `Trocar imóvel` filtrado pelos imóveis acessíveis ao usuário;
@@ -408,6 +409,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
   - medir o ganho real das primeiras melhorias de performance e identificar os próximos gargalos de carregamento;
   - validar se o card superior mais compacto melhorou a leitura e a navegação do dashboard no uso diário;
   - validar a nova entrada mobile do Financeiro em cenários com um e com vários imóveis acessíveis;
+  - confirmar especificamente o cenário de usuário `prospector` com vínculo societário ativo acessando o Financeiro pelo card mobile, sem cair em falso estado `sem acesso`;
   - validar se a nova apresentação mobile do dashboard ficou adequada em aparelho real, especialmente a primeira dobra em formato de menu operacional;
   - validar se o topo do dashboard sem geolocalização ficou mais limpo e sem espaço desperdiçado.
 - Situação atual dos testes operacionais:
@@ -1024,6 +1026,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
 3. [ ] **Agora — Validar a navegação mobile do Financeiro**
   - confirmar abertura correta do `Controle financeiro` pelo celular;
   - verificar contador com base nos imóveis realmente acessíveis;
+  - confirmar que usuário `prospector` com participação ativa em `imovel_socios` enxerga e abre o card do Financeiro normalmente no mobile;
   - confirmar abertura direta do dashboard quando houver um único imóvel;
   - revisar se a entrada `/financeiro` faz sentido também para cenários com múltiplos imóveis;
   - validar a nova leitura mobile de orçamento, compartilhamento e transações;
@@ -1042,6 +1045,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
 5. [ ] **Depois — Fechar identidade e permissões do modelo compartilhado**
    - definir a estratégia de múltiplos papéis por usuário (`prospector`, `socio`, `admin` etc.);
    - mapear quais permissões mudam no backend e no frontend que hoje assumem `role` único;
+   - endurecer a autorização das rotas de escrita por `id_lancamento`, garantindo que alteração/exclusão também respeitem o imóvel acessível ao usuário e não apenas a autenticação geral;
    - garantir que um mesmo usuário possa atuar simultaneamente como prospector e sócio;
    - confirmar que `admin` mantém visão integral e capacidade total de operação.
 

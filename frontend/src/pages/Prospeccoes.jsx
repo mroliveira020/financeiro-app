@@ -1627,7 +1627,7 @@ export default function Prospeccoes() {
   const [financeiroCount, setFinanceiroCount] = useState(null);
   const [financeiroImoveis, setFinanceiroImoveis] = useState([]);
   const deferredSelectedSearch = useDeferredValue(selectedSearch);
-  const canAccessFinance = hasRole("viewer", "editor", "admin");
+  const canAccessFinance = user?.finance_access ?? hasRole("viewer", "editor", "admin");
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const handleViewportChange = () => {
