@@ -112,6 +112,13 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
 5. [ ] **Conversões e validação**
    5.1. [x] Normalização implementada (datas → ISO, monetários → decimal, booleanos `Disponível`/`Financia`).
    5.2. [ ] Validar amostra no painel do Supabase.
+   5.3. [ ] Segurança do Supabase:
+        - [x] identificado alerta crítico de `RLS` desativado em tabelas públicas sensíveis;
+        - [x] mapeado baixo risco de impacto para backend principal e garimpo, desde que as policies mínimas preservem `service_role`;
+        - [x] preparado script `docs/sql_supabase_hardening_rls.sql` para habilitar `RLS` em `imoveis_selecionados_analise`, `imoveis_selecionados_observacoes`, `imoveis_selecionados_responsaveis` e `imovel_socios`;
+        - [x] removidas chaves reais versionadas de `garimpo/config.yaml`, mantendo preenchimento apenas via ambiente;
+        - [ ] rotacionar `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_KEY` no painel do Supabase;
+        - [ ] aplicar o hardening de `RLS` no projeto produtivo e validar fluxos de observações, análise, responsáveis, sócios e garimpo.
 
 ## Frente Produto, Prospecções e Usuários
 

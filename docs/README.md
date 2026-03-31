@@ -37,6 +37,7 @@
   - Execução: configure `garimpo/config.yaml` (`supabase.enabled=true`) e exporte envs `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`; rode `python garimpo/src/principal.py` ou `python garimpo/src/extrajudicial_caixa.py` após `source backend/venv/bin/activate`.
   - Comportamento: pergunta quantas horas recentes ignorar (pula códigos já presentes no Supabase nesse intervalo) e o `chunk_size` de envio. Envia em lotes durante a coleta; erros de integração são salvos em `data/output/erros_supabase.csv`.
   - Logs: falhas de scraping continuam em `data/output/erros_<script>_<data>.csv`.
+  - Segurança: não mantenha `SUPABASE_ANON_KEY` nem `SUPABASE_SERVICE_KEY` em arquivos versionados. O arquivo `garimpo/config.yaml` deve permanecer sem chaves e receber esses valores somente via ambiente local.
 
 ## Desenvolvimento (Quickstart)
 
@@ -74,6 +75,22 @@
 - Segurança operacional:
   - os arquivos ficam somente na máquina local
   - `.local_backups/` está ignorado no Git e não deve ser publicado
+
+## Hardening do Supabase
+
+- Alerta já identificado no projeto: havia tabelas do schema `public` sem `RLS` ativo.
+- Script SQL de correção inicial: [sql_supabase_hardening_rls.sql](/Users/matheusoliveira/Documents/Leiloes/Aplicacoes/Financeiro/docs/sql_supabase_hardening_rls.sql)
+- Tabelas cobertas nesse hardening inicial:
+  - `imoveis_selecionados_analise`
+  - `imoveis_selecionados_observacoes`
+  - `imoveis_selecionados_responsaveis`
+  - `imovel_socios`
+- Estratégia adotada:
+  - habilitar `RLS`
+  - criar policy mínima para `service_role`
+  - não liberar `anon` nem `authenticated` até que políticas específicas sejam desenhadas
+- Ação operacional obrigatória:
+  - rotacionar `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_KEY` no painel do Supabase antes de continuar usando o ambiente atual, pois havia chaves reais expostas em configuração local do projeto.
 
 ## Autenticação e Provisionamento
 
