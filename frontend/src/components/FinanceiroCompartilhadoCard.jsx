@@ -49,6 +49,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
   const [salvandoEqualizacao, setSalvandoEqualizacao] = useState(false);
   const [erroEqualizacao, setErroEqualizacao] = useState("");
   const [modalEqualizacaoAberto, setModalEqualizacaoAberto] = useState(false);
+  const [socioExpandido, setSocioExpandido] = useState(null);
   const compactLayout = useCompactLayout();
 
   const carregar = useCallback(() => {
@@ -320,48 +321,62 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
             {socios.length ? (
               compactLayout ? (
                 <div className="financeiro-compartilhado-card__mobile-list">
-                  {socios.map((socio) => (
-                    <article key={socio.user_id} className="financeiro-compartilhado-card__mobile-item">
-                      <div className="financeiro-compartilhado-card__person">
-                        <strong>{socio.user_name || socio.user_email || `Usuário ${socio.user_id}`}</strong>
-                        <span>{socio.user_email || "Sem e-mail"}</span>
-                        <span className={`financeiro-compartilhado-card__flag ${statusSocio(socio.saldo_liquido).classe}`}>
-                          {statusSocio(socio.saldo_liquido).icone} {statusSocio(socio.saldo_liquido).texto}
-                        </span>
-                        {socio.user_pix_key ? (
-                          <span className="financeiro-compartilhado-card__pix">Pix: {socio.user_pix_key}</span>
+                  {socios.map((socio) => {
+                    const expandido = socioExpandido === socio.user_id;
+                    return (
+                      <article key={socio.user_id} className="financeiro-compartilhado-card__mobile-item">
+                        <div className="financeiro-compartilhado-card__person">
+                          <strong>{socio.user_name || socio.user_email || `Usuário ${socio.user_id}`}</strong>
+                          <span>{socio.user_email || "Sem e-mail"}</span>
+                          <span className={`financeiro-compartilhado-card__flag ${statusSocio(socio.saldo_liquido).classe}`}>
+                            {statusSocio(socio.saldo_liquido).icone} {statusSocio(socio.saldo_liquido).texto}
+                          </span>
+                          {socio.user_pix_key ? (
+                            <span className="financeiro-compartilhado-card__pix">Pix: {socio.user_pix_key}</span>
+                          ) : null}
+                        </div>
+                        <div className="financeiro-compartilhado-card__mobile-summary-row">
+                          <div>
+                            <span>Participação</span>
+                            <strong>{Number(socio.percentual_participacao || 0).toLocaleString("pt-BR")} %</strong>
+                          </div>
+                          <div>
+                            <span>Saldo</span>
+                            <strong className={Number(socio.saldo_liquido || 0) >= 0 ? "text-success" : "text-danger"}>
+                              {formatarMoeda(socio.saldo_liquido)}
+                            </strong>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="financeiro-compartilhado-card__expand-btn"
+                          onClick={() => setSocioExpandido(expandido ? null : socio.user_id)}
+                        >
+                          {expandido ? "Ocultar detalhes" : "Ver detalhes"}
+                        </button>
+                        {expandido ? (
+                          <dl>
+                            <div>
+                              <dt>Pago</dt>
+                              <dd>{formatarMoeda(socio.total_pago_operacional)}</dd>
+                            </div>
+                            <div>
+                              <dt>Devido</dt>
+                              <dd>{formatarMoeda(socio.valor_devido_participacao)}</dd>
+                            </div>
+                            <div>
+                              <dt>Env. equalização</dt>
+                              <dd>{formatarMoeda(socio.equalizacao_enviada)}</dd>
+                            </div>
+                            <div>
+                              <dt>Rec. equalização</dt>
+                              <dd>{formatarMoeda(socio.equalizacao_recebida)}</dd>
+                            </div>
+                          </dl>
                         ) : null}
-                      </div>
-                      <dl>
-                        <div>
-                          <dt>Participação</dt>
-                          <dd>{Number(socio.percentual_participacao || 0).toLocaleString("pt-BR")} %</dd>
-                        </div>
-                        <div>
-                          <dt>Pago</dt>
-                          <dd>{formatarMoeda(socio.total_pago_operacional)}</dd>
-                        </div>
-                        <div>
-                          <dt>Devido</dt>
-                          <dd>{formatarMoeda(socio.valor_devido_participacao)}</dd>
-                        </div>
-                        <div>
-                          <dt>Env. equalização</dt>
-                          <dd>{formatarMoeda(socio.equalizacao_enviada)}</dd>
-                        </div>
-                        <div>
-                          <dt>Rec. equalização</dt>
-                          <dd>{formatarMoeda(socio.equalizacao_recebida)}</dd>
-                        </div>
-                        <div>
-                          <dt>Saldo líquido</dt>
-                          <dd className={Number(socio.saldo_liquido || 0) >= 0 ? "text-success" : "text-danger"}>
-                            {formatarMoeda(socio.saldo_liquido)}
-                          </dd>
-                        </div>
-                      </dl>
-                    </article>
-                  ))}
+                      </article>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="table-responsive">

@@ -570,6 +570,43 @@
   word-break: break-word;
 }
 
+.financeiro-compartilhado-card__mobile-summary-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-top: 0.8rem;
+}
+
+.financeiro-compartilhado-card__mobile-summary-row div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.financeiro-compartilhado-card__mobile-summary-row span {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7381a3;
+}
+
+.financeiro-compartilhado-card__mobile-summary-row strong {
+  color: #1f2d47;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.financeiro-compartilhado-card__expand-btn {
+  margin-top: 0.75rem;
+  border: 1px solid rgba(56, 89, 255, 0.16);
+  background: rgba(56, 89, 255, 0.06);
+  color: #3559ff;
+  border-radius: 999px;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 .financeiro-compartilhado-card__mobile-list,
 .resumo-card__mobile-list,
 .transacoes-mobile-list {
