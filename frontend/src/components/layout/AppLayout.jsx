@@ -49,9 +49,9 @@ export default function AppLayout() {
   const canAccessFinance = user?.finance_access ?? user?.role !== "prospector";
   const isAdmin = user?.role === "admin";
   const isProspeccoesPage = location.pathname.startsWith("/prospeccoes");
-  const pageTitle = isProspeccoesPage ? "Prospecções" : "Financeiro";
+  const pageTitle = isProspeccoesPage ? "Gestão de imóveis" : "Financeiro";
   const pageSubtitle = isProspeccoesPage
-    ? "Central operacional da prospecção e da fila de decisão."
+    ? "Central operacional para seleção, prospecção e acompanhamento dos imóveis."
     : "Controle financeiro dos imóveis já adquiridos.";
 
   return (

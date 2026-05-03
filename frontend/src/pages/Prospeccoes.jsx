@@ -177,6 +177,15 @@ function ArrowLeftIcon() {
   );
 }
 
+function ArrowUpRightIcon() {
+  return (
+    <IconBase label="Abrir módulo">
+      <path d="M8 16 16 8" />
+      <path d="M10 8h6v6" />
+    </IconBase>
+  );
+}
+
 const detectMobileAccess = () => {
   if (typeof window === "undefined") return false;
   const width = window.innerWidth <= MOBILE_BREAKPOINT;
@@ -1297,6 +1306,9 @@ function MobileHubCard({
       <div className="prospects-mobile-hub-card__meta">
         <span>{disabled ? "Sem acesso" : "Imóveis"}</span>
         <strong>{count}</strong>
+      </div>
+      <div className="prospects-mobile-hub-card__arrow">
+        <ArrowUpRightIcon />
       </div>
     </>
   );
@@ -2450,11 +2462,27 @@ export default function Prospeccoes() {
           {mobileSection === "hub" ? (
             <section className="prospects-mobile-hub">
               <div className="prospects-card prospects-mobile-hub__intro">
-                <p className="prospects-eyebrow">Mobile</p>
-                <h2 className="prospects-title">Acesso rápido</h2>
-                <p className="prospects-subtitle">
-                  Escolha o módulo que você quer operar no celular. A versão mobile prioriza consulta rápida, notas e viabilidade.
-                </p>
+                <div className="prospects-mobile-hub__intro-copy">
+                  <p className="prospects-eyebrow">Mobile</p>
+                  <h2 className="prospects-title">Central de operação</h2>
+                  <p className="prospects-subtitle">
+                    Acesse rapidamente a gestão financeira, a seleção de oportunidades e a fila de prospecção no celular.
+                  </p>
+                </div>
+                <div className="prospects-mobile-hub__intro-stats">
+                  <div className="prospects-mobile-hub__stat">
+                    <span>Capturados</span>
+                    <strong>{capturadosTotal}</strong>
+                  </div>
+                  <div className="prospects-mobile-hub__stat">
+                    <span>Na fila</span>
+                    <strong>{selecionados.length}</strong>
+                  </div>
+                  <div className="prospects-mobile-hub__stat">
+                    <span>Alta prioridade</span>
+                    <strong>{selectedMetrics.altaPrioridade}</strong>
+                  </div>
+                </div>
               </div>
 
               <div className="prospects-mobile-hub__grid">
