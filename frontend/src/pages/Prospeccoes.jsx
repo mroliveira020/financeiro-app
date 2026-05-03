@@ -156,6 +156,18 @@ function QueueIcon() {
   );
 }
 
+function ProspectIcon() {
+  return (
+    <IconBase label="Prospectar imóveis">
+      <path d="M10.5 4.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-4" />
+      <path d="M14.5 4.5h5v5" />
+      <path d="m19.5 4.5-7.5 7.5" />
+      <path d="M10 12.5h4" />
+      <path d="M12 10.5v4" />
+    </IconBase>
+  );
+}
+
 function ArrowLeftIcon() {
   return (
     <IconBase label="Voltar">
@@ -1569,6 +1581,210 @@ function MobileSelecionadosList({
   );
 }
 
+function MobileCapturadosList({
+  dados,
+  total,
+  page,
+  pageSize,
+  loading,
+  erro,
+  onBack,
+  onIncluir,
+  includeLoadingIds,
+  selectedCodes,
+  filtroUfCap,
+  setFiltroUfCap,
+  ufOptions,
+  filtroStatusCap,
+  setFiltroStatusCap,
+  filtroFinanciaCap,
+  setFiltroFinanciaCap,
+  pageSizeOptions,
+  setPageSize,
+  onPageChange,
+  onResetFilters,
+}) {
+  if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando base de prospecção...</p></div>;
+  if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar capturados: {erro}</p></div>;
+
+  const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
+
+  return (
+    <section className="prospects-mobile-section">
+      <div className="prospects-card">
+        <div className="prospects-card__header prospects-card__header--stacked">
+          <div>
+            <p className="prospects-eyebrow">Mobile</p>
+            <h2 className="prospects-title">Selecionar imóveis</h2>
+            <p className="prospects-subtitle prospects-subtitle--compact">
+              Explore a base capturada e envie imóveis para a fila operacional de prospecção.
+            </p>
+          </div>
+          <div className="prospects-card__header-actions">
+            <span className="prospects-pill">{total} capturados</span>
+            <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onBack}>
+              <ArrowLeftIcon />
+              <span>Menu mobile</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="prospects-card prospects-mobile-filters">
+        <div className="prospects-mobile-filters__grid">
+          <label className="prospects-toolbar-field">
+            <span>UF</span>
+            <select
+              value={filtroUfCap[0] || ""}
+              onChange={(e) => setFiltroUfCap(e.target.value ? [e.target.value] : [])}
+            >
+              <option value="">Todas</option>
+              {ufOptions.map((uf) => (
+                <option key={uf} value={uf}>{uf}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="prospects-toolbar-field">
+            <span>Status</span>
+            <select
+              value={filtroStatusCap.length === 1 ? filtroStatusCap[0] : ""}
+              onChange={(e) => setFiltroStatusCap(e.target.value ? [e.target.value] : [])}
+            >
+              <option value="">Todos</option>
+              <option value="disponivel">Disponível</option>
+              <option value="indisponivel">Indisponível</option>
+            </select>
+          </label>
+
+          <label className="prospects-toolbar-field">
+            <span>Financia</span>
+            <select
+              value={filtroFinanciaCap[0] || ""}
+              onChange={(e) => setFiltroFinanciaCap(e.target.value ? [e.target.value] : [])}
+            >
+              <option value="">Todos</option>
+              <option value="sim">Sim</option>
+              <option value="nao">Não</option>
+            </select>
+          </label>
+
+          <label className="prospects-toolbar-field">
+            <span>Itens por página</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                onPageChange(1);
+              }}
+            >
+              {pageSizeOptions.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="prospects-mobile-filters__footer">
+          <div className="prospects-mobile-filters__metrics">
+            <span className="prospects-pill">{dados.length} na página</span>
+            <span className="prospects-pill prospects-pill--muted">{selectedCodes.size} na fila</span>
+          </div>
+          <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onResetFilters}>
+            Limpar filtros
+          </button>
+        </div>
+      </div>
+
+      {!dados.length ? (
+        <div className="prospects-card">
+          <p className="prospects-empty">Nenhum imóvel capturado encontrado com os filtros atuais.</p>
+        </div>
+      ) : null}
+
+      <div className="prospects-mobile-list">
+        {dados.map((item) => {
+          const jaSelecionado = selectedCodes.has(item.codigo);
+          return (
+            <article key={item.codigo} className="prospects-mobile-item-card">
+              <div className="prospects-mobile-item-card__top">
+                <div>
+                  <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
+                    {item.codigo}
+                  </a>
+                  <p className="prospects-mobile-item-card__location">
+                    {[item.cidade, item.uf].filter(Boolean).join("/") || "Sem localização"}
+                  </p>
+                </div>
+                <div className="prospects-mobile-item-card__pills">
+                  <span className="prospects-chip">{item.modalidade || "Sem modalidade"}</span>
+                  {jaSelecionado ? (
+                    <span className="prospects-chip prospects-chip--selected">Na fila</span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="prospects-mobile-item-card__meta">
+                <div>
+                  <span>Valor mínimo</span>
+                  <strong>{formatarMoeda(item.valorMinimo)}</strong>
+                </div>
+                <div>
+                  <span>Última disputa</span>
+                  <strong>{formatarDataHoraCompacta(item.ultima_disputa)}</strong>
+                </div>
+                <div>
+                  <span>Financia</span>
+                  <strong>{item.financia === undefined || item.financia === null ? "—" : item.financia ? "Sim" : "Não"}</strong>
+                </div>
+                <div>
+                  <span>Status</span>
+                  <strong>{item.situacao || "—"}</strong>
+                </div>
+              </div>
+
+              <p className="prospects-mobile-item-card__description">{item.descricao || "Sem descrição cadastrada."}</p>
+
+              <div className="prospects-mobile-item-card__actions">
+                <a
+                  className="prospects-btn secondary prospects-btn--mobile-action"
+                  href={item.link}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span>Abrir anúncio</span>
+                </a>
+                <button
+                  type="button"
+                  className={`prospects-btn ${jaSelecionado ? "tertiary" : "primary"} prospects-btn--mobile-action`}
+                  onClick={() => onIncluir(item)}
+                  disabled={includeLoadingIds.has(item.codigo)}
+                >
+                  <span>{includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Adicionar novamente" : "Selecionar"}</span>
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="prospects-card prospects-mobile-pagination">
+        <div className="prospects-pagination__summary">
+          Página {page} de {totalPages}
+        </div>
+        <div className="prospects-pagination__controls">
+          <button type="button" className="prospects-btn secondary" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+            Anterior
+          </button>
+          <button type="button" className="prospects-btn secondary" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
+            Próxima
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Prospeccoes() {
   const outletContext = useOutletContext() || {};
   const setTopbarContent = outletContext.setTopbarContent;
@@ -1626,6 +1842,7 @@ export default function Prospeccoes() {
   const [mobileSection, setMobileSection] = useState("hub");
   const [financeiroCount, setFinanceiroCount] = useState(null);
   const [financeiroImoveis, setFinanceiroImoveis] = useState([]);
+  const pageSizeOptions = [20, 50, 100];
   const deferredSelectedSearch = useDeferredValue(selectedSearch);
   const canAccessFinance = user?.finance_access ?? hasRole("viewer", "editor", "admin");
   useEffect(() => {
@@ -2252,6 +2469,14 @@ export default function Prospeccoes() {
                 />
                 <MobileHubCard
                   eyebrow="Prospecção"
+                  title="Selecionar imóveis"
+                  description="Consulte a base capturada e inclua rapidamente novos imóveis na fila de prospecção."
+                  count={capturadosTotal}
+                  icon={<ProspectIcon />}
+                  onClick={() => setMobileSection("capturados")}
+                />
+                <MobileHubCard
+                  eyebrow="Prospecção"
                   title="Selecionados para prospecção"
                   description="Abra a fila operacional para registrar notas e ajustar a viabilidade dos imóveis."
                   count={selecionados.length}
@@ -2260,7 +2485,7 @@ export default function Prospeccoes() {
                 />
               </div>
             </section>
-          ) : (
+          ) : mobileSection === "selecionados" ? (
             <MobileSelecionadosList
               dados={selecionadosFiltradosOrdenados}
               loading={loadingSel}
@@ -2303,6 +2528,39 @@ export default function Prospeccoes() {
               canDeleteItem={canDeleteItem}
               updateLoadingIds={updateLoadingIds}
               removeLoadingIds={removeLoadingIds}
+            />
+          ) : (
+            <MobileCapturadosList
+              dados={capturados}
+              total={capturadosTotal}
+              page={page}
+              pageSize={pageSize}
+              loading={loadingCap}
+              erro={erroCap}
+              onBack={() => setMobileSection("hub")}
+              onIncluir={handleIncluir}
+              includeLoadingIds={includeLoadingIds}
+              selectedCodes={selectedCodes}
+              filtroUfCap={filtroUfCap}
+              setFiltroUfCap={(value) => {
+                setFiltroUfCap(value);
+                setPage(1);
+              }}
+              ufOptions={ufOptions}
+              filtroStatusCap={filtroStatusCap}
+              setFiltroStatusCap={(value) => {
+                setFiltroStatusCap(value);
+                setPage(1);
+              }}
+              filtroFinanciaCap={filtroFinanciaCap}
+              setFiltroFinanciaCap={(value) => {
+                setFiltroFinanciaCap(value);
+                setPage(1);
+              }}
+              pageSizeOptions={pageSizeOptions}
+              setPageSize={setPageSize}
+              onPageChange={handlePageChange}
+              onResetFilters={limparFiltros}
             />
           )}
         </>
@@ -2547,13 +2805,13 @@ export default function Prospeccoes() {
               <select
                 value={pageSize}
                 onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setPage(1);
-                }}
-              >
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+            >
+                {pageSizeOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
               </select>
             </div>
             <div className="prospects-filter-actions">

@@ -1,0 +1,2 @@
+Número do Bem,Motivo,Tipo Erro,Mensagem Erro,Status HTTP,Request ID Azion,Edge Location,Challenge Detectado,Tentativas,Origem Coleta,URL,URL Final,Trecho Resposta
+8787714426800,Falha na requisição HTTP,network_error,"HTTPSConnectionPool(host='venda-imoveis.caixa.gov.br', port=443): Read timed out. (read timeout=5)",,,,Não,3,requests,https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnOrigem=index&hdnimovel=8787714426800,https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnOrigem=index&hdnimovel=8787714426800,

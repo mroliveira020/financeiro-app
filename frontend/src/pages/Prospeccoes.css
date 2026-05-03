@@ -341,6 +341,12 @@
   flex-wrap: wrap;
 }
 
+.prospects-mobile-pagination {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .prospects-mobile-item-card {
   padding: 16px;
   border: 1px solid var(--prospects-line);
@@ -658,6 +664,11 @@
   font-size: 12px;
   background: #eef0f6;
   color: #1b1f33;
+}
+
+.prospects-chip--selected {
+  background: #e8f7f2;
+  color: #0f766e;
 }
 
 .status-aprovado {

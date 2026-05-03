@@ -1,7 +1,7 @@
 """Coletor principal de imóveis a partir da planilha base da CAIXA."""
 
 from __future__ import annotations
-
+import time
 import warnings
 from datetime import datetime
 from typing import Dict, List, Set, Tuple
@@ -210,6 +210,7 @@ def main() -> None:
 
         print(f"[{position}/{total_registros}] Consultando código {codigo_imovel}...")
         processed += 1
+        time.sleep(0.5) 
 
         endereco_web = (
             "https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp"
