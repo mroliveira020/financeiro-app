@@ -429,6 +429,32 @@
   gap: 10px;
 }
 
+.prospects-mobile-filters__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prospects-mobile-filter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.prospects-mobile-filter-head span,
+.prospects-mobile-filter-head strong {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--prospects-muted);
+}
+
+.prospects-mobile-filter-head strong {
+  color: var(--prospects-brand);
+}
+
 .prospects-mobile-filters__footer {
   display: flex;
   align-items: center;
@@ -447,6 +473,10 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.prospects-checklist--mobile {
+  max-height: 180px;
 }
 
 .prospects-mobile-item-card {
@@ -937,6 +967,12 @@
   padding: 16px;
   color: #4a5268;
   font-weight: 600;
+}
+
+.prospects-empty--inline {
+  padding: 4px 2px;
+  margin: 0;
+  font-size: 12px;
 }
 
 .prospects-gap {

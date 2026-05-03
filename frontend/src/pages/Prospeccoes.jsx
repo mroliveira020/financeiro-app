@@ -1607,10 +1607,17 @@ function MobileCapturadosList({
   filtroUfCap,
   setFiltroUfCap,
   ufOptions,
+  filtroCidadesCap,
+  onToggleCidade,
+  cidadesOptions,
   filtroStatusCap,
   setFiltroStatusCap,
   filtroFinanciaCap,
   setFiltroFinanciaCap,
+  sortBy,
+  setSortBy,
+  sortDir,
+  setSortDir,
   pageSizeOptions,
   setPageSize,
   onPageChange,
@@ -1682,6 +1689,38 @@ function MobileCapturadosList({
           </label>
 
           <label className="prospects-toolbar-field">
+            <span>Ordenar por</span>
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                onPageChange(1);
+              }}
+            >
+              <option value="ultima_disputa">Última disputa</option>
+              <option value="codigo">Código</option>
+              <option value="cidade">Cidade</option>
+              <option value="uf">UF</option>
+              <option value="modalidade">Modalidade</option>
+              <option value="valor_minimo">Valor mínimo</option>
+            </select>
+          </label>
+
+          <label className="prospects-toolbar-field">
+            <span>Direção</span>
+            <select
+              value={sortDir}
+              onChange={(e) => {
+                setSortDir(e.target.value);
+                onPageChange(1);
+              }}
+            >
+              <option value="asc">Crescente</option>
+              <option value="desc">Decrescente</option>
+            </select>
+          </label>
+
+          <label className="prospects-toolbar-field">
             <span>Itens por página</span>
             <select
               value={pageSize}
@@ -1695,6 +1734,29 @@ function MobileCapturadosList({
               ))}
             </select>
           </label>
+        </div>
+
+        <div className="prospects-mobile-filters__stack">
+          <div className="prospects-toolbar-field prospects-toolbar-field--checklist">
+            <div className="prospects-mobile-filter-head">
+              <span>Cidades</span>
+              <strong>{filtroCidadesCap.length ? `${filtroCidadesCap.length} selecionadas` : "Todas"}</strong>
+            </div>
+            <div className="prospects-checklist prospects-checklist--mobile">
+              {cidadesOptions.length ? cidadesOptions.map((cidade) => (
+                <label key={cidade} className="prospects-check">
+                  <input
+                    type="checkbox"
+                    checked={filtroCidadesCap.includes(cidade)}
+                    onChange={() => onToggleCidade(cidade)}
+                  />
+                  <span>{cidade}</span>
+                </label>
+              )) : (
+                <p className="prospects-empty prospects-empty--inline">Nenhuma cidade disponível para os filtros atuais.</p>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="prospects-mobile-filters__footer">
@@ -1740,6 +1802,10 @@ function MobileCapturadosList({
                 <div>
                   <span>Valor mínimo</span>
                   <strong>{formatarMoeda(item.valorMinimo)}</strong>
+                </div>
+                <div>
+                  <span>Valor avaliação</span>
+                  <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
                 </div>
                 <div>
                   <span>Última disputa</span>
@@ -2575,6 +2641,9 @@ export default function Prospeccoes() {
                 setPage(1);
               }}
               ufOptions={ufOptions}
+              filtroCidadesCap={filtroCidadesCap}
+              onToggleCidade={(cidade) => toggleValue(cidade, setFiltroCidadesCap)}
+              cidadesOptions={cidadesOptions}
               filtroStatusCap={filtroStatusCap}
               setFiltroStatusCap={(value) => {
                 setFiltroStatusCap(value);
@@ -2585,10 +2654,18 @@ export default function Prospeccoes() {
                 setFiltroFinanciaCap(value);
                 setPage(1);
               }}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              sortDir={sortDir}
+              setSortDir={setSortDir}
               pageSizeOptions={pageSizeOptions}
               setPageSize={setPageSize}
               onPageChange={handlePageChange}
-              onResetFilters={limparFiltros}
+              onResetFilters={() => {
+                limparFiltros();
+                setSortBy("ultima_disputa");
+                setSortDir("desc");
+              }}
             />
           )}
         </>
