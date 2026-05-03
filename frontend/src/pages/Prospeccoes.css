@@ -479,6 +479,70 @@
   max-height: 180px;
 }
 
+.prospects-toolbar-field--checklist input {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 13px;
+  border: 1px solid #d2dceb;
+  background: #fff;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--prospects-ink);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.prospects-toolbar-field--checklist input:focus {
+  outline: 2px solid rgba(24, 73, 169, 0.18);
+  border-color: var(--prospects-brand);
+}
+
+.prospects-mobile-city-selected,
+.prospects-mobile-city-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prospects-mobile-city-selected {
+  margin-top: 10px;
+}
+
+.prospects-mobile-city-grid {
+  margin-top: 10px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 2px 2px 2px 0;
+}
+
+.prospects-mobile-city-chip {
+  border: 1px solid #d8e4f5;
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  min-height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.prospects-mobile-city-chip.is-selected {
+  background: linear-gradient(135deg, #e8f0ff, #dbe7ff);
+  border-color: #bfd3ff;
+  color: var(--prospects-brand);
+}
+
+.prospects-mobile-city-chip strong {
+  font-size: 11px;
+  line-height: 1;
+}
+
 .prospects-mobile-item-card {
   padding: 16px;
   border: 1px solid var(--prospects-line);

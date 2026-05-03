@@ -1623,10 +1623,15 @@ function MobileCapturadosList({
   onPageChange,
   onResetFilters,
 }) {
+  const [citySearch, setCitySearch] = useState("");
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando base de prospecção...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar capturados: {erro}</p></div>;
 
   const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
+  const normalizedCitySearch = citySearch.trim().toLowerCase();
+  const cidadesVisiveis = normalizedCitySearch
+    ? cidadesOptions.filter((cidade) => cidade.toLowerCase().includes(normalizedCitySearch))
+    : cidadesOptions;
 
   return (
     <section className="prospects-mobile-section">
@@ -1742,18 +1747,42 @@ function MobileCapturadosList({
               <span>Cidades</span>
               <strong>{filtroCidadesCap.length ? `${filtroCidadesCap.length} selecionadas` : "Todas"}</strong>
             </div>
-            <div className="prospects-checklist prospects-checklist--mobile">
-              {cidadesOptions.length ? cidadesOptions.map((cidade) => (
-                <label key={cidade} className="prospects-check">
-                  <input
-                    type="checkbox"
-                    checked={filtroCidadesCap.includes(cidade)}
-                    onChange={() => onToggleCidade(cidade)}
-                  />
-                  <span>{cidade}</span>
-                </label>
-              )) : (
-                <p className="prospects-empty prospects-empty--inline">Nenhuma cidade disponível para os filtros atuais.</p>
+            <input
+              type="search"
+              value={citySearch}
+              onChange={(e) => setCitySearch(e.target.value)}
+              placeholder="Buscar cidade"
+            />
+            {filtroCidadesCap.length ? (
+              <div className="prospects-mobile-city-selected">
+                {filtroCidadesCap.map((cidade) => (
+                  <button
+                    key={cidade}
+                    type="button"
+                    className="prospects-mobile-city-chip is-selected"
+                    onClick={() => onToggleCidade(cidade)}
+                  >
+                    <span>{cidade}</span>
+                    <strong>x</strong>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <div className="prospects-mobile-city-grid">
+              {cidadesVisiveis.length ? cidadesVisiveis.map((cidade) => {
+                const ativa = filtroCidadesCap.includes(cidade);
+                return (
+                  <button
+                    key={cidade}
+                    type="button"
+                    className={`prospects-mobile-city-chip ${ativa ? "is-selected" : ""}`.trim()}
+                    onClick={() => onToggleCidade(cidade)}
+                  >
+                    {cidade}
+                  </button>
+                );
+              }) : (
+                <p className="prospects-empty prospects-empty--inline">Nenhuma cidade encontrada.</p>
               )}
             </div>
           </div>
