@@ -48,6 +48,10 @@ WORKSPACE_ROOT = os.environ.get("WORKSPACE_ROOT", str(Path(__file__).resolve().p
 PUBLISHED_DIR = os.environ.get("PUBLISHED_DIR", str(Path(WORKSPACE_ROOT) / "published"))
 DEFAULT_TTL = int(os.environ.get("DEFAULT_TTL", "86400"))
 MAX_PUBLISHED_FILE_AGE_SECONDS = int(os.environ.get("MAX_PUBLISHED_FILE_AGE_SECONDS", str(24 * 60 * 60)))
+SHORT_TOKEN_GROUPS = int(os.environ.get("SHORT_TOKEN_GROUPS", "2"))
+SHORT_TOKEN_GROUP_SIZE = int(os.environ.get("SHORT_TOKEN_GROUP_SIZE", "4"))
+BAD_TOKEN_WINDOW_SECONDS = int(os.environ.get("BAD_TOKEN_WINDOW_SECONDS", "600"))
+BAD_TOKEN_MAX_ATTEMPTS = int(os.environ.get("BAD_TOKEN_MAX_ATTEMPTS", "20"))
 TOKEN_STORE_PATH = Path(os.environ.get("PUBLISH_TOKEN_STORE_PATH", str(Path(WORKSPACE_ROOT) / "memory" / "publisher-tokens.json")))
 SESSION_STORE_PATH = Path(os.environ.get("DASHBOARD_SESSION_STORE_PATH", str(Path(WORKSPACE_ROOT) / "memory" / "financeiro-familiar-dashboard-sessions.json")))
 
@@ -63,8 +67,40 @@ class TokenEntry:
 
 TOKENS: Dict[str, TokenEntry] = {}
 DASHBOARD_SESSIONS: Dict[str, dict[str, Any]] = {}
+BAD_TOKEN_LOOKUPS: Dict[str, list[float]] = {}
 FAMILIAR_SCRIPT = os.path.join(WORKSPACE_ROOT, "scripts", "financeiro_familiar_lancamento.py")
 TEMP_FILE_PREFIXES = ("financeiro_familiar_dashboard_", "financeiro_familiar_lote_")
+TOKEN_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+
+def _new_token() -> str:
+    TOKENS.update(_load_tokens())
+    groups = max(2, SHORT_TOKEN_GROUPS)
+    group_size = max(4, SHORT_TOKEN_GROUP_SIZE)
+    for _ in range(100):
+        token = "-".join(
+            "".join(secrets.choice(TOKEN_ALPHABET) for _ in range(group_size))
+            for _ in range(groups)
+        )
+        if token not in TOKENS:
+            return token
+    return secrets.token_urlsafe(24)
+
+
+def _client_key() -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        return forwarded_for.split(",", 1)[0].strip()
+    return request.remote_addr or "unknown"
+
+
+def _bad_token_limited() -> bool:
+    now = time.time()
+    key = _client_key()
+    attempts = [ts for ts in BAD_TOKEN_LOOKUPS.get(key, []) if now - ts <= BAD_TOKEN_WINDOW_SECONDS]
+    attempts.append(now)
+    BAD_TOKEN_LOOKUPS[key] = attempts
+    return len(attempts) > BAD_TOKEN_MAX_ATTEMPTS
 
 
 def _is_temp_file(filename: str) -> bool:
@@ -204,6 +240,8 @@ def _dashboard_entry(token: str) -> TokenEntry:
     _gc()
     ent = _token_entry(token)
     if not ent:
+        if _bad_token_limited():
+            abort(429)
         abort(404)
     if not ent.filename.startswith("financeiro_familiar_dashboard_"):
         abort(403)
@@ -340,7 +378,7 @@ def publish():
     elif not os.path.isfile(full):
         abort(404)
 
-    token = secrets.token_urlsafe(24)
+    token = _new_token()
     meta = data.get("meta") if isinstance(data.get("meta"), dict) else None
     TOKENS[token] = TokenEntry(filename=filename, expires_at=time.time() + ttl, meta=meta)
     _save_tokens()
@@ -355,6 +393,8 @@ def fetch(token: str):
     _gc()
     ent = _token_entry(token)
     if not ent:
+        if _bad_token_limited():
+            abort(429)
         abort(404)
     inline_html = ent.filename.lower().endswith(".html")
     return send_from_directory(PUBLISHED_DIR, ent.filename, as_attachment=not inline_html)

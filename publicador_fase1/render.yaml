@@ -25,6 +25,14 @@ services:
         value: "3600"
       - key: MAX_PUBLISHED_FILE_AGE_SECONDS
         value: "86400"
+      - key: SHORT_TOKEN_GROUPS
+        value: "2"
+      - key: SHORT_TOKEN_GROUP_SIZE
+        value: "4"
+      - key: BAD_TOKEN_WINDOW_SECONDS
+        value: "600"
+      - key: BAD_TOKEN_MAX_ATTEMPTS
+        value: "20"
       - key: PUBLIC_BASE_URL
         sync: false
       - key: PUBLISH_SECRET
