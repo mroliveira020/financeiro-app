@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: financeiro-familiar-publisher
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn publisher_app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: WORKSPACE_ROOT
+        value: /opt/render/project/src
+      - key: PUBLISHED_DIR
+        value: /opt/render/project/src/published
+      - key: PUBLISH_TOKEN_STORE_PATH
+        value: /opt/render/project/src/memory/publisher-tokens.json
+      - key: DASHBOARD_SESSION_STORE_PATH
+        value: /opt/render/project/src/memory/financeiro-familiar-dashboard-sessions.json
+      - key: DEFAULT_TTL
+        value: "3600"
+      - key: FINANCEIRO_FAMILIAR_DASHBOARD_TTL
+        value: "3600"
+      - key: MAX_PUBLISHED_FILE_AGE_SECONDS
+        value: "86400"
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: PUBLISH_SECRET
+        generateValue: true
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: FINANCEIRO_FAMILIAR_TELEGRAM_GROUP_ID
+        sync: false
