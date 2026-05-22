@@ -6,6 +6,21 @@ const normalizeLink = (numeroBem, linkConsulta) => {
   return `https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnOrigem=index&hdnimovel=${numeroBem}`;
 };
 
+const normalizeFotos = (row) => {
+  const rawFotos = Array.isArray(row?.fotos) ? row.fotos : [];
+  const candidates = [
+    ...rawFotos,
+    row?.foto_url,
+    row?.foto_principal_url,
+    row?.imagem_principal_url,
+    row?.thumbnail_url,
+  ];
+
+  return candidates
+    .map((item) => `${item || ""}`.trim())
+    .filter((item, index, lista) => item && lista.indexOf(item) === index);
+};
+
 const serializeParams = (params) => {
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -52,34 +67,39 @@ export async function fetchCapturados({
   const total = data?.total ?? rows.length;
   const currentPage = data?.page ?? page;
   const currentPageSize = data?.page_size ?? pageSize;
-  const formatted = rows.map((row) => ({
-    codigo: row.numero_bem,
-    cidade: row.cidade,
-    uf: row.uf,
-    situacao: row.disponivel ? "Disponível" : "Indisponível",
-    modalidade: row.tipo_venda,
-    valor: row.valor_minimo,
-    valorMinimo: row.valor_minimo,
-    valorVenda: row.valor_venda,
-    valorAvaliacao: row.valor_avaliacao,
-    valorLeilao1: row.valor_leilao_1,
-    valorLeilao2: row.valor_leilao_2,
-    lanceAtual: row.lance_atual,
-    link: normalizeLink(row.numero_bem, row.link_consulta),
-    coletadoEm: row.coletado_em,
-    ultima_disputa: row.ultima_disputa,
-    descricao: row.detalhes,
-    financia: row.financia,
-    endereco: row.endereco,
-    bairro: row.bairro,
-    data_leilao_1: row.data_leilao_1,
-    data_leilao_2: row.data_leilao_2,
-    data_licitacao_aberta: row.data_licitacao_aberta,
-    data_hora_encerramento: row.data_hora_encerramento,
-    fonte: row.fonte,
-    tipoImovel: row.tipo_imovel,
-    desconto: row.desconto,
-  }));
+  const formatted = rows.map((row) => {
+    const fotos = normalizeFotos(row);
+    return {
+      fotos,
+      fotoUrl: fotos[0] || null,
+      codigo: row.numero_bem,
+      cidade: row.cidade,
+      uf: row.uf,
+      situacao: row.disponivel ? "Disponível" : "Indisponível",
+      modalidade: row.tipo_venda,
+      valor: row.valor_minimo,
+      valorMinimo: row.valor_minimo,
+      valorVenda: row.valor_venda,
+      valorAvaliacao: row.valor_avaliacao,
+      valorLeilao1: row.valor_leilao_1,
+      valorLeilao2: row.valor_leilao_2,
+      lanceAtual: row.lance_atual,
+      link: normalizeLink(row.numero_bem, row.link_consulta),
+      coletadoEm: row.coletado_em,
+      ultima_disputa: row.ultima_disputa,
+      descricao: row.detalhes,
+      financia: row.financia,
+      endereco: row.endereco,
+      bairro: row.bairro,
+      data_leilao_1: row.data_leilao_1,
+      data_leilao_2: row.data_leilao_2,
+      data_licitacao_aberta: row.data_licitacao_aberta,
+      data_hora_encerramento: row.data_hora_encerramento,
+      fonte: row.fonte,
+      tipoImovel: row.tipo_imovel,
+      desconto: row.desconto,
+    };
+  });
   return { data: formatted, total, page: currentPage, pageSize: currentPageSize };
 }
 

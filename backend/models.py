@@ -2415,6 +2415,77 @@ def listar_orcamentos_por_imovel(id_imovel):
 # ======================================================
 
 
+def _normalizar_lista_fotos_prospeccao(payload):
+    if not isinstance(payload, dict):
+        return []
+
+    candidatos = [
+        "fotos",
+        "fotos_url",
+        "fotos_urls",
+        "fotos_imovel",
+        "imagens",
+        "imagens_url",
+        "imagens_urls",
+        "galeria_fotos",
+        "galeria_imagens",
+        "image_urls",
+    ]
+    urls_unicas = []
+    vistos = set()
+
+    def adicionar_url(url):
+        if not url:
+            return
+        valor = f"{url}".strip()
+        if not valor or valor in vistos:
+            return
+        vistos.add(valor)
+        urls_unicas.append(valor)
+
+    def processar(valor):
+        if not valor:
+            return
+        if isinstance(valor, str):
+            texto = valor.strip()
+            if not texto:
+                return
+            if texto.startswith("["):
+                try:
+                    import json
+                    processar(json.loads(texto))
+                    return
+                except Exception:
+                    pass
+            adicionar_url(texto)
+            return
+        if isinstance(valor, dict):
+            for chave in ("url", "src", "href", "imagem", "image_url", "foto_url"):
+                if valor.get(chave):
+                    adicionar_url(valor.get(chave))
+            return
+        if isinstance(valor, (list, tuple, set)):
+            for item in valor:
+                processar(item)
+
+    for chave in candidatos:
+        processar(payload.get(chave))
+
+    for chave in [
+        "foto_principal",
+        "foto_principal_url",
+        "imagem_principal",
+        "imagem_principal_url",
+        "foto_url",
+        "image_url",
+        "thumbnail_url",
+        "preview_url",
+    ]:
+        adicionar_url(payload.get(chave))
+
+    return urls_unicas
+
+
 def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None, status=None, financia=None, cidades=None, order_by="coletado_em", order_dir="desc"):
     conn, cur = conectar()
     base_cte = """
@@ -2443,6 +2514,7 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
                 lance_atual,
                 link_consulta,
                 fonte,
+                to_jsonb(p) AS raw_payload,
                 (
                     SELECT MIN(v)
                     FROM (VALUES (valor_leilao_1), (valor_leilao_2), (valor_venda)) AS vals(v)
@@ -2459,7 +2531,7 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
                     ) AS datas(d)
                     WHERE d IS NOT NULL
                 ) AS ultima_disputa
-            FROM vw_imoveis_prospeccao_latest
+            FROM vw_imoveis_prospeccao_latest p
         )
     """
     conditions = []
@@ -2536,6 +2608,7 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
     for row in rows:
         valor_minimo = float(row["valor_minimo"]) if row["valor_minimo"] is not None else None
         ultima_disputa = row["ultima_disputa"].isoformat() if row["ultima_disputa"] is not None else None
+        fotos = _normalizar_lista_fotos_prospeccao(row.get("raw_payload"))
         result.append({
             "numero_bem": row["numero_bem"],
             "coletado_em": row["coletado_em"].isoformat() if row["coletado_em"] else None,
@@ -2562,6 +2635,8 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
             "fonte": row["fonte"],
             "valor_minimo": valor_minimo,
             "ultima_disputa": ultima_disputa,
+            "foto_url": fotos[0] if fotos else None,
+            "fotos": fotos,
         })
     return {"total": total, "data": result}
 

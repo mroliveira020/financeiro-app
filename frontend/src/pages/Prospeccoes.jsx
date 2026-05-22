@@ -34,18 +34,6 @@ const formatarPercentual = (valor) => {
   return `${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
 };
 
-const formatarDataHora = (valor) => {
-  if (!valor) return "—";
-  const data = new Date(valor);
-  if (Number.isNaN(data.getTime())) return "—";
-  const dia = String(data.getDate()).padStart(2, "0");
-  const mes = String(data.getMonth() + 1).padStart(2, "0");
-  const ano = data.getFullYear();
-  const hora = String(data.getHours()).padStart(2, "0");
-  const minuto = String(data.getMinutes()).padStart(2, "0");
-  return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
-};
-
 const formatarDataHoraCompacta = (valor) => {
   if (!valor) return "—";
   const data = new Date(valor);
@@ -57,6 +45,31 @@ const formatarDataHoraCompacta = (valor) => {
   const minuto = String(data.getMinutes()).padStart(2, "0");
   return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
 };
+
+const getProspectPhotoAlt = (item) => {
+  const local = [item?.bairro, item?.cidade, item?.uf].filter(Boolean).join(" - ");
+  return local ? `Foto do imóvel em ${local}` : `Foto do imóvel ${item?.codigo || ""}`.trim();
+};
+
+function ProspectPhoto({ item, className = "" }) {
+  if (item?.fotoUrl) {
+    return (
+      <img
+        className={className}
+        src={item.fotoUrl}
+        alt={getProspectPhotoAlt(item)}
+        loading="lazy"
+      />
+    );
+  }
+
+  return (
+    <div className={`${className} prospects-photo-placeholder`.trim()} aria-hidden="true">
+      <span>{item?.tipoImovel || "Imóvel"}</span>
+      <strong>{item?.uf || "Sem foto"}</strong>
+    </div>
+  );
+}
 
 function IconBase({ children, label }) {
   return (
@@ -1127,8 +1140,6 @@ function TabelaCapturados({
   erro,
   onIncluir,
   includeLoadingIds,
-  expanded,
-  toggleExpand,
   onPageChange,
   sortBy,
   sortDir,
@@ -1142,26 +1153,21 @@ function TabelaCapturados({
   const isEmpty = !dados.length;
   const renderSort = (key, label) => {
     const isActive = sortBy === key;
-    const arrow = isActive ? (sortDir === "asc" ? " ▲" : " ▼") : "";
-    const ariaSort = isActive ? (sortDir === "asc" ? "ascending" : "descending") : "none";
+    const arrow = isActive ? (sortDir === "asc" ? "▲" : "▼") : "";
     const handleSort = () => {
       const nextDir = isActive && sortDir === "asc" ? "desc" : "asc";
       onSortChange(key, nextDir);
     };
     return (
-      <th
-        className="prospects-sortable"
-        role="button"
-        tabIndex={0}
-        aria-sort={ariaSort}
+      <button
+        type="button"
+        className={`prospects-sort-chip ${isActive ? "is-active" : ""}`.trim()}
         onClick={handleSort}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") handleSort();
-        }}
+        aria-pressed={isActive}
       >
-        {label}
-        {arrow}
-      </th>
+        <span>{label}</span>
+        <strong>{arrow || "↕"}</strong>
+      </button>
     );
   };
 
@@ -1178,100 +1184,102 @@ function TabelaCapturados({
         <div>
           <p className="prospects-eyebrow">Última coleta</p>
           <h2 className="prospects-title">Capturados</h2>
+          <p className="prospects-subtitle prospects-subtitle--compact">
+            Visualização em cards com foto, resumo financeiro e dados principais do imóvel.
+          </p>
         </div>
         <span className="prospects-pill">{total} registros</span>
       </div>
-      <div className="prospects-table-wrap">
-        <table className="prospects-table">
-          <thead>
-            <tr>
-              {renderSort("codigo", "Código")}
-              {renderSort("cidade", "Cidade")}
-              {renderSort("uf", "UF")}
-              {renderSort("modalidade", "Modalidade")}
-              {renderSort("valor_minimo", "Valor")}
-              {renderSort("ultima_disputa", "Última disputa")}
-              <th>Descrição</th>
-              <th>Financia</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isEmpty && (
-              <tr>
-                <td colSpan={9}>
-                  <p className="prospects-empty">Nenhum capturado encontrado.</p>
-                </td>
-              </tr>
-            )}
-            {!isEmpty && dados.map((item) => (
-              <React.Fragment key={item.codigo}>
-                <tr className="prospects-expandable" onClick={() => toggleExpand(item.codigo)}>
-                  <td className="mono">
-                    <div className="prospects-code-stack">
-                      <a className="prospects-link" href={item.link} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                        {item.codigo}
-                      </a>
-                      {selectedCodes.has(item.codigo) ? (
-                        <span className="prospects-inline-pill prospects-inline-pill--selected">Na fila</span>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td>{item.cidade}</td>
-                  <td>{item.uf}</td>
-                  <td>{item.modalidade || "—"}</td>
-                  <td>{formatarMoeda(item.valorMinimo)}</td>
-                  <td>{formatarDataHora(item.ultima_disputa)}</td>
-                  <td>{item.descricao || "—"}</td>
-                  <td>{item.financia === undefined || item.financia === null ? "—" : item.financia ? "Sim" : "Não"}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="prospects-btn secondary"
-                      style={{ padding: "6px 8px", minWidth: "auto" }}
-                      disabled={includeLoadingIds.has(item.codigo)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onIncluir(item);
-                      }}
-                    >
-                      {includeLoadingIds.has(item.codigo) ? "…" : "+"}
-                    </button>
-                  </td>
-                </tr>
-                {expanded.has(item.codigo) && (
-                  <tr className="prospects-extra">
-                    <td colSpan={9}>
-                      <div className="prospects-detail-grid">
-                        <div><strong>Status:</strong> {item.situacao || "—"}</div>
-                        <div><strong>Financia:</strong> {item.financia === null || item.financia === undefined ? "—" : item.financia ? "Sim" : "Não"}</div>
-                        <div><strong>Tipo do imóvel:</strong> {item.tipoImovel || "—"}</div>
-                        <div><strong>Modalidade:</strong> {item.modalidade || "—"}</div>
-                        <div><strong>Valor mínimo:</strong> {formatarMoeda(item.valorMinimo)}</div>
-                        <div><strong>Valor venda:</strong> {formatarMoeda(item.valorVenda)}</div>
-                        <div><strong>Valor leilão 1:</strong> {formatarMoeda(item.valorLeilao1)}</div>
-                        <div><strong>Valor leilão 2:</strong> {formatarMoeda(item.valorLeilao2)}</div>
-                        <div><strong>Valor avaliação:</strong> {formatarMoeda(item.valorAvaliacao)}</div>
-                        <div><strong>Lance atual:</strong> {formatarMoeda(item.lanceAtual)}</div>
-                        <div><strong>Desconto:</strong> {formatarPercentual(item.desconto)}</div>
-                        <div><strong>Coletado em:</strong> {formatarDataHora(item.coletadoEm)}</div>
-                        <div><strong>Última disputa:</strong> {formatarDataHora(item.ultima_disputa)}</div>
-                        <div><strong>Data Leilão 1:</strong> {formatarDataHora(item.data_leilao_1)}</div>
-                        <div><strong>Data Leilão 2:</strong> {formatarDataHora(item.data_leilao_2)}</div>
-                        <div><strong>Licitação aberta:</strong> {formatarDataHora(item.data_licitacao_aberta)}</div>
-                        <div><strong>Encerramento:</strong> {formatarDataHora(item.data_hora_encerramento)}</div>
-                        <div><strong>Endereço:</strong> {[item.endereco, item.bairro, item.cidade, item.uf].filter(Boolean).join(" - ") || "—"}</div>
-                        <div><strong>Fonte:</strong> {item.fonte || "—"}</div>
-                        <div><strong>Link:</strong> <a className="prospects-link" href={item.link} target="_blank" rel="noreferrer">Abrir</a></div>
-                        <div style={{ gridColumn: "1 / -1" }}><strong>Detalhes:</strong> {item.descricao || "—"}</div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
+      <div className="prospects-card-grid">
+        <div className="prospects-card-grid__toolbar">
+          {renderSort("codigo", "Código")}
+          {renderSort("cidade", "Cidade")}
+          {renderSort("uf", "UF")}
+          {renderSort("modalidade", "Modalidade")}
+          {renderSort("valor_minimo", "Valor")}
+          {renderSort("ultima_disputa", "Última disputa")}
+        </div>
+
+        {isEmpty ? (
+          <p className="prospects-empty">Nenhum capturado encontrado.</p>
+        ) : dados.map((item) => {
+          const jaSelecionado = selectedCodes.has(item.codigo);
+          return (
+            <article key={item.codigo} className="prospects-capture-card">
+              <div className="prospects-capture-card__media">
+                <ProspectPhoto item={item} className="prospects-capture-card__photo" />
+                <div className="prospects-capture-card__badges">
+                  <span className="prospects-chip">{item.modalidade || "Sem modalidade"}</span>
+                  {jaSelecionado ? <span className="prospects-chip prospects-chip--selected">Na fila</span> : null}
+                </div>
+              </div>
+
+              <div className="prospects-capture-card__body">
+                <div className="prospects-capture-card__top">
+                  <div>
+                    <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
+                      {item.codigo}
+                    </a>
+                    <h3 className="prospects-capture-card__location">
+                      {[item.cidade, item.uf].filter(Boolean).join("/") || "Sem localização"}
+                    </h3>
+                    <p className="prospects-capture-card__address">
+                      {[item.endereco, item.bairro].filter(Boolean).join(" - ") || "Endereço não informado"}
+                    </p>
+                  </div>
+                  <div className="prospects-capture-card__status">
+                    <span>{item.situacao || "Sem status"}</span>
+                    <strong>{item.financia === undefined || item.financia === null ? "Financiamento n/d" : item.financia ? "Financia" : "Não financia"}</strong>
+                  </div>
+                </div>
+
+                <div className="prospects-capture-card__metrics">
+                  <div>
+                    <span>Valor mínimo</span>
+                    <strong>{formatarMoeda(item.valorMinimo)}</strong>
+                  </div>
+                  <div>
+                    <span>Avaliação</span>
+                    <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
+                  </div>
+                  <div>
+                    <span>Leilão 1</span>
+                    <strong>{formatarDataHoraCompacta(item.data_leilao_1)}</strong>
+                  </div>
+                  <div>
+                    <span>Última disputa</span>
+                    <strong>{formatarDataHoraCompacta(item.ultima_disputa)}</strong>
+                  </div>
+                </div>
+
+                <div className="prospects-capture-card__details">
+                  <div><span>Tipo</span><strong>{item.tipoImovel || "—"}</strong></div>
+                  <div><span>Desconto</span><strong>{formatarPercentual(item.desconto)}</strong></div>
+                  <div><span>Lance atual</span><strong>{formatarMoeda(item.lanceAtual)}</strong></div>
+                  <div><span>Fonte</span><strong>{item.fonte || "—"}</strong></div>
+                </div>
+
+                <p className="prospects-capture-card__description">
+                  {item.descricao || "Sem descrição cadastrada."}
+                </p>
+
+                <div className="prospects-capture-card__actions">
+                  <a className="prospects-btn secondary" href={item.link} target="_blank" rel="noreferrer">
+                    Abrir anúncio
+                  </a>
+                  <button
+                    type="button"
+                    className={`prospects-btn ${jaSelecionado ? "tertiary" : "primary"}`}
+                    disabled={includeLoadingIds.has(item.codigo)}
+                    onClick={() => onIncluir(item)}
+                  >
+                    {includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Adicionar novamente" : "Selecionar"}
+                  </button>
+                </div>
+              </div>
+            </article>
+          );
+        })}
       </div>
       <div className="prospects-pagination">
         <div className="prospects-pagination__summary">{renderRange()}</div>
@@ -1810,6 +1818,10 @@ function MobileCapturadosList({
           const jaSelecionado = selectedCodes.has(item.codigo);
           return (
             <article key={item.codigo} className="prospects-mobile-item-card">
+              <div className="prospects-mobile-item-card__media">
+                <ProspectPhoto item={item} className="prospects-mobile-item-card__photo" />
+              </div>
+
               <div className="prospects-mobile-item-card__top">
                 <div>
                   <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
@@ -1915,7 +1927,6 @@ export default function Prospeccoes() {
   const [updateLoadingIds, setUpdateLoadingIds] = useState(new Set());
   const [mensagem, setMensagem] = useState("");
   const [meta, setMeta] = useState({ ufs: [], modalidades: [], financia: [] });
-  const [expanded, setExpanded] = useState(new Set());
   const [sortBy, setSortBy] = useState("ultima_disputa");
   const [sortDir, setSortDir] = useState("desc");
   const [activeTab, setActiveTab] = useState("capturados");
@@ -2494,16 +2505,6 @@ export default function Prospeccoes() {
     return `Ordenado por ${labels[selectedSortBy] || "data do leilão"} em ${selectedSortDir === "asc" ? "ordem crescente" : "ordem decrescente"}.`;
   }, [selectedSortBy, selectedSortDir]);
 
-  const toggleExpand = (codigo) => {
-    const next = new Set(expanded);
-    if (next.has(codigo)) {
-      next.delete(codigo);
-    } else {
-      next.add(codigo);
-    }
-    setExpanded(next);
-  };
-
   const handlePageChange = (nextPage) => {
     const totalPages = Math.max(1, Math.ceil((capturadosTotal || 0) / pageSize));
     const normalized = Math.min(Math.max(nextPage, 1), totalPages);
@@ -2961,8 +2962,6 @@ export default function Prospeccoes() {
             erro={erroCap}
             onIncluir={handleIncluir}
             includeLoadingIds={includeLoadingIds}
-            expanded={expanded}
-            toggleExpand={toggleExpand}
             onPageChange={handlePageChange}
             sortBy={sortBy}
             sortDir={sortDir}
