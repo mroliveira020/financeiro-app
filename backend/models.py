@@ -2519,50 +2519,151 @@ def _normalizar_lista_fotos_valores(*values):
     return urls_unicas
 
 
-def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None, status=None, financia=None, cidades=None, order_by="coletado_em", order_dir="desc"):
+def _float_or_none(value):
+    return float(value) if value is not None else None
+
+
+def _int_or_none(value):
+    return int(value) if value is not None else None
+
+
+def _iso_or_none(value):
+    return value.isoformat() if value is not None else None
+
+
+def _build_avaliacao_dict(row):
+    if not row or row.get("avaliacao_numero_bem") is None:
+        return None
+    return {
+        "numero_bem": row["avaliacao_numero_bem"],
+        "preco_m2_regiao": _float_or_none(row["preco_m2_regiao"]),
+        "fonte_pesquisa": row["fonte_pesquisa"],
+        "valor_estimado_venda": _float_or_none(row["avaliacao_valor_estimado_venda"]),
+        "custo_aquisicao_est": _float_or_none(row["custo_aquisicao_est"]),
+        "custo_reforma_est": _float_or_none(row["custo_reforma_est"]),
+        "custo_desocupacao_est": _float_or_none(row["custo_desocupacao_est"]),
+        "lucro_estimado": _float_or_none(row["lucro_estimado"]),
+        "retorno_pct": _float_or_none(row["retorno_pct"]),
+        "score_total": _int_or_none(row["score_total"]),
+        "score_desconto": _int_or_none(row["score_desconto"]),
+        "score_liquidez": _int_or_none(row["score_liquidez"]),
+        "score_risco": _int_or_none(row["score_risco"]),
+        "score_regiao": _int_or_none(row["score_regiao"]),
+        "resumo_ia": row["resumo_ia"],
+        "pesquisado_em": _iso_or_none(row["pesquisado_em"]),
+    }
+
+
+def _build_prefill_analise_motor2(imovel, avaliacao):
+    valor_base_operacao = _to_float(
+        (imovel or {}).get("valor_venda")
+        or (imovel or {}).get("valor_minimo")
+        or (imovel or {}).get("valor_avaliacao")
+    )
+    valor_estimado_venda = _to_float((avaliacao or {}).get("valor_estimado_venda"))
+    financia = bool((imovel or {}).get("financia"))
+
+    inputs = calcular_analise_prospeccao({
+        "valor_base_operacao": valor_base_operacao,
+        "tempo_operacao_meses": 12,
+        "valor_maximo_lance": valor_base_operacao,
+        "percentual_financiamento": 90.0 if financia else 0.0,
+        "prestacao_mensal_financiamento": 0.0,
+        "valor_estimado_venda": valor_estimado_venda,
+        "reforma": _to_float((avaliacao or {}).get("custo_reforma_est")) or 10000.0,
+        "condominio_atraso": 0.0,
+        "iptu_atraso": 800.0,
+        "desocupacao": _to_float((avaliacao or {}).get("custo_desocupacao_est")) or 0.0,
+        "itbi_percentual": 3.0,
+        "itbi_valor": valor_base_operacao * 0.03 if valor_base_operacao > 0 else 0.0,
+        "documentacao": 3000.0,
+        "manutencao_agua_mensal": 100.0,
+        "manutencao_luz_mensal": 80.0,
+        "manutencao_condominio_mensal": 0.0,
+        "manutencao_iptu_mensal": 40.0,
+        "comissao_leiloeiro_percentual": 5.0,
+        "comissao_leiloeiro_valor": valor_base_operacao * 0.05 if valor_base_operacao > 0 else 0.0,
+        "comissao_corretor_percentual": 6.0,
+        "comissao_corretor_valor": valor_estimado_venda * 0.06 if valor_estimado_venda > 0 else 0.0,
+        "ganho_capital_percentual": 15.0,
+        "ganho_capital_valor": 0.0,
+    })
+    return inputs
+
+
+def listar_prospeccoes_capturados(
+    limit=50,
+    offset=0,
+    ufs=None,
+    modalidades=None,
+    status=None,
+    financia=None,
+    cidades=None,
+    order_by="coletado_em",
+    order_dir="desc",
+    score_min=None,
+    roi_min=None,
+    somente_com_avaliacao=False,
+):
     conn, cur = conectar()
     base_cte = """
         WITH base AS (
             SELECT
-                numero_bem,
-                coletado_em,
-                tipo_venda,
-                tipo_imovel,
-                uf,
-                cidade,
-                bairro,
-                endereco,
-                valor_venda,
-                valor_avaliacao,
-                desconto,
-                detalhes,
-                disponivel,
-                financia,
-                valor_leilao_1,
-                valor_leilao_2,
-                data_leilao_1,
-                data_leilao_2,
-                data_licitacao_aberta,
-                data_hora_encerramento,
-                lance_atual,
-                link_consulta,
-                fonte,
+                p.numero_bem,
+                p.coletado_em,
+                p.tipo_venda,
+                p.tipo_imovel,
+                p.uf,
+                p.cidade,
+                p.bairro,
+                p.endereco,
+                p.valor_venda,
+                p.valor_avaliacao,
+                p.desconto,
+                p.detalhes,
+                p.disponivel,
+                p.financia,
+                p.valor_leilao_1,
+                p.valor_leilao_2,
+                p.data_leilao_1,
+                p.data_leilao_2,
+                p.data_licitacao_aberta,
+                p.data_hora_encerramento,
+                p.lance_atual,
+                p.link_consulta,
+                p.fonte,
                 fotos_rel.foto_url AS foto_rel_url,
                 fotos_rel.fotos AS fotos_rel,
+                av.numero_bem AS avaliacao_numero_bem,
+                av.preco_m2_regiao,
+                av.fonte_pesquisa,
+                av.valor_estimado_venda AS avaliacao_valor_estimado_venda,
+                av.custo_aquisicao_est,
+                av.custo_reforma_est,
+                av.custo_desocupacao_est,
+                av.lucro_estimado,
+                av.retorno_pct,
+                av.score_total,
+                av.score_desconto,
+                av.score_liquidez,
+                av.score_risco,
+                av.score_regiao,
+                av.resumo_ia,
+                av.pesquisado_em,
                 to_jsonb(p) AS raw_payload,
                 (
                     SELECT MIN(v)
-                    FROM (VALUES (valor_leilao_1), (valor_leilao_2), (valor_venda)) AS vals(v)
+                    FROM (VALUES (p.valor_leilao_1), (p.valor_leilao_2), (p.valor_venda)) AS vals(v)
                     WHERE v IS NOT NULL
                 ) AS valor_minimo,
                 (
                     SELECT MAX(d)
                     FROM (
-                        VALUES (data_leilao_1),
-                               (data_leilao_2),
-                               (data_licitacao_aberta),
-                               (data_hora_encerramento),
-                               (coletado_em)
+                        VALUES (p.data_leilao_1),
+                               (p.data_leilao_2),
+                               (p.data_licitacao_aberta),
+                               (p.data_hora_encerramento),
+                               (p.coletado_em)
                     ) AS datas(d)
                     WHERE d IS NOT NULL
                 ) AS ultima_disputa
@@ -2574,6 +2675,8 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
                 FROM imoveis_fotos f
                 WHERE f.numero_bem = p.numero_bem
             ) fotos_rel ON TRUE
+            LEFT JOIN avaliacoes av
+                ON av.numero_bem = p.numero_bem
         )
     """
     conditions = []
@@ -2614,6 +2717,14 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
         placeholders = ",".join(["LOWER(%s)"] * len(cidades))
         conditions.append(f"LOWER(cidade) IN ({placeholders})")
         params.extend([item.lower() for item in cidades])
+    if score_min is not None:
+        conditions.append("COALESCE(score_total, 0) >= %s")
+        params.append(score_min)
+    if roi_min is not None:
+        conditions.append("COALESCE(retorno_pct, 0) >= %s")
+        params.append(roi_min)
+    if somente_com_avaliacao:
+        conditions.append("avaliacao_numero_bem IS NOT NULL")
 
     where_clause = ""
     if conditions:
@@ -2628,6 +2739,8 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
         "valor_minimo": "valor_minimo",
         "ultima_disputa": "ultima_disputa",
         "coletado_em": "coletado_em",
+        "score_total": "score_total",
+        "retorno_pct": "retorno_pct",
     }
     order_col = order_map.get(order_by, "coletado_em")
     direction = "ASC" if (order_dir or "").lower() == "asc" else "DESC"
@@ -2655,6 +2768,7 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
             row.get("fotos_rel"),
             _normalizar_lista_fotos_prospeccao(row.get("raw_payload")),
         )
+        avaliacao = _build_avaliacao_dict(row)
         result.append({
             "numero_bem": row["numero_bem"],
             "coletado_em": row["coletado_em"].isoformat() if row["coletado_em"] else None,
@@ -2683,6 +2797,7 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
             "ultima_disputa": ultima_disputa,
             "foto_url": fotos[0] if fotos else None,
             "fotos": fotos,
+            "avaliacao": avaliacao,
         })
     return {"total": total, "data": result}
 
@@ -2718,6 +2833,22 @@ def listar_prospeccoes_selecionados(
             v.detalhes,
             fotos_rel.foto_url AS foto_url,
             fotos_rel.fotos AS fotos,
+            av.numero_bem AS avaliacao_numero_bem,
+            av.preco_m2_regiao,
+            av.fonte_pesquisa,
+            av.valor_estimado_venda AS avaliacao_valor_estimado_venda,
+            av.custo_aquisicao_est,
+            av.custo_reforma_est,
+            av.custo_desocupacao_est,
+            av.lucro_estimado,
+            av.retorno_pct,
+            av.score_total,
+            av.score_desconto,
+            av.score_liquidez,
+            av.score_risco,
+            av.score_regiao,
+            av.resumo_ia,
+            av.pesquisado_em,
             a.numero_bem AS analise_numero_bem,
             a.valor_base_operacao,
             a.tempo_operacao_meses,
@@ -2756,6 +2887,8 @@ def listar_prospeccoes_selecionados(
             ON u.id = s.created_by
         LEFT JOIN imoveis_selecionados_analise a
             ON a.numero_bem = s.numero_bem
+        LEFT JOIN avaliacoes av
+            ON av.numero_bem = s.numero_bem
         LEFT JOIN vw_imoveis_prospeccao_latest v
             ON v.numero_bem = s.numero_bem
         LEFT JOIN LATERAL (
@@ -2902,6 +3035,7 @@ def listar_prospeccoes_selecionados(
             "ganho_capital_valor": float(row["ganho_capital_valor"]) if row["ganho_capital_valor"] is not None else None,
         }
         calculos_analise = calcular_analise_prospeccao(analise_inputs) if tem_analise else None
+        avaliacao = _build_avaliacao_dict(row)
 
         result.append({
             "foto_url": row["foto_url"],
@@ -2927,6 +3061,7 @@ def listar_prospeccoes_selecionados(
             "analise_salva": tem_analise,
             "roi_esperado_percentual": calculos_analise["roi_esperado_percentual"] if calculos_analise else None,
             "lucro_esperado_valor": calculos_analise["lucro_esperado_valor"] if calculos_analise else None,
+            "avaliacao": avaliacao,
         })
     return result
 
@@ -3110,6 +3245,174 @@ def calcular_analise_prospeccao(dados):
     }
 
 
+def obter_avaliacao_automatica_prospeccao(numero_bem):
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT
+                v.numero_bem,
+                v.tipo_imovel,
+                v.tipo_venda,
+                v.uf,
+                v.cidade,
+                v.bairro,
+                v.endereco,
+                v.valor_venda,
+                v.valor_avaliacao,
+                v.desconto,
+                v.financia,
+                v.disponivel,
+                v.detalhes,
+                v.area_m2,
+                v.quartos,
+                v.vagas,
+                v.link_consulta,
+                v.coletado_em,
+                fotos_rel.foto_url,
+                fotos_rel.fotos,
+                av.numero_bem AS avaliacao_numero_bem,
+                av.preco_m2_regiao,
+                av.fonte_pesquisa,
+                av.valor_estimado_venda AS avaliacao_valor_estimado_venda,
+                av.custo_aquisicao_est,
+                av.custo_reforma_est,
+                av.custo_desocupacao_est,
+                av.lucro_estimado,
+                av.retorno_pct,
+                av.score_total,
+                av.score_desconto,
+                av.score_liquidez,
+                av.score_risco,
+                av.score_regiao,
+                av.resumo_ia,
+                av.pesquisado_em
+            FROM vw_imoveis_prospeccao_latest v
+            LEFT JOIN avaliacoes av
+                ON av.numero_bem = v.numero_bem
+            LEFT JOIN LATERAL (
+                SELECT
+                    (array_agg(f.url ORDER BY COALESCE(f.ordem, 999999), f.url))[1] AS foto_url,
+                    array_agg(f.url ORDER BY COALESCE(f.ordem, 999999), f.url) AS fotos
+                FROM imoveis_fotos f
+                WHERE f.numero_bem = v.numero_bem
+            ) fotos_rel ON TRUE
+            WHERE v.numero_bem = %s
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+
+        cur.execute(
+            """
+            SELECT
+                id,
+                numero_bem,
+                titulo,
+                preco,
+                area_m2,
+                quartos,
+                url,
+                fonte,
+                cidade,
+                uf,
+                coletado_em
+            FROM comparaveis
+            WHERE numero_bem = %s
+            ORDER BY preco ASC NULLS LAST, id ASC
+            """,
+            (numero_bem,),
+        )
+        comparaveis = []
+        for item in cur.fetchall():
+            preco = _float_or_none(item["preco"])
+            area_m2 = _float_or_none(item["area_m2"])
+            comparaveis.append({
+                "id": item["id"],
+                "numero_bem": item["numero_bem"],
+                "titulo": item["titulo"],
+                "preco": preco,
+                "area_m2": area_m2,
+                "preco_m2": round(preco / area_m2, 2) if preco and area_m2 else None,
+                "quartos": item["quartos"],
+                "url": item["url"],
+                "fonte": item["fonte"],
+                "cidade": item["cidade"],
+                "uf": item["uf"],
+                "coletado_em": _iso_or_none(item["coletado_em"]),
+            })
+
+        fotos = _normalizar_lista_fotos_valores(row.get("foto_url"), row.get("fotos"))
+        return {
+            "imovel": {
+                "numero_bem": row["numero_bem"],
+                "tipo_imovel": row["tipo_imovel"],
+                "tipo_venda": row["tipo_venda"],
+                "uf": row["uf"],
+                "cidade": row["cidade"],
+                "bairro": row["bairro"],
+                "endereco": row["endereco"],
+                "valor_venda": _float_or_none(row["valor_venda"]),
+                "valor_avaliacao": _float_or_none(row["valor_avaliacao"]),
+                "desconto": _float_or_none(row["desconto"]),
+                "financia": row["financia"],
+                "disponivel": row["disponivel"],
+                "detalhes": row["detalhes"],
+                "area_m2": _float_or_none(row["area_m2"]),
+                "quartos": row["quartos"],
+                "vagas": row["vagas"],
+                "link_consulta": row["link_consulta"],
+                "coletado_em": _iso_or_none(row["coletado_em"]),
+                "foto_url": fotos[0] if fotos else None,
+                "fotos": fotos,
+            },
+            "avaliacao": _build_avaliacao_dict(row),
+            "comparaveis": comparaveis,
+        }
+    finally:
+        conn.close()
+
+
+def salvar_score_regiao_avaliacao(numero_bem, score_regiao):
+    score_regiao_int = max(0, min(20, int(score_regiao)))
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            UPDATE avaliacoes
+               SET score_regiao = %s,
+                   score_total = COALESCE(score_desconto, 0) + COALESCE(score_liquidez, 0) + COALESCE(score_risco, 0) + %s
+             WHERE numero_bem = %s
+         RETURNING
+                numero_bem AS avaliacao_numero_bem,
+                preco_m2_regiao,
+                fonte_pesquisa,
+                valor_estimado_venda AS avaliacao_valor_estimado_venda,
+                custo_aquisicao_est,
+                custo_reforma_est,
+                custo_desocupacao_est,
+                lucro_estimado,
+                retorno_pct,
+                score_total,
+                score_desconto,
+                score_liquidez,
+                score_risco,
+                score_regiao,
+                resumo_ia,
+                pesquisado_em
+            """,
+            (score_regiao_int, score_regiao_int, numero_bem),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        return _build_avaliacao_dict(row) if row else None
+    finally:
+        conn.close()
+
+
 def obter_analise_prospeccao_selecionado(numero_bem):
     _garantir_colunas_prospeccao_autoria()
     _garantir_tabela_prospeccao_analise()
@@ -3149,10 +3452,34 @@ def obter_analise_prospeccao_selecionado(numero_bem):
                 a.updated_by,
                 COALESCE(NULLIF(uu.name, ''), NULLIF(a.updated_by_name, ''), uu.email) AS updated_by_name,
                 a.created_at,
-                a.updated_at
+                a.updated_at,
+                v.valor_venda,
+                v.valor_avaliacao,
+                v.valor_minimo,
+                v.financia,
+                av.numero_bem AS avaliacao_numero_bem,
+                av.preco_m2_regiao,
+                av.fonte_pesquisa,
+                av.valor_estimado_venda AS avaliacao_valor_estimado_venda,
+                av.custo_aquisicao_est,
+                av.custo_reforma_est,
+                av.custo_desocupacao_est,
+                av.lucro_estimado,
+                av.retorno_pct,
+                av.score_total,
+                av.score_desconto,
+                av.score_liquidez,
+                av.score_risco,
+                av.score_regiao,
+                av.resumo_ia,
+                av.pesquisado_em
             FROM imoveis_selecionados s
             LEFT JOIN imoveis_selecionados_analise a
                 ON a.numero_bem = s.numero_bem
+            LEFT JOIN vw_imoveis_prospeccao_latest v
+                ON v.numero_bem = s.numero_bem
+            LEFT JOIN avaliacoes av
+                ON av.numero_bem = s.numero_bem
             LEFT JOIN users cu
                 ON cu.id = a.created_by
             LEFT JOIN users uu
@@ -3166,34 +3493,47 @@ def obter_analise_prospeccao_selecionado(numero_bem):
         if not row:
             return None
 
-        dados = {
-            "numero_bem": row["numero_bem"],
-            "link_google_maps": row["link_google_maps"],
-            "valor_base_operacao": float(row["valor_base_operacao"]) if row["valor_base_operacao"] is not None else None,
-            "tempo_operacao_meses": row["tempo_operacao_meses"] if row["tempo_operacao_meses"] is not None else 12,
-            "valor_maximo_lance": float(row["valor_maximo_lance"]) if row["valor_maximo_lance"] is not None else (float(row["valor_maximo"]) if row["valor_maximo"] is not None else 0.0),
-            "percentual_financiamento": float(row["percentual_financiamento"]) if row["percentual_financiamento"] is not None else 0.0,
-            "prestacao_mensal_financiamento": float(row["prestacao_mensal_financiamento"]) if row["prestacao_mensal_financiamento"] is not None else 0.0,
-            "valor_estimado_venda": float(row["valor_estimado_venda"]) if row["valor_estimado_venda"] is not None else 0.0,
-            "reforma": float(row["reforma"]) if row["reforma"] is not None else 0.0,
-            "condominio_atraso": float(row["condominio_atraso"]) if row["condominio_atraso"] is not None else 0.0,
-            "iptu_atraso": float(row["iptu_atraso"]) if row["iptu_atraso"] is not None else 0.0,
-            "desocupacao": float(row["desocupacao"]) if row["desocupacao"] is not None else 0.0,
-            "itbi_percentual": float(row["itbi_percentual"]) if row["itbi_percentual"] is not None else None,
-            "itbi_valor": float(row["itbi_valor"]) if row["itbi_valor"] is not None else None,
-            "documentacao": float(row["documentacao"]) if row["documentacao"] is not None else 0.0,
-            "manutencao_agua_mensal": float(row["manutencao_agua_mensal"]) if row["manutencao_agua_mensal"] is not None else 0.0,
-            "manutencao_luz_mensal": float(row["manutencao_luz_mensal"]) if row["manutencao_luz_mensal"] is not None else 0.0,
-            "manutencao_condominio_mensal": float(row["manutencao_condominio_mensal"]) if row["manutencao_condominio_mensal"] is not None else 0.0,
-            "manutencao_iptu_mensal": float(row["manutencao_iptu_mensal"]) if row["manutencao_iptu_mensal"] is not None else 0.0,
-            "comissao_leiloeiro_percentual": float(row["comissao_leiloeiro_percentual"]) if row["comissao_leiloeiro_percentual"] is not None else None,
-            "comissao_leiloeiro_valor": float(row["comissao_leiloeiro_valor"]) if row["comissao_leiloeiro_valor"] is not None else None,
-            "comissao_corretor_percentual": float(row["comissao_corretor_percentual"]) if row["comissao_corretor_percentual"] is not None else None,
-            "comissao_corretor_valor": float(row["comissao_corretor_valor"]) if row["comissao_corretor_valor"] is not None else None,
-            "ganho_capital_percentual": float(row["ganho_capital_percentual"]) if row["ganho_capital_percentual"] is not None else None,
-            "ganho_capital_valor": float(row["ganho_capital_valor"]) if row["ganho_capital_valor"] is not None else None,
-        }
-        calculada = calcular_analise_prospeccao(dados)
+        avaliacao = _build_avaliacao_dict(row)
+        tem_analise_salva = row["valor_base_operacao"] is not None or row["valor_estimado_venda"] is not None
+
+        if tem_analise_salva:
+            dados = {
+                "numero_bem": row["numero_bem"],
+                "link_google_maps": row["link_google_maps"],
+                "valor_base_operacao": float(row["valor_base_operacao"]) if row["valor_base_operacao"] is not None else None,
+                "tempo_operacao_meses": row["tempo_operacao_meses"] if row["tempo_operacao_meses"] is not None else 12,
+                "valor_maximo_lance": float(row["valor_maximo_lance"]) if row["valor_maximo_lance"] is not None else (float(row["valor_maximo"]) if row["valor_maximo"] is not None else 0.0),
+                "percentual_financiamento": float(row["percentual_financiamento"]) if row["percentual_financiamento"] is not None else 0.0,
+                "prestacao_mensal_financiamento": float(row["prestacao_mensal_financiamento"]) if row["prestacao_mensal_financiamento"] is not None else 0.0,
+                "valor_estimado_venda": float(row["valor_estimado_venda"]) if row["valor_estimado_venda"] is not None else 0.0,
+                "reforma": float(row["reforma"]) if row["reforma"] is not None else 0.0,
+                "condominio_atraso": float(row["condominio_atraso"]) if row["condominio_atraso"] is not None else 0.0,
+                "iptu_atraso": float(row["iptu_atraso"]) if row["iptu_atraso"] is not None else 0.0,
+                "desocupacao": float(row["desocupacao"]) if row["desocupacao"] is not None else 0.0,
+                "itbi_percentual": float(row["itbi_percentual"]) if row["itbi_percentual"] is not None else None,
+                "itbi_valor": float(row["itbi_valor"]) if row["itbi_valor"] is not None else None,
+                "documentacao": float(row["documentacao"]) if row["documentacao"] is not None else 0.0,
+                "manutencao_agua_mensal": float(row["manutencao_agua_mensal"]) if row["manutencao_agua_mensal"] is not None else 0.0,
+                "manutencao_luz_mensal": float(row["manutencao_luz_mensal"]) if row["manutencao_luz_mensal"] is not None else 0.0,
+                "manutencao_condominio_mensal": float(row["manutencao_condominio_mensal"]) if row["manutencao_condominio_mensal"] is not None else 0.0,
+                "manutencao_iptu_mensal": float(row["manutencao_iptu_mensal"]) if row["manutencao_iptu_mensal"] is not None else 0.0,
+                "comissao_leiloeiro_percentual": float(row["comissao_leiloeiro_percentual"]) if row["comissao_leiloeiro_percentual"] is not None else None,
+                "comissao_leiloeiro_valor": float(row["comissao_leiloeiro_valor"]) if row["comissao_leiloeiro_valor"] is not None else None,
+                "comissao_corretor_percentual": float(row["comissao_corretor_percentual"]) if row["comissao_corretor_percentual"] is not None else None,
+                "comissao_corretor_valor": float(row["comissao_corretor_valor"]) if row["comissao_corretor_valor"] is not None else None,
+                "ganho_capital_percentual": float(row["ganho_capital_percentual"]) if row["ganho_capital_percentual"] is not None else None,
+                "ganho_capital_valor": float(row["ganho_capital_valor"]) if row["ganho_capital_valor"] is not None else None,
+            }
+            calculada = calcular_analise_prospeccao(dados)
+            prefill_source = "manual_existente"
+        else:
+            calculada = _build_prefill_analise_motor2({
+                "valor_venda": row["valor_venda"],
+                "valor_avaliacao": row["valor_avaliacao"],
+                "financia": row["financia"],
+            }, avaliacao)
+            prefill_source = "motor2" if avaliacao else "padrao"
+
         return {
             "numero_bem": numero_bem,
             "inputs": calculada,
@@ -3212,6 +3552,8 @@ def obter_analise_prospeccao_selecionado(numero_bem):
                 "roi_esperado_valor": calculada["roi_esperado_valor"],
             },
             "meta": {
+                "prefill_source": prefill_source,
+                "avaliacao_automatica": avaliacao,
                 "created_by": row["created_by"],
                 "created_by_name": row["created_by_name"],
                 "updated_by": row["updated_by"],

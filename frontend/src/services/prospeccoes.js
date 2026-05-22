@@ -65,6 +65,9 @@ export async function fetchCapturados({
   status = ["disponivel"],
   orderBy = "ultima_disputa",
   orderDir = "desc",
+  scoreMin,
+  roiMin,
+  somenteComAvaliacao,
 } = {}) {
   const { data } = await api.get("/prospeccoes/capturados", {
     params: {
@@ -77,6 +80,9 @@ export async function fetchCapturados({
       status,
       order_by: orderBy,
       order_dir: orderDir,
+      score_min: scoreMin,
+      roi_min: roiMin,
+      somente_com_avaliacao: somenteComAvaliacao,
     },
     paramsSerializer: { serialize: serializeParams },
   });
@@ -115,6 +121,7 @@ export async function fetchCapturados({
       fonte: row.fonte,
       tipoImovel: row.tipo_imovel,
       desconto: row.desconto,
+      avaliacaoAutomatica: row.avaliacao || null,
     };
   });
   return { data: formatted, total, page: currentPage, pageSize: currentPageSize };
@@ -127,40 +134,41 @@ export async function fetchSelecionados({ status, uf, userId } = {}) {
   });
   return (data?.data || []).map((item) => {
     const fotos = normalizeFotos(item);
-    return ({
-    fotos,
-    fotoUrl: fotos[0] || null,
-    codigo: item.numero_bem,
-    status: item.status,
-    valorMaximo: item.valor_maximo,
-    prioridade: item.prioridade,
-    createdBy: item.created_by,
-    createdByName: item.created_by_name,
-    responsaveis: (item.responsaveis || []).map((responsavel) => ({
-      id: responsavel.id,
-      name: responsavel.name,
-      email: responsavel.email,
-      role: responsavel.role,
-    })),
-    cidade: item.cidade,
-    uf: item.uf,
-    valor: item.valor_venda ?? item.valor_avaliacao,
-    link: normalizeLink(item.numero_bem, item.link_consulta),
-    modalidade: item.tipo_venda,
-    disponivel: item.disponivel,
-    observacoes: item.observacoes,
-    observacoesHistorico: (item.observacoes_historico || []).map((obs) => ({
-      observacao: obs.observacao,
-      createdBy: obs.created_by,
-      createdByName: obs.created_by_name,
-      createdAt: obs.created_at,
-    })),
-    descricao: item.detalhes,
-    dataLeilao: item.data_leilao,
-    analiseSalva: Boolean(item.analise_salva),
-    roiEsperadoPercentual: item.roi_esperado_percentual,
-    lucroEsperadoValor: item.lucro_esperado_valor,
-    });
+    return {
+      fotos,
+      fotoUrl: fotos[0] || null,
+      codigo: item.numero_bem,
+      status: item.status,
+      valorMaximo: item.valor_maximo,
+      prioridade: item.prioridade,
+      createdBy: item.created_by,
+      createdByName: item.created_by_name,
+      responsaveis: (item.responsaveis || []).map((responsavel) => ({
+        id: responsavel.id,
+        name: responsavel.name,
+        email: responsavel.email,
+        role: responsavel.role,
+      })),
+      cidade: item.cidade,
+      uf: item.uf,
+      valor: item.valor_venda ?? item.valor_avaliacao,
+      link: normalizeLink(item.numero_bem, item.link_consulta),
+      modalidade: item.tipo_venda,
+      disponivel: item.disponivel,
+      observacoes: item.observacoes,
+      observacoesHistorico: (item.observacoes_historico || []).map((obs) => ({
+        observacao: obs.observacao,
+        createdBy: obs.created_by,
+        createdByName: obs.created_by_name,
+        createdAt: obs.created_at,
+      })),
+      descricao: item.detalhes,
+      dataLeilao: item.data_leilao,
+      analiseSalva: Boolean(item.analise_salva),
+      roiEsperadoPercentual: item.roi_esperado_percentual,
+      lucroEsperadoValor: item.lucro_esperado_valor,
+      avaliacaoAutomatica: item.avaliacao || null,
+    };
   });
 }
 
@@ -213,5 +221,17 @@ export async function fetchAnaliseSelecionado(numeroBem) {
 
 export async function salvarAnaliseSelecionado(numeroBem, payload) {
   const { data } = await api.put(`/prospeccoes/selecionados/${numeroBem}/analise`, payload);
+  return data;
+}
+
+export async function fetchAvaliacaoAutomatica(numeroBem) {
+  const { data } = await api.get(`/prospeccoes/capturados/${numeroBem}/avaliacao`);
+  return data;
+}
+
+export async function salvarScoreRegiao(numeroBem, scoreRegiao) {
+  const { data } = await api.patch(`/prospeccoes/capturados/${numeroBem}/score-regiao`, {
+    score_regiao: scoreRegiao,
+  });
   return data;
 }

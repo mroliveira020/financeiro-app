@@ -10,7 +10,9 @@ import {
   fetchProspecMeta,
   fetchAnaliseSelecionado,
   salvarAnaliseSelecionado,
+  fetchAvaliacaoAutomatica,
   fetchResponsaveisDisponiveis,
+  salvarScoreRegiao,
   salvarResponsaveisSelecionado,
 } from "../services/prospeccoes";
 import { fetchImoveisFinanceiroAcessiveis } from "../services/api";
@@ -32,6 +34,27 @@ const formatarMoeda = (valor) => {
 const formatarPercentual = (valor) => {
   if (valor === null || valor === undefined) return "—";
   return `${Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}%`;
+};
+
+const formatarNumero = (valor) => {
+  if (valor === null || valor === undefined) return "—";
+  return Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+};
+
+const calcularDescontoExibicao = (item) => {
+  const descontoInformado = Number(item?.desconto);
+  if (Number.isFinite(descontoInformado) && descontoInformado > 0) {
+    return descontoInformado;
+  }
+
+  const valorAvaliacao = Number(item?.valorAvaliacao);
+  const valorMinimo = Number(item?.valorMinimo ?? item?.valor);
+  if (!Number.isFinite(valorAvaliacao) || valorAvaliacao <= 0 || !Number.isFinite(valorMinimo) || valorMinimo < 0) {
+    return null;
+  }
+
+  const descontoCalculado = ((valorAvaliacao - valorMinimo) / valorAvaliacao) * 100;
+  return descontoCalculado > 0 ? descontoCalculado : null;
 };
 
 const formatarDataHoraCompacta = (valor) => {
@@ -70,6 +93,32 @@ function ProspectPhoto({ item, className = "" }) {
     </div>
   );
 }
+
+const getScoreClasse = (scoreTotal) => {
+  const valor = Number(scoreTotal);
+  if (!Number.isFinite(valor)) return "is-neutral";
+  if (valor >= 60) return "is-high";
+  if (valor >= 40) return "is-medium";
+  return "is-low";
+};
+
+const getRoiClasse = (roi) => {
+  const valor = Number(roi);
+  if (!Number.isFinite(valor)) return "is-neutral";
+  if (valor < 0) return "is-negative";
+  if (valor >= 30) return "is-high";
+  return "is-medium";
+};
+
+const getMensagemPrefillAnalise = (meta) => {
+  const source = meta?.prefill_source;
+  const data = meta?.avaliacao_automatica?.pesquisado_em;
+  const dataFmt = data ? formatarDataHoraCompacta(data) : "data não informada";
+  if (source === "motor2") {
+    return `Valores pre-preenchidos pelo Motor de Avaliacao Automatica (comparaveis coletados em ${dataFmt}). Ajuste conforme seu conhecimento do imovel.`;
+  }
+  return "";
+};
 
 function IconBase({ children, label }) {
   return (
@@ -768,6 +817,7 @@ function CampoTextoNumerico({ label, value, onChange, onFocus, onBlur, placehold
 function AnaliseModal({
   item,
   draft,
+  meta,
   pairModes,
   loading,
   saving,
@@ -806,6 +856,11 @@ function AnaliseModal({
             <p className="prospects-empty">Carregando ficha de análise...</p>
           ) : (
             <>
+              {getMensagemPrefillAnalise(meta) ? (
+                <div className="prospects-modal__hint">
+                  {getMensagemPrefillAnalise(meta)}
+                </div>
+              ) : null}
               <div className="prospects-analise-grid">
                 <section className="prospects-analise-section prospects-analise-section--full prospects-analise-section--summary">
                   <h4>Resumo financeiro</h4>
@@ -1145,6 +1200,7 @@ function TabelaCapturados({
   sortDir,
   onSortChange,
   selectedCodes,
+  onAbrirAvaliacao,
 }) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando capturados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar capturados: {erro}</p></div>;
@@ -1206,6 +1262,8 @@ function TabelaCapturados({
           const jaSelecionado = selectedCodes.has(item.codigo);
           const enderecoCompacto = [item.endereco, item.bairro].filter(Boolean).join(" - ");
           const dataEvento = item.data_leilao_1 || item.data_leilao_2 || item.data_hora_encerramento || item.ultima_disputa;
+          const descontoExibicao = calcularDescontoExibicao(item);
+          const avaliacao = item.avaliacaoAutomatica;
           return (
             <article key={item.codigo} className="prospects-capture-card">
               <div className="prospects-capture-card__media">
@@ -1214,9 +1272,9 @@ function TabelaCapturados({
                   <span className="prospects-chip">{item.modalidade || "Sem modalidade"}</span>
                   {jaSelecionado ? <span className="prospects-chip prospects-chip--selected">Na fila</span> : null}
                 </div>
-                {item.desconto !== null && item.desconto !== undefined ? (
+                {descontoExibicao !== null ? (
                   <div className="prospects-capture-card__discount">
-                    {formatarPercentual(item.desconto)}
+                    {formatarPercentual(descontoExibicao)}
                   </div>
                 ) : null}
               </div>
@@ -1261,7 +1319,26 @@ function TabelaCapturados({
                   </div>
                 </div>
 
+                {avaliacao ? (
+                  <div className="prospects-capture-card__auto">
+                    <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
+                      Score: {avaliacao.score_total ?? "—"}/85
+                    </span>
+                    <span className={`prospects-auto-badge ${getRoiClasse(avaliacao.retorno_pct)}`}>
+                      ROI: {formatarPercentual(avaliacao.retorno_pct)}
+                    </span>
+                    <span className="prospects-auto-badge">
+                      Venda est.: {formatarMoeda(avaliacao.valor_estimado_venda)}
+                    </span>
+                  </div>
+                ) : null}
+
                 <div className="prospects-capture-card__actions">
+                  {avaliacao ? (
+                    <button type="button" className="prospects-btn tertiary" onClick={() => onAbrirAvaliacao(item)}>
+                      Motor 2
+                    </button>
+                  ) : null}
                   <a className="prospects-btn secondary" href={item.link} target="_blank" rel="noreferrer">
                     Abrir anúncio
                   </a>
@@ -1285,6 +1362,152 @@ function TabelaCapturados({
           <button type="button" className="prospects-btn secondary" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Anterior</button>
           <span>Página {page} de {totalPages}</span>
           <button type="button" className="prospects-btn secondary" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>Próxima</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AvaliacaoAutomaticaModal({
+  item,
+  detalhe,
+  loading,
+  savingScore,
+  scoreRegiaoDraft,
+  onScoreRegiaoChange,
+  onSalvarScoreRegiao,
+  onClose,
+  onAdicionarAoFunil,
+}) {
+  if (!item) return null;
+
+  const avaliacao = detalhe?.avaliacao || item.avaliacaoAutomatica;
+  const comparaveis = detalhe?.comparaveis || [];
+  const imovel = detalhe?.imovel || item;
+
+  return (
+    <div className="prospects-modal-backdrop" role="presentation">
+      <div className="prospects-modal prospects-modal--wide" role="dialog" aria-modal="true" aria-labelledby="avaliacao-auto-title">
+        <div className="prospects-modal__header">
+          <div>
+            <p className="prospects-eyebrow">Motor 2</p>
+            <h3 id="avaliacao-auto-title" className="prospects-modal__title">Avaliacao automatica do imovel {item.codigo}</h3>
+            <p className="prospects-subtitle prospects-subtitle--compact">
+              Compare a leitura automatica com a sua analise manual antes de decidir.
+            </p>
+          </div>
+        </div>
+        <div className="prospects-modal__body">
+          {loading ? (
+            <p className="prospects-empty">Carregando avaliacao automatica...</p>
+          ) : !avaliacao ? (
+            <p className="prospects-empty">Este imovel ainda nao possui avaliacao automatica disponivel.</p>
+          ) : (
+            <>
+              <div className="prospects-auto-grid">
+                <div className="prospects-auto-card prospects-auto-card--summary">
+                  <span>Fonte de comparaveis</span>
+                  <strong>{avaliacao.fonte_pesquisa || "—"}</strong>
+                </div>
+                <div className="prospects-auto-card">
+                  <span>Preco/m2 da regiao</span>
+                  <strong>{formatarMoeda(avaliacao.preco_m2_regiao)}</strong>
+                </div>
+                <div className="prospects-auto-card">
+                  <span>Venda estimada</span>
+                  <strong>{formatarMoeda(avaliacao.valor_estimado_venda)}</strong>
+                </div>
+                <div className="prospects-auto-card">
+                  <span>Lucro estimado</span>
+                  <strong>{formatarMoeda(avaliacao.lucro_estimado)}</strong>
+                </div>
+                <div className={`prospects-auto-card prospects-auto-card--score ${getScoreClasse(avaliacao.score_total)}`}>
+                  <span>Score</span>
+                  <strong>{avaliacao.score_total ?? "—"}/85</strong>
+                </div>
+                <div className={`prospects-auto-card prospects-auto-card--roi ${getRoiClasse(avaliacao.retorno_pct)}`}>
+                  <span>ROI estimado</span>
+                  <strong>{formatarPercentual(avaliacao.retorno_pct)}</strong>
+                </div>
+              </div>
+
+              <div className="prospects-auto-breakdown">
+                <div className="prospects-auto-breakdown__row">
+                  <span>Desconto</span>
+                  <strong>{avaliacao.score_desconto ?? 0}/40</strong>
+                </div>
+                <div className="prospects-auto-breakdown__row">
+                  <span>Liquidez</span>
+                  <strong>{avaliacao.score_liquidez ?? 0}/25</strong>
+                </div>
+                <div className="prospects-auto-breakdown__row">
+                  <span>Risco</span>
+                  <strong>{avaliacao.score_risco ?? 0}/5</strong>
+                </div>
+                <div className="prospects-auto-breakdown__row prospects-auto-breakdown__row--editable">
+                  <label htmlFor="score-regiao">Regiao</label>
+                  <div>
+                    <input
+                      id="score-regiao"
+                      type="number"
+                      min="0"
+                      max="20"
+                      value={scoreRegiaoDraft}
+                      onChange={(e) => onScoreRegiaoChange(e.target.value)}
+                    />
+                    <button type="button" className="prospects-btn secondary prospects-btn--toolbar" onClick={onSalvarScoreRegiao} disabled={savingScore}>
+                      {savingScore ? "Salvando..." : "Salvar"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="prospects-auto-meta">
+                <span>Area: {imovel?.area_m2 ? `${formatarNumero(imovel.area_m2)} m2` : "—"}</span>
+                <span>Quartos: {imovel?.quartos ?? "—"}</span>
+                <span>Vagas: {imovel?.vagas ?? "—"}</span>
+                <span>Avaliado em: {avaliacao.pesquisado_em ? formatarDataHoraCompacta(avaliacao.pesquisado_em) : "—"}</span>
+              </div>
+
+              {comparaveis.length ? (
+                <div className="prospects-auto-comparaveis">
+                  <h4>Comparaveis usados</h4>
+                  <div className="prospects-table-wrap">
+                    <table className="prospects-table prospects-table--compact">
+                      <thead>
+                        <tr>
+                          <th>Titulo</th>
+                          <th>Preco</th>
+                          <th>Area</th>
+                          <th>Preco/m2</th>
+                          <th>Quartos</th>
+                          <th>Link</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {comparaveis.map((comp) => (
+                          <tr key={comp.id}>
+                            <td>{comp.titulo || "—"}</td>
+                            <td>{formatarMoeda(comp.preco)}</td>
+                            <td>{comp.area_m2 ? `${formatarNumero(comp.area_m2)} m2` : "—"}</td>
+                            <td>{comp.preco_m2 ? formatarMoeda(comp.preco_m2) : "—"}</td>
+                            <td>{comp.quartos ?? "—"}</td>
+                            <td>{comp.url ? <a className="prospects-link" href={comp.url} target="_blank" rel="noreferrer">Abrir</a> : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+        <div className="prospects-modal__footer">
+          <button type="button" className="prospects-btn secondary" onClick={onClose}>Fechar</button>
+          <button type="button" className="prospects-btn primary" onClick={() => onAdicionarAoFunil(item)}>
+            Adicionar ao funil
+          </button>
         </div>
       </div>
     </div>
@@ -1628,6 +1851,7 @@ function MobileCapturadosList({
   setPageSize,
   onPageChange,
   onResetFilters,
+  onAbrirAvaliacao,
 }) {
   const [citySearch, setCitySearch] = useState("");
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando base de prospecção...</p></div>;
@@ -1714,6 +1938,8 @@ function MobileCapturadosList({
               <option value="uf">UF</option>
               <option value="modalidade">Modalidade</option>
               <option value="valor_minimo">Valor mínimo</option>
+              <option value="score_total">Score</option>
+              <option value="retorno_pct">ROI estimado</option>
             </select>
           </label>
 
@@ -1814,6 +2040,7 @@ function MobileCapturadosList({
       <div className="prospects-mobile-list">
         {dados.map((item) => {
           const jaSelecionado = selectedCodes.has(item.codigo);
+          const avaliacao = item.avaliacaoAutomatica;
           return (
             <article key={item.codigo} className="prospects-mobile-item-card">
               <div className="prospects-mobile-item-card__media">
@@ -1860,9 +2087,25 @@ function MobileCapturadosList({
                 </div>
               </div>
 
+              {avaliacao ? (
+                <div className="prospects-mobile-item-card__auto">
+                  <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>{avaliacao.score_total ?? "—"}/85</span>
+                  <span className={`prospects-auto-badge ${getRoiClasse(avaliacao.retorno_pct)}`}>{formatarPercentual(avaliacao.retorno_pct)}</span>
+                </div>
+              ) : null}
+
               <p className="prospects-mobile-item-card__description">{item.descricao || "Sem descrição cadastrada."}</p>
 
               <div className="prospects-mobile-item-card__actions">
+                {avaliacao ? (
+                  <button
+                    type="button"
+                    className="prospects-btn tertiary prospects-btn--mobile-action"
+                    onClick={() => onAbrirAvaliacao(item)}
+                  >
+                    <span>Motor 2</span>
+                  </button>
+                ) : null}
                 <a
                   className="prospects-btn secondary prospects-btn--mobile-action"
                   href={item.link}
@@ -1918,6 +2161,9 @@ export default function Prospeccoes() {
   const [filtroModalidadeCap, setFiltroModalidadeCap] = useState([]);
   const [filtroStatusCap, setFiltroStatusCap] = useState(["disponivel"]);
   const [filtroFinanciaCap, setFiltroFinanciaCap] = useState([]);
+  const [scoreMinCap, setScoreMinCap] = useState("");
+  const [roiMinCap, setRoiMinCap] = useState("");
+  const [somenteComAvaliacaoCap, setSomenteComAvaliacaoCap] = useState(false);
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(1);
   const [includeLoadingIds, setIncludeLoadingIds] = useState(new Set());
@@ -1947,6 +2193,7 @@ export default function Prospeccoes() {
   const [observacaoAnaliseBase, setObservacaoAnaliseBase] = useState(null);
   const [analiseItem, setAnaliseItem] = useState(null);
   const [analiseDraft, setAnaliseDraft] = useState(null);
+  const [analiseMeta, setAnaliseMeta] = useState(null);
   const [analisePairModes, setAnalisePairModes] = useState(ANALISE_PAIR_MODE_DEFAULTS);
   const [analiseLoading, setAnaliseLoading] = useState(false);
   const [analiseSaving, setAnaliseSaving] = useState(false);
@@ -1954,6 +2201,11 @@ export default function Prospeccoes() {
   const [responsaveisItem, setResponsaveisItem] = useState(null);
   const [responsaveisDraftIds, setResponsaveisDraftIds] = useState([]);
   const [responsaveisSaving, setResponsaveisSaving] = useState(false);
+  const [avaliacaoAutomaticaItem, setAvaliacaoAutomaticaItem] = useState(null);
+  const [avaliacaoAutomaticaDetalhe, setAvaliacaoAutomaticaDetalhe] = useState(null);
+  const [avaliacaoAutomaticaLoading, setAvaliacaoAutomaticaLoading] = useState(false);
+  const [avaliacaoScoreSaving, setAvaliacaoScoreSaving] = useState(false);
+  const [avaliacaoScoreRegiaoDraft, setAvaliacaoScoreRegiaoDraft] = useState("");
   const [mobileAccess, setMobileAccess] = useState(() => detectMobileAccess());
   const [mobileSection, setMobileSection] = useState("hub");
   const [financeiroCount, setFinanceiroCount] = useState(null);
@@ -2003,6 +2255,9 @@ export default function Prospeccoes() {
           status: filtroStatusCap,
           orderBy: sortBy,
           orderDir: sortDir,
+          scoreMin: scoreMinCap === "" ? undefined : Number(scoreMinCap),
+          roiMin: roiMinCap === "" ? undefined : Number(roiMinCap),
+          somenteComAvaliacao: somenteComAvaliacaoCap,
         });
         setCapturados(resp.data || []);
         setCapturadosTotal(resp.total || 0);
@@ -2019,7 +2274,7 @@ export default function Prospeccoes() {
       }
     };
     carregarCapturados();
-  }, [page, pageSize, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroStatusCap, filtroFinanciaCap, sortBy, sortDir]);
+  }, [page, pageSize, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroStatusCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap]);
 
   useEffect(() => {
     fetchProspecMeta()
@@ -2146,6 +2401,9 @@ export default function Prospeccoes() {
     setFiltroModalidadeCap([]);
     setFiltroStatusCap(["disponivel"]);
     setFiltroFinanciaCap([]);
+    setScoreMinCap("");
+    setRoiMinCap("");
+    setSomenteComAvaliacaoCap(false);
     setPageSize(20);
     setPage(1);
   };
@@ -2168,6 +2426,10 @@ export default function Prospeccoes() {
       setMensagem(`Imóvel ${item.codigo} incluído em selecionados.`);
       const sel = await fetchSelecionados({});
       setSelecionados(sel || []);
+      const itemSelecionado = (sel || []).find((candidate) => candidate.codigo === item.codigo);
+      if (itemSelecionado) {
+        openAnaliseModal(itemSelecionado);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao incluir";
       setMensagem(message);
@@ -2208,6 +2470,7 @@ export default function Prospeccoes() {
   const refreshSelecionados = async () => {
     const sel = await fetchSelecionados({});
     setSelecionados(sel || []);
+    return sel || [];
   };
 
   const handleAtualizarPrioridade = async (item, prioridadeValue) => {
@@ -2294,6 +2557,7 @@ export default function Prospeccoes() {
   const openAnaliseModal = async (item) => {
     setAnaliseItem(item);
     setAnaliseDraft(createAnaliseDraft({ valor_maximo_lance: item.valorMaximo || "" }));
+    setAnaliseMeta(null);
     setAnalisePairModes({ ...ANALISE_PAIR_MODE_DEFAULTS });
     setAnaliseLoading(true);
     try {
@@ -2301,11 +2565,13 @@ export default function Prospeccoes() {
       const inputs = data?.inputs || {};
       setAnaliseDraft(createAnaliseDraft(inputs));
       setAnalisePairModes(createAnalisePairModes(inputs));
+      setAnaliseMeta(data?.meta || null);
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar análise");
       setMensagem(message);
       setAnaliseItem(null);
       setAnaliseDraft(null);
+      setAnaliseMeta(null);
     } finally {
       setAnaliseLoading(false);
     }
@@ -2314,6 +2580,7 @@ export default function Prospeccoes() {
   const closeAnaliseModal = () => {
     setAnaliseItem(null);
     setAnaliseDraft(null);
+    setAnaliseMeta(null);
     setAnalisePairModes({ ...ANALISE_PAIR_MODE_DEFAULTS });
     setAnaliseLoading(false);
     setAnaliseSaving(false);
@@ -2375,6 +2642,58 @@ export default function Prospeccoes() {
   };
 
   const canManageResponsaveis = user?.role === "admin";
+
+  const openAvaliacaoAutomaticaModal = async (item) => {
+    setAvaliacaoAutomaticaItem(item);
+    setAvaliacaoAutomaticaDetalhe(null);
+    setAvaliacaoAutomaticaLoading(true);
+    setAvaliacaoScoreRegiaoDraft(String(item?.avaliacaoAutomatica?.score_regiao ?? ""));
+    try {
+      const data = await fetchAvaliacaoAutomatica(item.codigo);
+      setAvaliacaoAutomaticaDetalhe(data);
+      setAvaliacaoScoreRegiaoDraft(String(data?.avaliacao?.score_regiao ?? ""));
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar avaliacao automatica");
+      setMensagem(message);
+      setAvaliacaoAutomaticaItem(null);
+      setAvaliacaoAutomaticaDetalhe(null);
+    } finally {
+      setAvaliacaoAutomaticaLoading(false);
+    }
+  };
+
+  const closeAvaliacaoAutomaticaModal = () => {
+    setAvaliacaoAutomaticaItem(null);
+    setAvaliacaoAutomaticaDetalhe(null);
+    setAvaliacaoAutomaticaLoading(false);
+    setAvaliacaoScoreSaving(false);
+    setAvaliacaoScoreRegiaoDraft("");
+  };
+
+  const handleSalvarScoreRegiao = async () => {
+    if (!avaliacaoAutomaticaItem) return;
+    setAvaliacaoScoreSaving(true);
+    try {
+      const data = await salvarScoreRegiao(avaliacaoAutomaticaItem.codigo, Number(avaliacaoScoreRegiaoDraft || 0));
+      setAvaliacaoAutomaticaDetalhe((prev) => ({ ...(prev || {}), avaliacao: data }));
+      setCapturados((prev) => prev.map((item) => (
+        item.codigo === avaliacaoAutomaticaItem.codigo
+          ? { ...item, avaliacaoAutomatica: data }
+          : item
+      )));
+      setSelecionados((prev) => prev.map((item) => (
+        item.codigo === avaliacaoAutomaticaItem.codigo
+          ? { ...item, avaliacaoAutomatica: data }
+          : item
+      )));
+      setMensagem(`Score de regiao do imovel ${avaliacaoAutomaticaItem.codigo} atualizado.`);
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao salvar score de regiao");
+      setMensagem(message);
+    } finally {
+      setAvaliacaoScoreSaving(false);
+    }
+  };
 
   const openResponsaveisModal = (item) => {
     setResponsaveisItem(item);
@@ -2682,6 +3001,7 @@ export default function Prospeccoes() {
                 setFiltroFinanciaCap(value);
                 setPage(1);
               }}
+              onAbrirAvaliacao={openAvaliacaoAutomaticaModal}
               sortBy={sortBy}
               setSortBy={setSortBy}
               sortDir={sortDir}
@@ -2947,6 +3267,44 @@ export default function Prospeccoes() {
                 ))}
               </select>
             </div>
+            <div className="prospects-filter-group">
+              <label>Score mínimo</label>
+              <input
+                type="number"
+                min="0"
+                max="85"
+                value={scoreMinCap}
+                onChange={(e) => {
+                  setScoreMinCap(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+            <div className="prospects-filter-group">
+              <label>ROI mínimo (%)</label>
+              <input
+                type="number"
+                value={roiMinCap}
+                onChange={(e) => {
+                  setRoiMinCap(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+            <div className="prospects-filter-group">
+              <label>Avaliação automática</label>
+              <label className="prospects-check">
+                <input
+                  type="checkbox"
+                  checked={somenteComAvaliacaoCap}
+                  onChange={(e) => {
+                    setSomenteComAvaliacaoCap(e.target.checked);
+                    setPage(1);
+                  }}
+                />
+                <span>Mostrar só imóveis com Motor 2</span>
+              </label>
+            </div>
             <div className="prospects-filter-actions">
               <button type="button" className="prospects-btn secondary" onClick={limparFiltros}>Limpar filtros</button>
             </div>
@@ -2965,6 +3323,7 @@ export default function Prospeccoes() {
             sortDir={sortDir}
             onSortChange={handleSortChange}
             selectedCodes={selectedCodes}
+            onAbrirAvaliacao={openAvaliacaoAutomaticaModal}
           />
         </>
       )}
@@ -3004,6 +3363,7 @@ export default function Prospeccoes() {
       <AnaliseModal
         item={analiseItem}
         draft={analiseDraft}
+        meta={analiseMeta}
         pairModes={analisePairModes}
         loading={analiseLoading}
         saving={analiseSaving}
@@ -3013,6 +3373,18 @@ export default function Prospeccoes() {
         onFieldBlur={handleAnaliseFieldBlur}
         onPairModeChange={handleAnalisePairModeChange}
         onSave={handleSalvarAnalise}
+      />
+
+      <AvaliacaoAutomaticaModal
+        item={avaliacaoAutomaticaItem}
+        detalhe={avaliacaoAutomaticaDetalhe}
+        loading={avaliacaoAutomaticaLoading}
+        savingScore={avaliacaoScoreSaving}
+        scoreRegiaoDraft={avaliacaoScoreRegiaoDraft}
+        onScoreRegiaoChange={setAvaliacaoScoreRegiaoDraft}
+        onSalvarScoreRegiao={handleSalvarScoreRegiao}
+        onClose={closeAvaliacaoAutomaticaModal}
+        onAdicionarAoFunil={handleIncluir}
       />
 
       <ResponsaveisModal

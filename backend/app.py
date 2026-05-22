@@ -27,7 +27,9 @@ from models import (
     buscar_contexto_operacao_prospeccao_selecionado,
     listar_prospeccoes_meta,
     obter_analise_prospeccao_selecionado,
+    obter_avaliacao_automatica_prospeccao,
     salvar_analise_prospeccao_selecionado,
+    salvar_score_regiao_avaliacao,
     listar_prospectores_ativos,
     salvar_responsaveis_prospeccao_selecionado,
     listar_socios_imovel,
@@ -258,6 +260,9 @@ def get_prospeccoes_capturados():
         cidades = request.args.getlist("cidade")
         order_by = request.args.get("order_by", "coletado_em")
         order_dir = request.args.get("order_dir", "desc")
+        score_min = request.args.get("score_min", type=int)
+        roi_min = request.args.get("roi_min", type=float)
+        somente_com_avaliacao = request.args.get("somente_com_avaliacao", "").lower() in {"1", "true", "sim", "yes"}
     except ValueError:
         return jsonify({"error": "Parâmetros inválidos"}), 400
 
@@ -275,6 +280,9 @@ def get_prospeccoes_capturados():
         cidades=cidades or None,
         order_by=order_by,
         order_dir=order_dir,
+        score_min=score_min,
+        roi_min=roi_min,
+        somente_com_avaliacao=somente_com_avaliacao,
     )
     return jsonify({
         "data": result["data"],
@@ -386,6 +394,36 @@ def delete_prospeccoes_selecionados(numero_bem):
 @requires_auth
 def get_prospeccoes_meta():
     return jsonify(listar_prospeccoes_meta())
+
+
+@app.route("/prospeccoes/capturados/<numero_bem>/avaliacao", methods=["GET"])
+@requires_auth
+def get_prospeccao_capturado_avaliacao(numero_bem):
+    if not numero_bem:
+        return jsonify({"error": "numero_bem é obrigatório"}), 400
+    result = obter_avaliacao_automatica_prospeccao(numero_bem)
+    if not result:
+        return jsonify({"error": "Imóvel não encontrado"}), 404
+    return jsonify(result), 200
+
+
+@app.route("/prospeccoes/capturados/<numero_bem>/score-regiao", methods=["PATCH"])
+@requires_prospeccao_write
+@limiter.limit(RATE_LIMIT_EDIT)
+def patch_prospeccao_capturado_score_regiao(numero_bem):
+    if not numero_bem:
+        return jsonify({"error": "numero_bem é obrigatório"}), 400
+    payload = request.get_json(force=True, silent=True) or {}
+    score_regiao = payload.get("score_regiao")
+    if score_regiao is None:
+        return jsonify({"error": "score_regiao é obrigatório"}), 400
+    try:
+        result = salvar_score_regiao_avaliacao(numero_bem, score_regiao)
+    except (TypeError, ValueError):
+        return jsonify({"error": "score_regiao deve ser um número entre 0 e 20"}), 400
+    if not result:
+        return jsonify({"error": "Avaliação automática não encontrada para este imóvel"}), 404
+    return jsonify(result), 200
 
 
 @app.route("/prospeccoes/selecionados/<numero_bem>/analise", methods=["GET"])
