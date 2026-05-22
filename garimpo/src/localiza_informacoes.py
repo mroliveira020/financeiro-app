@@ -1,5 +1,6 @@
 import re
 import unicodedata
+from urllib.parse import urljoin
 from typing import Dict, Any
 
 from bs4 import BeautifulSoup
@@ -105,6 +106,36 @@ def _capture_script_data(script_text: str, data: Dict[str, Any]) -> None:
         data["Lance Atual"] = lance_atual_match.group(1).strip()
 
 
+def _extract_gallery_photos(soup: BeautifulSoup, base_url: str) -> list[str]:
+    gallery = soup.find("div", id="galeria-imagens")
+    if not gallery:
+        return []
+
+    urls: list[str] = []
+    seen: set[str] = set()
+
+    for image in gallery.find_all("img"):
+        src = (image.get("src") or "").strip()
+        onclick = (image.get("onclick") or "").strip()
+        candidates = [src]
+
+        if "preview.src=" in onclick:
+            match = re.search(r"preview\.src\s*=\s*['\"]([^'\"]+)['\"]", onclick)
+            if match:
+                candidates.append(match.group(1).strip())
+
+        for candidate in candidates:
+            if not candidate:
+                continue
+            absolute = urljoin(base_url, candidate)
+            if absolute in seen:
+                continue
+            seen.add(absolute)
+            urls.append(absolute)
+
+    return urls
+
+
 def localiza_informacoes(soup: BeautifulSoup, endereco_web: str) -> Dict[str, Any]:
     data: Dict[str, Any] = {
         "Disponível": None,
@@ -119,6 +150,8 @@ def localiza_informacoes(soup: BeautifulSoup, endereco_web: str) -> Dict[str, An
         "Data/hora Encerramento": None,
         "Lance Atual": None,
         "Data Licitação Aberta": None,
+        "Foto URL": None,
+        "Fotos": [],
     }
 
     if not soup:
@@ -166,5 +199,10 @@ def localiza_informacoes(soup: BeautifulSoup, endereco_web: str) -> Dict[str, An
         script_text = script_tag.string or script_tag.get_text()
         if script_text and "carregaContador" in script_text:
             _capture_script_data(script_text, data)
+
+    fotos = _extract_gallery_photos(soup, endereco_web)
+    if fotos:
+        data["Fotos"] = fotos
+        data["Foto URL"] = fotos[0]
 
     return data

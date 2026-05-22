@@ -83,6 +83,18 @@ def _first_non_empty(*values: Any) -> Optional[Any]:
     return None
 
 
+def _normalize_string_list(value: Any) -> Optional[list[str]]:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        text = value.strip()
+        return [text] if text else None
+    if isinstance(value, (list, tuple, set)):
+        itens = [str(item).strip() for item in value if str(item).strip()]
+        return itens or None
+    return None
+
+
 def build_prospeccao_record(row: Dict[str, Any], fonte: str) -> Optional[Dict[str, Any]]:
     numero_bem = _clean_numero_bem(row.get("Número do Bem") or row.get("Numero do Bem"))
     if not numero_bem:
@@ -113,6 +125,8 @@ def build_prospeccao_record(row: Dict[str, Any], fonte: str) -> Optional[Dict[st
         "data_hora_encerramento": _parse_datetime(row.get("Data/hora Encerramento")),
         "lance_atual": _normalize_decimal(row.get("Lance Atual")),
         "link_consulta": _first_non_empty(row.get("Link de Consulta")),
+        "foto_url": _first_non_empty(row.get("Foto URL"), row.get("foto_url")),
+        "fotos": _normalize_string_list(_first_non_empty(row.get("Fotos"), row.get("fotos"))),
         "fonte": fonte,
         "hash_linha": row.get("hash_linha"),
     }

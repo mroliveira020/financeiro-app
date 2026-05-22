@@ -2486,6 +2486,39 @@ def _normalizar_lista_fotos_prospeccao(payload):
     return urls_unicas
 
 
+def _normalizar_lista_fotos_valores(*values):
+    urls_unicas = []
+    vistos = set()
+
+    def adicionar(url):
+        if not url:
+            return
+        valor = f"{url}".strip()
+        if not valor or valor in vistos:
+            return
+        vistos.add(valor)
+        urls_unicas.append(valor)
+
+    for value in values:
+        if not value:
+            continue
+        if isinstance(value, str):
+            adicionar(value)
+            continue
+        if isinstance(value, dict):
+            for chave in ("url", "src", "href", "imagem", "image_url", "foto_url"):
+                adicionar(value.get(chave))
+            continue
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                if isinstance(item, dict):
+                    for chave in ("url", "src", "href", "imagem", "image_url", "foto_url"):
+                        adicionar(item.get(chave))
+                else:
+                    adicionar(item)
+    return urls_unicas
+
+
 def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None, status=None, financia=None, cidades=None, order_by="coletado_em", order_dir="desc"):
     conn, cur = conectar()
     base_cte = """
@@ -2514,6 +2547,8 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
                 lance_atual,
                 link_consulta,
                 fonte,
+                fotos_rel.foto_url AS foto_rel_url,
+                fotos_rel.fotos AS fotos_rel,
                 to_jsonb(p) AS raw_payload,
                 (
                     SELECT MIN(v)
@@ -2532,6 +2567,13 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
                     WHERE d IS NOT NULL
                 ) AS ultima_disputa
             FROM vw_imoveis_prospeccao_latest p
+            LEFT JOIN LATERAL (
+                SELECT
+                    (array_agg(f.url ORDER BY COALESCE(f.ordem, 999999), f.url))[1] AS foto_url,
+                    array_agg(f.url ORDER BY COALESCE(f.ordem, 999999), f.url) AS fotos
+                FROM imoveis_fotos f
+                WHERE f.numero_bem = p.numero_bem
+            ) fotos_rel ON TRUE
         )
     """
     conditions = []
@@ -2608,7 +2650,11 @@ def listar_prospeccoes_capturados(limit=50, offset=0, ufs=None, modalidades=None
     for row in rows:
         valor_minimo = float(row["valor_minimo"]) if row["valor_minimo"] is not None else None
         ultima_disputa = row["ultima_disputa"].isoformat() if row["ultima_disputa"] is not None else None
-        fotos = _normalizar_lista_fotos_prospeccao(row.get("raw_payload"))
+        fotos = _normalizar_lista_fotos_valores(
+            row.get("foto_rel_url"),
+            row.get("fotos_rel"),
+            _normalizar_lista_fotos_prospeccao(row.get("raw_payload")),
+        )
         result.append({
             "numero_bem": row["numero_bem"],
             "coletado_em": row["coletado_em"].isoformat() if row["coletado_em"] else None,
@@ -2670,6 +2716,8 @@ def listar_prospeccoes_selecionados(
             v.tipo_venda,
             v.disponivel,
             v.detalhes,
+            fotos_rel.foto_url AS foto_url,
+            fotos_rel.fotos AS fotos,
             a.numero_bem AS analise_numero_bem,
             a.valor_base_operacao,
             a.tempo_operacao_meses,
@@ -2710,6 +2758,13 @@ def listar_prospeccoes_selecionados(
             ON a.numero_bem = s.numero_bem
         LEFT JOIN vw_imoveis_prospeccao_latest v
             ON v.numero_bem = s.numero_bem
+        LEFT JOIN LATERAL (
+            SELECT
+                (array_agg(f.url ORDER BY COALESCE(f.ordem, 999999), f.url))[1] AS foto_url,
+                array_agg(f.url ORDER BY COALESCE(f.ordem, 999999), f.url) AS fotos
+            FROM imoveis_fotos f
+            WHERE f.numero_bem = s.numero_bem
+        ) fotos_rel ON TRUE
     """
     conditions = []
     params = []
@@ -2849,6 +2904,8 @@ def listar_prospeccoes_selecionados(
         calculos_analise = calcular_analise_prospeccao(analise_inputs) if tem_analise else None
 
         result.append({
+            "foto_url": row["foto_url"],
+            "fotos": _normalizar_lista_fotos_valores(row["foto_url"], row["fotos"]),
             "numero_bem": row["numero_bem"],
             "status": row["status"],
             "valor_maximo": float(row["valor_maximo"]) if row["valor_maximo"] is not None else None,

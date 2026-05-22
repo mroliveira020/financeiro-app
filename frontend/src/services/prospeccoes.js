@@ -125,7 +125,11 @@ export async function fetchSelecionados({ status, uf, userId } = {}) {
     params: { status, uf, user_id: userId },
     paramsSerializer: { serialize: serializeParams },
   });
-  return (data?.data || []).map((item) => ({
+  return (data?.data || []).map((item) => {
+    const fotos = normalizeFotos(item);
+    return ({
+    fotos,
+    fotoUrl: fotos[0] || null,
     codigo: item.numero_bem,
     status: item.status,
     valorMaximo: item.valor_maximo,
@@ -156,7 +160,8 @@ export async function fetchSelecionados({ status, uf, userId } = {}) {
     analiseSalva: Boolean(item.analise_salva),
     roiEsperadoPercentual: item.roi_esperado_percentual,
     lucroEsperadoValor: item.lucro_esperado_valor,
-  }));
+    });
+  });
 }
 
 export async function fetchResponsaveisDisponiveis() {

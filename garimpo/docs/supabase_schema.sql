@@ -27,6 +27,8 @@ create table if not exists public.imoveis_prospeccao (
     link_consulta text,
     fonte text,
     hash_linha text,
+    foto_url text,
+    fotos jsonb,
     primary key (numero_bem, coletado_em)
 );
 
@@ -59,7 +61,9 @@ select distinct on (numero_bem)
     lance_atual,
     link_consulta,
     fonte,
-    hash_linha
+    hash_linha,
+    foto_url,
+    fotos
 from public.imoveis_prospeccao
 order by numero_bem, coletado_em desc;
 
