@@ -1,9 +1,26 @@
 import api from "./http";
 
+const CAIXA_BASE_URL = "https://venda-imoveis.caixa.gov.br";
+
 const normalizeLink = (numeroBem, linkConsulta) => {
   const cleaned = `${linkConsulta || ""}`.trim();
   if (cleaned) return cleaned;
   return `https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnOrigem=index&hdnimovel=${numeroBem}`;
+};
+
+const normalizeFotoUrl = (value) => {
+  const cleaned = `${value || ""}`.trim();
+  if (!cleaned) return "";
+  if (cleaned.startsWith("http://") || cleaned.startsWith("https://") || cleaned.startsWith("data:")) {
+    return cleaned;
+  }
+  if (cleaned.startsWith("//")) {
+    return `https:${cleaned}`;
+  }
+  if (cleaned.startsWith("/")) {
+    return `${CAIXA_BASE_URL}${cleaned}`;
+  }
+  return `${CAIXA_BASE_URL}/${cleaned.replace(/^\.?\//, "")}`;
 };
 
 const normalizeFotos = (row) => {
@@ -17,7 +34,7 @@ const normalizeFotos = (row) => {
   ];
 
   return candidates
-    .map((item) => `${item || ""}`.trim())
+    .map((item) => normalizeFotoUrl(item))
     .filter((item, index, lista) => item && lista.indexOf(item) === index);
 };
 

@@ -1204,6 +1204,8 @@ function TabelaCapturados({
           <p className="prospects-empty">Nenhum capturado encontrado.</p>
         ) : dados.map((item) => {
           const jaSelecionado = selectedCodes.has(item.codigo);
+          const enderecoCompacto = [item.endereco, item.bairro].filter(Boolean).join(" - ");
+          const dataEvento = item.data_leilao_1 || item.data_leilao_2 || item.data_hora_encerramento || item.ultima_disputa;
           return (
             <article key={item.codigo} className="prospects-capture-card">
               <div className="prospects-capture-card__media">
@@ -1212,56 +1214,52 @@ function TabelaCapturados({
                   <span className="prospects-chip">{item.modalidade || "Sem modalidade"}</span>
                   {jaSelecionado ? <span className="prospects-chip prospects-chip--selected">Na fila</span> : null}
                 </div>
+                {item.desconto !== null && item.desconto !== undefined ? (
+                  <div className="prospects-capture-card__discount">
+                    {formatarPercentual(item.desconto)}
+                  </div>
+                ) : null}
               </div>
 
               <div className="prospects-capture-card__body">
-                <div className="prospects-capture-card__top">
-                  <div>
-                    <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
-                      {item.codigo}
-                    </a>
-                    <h3 className="prospects-capture-card__location">
-                      {[item.cidade, item.uf].filter(Boolean).join("/") || "Sem localização"}
-                    </h3>
-                    <p className="prospects-capture-card__address">
-                      {[item.endereco, item.bairro].filter(Boolean).join(" - ") || "Endereço não informado"}
-                    </p>
-                  </div>
-                  <div className="prospects-capture-card__status">
-                    <span>{item.situacao || "Sem status"}</span>
-                    <strong>{item.financia === undefined || item.financia === null ? "Financiamento n/d" : item.financia ? "Financia" : "Não financia"}</strong>
-                  </div>
+                <div className="prospects-capture-card__headline">
+                  <span className="prospects-capture-card__type">{item.tipoImovel || "Imóvel"}</span>
+                  <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
+                    {item.codigo}
+                  </a>
                 </div>
+                <h3 className="prospects-capture-card__location">
+                  {[item.cidade, item.uf].filter(Boolean).join(" - ") || "Sem localização"}
+                </h3>
+                <p className="prospects-capture-card__address">
+                  {enderecoCompacto || "Endereço não informado"}
+                </p>
 
-                <div className="prospects-capture-card__metrics">
-                  <div>
-                    <span>Valor mínimo</span>
-                    <strong>{formatarMoeda(item.valorMinimo)}</strong>
-                  </div>
-                  <div>
-                    <span>Avaliação</span>
-                    <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
-                  </div>
-                  <div>
-                    <span>Leilão 1</span>
-                    <strong>{formatarDataHoraCompacta(item.data_leilao_1)}</strong>
-                  </div>
-                  <div>
-                    <span>Última disputa</span>
-                    <strong>{formatarDataHoraCompacta(item.ultima_disputa)}</strong>
-                  </div>
-                </div>
-
-                <div className="prospects-capture-card__details">
-                  <div><span>Tipo</span><strong>{item.tipoImovel || "—"}</strong></div>
-                  <div><span>Desconto</span><strong>{formatarPercentual(item.desconto)}</strong></div>
-                  <div><span>Lance atual</span><strong>{formatarMoeda(item.lanceAtual)}</strong></div>
-                  <div><span>Fonte</span><strong>{item.fonte || "—"}</strong></div>
+                <div className="prospects-capture-card__facts">
+                  <span>{item.modalidade || "Sem modalidade"}</span>
+                  <span>{item.financia === undefined || item.financia === null ? "Financiamento n/d" : item.financia ? "Aceita FGTS/financiamento" : "Sem financiamento"}</span>
+                  <span>{item.situacao || "Sem status"}</span>
                 </div>
 
                 <p className="prospects-capture-card__description">
                   {item.descricao || "Sem descrição cadastrada."}
                 </p>
+
+                <div className="prospects-capture-card__areas">
+                  <span>Valor avaliação</span>
+                  <strong className="prospects-capture-card__striked">{formatarMoeda(item.valorAvaliacao)}</strong>
+                </div>
+
+                <div className="prospects-capture-card__footer">
+                  <div className="prospects-capture-card__sale">
+                    <span>{item.modalidade || "Venda"}</span>
+                    <strong>{dataEvento ? `Até ${formatarDataHoraCompacta(dataEvento)}` : "Data não informada"}</strong>
+                  </div>
+                  <div className="prospects-capture-card__price">
+                    <span>Valor mínimo</span>
+                    <strong>{formatarMoeda(item.valorMinimo)}</strong>
+                  </div>
+                </div>
 
                 <div className="prospects-capture-card__actions">
                   <a className="prospects-btn secondary" href={item.link} target="_blank" rel="noreferrer">
