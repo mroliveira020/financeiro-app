@@ -68,6 +68,13 @@
   color: var(--prospects-ink);
 }
 
+.prospects-btn.ghost {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: transparent;
+  color: #53627f;
+  box-shadow: none;
+}
+
 .prospects-btn.tertiary {
   background: #ffffff;
   border-color: var(--prospects-line);
@@ -94,6 +101,14 @@
 .prospects-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+}
+
+.prospects-btn--subtle {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .prospects-card {
@@ -549,6 +564,7 @@
   border-radius: 20px;
   background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
   box-shadow: 0 14px 28px rgba(15, 23, 42, 0.05);
+  cursor: pointer;
 }
 
 .prospects-mobile-item-card__media {
@@ -848,9 +864,21 @@
   border-radius: 18px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
   box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.prospects-capture-card:hover {
+  transform: translateY(-2px);
+  border-color: #cbd9ee;
+  box-shadow: 0 20px 32px rgba(15, 23, 42, 0.1);
 }
 
 .prospects-capture-card__media {
+  position: relative;
+}
+
+.prospects-gallery {
   position: relative;
 }
 
@@ -873,6 +901,77 @@
 .prospects-capture-card__photo {
   object-fit: cover;
   display: block;
+}
+
+.prospects-gallery__counter {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+}
+
+.prospects-gallery__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.16);
+}
+
+.prospects-gallery__nav.is-prev {
+  left: 10px;
+}
+
+.prospects-gallery__nav.is-next {
+  right: 10px;
+}
+
+.prospects-gallery__nav:hover {
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--prospects-brand);
+}
+
+.prospects-gallery__dots {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(8px);
+}
+
+.prospects-gallery__dot {
+  width: 7px;
+  height: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.42);
+  cursor: pointer;
+  padding: 0;
+}
+
+.prospects-gallery__dot.is-active {
+  background: #fff;
 }
 
 .prospects-photo-placeholder {
@@ -1359,18 +1458,16 @@
 
 .prospects-filters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 14px;
-  padding: 16px 18px;
-  background: linear-gradient(180deg, #fbfcff 0%, #f5f8fd 100%);
-  border: 1px solid var(--prospects-line);
-  border-radius: 18px;
+  padding: 2px 0 0;
 }
 
 .prospects-filter-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .prospects-filter-group label {
@@ -1407,10 +1504,10 @@
   gap: 6px;
   max-height: 140px;
   overflow: auto;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid #e7e9f0;
-  border-radius: 12px;
-  background: #fff;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
 }
 
 .prospects-check {
@@ -1423,6 +1520,7 @@
 .prospects-filter-actions {
   display: flex;
   align-items: flex-end;
+  justify-content: flex-end;
 }
 
 .prospects-message {
@@ -1509,7 +1607,7 @@
 }
 
 .prospects-modal--wide {
-  width: min(100%, 1280px);
+  width: min(100%, 1120px);
 }
 
 .prospects-modal--compact {
@@ -1524,6 +1622,7 @@
 
 .prospects-modal__header {
   border-bottom: 1px solid #eef0f6;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
 }
 
 .prospects-modal__title {
@@ -1553,6 +1652,57 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
+}
+
+.prospects-auto-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.prospects-auto-hero__media {
+  min-width: 0;
+}
+
+.prospects-auto-hero__photo .prospects-capture-card__photo,
+.prospects-auto-hero__photo .prospects-photo-placeholder {
+  aspect-ratio: 1.45 / 1;
+  border-radius: 18px;
+}
+
+.prospects-auto-hero__summary {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #dde7f4;
+  background: linear-gradient(180deg, #fbfdff 0%, #f4f8ff 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.prospects-auto-hero__eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  color: var(--prospects-brand);
+}
+
+.prospects-auto-hero__summary h4 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  color: var(--prospects-ink);
+}
+
+.prospects-auto-hero__summary p {
+  margin: 0;
+  color: #60708d;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .prospects-auto-card {
@@ -1606,7 +1756,7 @@
 .prospects-auto-breakdown__row {
   padding: 12px 14px;
   border-radius: 14px;
-  background: #fff;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
   border: 1px solid #e3ebf7;
   display: flex;
   justify-content: space-between;
@@ -1670,6 +1820,10 @@
   justify-content: flex-end;
   gap: 12px;
   border-top: 1px solid #eef0f6;
+}
+
+.prospects-modal__footer--auto {
+  background: linear-gradient(180deg, #fcfdff 0%, #f7faff 100%);
 }
 
 .prospects-priority-options {
@@ -2025,6 +2179,10 @@
   .prospects-mobile-filters__grid,
   .prospects-mobile-item-card__meta,
   .prospects-mobile-item-card__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .prospects-auto-hero {
     grid-template-columns: 1fr;
   }
 

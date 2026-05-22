@@ -94,6 +94,80 @@ function ProspectPhoto({ item, className = "" }) {
   );
 }
 
+function ProspectGallery({ item, className = "", compact = false }) {
+  const fotos = Array.isArray(item?.fotos) ? item.fotos.filter(Boolean) : [];
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [item?.codigo, fotos.length]);
+
+  if (!fotos.length) {
+    return <ProspectPhoto item={item} className={className} />;
+  }
+
+  const fotoAtual = fotos[Math.min(currentIndex, fotos.length - 1)];
+  const irPara = (index) => {
+    if (!fotos.length) return;
+    const next = (index + fotos.length) % fotos.length;
+    setCurrentIndex(next);
+  };
+
+  return (
+    <div className={`prospects-gallery ${compact ? "is-compact" : ""}`.trim()}>
+      <img
+        className={className}
+        src={fotoAtual}
+        alt={getProspectPhotoAlt(item)}
+        loading="lazy"
+      />
+      {fotos.length > 1 ? (
+        <>
+          <div className="prospects-gallery__counter">{currentIndex + 1}/{fotos.length}</div>
+          <button
+            type="button"
+            className="prospects-gallery__nav is-prev"
+            onClick={(e) => {
+              e.stopPropagation();
+              irPara(currentIndex - 1);
+            }}
+            aria-label="Foto anterior"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            className="prospects-gallery__nav is-next"
+            onClick={(e) => {
+              e.stopPropagation();
+              irPara(currentIndex + 1);
+            }}
+            aria-label="Próxima foto"
+          >
+            ›
+          </button>
+          {!compact ? (
+            <div className="prospects-gallery__dots">
+              {fotos.map((foto, index) => (
+                <button
+                  key={`${foto}-${index}`}
+                  type="button"
+                  className={`prospects-gallery__dot ${index === currentIndex ? "is-active" : ""}`.trim()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    irPara(index);
+                  }}
+                  aria-label={`Ir para foto ${index + 1}`}
+                />
+              ))}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 const getScoreClasse = (scoreTotal) => {
   const valor = Number(scoreTotal);
   if (!Number.isFinite(valor)) return "is-neutral";
@@ -1265,9 +1339,21 @@ function TabelaCapturados({
           const descontoExibicao = calcularDescontoExibicao(item);
           const avaliacao = item.avaliacaoAutomatica;
           return (
-            <article key={item.codigo} className="prospects-capture-card">
+            <article
+              key={item.codigo}
+              className="prospects-capture-card"
+              onClick={() => window.open(item.link, "_blank", "noopener,noreferrer")}
+              role="link"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  window.open(item.link, "_blank", "noopener,noreferrer");
+                }
+              }}
+            >
               <div className="prospects-capture-card__media">
-                <ProspectPhoto item={item} className="prospects-capture-card__photo" />
+                <ProspectGallery item={item} className="prospects-capture-card__photo" />
                 <div className="prospects-capture-card__badges">
                   <span className="prospects-chip">{item.modalidade || "Sem modalidade"}</span>
                   {jaSelecionado ? <span className="prospects-chip prospects-chip--selected">Na fila</span> : null}
@@ -1282,9 +1368,7 @@ function TabelaCapturados({
               <div className="prospects-capture-card__body">
                 <div className="prospects-capture-card__headline">
                   <span className="prospects-capture-card__type">{item.tipoImovel || "Imóvel"}</span>
-                  <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
-                    {item.codigo}
-                  </a>
+                  <span className="prospects-link mono">{item.codigo}</span>
                 </div>
                 <h3 className="prospects-capture-card__location">
                   {[item.cidade, item.uf].filter(Boolean).join(" - ") || "Sem localização"}
@@ -1335,20 +1419,27 @@ function TabelaCapturados({
 
                 <div className="prospects-capture-card__actions">
                   {avaliacao ? (
-                    <button type="button" className="prospects-btn tertiary" onClick={() => onAbrirAvaliacao(item)}>
-                      Motor 2
+                    <button
+                      type="button"
+                      className="prospects-btn ghost prospects-btn--subtle"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAbrirAvaliacao(item);
+                      }}
+                    >
+                      Pré-análise
                     </button>
                   ) : null}
-                  <a className="prospects-btn secondary" href={item.link} target="_blank" rel="noreferrer">
-                    Abrir anúncio
-                  </a>
                   <button
                     type="button"
-                    className={`prospects-btn ${jaSelecionado ? "tertiary" : "primary"}`}
+                    className={`prospects-btn ${jaSelecionado ? "ghost" : "secondary"} prospects-btn--subtle`}
                     disabled={includeLoadingIds.has(item.codigo)}
-                    onClick={() => onIncluir(item)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onIncluir(item);
+                    }}
                   >
-                    {includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Adicionar novamente" : "Selecionar"}
+                    {includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Reenviar ao funil" : "Selecionar"}
                   </button>
                 </div>
               </div>
@@ -1387,13 +1478,13 @@ function AvaliacaoAutomaticaModal({
 
   return (
     <div className="prospects-modal-backdrop" role="presentation">
-      <div className="prospects-modal prospects-modal--wide" role="dialog" aria-modal="true" aria-labelledby="avaliacao-auto-title">
+      <div className="prospects-modal prospects-modal--wide prospects-modal--auto" role="dialog" aria-modal="true" aria-labelledby="avaliacao-auto-title">
         <div className="prospects-modal__header">
           <div>
-            <p className="prospects-eyebrow">Motor 2</p>
-            <h3 id="avaliacao-auto-title" className="prospects-modal__title">Avaliacao automatica do imovel {item.codigo}</h3>
+            <p className="prospects-eyebrow">Pré-análise</p>
+            <h3 id="avaliacao-auto-title" className="prospects-modal__title">Pré-análise automática do imóvel {item.codigo}</h3>
             <p className="prospects-subtitle prospects-subtitle--compact">
-              Compare a leitura automatica com a sua analise manual antes de decidir.
+              Use a leitura automática como ponto de partida e refine depois na análise manual.
             </p>
           </div>
         </div>
@@ -1401,16 +1492,32 @@ function AvaliacaoAutomaticaModal({
           {loading ? (
             <p className="prospects-empty">Carregando avaliacao automatica...</p>
           ) : !avaliacao ? (
-            <p className="prospects-empty">Este imovel ainda nao possui avaliacao automatica disponivel.</p>
+            <p className="prospects-empty">Este imóvel ainda não possui pré-análise automática disponível.</p>
           ) : (
             <>
+              <div className="prospects-auto-hero">
+                <div className="prospects-auto-hero__media">
+                  <ProspectGallery item={{ ...item, ...imovel }} className="prospects-auto-hero__photo" />
+                </div>
+                <div className="prospects-auto-hero__summary">
+                  <span className="prospects-auto-hero__eyebrow">{imovel?.tipo_imovel || item.tipoImovel || "Imóvel"}</span>
+                  <h4>{[imovel?.cidade || item.cidade, imovel?.uf || item.uf].filter(Boolean).join(" - ") || item.codigo}</h4>
+                  <p>{[imovel?.endereco || item.endereco, imovel?.bairro || item.bairro].filter(Boolean).join(" - ") || "Endereço não informado"}</p>
+                  <div className="prospects-capture-card__auto">
+                    <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>Score {avaliacao.score_total ?? "—"}/85</span>
+                    <span className={`prospects-auto-badge ${getRoiClasse(avaliacao.retorno_pct)}`}>ROI {formatarPercentual(avaliacao.retorno_pct)}</span>
+                    <span className="prospects-auto-badge">Venda est. {formatarMoeda(avaliacao.valor_estimado_venda)}</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="prospects-auto-grid">
                 <div className="prospects-auto-card prospects-auto-card--summary">
-                  <span>Fonte de comparaveis</span>
+                  <span>Fonte de comparáveis</span>
                   <strong>{avaliacao.fonte_pesquisa || "—"}</strong>
                 </div>
                 <div className="prospects-auto-card">
-                  <span>Preco/m2 da regiao</span>
+                  <span>Preço/m² da região</span>
                   <strong>{formatarMoeda(avaliacao.preco_m2_regiao)}</strong>
                 </div>
                 <div className="prospects-auto-card">
@@ -1445,7 +1552,7 @@ function AvaliacaoAutomaticaModal({
                   <strong>{avaliacao.score_risco ?? 0}/5</strong>
                 </div>
                 <div className="prospects-auto-breakdown__row prospects-auto-breakdown__row--editable">
-                  <label htmlFor="score-regiao">Regiao</label>
+                  <label htmlFor="score-regiao">Região</label>
                   <div>
                     <input
                       id="score-regiao"
@@ -1455,7 +1562,7 @@ function AvaliacaoAutomaticaModal({
                       value={scoreRegiaoDraft}
                       onChange={(e) => onScoreRegiaoChange(e.target.value)}
                     />
-                    <button type="button" className="prospects-btn secondary prospects-btn--toolbar" onClick={onSalvarScoreRegiao} disabled={savingScore}>
+                    <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onSalvarScoreRegiao} disabled={savingScore}>
                       {savingScore ? "Salvando..." : "Salvar"}
                     </button>
                   </div>
@@ -1471,7 +1578,7 @@ function AvaliacaoAutomaticaModal({
 
               {comparaveis.length ? (
                 <div className="prospects-auto-comparaveis">
-                  <h4>Comparaveis usados</h4>
+                  <h4>Comparáveis usados</h4>
                   <div className="prospects-table-wrap">
                     <table className="prospects-table prospects-table--compact">
                       <thead>
@@ -1503,10 +1610,10 @@ function AvaliacaoAutomaticaModal({
             </>
           )}
         </div>
-        <div className="prospects-modal__footer">
-          <button type="button" className="prospects-btn secondary" onClick={onClose}>Fechar</button>
-          <button type="button" className="prospects-btn primary" onClick={() => onAdicionarAoFunil(item)}>
-            Adicionar ao funil
+        <div className="prospects-modal__footer prospects-modal__footer--auto">
+          <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onClose}>Fechar</button>
+          <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={() => onAdicionarAoFunil(item)}>
+            Levar para análise
           </button>
         </div>
       </div>
@@ -1839,8 +1946,6 @@ function MobileCapturadosList({
   filtroCidadesCap,
   onToggleCidade,
   cidadesOptions,
-  filtroStatusCap,
-  setFiltroStatusCap,
   filtroFinanciaCap,
   setFiltroFinanciaCap,
   sortBy,
@@ -1896,18 +2001,6 @@ function MobileCapturadosList({
               {ufOptions.map((uf) => (
                 <option key={uf} value={uf}>{uf}</option>
               ))}
-            </select>
-          </label>
-
-          <label className="prospects-toolbar-field">
-            <span>Status</span>
-            <select
-              value={filtroStatusCap.length === 1 ? filtroStatusCap[0] : ""}
-              onChange={(e) => setFiltroStatusCap(e.target.value ? [e.target.value] : [])}
-            >
-              <option value="">Todos</option>
-              <option value="disponivel">Disponível</option>
-              <option value="indisponivel">Indisponível</option>
             </select>
           </label>
 
@@ -2042,9 +2135,13 @@ function MobileCapturadosList({
           const jaSelecionado = selectedCodes.has(item.codigo);
           const avaliacao = item.avaliacaoAutomatica;
           return (
-            <article key={item.codigo} className="prospects-mobile-item-card">
+            <article
+              key={item.codigo}
+              className="prospects-mobile-item-card"
+              onClick={() => window.open(item.link, "_blank", "noopener,noreferrer")}
+            >
               <div className="prospects-mobile-item-card__media">
-                <ProspectPhoto item={item} className="prospects-mobile-item-card__photo" />
+                <ProspectGallery item={item} className="prospects-mobile-item-card__photo" compact />
               </div>
 
               <div className="prospects-mobile-item-card__top">
@@ -2100,27 +2197,25 @@ function MobileCapturadosList({
                 {avaliacao ? (
                   <button
                     type="button"
-                    className="prospects-btn tertiary prospects-btn--mobile-action"
-                    onClick={() => onAbrirAvaliacao(item)}
+                    className="prospects-btn ghost prospects-btn--mobile-action"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAbrirAvaliacao(item);
+                    }}
                   >
-                    <span>Motor 2</span>
+                    <span>Pré-análise</span>
                   </button>
                 ) : null}
-                <a
-                  className="prospects-btn secondary prospects-btn--mobile-action"
-                  href={item.link}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <span>Abrir anúncio</span>
-                </a>
                 <button
                   type="button"
-                  className={`prospects-btn ${jaSelecionado ? "tertiary" : "primary"} prospects-btn--mobile-action`}
-                  onClick={() => onIncluir(item)}
+                  className={`prospects-btn ${jaSelecionado ? "ghost" : "secondary"} prospects-btn--mobile-action`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onIncluir(item);
+                  }}
                   disabled={includeLoadingIds.has(item.codigo)}
                 >
-                  <span>{includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Adicionar novamente" : "Selecionar"}</span>
+                  <span>{includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Reenviar ao funil" : "Selecionar"}</span>
                 </button>
               </div>
             </article>
@@ -2159,7 +2254,6 @@ export default function Prospeccoes() {
   const [filtroUfCap, setFiltroUfCap] = useState([]);
   const [filtroCidadesCap, setFiltroCidadesCap] = useState([]);
   const [filtroModalidadeCap, setFiltroModalidadeCap] = useState([]);
-  const [filtroStatusCap, setFiltroStatusCap] = useState(["disponivel"]);
   const [filtroFinanciaCap, setFiltroFinanciaCap] = useState([]);
   const [scoreMinCap, setScoreMinCap] = useState("");
   const [roiMinCap, setRoiMinCap] = useState("");
@@ -2252,7 +2346,6 @@ export default function Prospeccoes() {
           cidade: filtroCidadesCap,
           modalidade: filtroModalidadeCap,
           financia: filtroFinanciaCap,
-          status: filtroStatusCap,
           orderBy: sortBy,
           orderDir: sortDir,
           scoreMin: scoreMinCap === "" ? undefined : Number(scoreMinCap),
@@ -2274,7 +2367,7 @@ export default function Prospeccoes() {
       }
     };
     carregarCapturados();
-  }, [page, pageSize, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroStatusCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap]);
+  }, [page, pageSize, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap]);
 
   useEffect(() => {
     fetchProspecMeta()
@@ -2399,7 +2492,6 @@ export default function Prospeccoes() {
     setFiltroUfCap([]);
     setFiltroCidadesCap([]);
     setFiltroModalidadeCap([]);
-    setFiltroStatusCap(["disponivel"]);
     setFiltroFinanciaCap([]);
     setScoreMinCap("");
     setRoiMinCap("");
@@ -2991,11 +3083,6 @@ export default function Prospeccoes() {
               filtroCidadesCap={filtroCidadesCap}
               onToggleCidade={(cidade) => toggleValue(cidade, setFiltroCidadesCap)}
               cidadesOptions={cidadesOptions}
-              filtroStatusCap={filtroStatusCap}
-              setFiltroStatusCap={(value) => {
-                setFiltroStatusCap(value);
-                setPage(1);
-              }}
               filtroFinanciaCap={filtroFinanciaCap}
               setFiltroFinanciaCap={(value) => {
                 setFiltroFinanciaCap(value);
@@ -3165,150 +3252,144 @@ export default function Prospeccoes() {
         </>
       ) : (
         <>
-          <div className="prospects-filters">
-            <div className="prospects-filter-group">
-              <label>UF (capturados)</label>
-              <div className="prospects-checklist">
-                {ufOptions.map((uf) => (
-                  <label key={uf} className="prospects-check">
+          <section className="prospects-card prospects-card--command">
+            <div className="prospects-card__header prospects-card__header--stacked">
+              <div>
+                <p className="prospects-eyebrow">Base capturada</p>
+                <h2 className="prospects-title">Explorar oportunidades</h2>
+                <p className="prospects-subtitle prospects-subtitle--compact">
+                  Clique no imóvel para abrir o anúncio. A pré-análise serve como leitura inicial antes da análise manual.
+                </p>
+              </div>
+              <div className="prospects-card__header-actions">
+                <span className="prospects-pill">{capturadosTotal} imóveis</span>
+                <span className="prospects-pill prospects-pill--muted">{selectedCodes.size} na fila</span>
+              </div>
+            </div>
+            <div className="prospects-filters">
+              <div className="prospects-filter-group">
+                <label>UF (capturados)</label>
+                <div className="prospects-checklist">
+                  {ufOptions.map((uf) => (
+                    <label key={uf} className="prospects-check">
+                      <input
+                        type="checkbox"
+                        checked={filtroUfCap.includes(uf)}
+                        onChange={() => toggleValue(uf, setFiltroUfCap)}
+                      />
+                      <span>{uf}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="prospects-filter-group">
+                <label>Cidade</label>
+                <div className="prospects-checklist">
+                  {cidadesOptions.map((c) => (
+                    <label key={c} className="prospects-check">
+                      <input
+                        type="checkbox"
+                        checked={filtroCidadesCap.includes(c)}
+                        onChange={() => toggleValue(c, setFiltroCidadesCap)}
+                      />
+                      <span>{c}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="prospects-filter-group">
+                <label>Modalidade</label>
+                <div className="prospects-checklist">
+                  {modalidadeOptions.map((m) => (
+                    <label key={m} className="prospects-check">
+                      <input
+                        type="checkbox"
+                        checked={filtroModalidadeCap.includes(m)}
+                        onChange={() => toggleValue(m, setFiltroModalidadeCap)}
+                      />
+                      <span>{m}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="prospects-filter-group">
+                <label>Financia</label>
+                <div className="prospects-checklist">
+                  <label className="prospects-check">
                     <input
                       type="checkbox"
-                      checked={filtroUfCap.includes(uf)}
-                      onChange={() => toggleValue(uf, setFiltroUfCap)}
+                      checked={filtroFinanciaCap.includes("sim")}
+                      onChange={() => toggleValue("sim", setFiltroFinanciaCap)}
                     />
-                    <span>{uf}</span>
+                    <span>Sim</span>
                   </label>
-                ))}
-              </div>
-            </div>
-            <div className="prospects-filter-group">
-              <label>Cidade</label>
-              <div className="prospects-checklist">
-                {cidadesOptions.map((c) => (
-                  <label key={c} className="prospects-check">
+                  <label className="prospects-check">
                     <input
                       type="checkbox"
-                      checked={filtroCidadesCap.includes(c)}
-                      onChange={() => toggleValue(c, setFiltroCidadesCap)}
+                      checked={filtroFinanciaCap.includes("nao")}
+                      onChange={() => toggleValue("nao", setFiltroFinanciaCap)}
                     />
-                    <span>{c}</span>
+                    <span>Não</span>
                   </label>
-                ))}
+                </div>
               </div>
-            </div>
-            <div className="prospects-filter-group">
-              <label>Modalidade</label>
-              <div className="prospects-checklist">
-                {modalidadeOptions.map((m) => (
-                  <label key={m} className="prospects-check">
-                    <input
-                      type="checkbox"
-                      checked={filtroModalidadeCap.includes(m)}
-                      onChange={() => toggleValue(m, setFiltroModalidadeCap)}
-                    />
-                    <span>{m}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="prospects-filter-group">
-              <label>Status (capturados)</label>
-              <div className="prospects-checklist">
-                <label className="prospects-check">
-                  <input
-                    type="checkbox"
-                    checked={filtroStatusCap.includes("disponivel")}
-                    onChange={() => toggleValue("disponivel", setFiltroStatusCap)}
-                  />
-                  <span>Disponível</span>
-                </label>
-                <label className="prospects-check">
-                  <input
-                    type="checkbox"
-                    checked={filtroStatusCap.includes("indisponivel")}
-                    onChange={() => toggleValue("indisponivel", setFiltroStatusCap)}
-                  />
-                  <span>Indisponível</span>
-                </label>
-              </div>
-            </div>
-            <div className="prospects-filter-group">
-              <label>Financia</label>
-              <div className="prospects-checklist">
-                <label className="prospects-check">
-                  <input
-                    type="checkbox"
-                    checked={filtroFinanciaCap.includes("sim")}
-                    onChange={() => toggleValue("sim", setFiltroFinanciaCap)}
-                  />
-                  <span>Sim</span>
-                </label>
-                <label className="prospects-check">
-                  <input
-                    type="checkbox"
-                    checked={filtroFinanciaCap.includes("nao")}
-                    onChange={() => toggleValue("nao", setFiltroFinanciaCap)}
-                  />
-                  <span>Não</span>
-                </label>
-              </div>
-            </div>
-            <div className="prospects-filter-group">
-              <label>Itens por página</label>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-            >
-                {pageSizeOptions.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-            </div>
-            <div className="prospects-filter-group">
-              <label>Score mínimo</label>
-              <input
-                type="number"
-                min="0"
-                max="85"
-                value={scoreMinCap}
-                onChange={(e) => {
-                  setScoreMinCap(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-            <div className="prospects-filter-group">
-              <label>ROI mínimo (%)</label>
-              <input
-                type="number"
-                value={roiMinCap}
-                onChange={(e) => {
-                  setRoiMinCap(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
-            <div className="prospects-filter-group">
-              <label>Avaliação automática</label>
-              <label className="prospects-check">
-                <input
-                  type="checkbox"
-                  checked={somenteComAvaliacaoCap}
+              <div className="prospects-filter-group">
+                <label>Itens por página</label>
+                <select
+                  value={pageSize}
                   onChange={(e) => {
-                    setSomenteComAvaliacaoCap(e.target.checked);
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  {pageSizeOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="prospects-filter-group">
+                <label>Score mínimo</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="85"
+                  value={scoreMinCap}
+                  onChange={(e) => {
+                    setScoreMinCap(e.target.value);
                     setPage(1);
                   }}
                 />
-                <span>Mostrar só imóveis com Motor 2</span>
-              </label>
+              </div>
+              <div className="prospects-filter-group">
+                <label>ROI mínimo (%)</label>
+                <input
+                  type="number"
+                  value={roiMinCap}
+                  onChange={(e) => {
+                    setRoiMinCap(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+              <div className="prospects-filter-group">
+                <label>Pré-análise</label>
+                <label className="prospects-check">
+                  <input
+                    type="checkbox"
+                    checked={somenteComAvaliacaoCap}
+                    onChange={(e) => {
+                      setSomenteComAvaliacaoCap(e.target.checked);
+                      setPage(1);
+                    }}
+                  />
+                  <span>Mostrar só imóveis com pré-análise</span>
+                </label>
+              </div>
+              <div className="prospects-filter-actions">
+                <button type="button" className="prospects-btn secondary" onClick={limparFiltros}>Limpar filtros</button>
+              </div>
             </div>
-            <div className="prospects-filter-actions">
-              <button type="button" className="prospects-btn secondary" onClick={limparFiltros}>Limpar filtros</button>
-            </div>
-          </div>
+          </section>
           <TabelaCapturados
             dados={capturados}
             total={capturadosTotal}
