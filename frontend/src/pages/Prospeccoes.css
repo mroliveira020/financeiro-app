@@ -1266,6 +1266,21 @@
   color: #0f766e;
 }
 
+.prospects-chip--info {
+  background: #e7f0ff;
+  color: #1849a9;
+}
+
+.prospects-chip--auto {
+  background: #eefcf5;
+  color: #0f766e;
+}
+
+.prospects-chip--ia {
+  background: #f4ecff;
+  color: #7c3aed;
+}
+
 .status-aprovado {
   background: #e8f6ef;
   color: #1f7a4d;
@@ -1411,6 +1426,13 @@
   border-color: #fecdd3;
 }
 
+.prospects-table-icon-btn--external {
+  text-decoration: none;
+  color: #0f766e;
+  background: #eefcf5;
+  border-color: #c8f1de;
+}
+
 .prospects-table-icon-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -1424,6 +1446,142 @@
 
 .prospects-link:hover {
   text-decoration: underline;
+}
+
+.prospects-inline-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.prospects-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  border: 1px solid #dce7f4;
+  background: #f8fbff;
+  color: #51607d;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.prospects-inline-link svg {
+  width: 14px;
+  height: 14px;
+}
+
+.prospects-inline-link:hover {
+  color: var(--prospects-brand);
+  border-color: #bfd3ff;
+  background: #edf4ff;
+}
+
+.prospects-table-indicators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.prospects-indicator-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.prospects-indicator-chip svg {
+  width: 12px;
+  height: 12px;
+}
+
+.prospects-indicator-chip.is-financeira {
+  background: #e7f0ff;
+  color: #1849a9;
+}
+
+.prospects-indicator-chip.is-automatica {
+  background: #eefcf5;
+  color: #0f766e;
+}
+
+.prospects-indicator-chip.is-ia {
+  background: #f4ecff;
+  color: #7c3aed;
+}
+
+.prospects-detail-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.prospects-ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.prospects-ai-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 420px;
+  overflow: auto;
+  padding: 4px 2px;
+}
+
+.prospects-ai-bubble {
+  max-width: min(780px, 100%);
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  background: #f8fbff;
+}
+
+.prospects-ai-bubble.is-user {
+  align-self: flex-end;
+  background: #edf4ff;
+  border-color: #bfd3ff;
+}
+
+.prospects-ai-bubble.is-assistant {
+  align-self: flex-start;
+  background: #fcfdff;
+}
+
+.prospects-ai-bubble span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.prospects-ai-bubble p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #1f2937;
+  white-space: pre-wrap;
+}
+
+.prospects-ai-summary,
+.prospects-ai-composer {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid #e3ebf7;
+  background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
 }
 
 .prospects-empty {

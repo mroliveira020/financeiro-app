@@ -189,6 +189,7 @@ def _garantir_tabela_usuarios():
                   AND column_name IN (
                     'name',
                     'pix_key',
+                    'ai_access',
                     'password_reset_required',
                     'invite_token_hash',
                     'invite_expires_at',
@@ -200,6 +201,7 @@ def _garantir_tabela_usuarios():
             required = {
                 "name",
                 "pix_key",
+                "ai_access",
                 "password_reset_required",
                 "invite_token_hash",
                 "invite_expires_at",
@@ -222,6 +224,7 @@ def _garantir_tabela_usuarios():
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'viewer',
                 pix_key TEXT,
+                ai_access BOOLEAN NOT NULL DEFAULT FALSE,
                 is_active BOOLEAN NOT NULL DEFAULT TRUE,
                 password_reset_required BOOLEAN NOT NULL DEFAULT FALSE,
                 invite_token_hash TEXT,
@@ -248,6 +251,12 @@ def _garantir_tabela_usuarios():
             """
             ALTER TABLE users
             ADD COLUMN IF NOT EXISTS pix_key TEXT
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS ai_access BOOLEAN NOT NULL DEFAULT FALSE
             """
         )
         cur.execute(
@@ -303,6 +312,7 @@ def criar_usuario(
     is_active: bool = True,
     nome: str | None = None,
     pix_key: str | None = None,
+    ai_access: bool = False,
 ) -> dict:
     _garantir_tabela_usuarios()
     nome_norm = (nome or "").strip()
@@ -315,17 +325,18 @@ def criar_usuario(
     if role_norm not in {"viewer", "editor", "admin", "prospector"}:
         raise ValueError("Papel inválido")
     pix_key_norm = (pix_key or "").strip() or None
+    ai_access_bool = bool(ai_access)
     senha_hash = generate_password_hash(senha, method="pbkdf2:sha256", salt_length=16)
 
     conn, cur = conectar()
     try:
         cur.execute(
             """
-            INSERT INTO users (name, email, password_hash, role, pix_key, is_active)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            RETURNING id, name, email, role, pix_key, is_active, created_at, updated_at
+            INSERT INTO users (name, email, password_hash, role, pix_key, ai_access, is_active)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id, name, email, role, pix_key, ai_access, is_active, created_at, updated_at
             """,
-            (nome_norm, email_norm, senha_hash, role_norm, pix_key_norm, is_active),
+            (nome_norm, email_norm, senha_hash, role_norm, pix_key_norm, ai_access_bool, is_active),
         )
         row = cur.fetchone()
         conn.commit()
@@ -1008,6 +1019,26 @@ def _garantir_tabela_prospeccao_analise():
         conn.close()
 
 
+def _garantir_tabela_ai_analise():
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS imoveis_selecionados_ai_analise (
+                numero_bem TEXT PRIMARY KEY REFERENCES imoveis_selecionados(numero_bem) ON DELETE CASCADE,
+                historico_chat JSONB NOT NULL DEFAULT '[]'::jsonb,
+                analise_texto TEXT NULL,
+                matricula_texto TEXT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def _garantir_tabela_prospeccao_responsaveis():
     conn, cur = conectar()
     try:
@@ -1046,6 +1077,7 @@ def listar_usuarios() -> list[dict]:
                 email,
                 role,
                 pix_key,
+                ai_access,
                 is_active,
                 created_at,
                 updated_at,
@@ -1069,6 +1101,7 @@ def criar_convite_usuario(
     is_active: bool = True,
     invite_hours: int = 72,
     pix_key: str | None = None,
+    ai_access: bool = False,
 ) -> dict:
     _garantir_tabela_usuarios()
 
@@ -1082,6 +1115,7 @@ def criar_convite_usuario(
     if role_norm not in {"viewer", "editor", "admin", "prospector"}:
         raise ValueError("Papel inválido")
     pix_key_norm = (pix_key or "").strip() or None
+    ai_access_bool = bool(ai_access)
 
     invite_hours = max(1, int(invite_hours or 72))
     invite_token = secrets.token_urlsafe(24)
@@ -1104,6 +1138,7 @@ def criar_convite_usuario(
                     name = %s,
                     role = %s,
                     pix_key = %s,
+                    ai_access = %s,
                     is_active = %s,
                     invite_token_hash = %s,
                     invite_expires_at = %s,
@@ -1111,9 +1146,9 @@ def criar_convite_usuario(
                     password_reset_required = TRUE,
                     updated_at = NOW()
                 WHERE email = %s
-                RETURNING id, name, email, role, pix_key, is_active, invite_expires_at
+                RETURNING id, name, email, role, pix_key, ai_access, is_active, invite_expires_at
                 """,
-                (nome_norm, role_norm, pix_key_norm, is_active, invite_token_hash, invite_expires_at, email_norm),
+                (nome_norm, role_norm, pix_key_norm, ai_access_bool, is_active, invite_token_hash, invite_expires_at, email_norm),
             )
         else:
             placeholder_hash = generate_password_hash(
@@ -1129,14 +1164,15 @@ def criar_convite_usuario(
                     password_hash,
                     role,
                     pix_key,
+                    ai_access,
                     is_active,
                     invite_token_hash,
                     invite_expires_at,
                     invite_created_at,
                     password_reset_required
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW(), TRUE)
-                RETURNING id, name, email, role, pix_key, is_active, invite_expires_at
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW(), TRUE)
+                RETURNING id, name, email, role, pix_key, ai_access, is_active, invite_expires_at
                 """,
                 (
                     nome_norm,
@@ -1144,6 +1180,7 @@ def criar_convite_usuario(
                     placeholder_hash,
                     role_norm,
                     pix_key_norm,
+                    ai_access_bool,
                     is_active,
                     invite_token_hash,
                     invite_expires_at,
@@ -1230,7 +1267,7 @@ def obter_usuario_por_email(email: str) -> dict | None:
     try:
         cur.execute(
             """
-            SELECT id, name, email, password_hash, role, pix_key, is_active, password_reset_required
+            SELECT id, name, email, password_hash, role, pix_key, ai_access, is_active, password_reset_required
             FROM users
             WHERE email = %s
             LIMIT 1
@@ -1249,7 +1286,7 @@ def obter_usuario_por_id(user_id: int) -> dict | None:
     try:
         cur.execute(
             """
-            SELECT id, name, email, role, pix_key, is_active
+            SELECT id, name, email, role, pix_key, ai_access, is_active
             FROM users
             WHERE id = %s
             """,
@@ -1281,12 +1318,13 @@ def atualizar_status_usuario(user_id: int, is_active: bool) -> None:
         conn.close()
 
 
-def atualizar_usuario(user_id: int, nome: str, is_active: bool, pix_key: str | None = None) -> dict | None:
+def atualizar_usuario(user_id: int, nome: str, is_active: bool, pix_key: str | None = None, ai_access: bool = False) -> dict | None:
     _garantir_tabela_usuarios()
     nome_norm = (nome or "").strip()
     if not nome_norm:
         raise ValueError("Nome obrigatório")
     pix_key_norm = (pix_key or "").strip() or None
+    ai_access_bool = bool(ai_access)
 
     conn, cur = conectar()
     try:
@@ -1296,14 +1334,15 @@ def atualizar_usuario(user_id: int, nome: str, is_active: bool, pix_key: str | N
             SET
                 name = %s,
                 pix_key = %s,
+                ai_access = %s,
                 is_active = %s,
                 updated_at = NOW()
             WHERE id = %s
-            RETURNING id, name, email, role, pix_key, is_active, created_at, updated_at,
+            RETURNING id, name, email, role, pix_key, ai_access, is_active, created_at, updated_at,
                       password_reset_required, invite_expires_at,
                       (invite_token_hash IS NOT NULL) AS invite_pending
             """,
-            (nome_norm, pix_key_norm, is_active, user_id),
+            (nome_norm, pix_key_norm, ai_access_bool, is_active, user_id),
         )
         row = cur.fetchone()
         conn.commit()
@@ -2813,6 +2852,7 @@ def listar_prospeccoes_selecionados(
     _garantir_tabela_prospeccao_observacoes()
     _garantir_tabela_prospeccao_analise()
     _garantir_tabela_prospeccao_responsaveis()
+    _garantir_tabela_ai_analise()
     conn, cur = conectar()
     base_query = """
         SELECT
@@ -2825,12 +2865,22 @@ def listar_prospeccoes_selecionados(
             COALESCE(NULLIF(u.name, ''), NULLIF(s.created_by_name, ''), u.email) AS created_by_name,
             v.cidade,
             v.uf,
+            v.bairro,
+            v.endereco,
             v.valor_venda,
             v.valor_avaliacao,
+            v.valor_leilao_1,
+            v.valor_leilao_2,
             v.link_consulta,
             v.tipo_venda,
+            v.tipo_imovel,
             v.disponivel,
             v.detalhes,
+            v.desconto,
+            v.data_leilao_1,
+            v.data_leilao_2,
+            v.data_licitacao_aberta,
+            v.data_hora_encerramento,
             fotos_rel.foto_url AS foto_url,
             fotos_rel.fotos AS fotos,
             av.numero_bem AS avaliacao_numero_bem,
@@ -2850,6 +2900,8 @@ def listar_prospeccoes_selecionados(
             av.resumo_ia,
             av.pesquisado_em,
             a.numero_bem AS analise_numero_bem,
+            ai_a.numero_bem AS ai_analise_numero_bem,
+            a.link_google_maps,
             a.valor_base_operacao,
             a.tempo_operacao_meses,
             a.valor_maximo_lance,
@@ -2887,6 +2939,8 @@ def listar_prospeccoes_selecionados(
             ON u.id = s.created_by
         LEFT JOIN imoveis_selecionados_analise a
             ON a.numero_bem = s.numero_bem
+        LEFT JOIN imoveis_selecionados_ai_analise ai_a
+            ON ai_a.numero_bem = s.numero_bem
         LEFT JOIN avaliacoes av
             ON av.numero_bem = s.numero_bem
         LEFT JOIN vw_imoveis_prospeccao_latest v
@@ -3051,14 +3105,26 @@ def listar_prospeccoes_selecionados(
             "responsaveis": responsaveis_por_imovel.get(row["numero_bem"], []),
             "cidade": row["cidade"],
             "uf": row["uf"],
+            "bairro": row["bairro"],
+            "endereco": row["endereco"],
             "valor_venda": float(row["valor_venda"]) if row["valor_venda"] is not None else None,
             "valor_avaliacao": float(row["valor_avaliacao"]) if row["valor_avaliacao"] is not None else None,
+            "valor_leilao_1": float(row["valor_leilao_1"]) if row["valor_leilao_1"] is not None else None,
+            "valor_leilao_2": float(row["valor_leilao_2"]) if row["valor_leilao_2"] is not None else None,
             "link_consulta": row["link_consulta"],
+            "link_google_maps": row["link_google_maps"],
             "tipo_venda": row["tipo_venda"],
+            "tipo_imovel": row["tipo_imovel"],
             "disponivel": row["disponivel"],
             "detalhes": row["detalhes"],
+            "desconto": _float_or_none(row["desconto"]),
+            "data_leilao_1": _iso_or_none(row["data_leilao_1"]),
+            "data_leilao_2": _iso_or_none(row["data_leilao_2"]),
+            "data_licitacao_aberta": _iso_or_none(row["data_licitacao_aberta"]),
+            "data_hora_encerramento": _iso_or_none(row["data_hora_encerramento"]),
             "data_leilao": row["data_leilao"].isoformat() if row["data_leilao"] else None,
             "analise_salva": tem_analise,
+            "analise_ia_salva": row["ai_analise_numero_bem"] is not None,
             "roi_esperado_percentual": calculos_analise["roi_esperado_percentual"] if calculos_analise else None,
             "lucro_esperado_valor": calculos_analise["lucro_esperado_valor"] if calculos_analise else None,
             "avaliacao": avaliacao,
@@ -3409,6 +3475,165 @@ def salvar_score_regiao_avaliacao(numero_bem, score_regiao):
         row = cur.fetchone()
         conn.commit()
         return _build_avaliacao_dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def obter_ai_analise_prospeccao_selecionado(numero_bem):
+    _garantir_tabela_ai_analise()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT
+                numero_bem,
+                historico_chat,
+                analise_texto,
+                matricula_texto,
+                created_at,
+                updated_at
+            FROM imoveis_selecionados_ai_analise
+            WHERE numero_bem = %s
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return {
+                "numero_bem": numero_bem,
+                "historico_chat": [],
+                "analise_texto": None,
+                "matricula_texto": None,
+                "created_at": None,
+                "updated_at": None,
+            }
+        return {
+            "numero_bem": row["numero_bem"],
+            "historico_chat": row["historico_chat"] or [],
+            "analise_texto": row["analise_texto"],
+            "matricula_texto": row["matricula_texto"],
+            "created_at": _iso_or_none(row["created_at"]),
+            "updated_at": _iso_or_none(row["updated_at"]),
+        }
+    finally:
+        conn.close()
+
+
+def salvar_ai_analise_prospeccao_selecionado(numero_bem, analise_texto=None, historico_chat=None, matricula_texto=None):
+    _garantir_tabela_ai_analise()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            INSERT INTO imoveis_selecionados_ai_analise (
+                numero_bem,
+                historico_chat,
+                analise_texto,
+                matricula_texto
+            )
+            VALUES (%s, COALESCE(%s::jsonb, '[]'::jsonb), %s, %s)
+            ON CONFLICT (numero_bem) DO UPDATE
+            SET
+                historico_chat = COALESCE(EXCLUDED.historico_chat, imoveis_selecionados_ai_analise.historico_chat),
+                analise_texto = COALESCE(EXCLUDED.analise_texto, imoveis_selecionados_ai_analise.analise_texto),
+                matricula_texto = COALESCE(EXCLUDED.matricula_texto, imoveis_selecionados_ai_analise.matricula_texto),
+                updated_at = now()
+            RETURNING
+                numero_bem,
+                historico_chat,
+                analise_texto,
+                matricula_texto,
+                created_at,
+                updated_at
+            """,
+            (
+                numero_bem,
+                json.dumps(historico_chat) if historico_chat is not None else None,
+                analise_texto,
+                matricula_texto,
+            ),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        return {
+            "numero_bem": row["numero_bem"],
+            "historico_chat": row["historico_chat"] or [],
+            "analise_texto": row["analise_texto"],
+            "matricula_texto": row["matricula_texto"],
+            "created_at": _iso_or_none(row["created_at"]),
+            "updated_at": _iso_or_none(row["updated_at"]),
+        }
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def criar_job_ai_prospeccao(numero_bem, tipo, input_payload=None):
+    conn, cur = conectar()
+    try:
+        job_id = str(uuid.uuid4())
+        cur.execute(
+            """
+            INSERT INTO ia_jobs (
+                id,
+                numero_bem,
+                tipo,
+                input,
+                status
+            )
+            VALUES (%s, %s, %s, %s::jsonb, 'pending')
+            RETURNING id, numero_bem, tipo, status
+            """,
+            (
+                job_id,
+                numero_bem,
+                tipo,
+                json.dumps(input_payload or {}),
+            ),
+        )
+        row = cur.fetchone()
+        conn.commit()
+        return {
+            "job_id": str(row["id"]),
+            "numero_bem": row["numero_bem"],
+            "tipo": row["tipo"],
+            "status": row["status"],
+        }
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def obter_job_ai_prospeccao(job_id, numero_bem=None):
+    conn, cur = conectar()
+    try:
+        params = [job_id]
+        sql = """
+            SELECT id, numero_bem, tipo, status, resultado, erro
+            FROM ia_jobs
+            WHERE id = %s
+        """
+        if numero_bem:
+            sql += " AND numero_bem = %s"
+            params.append(numero_bem)
+        sql += " LIMIT 1"
+        cur.execute(sql, params)
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {
+            "job_id": str(row["id"]),
+            "numero_bem": row["numero_bem"],
+            "tipo": row["tipo"],
+            "status": row["status"],
+            "resultado": row["resultado"],
+            "erro": row["erro"],
+        }
     finally:
         conn.close()
 

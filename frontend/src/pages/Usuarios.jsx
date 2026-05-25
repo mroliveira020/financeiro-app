@@ -47,6 +47,7 @@ export default function Usuarios() {
   const [editingUserId, setEditingUserId] = useState(null);
   const [editingName, setEditingName] = useState("");
   const [editingPixKey, setEditingPixKey] = useState("");
+  const [editingAiAccess, setEditingAiAccess] = useState(false);
   const [editingIsActive, setEditingIsActive] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState(null);
   const [selectedImovelId, setSelectedImovelId] = useState("");
@@ -56,6 +57,7 @@ export default function Usuarios() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [pixKey, setPixKey] = useState("");
+  const [aiAccess, setAiAccess] = useState(false);
   const [role, setRole] = useState("prospector");
   const [inviteHours, setInviteHours] = useState(72);
   const [isActive, setIsActive] = useState(true);
@@ -176,6 +178,7 @@ export default function Usuarios() {
         email: email.trim().toLowerCase(),
         role,
         pix_key: pixKey.trim(),
+        ai_access: aiAccess,
         is_active: isActive,
         invite_hours: Number(inviteHours),
       });
@@ -184,6 +187,7 @@ export default function Usuarios() {
       setName("");
       setEmail("");
       setPixKey("");
+      setAiAccess(false);
       await loadUsers();
     } catch (err) {
       setError(err?.response?.data?.error || "Erro ao gerar convite");
@@ -206,6 +210,7 @@ export default function Usuarios() {
     setEditingUserId(user.id);
     setEditingName(user.name || "");
     setEditingPixKey(user.pix_key || "");
+    setEditingAiAccess(Boolean(user.ai_access));
     setEditingIsActive(Boolean(user.is_active));
     setError("");
     setMessage("");
@@ -215,6 +220,7 @@ export default function Usuarios() {
     setEditingUserId(null);
     setEditingName("");
     setEditingPixKey("");
+    setEditingAiAccess(false);
     setEditingIsActive(true);
   };
 
@@ -226,6 +232,7 @@ export default function Usuarios() {
       await api.patch(`/auth/users/${userId}`, {
         name: editingName.trim(),
         pix_key: editingPixKey.trim(),
+        ai_access: editingAiAccess,
         is_active: editingIsActive,
       });
       setMessage("Usuário atualizado com sucesso.");
@@ -299,6 +306,7 @@ export default function Usuarios() {
             <th>E-mail</th>
             <th>Perfil</th>
             <th>Chave Pix</th>
+            <th>Acesso IA</th>
             <th>Ativo</th>
             <th>Convite pendente</th>
             <th>Expira em</th>
@@ -309,12 +317,12 @@ export default function Usuarios() {
         <tbody>
           {loading && (
             <tr>
-              <td colSpan={9}>Carregando...</td>
+              <td colSpan={10}>Carregando...</td>
             </tr>
           )}
           {!loading && tableUsers.length === 0 && (
             <tr>
-              <td colSpan={9}>{emptyMessage}</td>
+              <td colSpan={10}>{emptyMessage}</td>
             </tr>
           )}
           {!loading &&
@@ -345,6 +353,20 @@ export default function Usuarios() {
                     />
                   ) : (
                     user.pix_key || "—"
+                  )}
+                </td>
+                <td>
+                  {editingUserId === user.id ? (
+                    <label className="users-table__check">
+                      <input
+                        type="checkbox"
+                        checked={editingAiAccess}
+                        onChange={(e) => setEditingAiAccess(e.target.checked)}
+                      />
+                      <span>{editingAiAccess ? "Sim" : "Não"}</span>
+                    </label>
+                  ) : (
+                    user.ai_access ? "Sim" : "Não"
                   )}
                 </td>
                 <td>
@@ -455,6 +477,17 @@ export default function Usuarios() {
             onChange={(e) => setPixKey(e.target.value)}
             placeholder="CPF, e-mail, telefone ou aleatória"
           />
+        </div>
+
+        <div className="users-form__check">
+          <label>
+            <input
+              type="checkbox"
+              checked={aiAccess}
+              onChange={(e) => setAiAccess(e.target.checked)}
+            />
+            <span>Liberar acesso à IA</span>
+          </label>
         </div>
 
         <div className="users-form__row">

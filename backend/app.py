@@ -32,6 +32,11 @@ from models import (
     salvar_score_regiao_avaliacao,
     listar_prospectores_ativos,
     salvar_responsaveis_prospeccao_selecionado,
+    obter_ai_analise_prospeccao_selecionado,
+    salvar_ai_analise_prospeccao_selecionado,
+    criar_job_ai_prospeccao,
+    obter_job_ai_prospeccao,
+    obter_usuario_por_id,
     listar_socios_imovel,
     salvar_socios_imovel,
     obter_posicao_financeira_compartilhada,
@@ -57,6 +62,8 @@ from security import requires_auth, requires_editor_token, requires_prospeccao_w
 from ratelimit import limiter
 from werkzeug.middleware.proxy_fix import ProxyFix
 import time, json
+import os
+import requests as _req
 from flask import g
 from werkzeug.exceptions import HTTPException
 
@@ -325,6 +332,36 @@ def _usuario_pode_operar_prospeccao(contexto, current_user):
     return current_user_id in set(contexto.get("responsavel_ids") or [])
 
 
+def _usuario_pode_ver_prospeccao(contexto, current_user):
+    return _usuario_pode_operar_prospeccao(contexto, current_user)
+
+
+def _usuario_tem_ai_access(current_user):
+    if not current_user:
+        return False
+    if current_user.get("role") == "admin":
+        return True
+    user_id = current_user.get("id")
+    if not user_id:
+        return False
+    usuario = obter_usuario_por_id(user_id)
+    return bool(usuario and usuario.get("ai_access"))
+
+
+def _sinalizar_mac_mini():
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if token and chat_id:
+        try:
+            _req.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": chat_id, "text": "__jobs__"},
+                timeout=5,
+            )
+        except Exception:
+            pass
+
+
 @app.route("/prospeccoes/selecionados", methods=["POST"])
 @requires_prospeccao_write
 @limiter.limit(RATE_LIMIT_EDIT)
@@ -460,6 +497,115 @@ def put_prospeccao_selecionado_analise(numero_bem):
     if not result:
         return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
     return jsonify(result), 200
+
+
+@app.route("/prospeccoes/selecionados/<numero_bem>/ai-analise", methods=["GET"])
+@requires_auth
+def get_prospeccao_selecionado_ai_analise(numero_bem):
+    current_user = get_current_user() or {}
+    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
+    if not contexto:
+        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    if not _usuario_pode_ver_prospeccao(contexto, current_user):
+        return jsonify({"error": "Você não tem permissão para visualizar a análise deste imóvel."}), 403
+    return jsonify(obter_ai_analise_prospeccao_selecionado(numero_bem)), 200
+
+
+@app.route("/prospeccoes/selecionados/<numero_bem>/ai-analise", methods=["PUT"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def put_prospeccao_selecionado_ai_analise(numero_bem):
+    current_user = get_current_user() or {}
+    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
+    if not contexto:
+        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    if not _usuario_pode_ver_prospeccao(contexto, current_user):
+        return jsonify({"error": "Você não tem permissão para editar a análise deste imóvel."}), 403
+
+    payload = request.get_json(force=True, silent=True) or {}
+    result = salvar_ai_analise_prospeccao_selecionado(
+        numero_bem,
+        analise_texto=(payload.get("analise_texto") or "").strip() or None,
+    )
+    return jsonify(result), 200
+
+
+@app.route("/prospeccoes/selecionados/<numero_bem>/ai-analise/chat", methods=["POST"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def post_prospeccao_selecionado_ai_analise_chat(numero_bem):
+    current_user = get_current_user() or {}
+    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
+    if not contexto:
+        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    if not _usuario_pode_ver_prospeccao(contexto, current_user):
+        return jsonify({"error": "Você não tem permissão para acessar a análise deste imóvel."}), 403
+    if not _usuario_tem_ai_access(current_user):
+        return jsonify({"error": "Seu usuário não possui acesso ao chat de IA."}), 403
+
+    payload = request.get_json(force=True, silent=True) or {}
+    mensagem = (payload.get("mensagem") or "").strip()
+    if not mensagem:
+        return jsonify({"error": "mensagem é obrigatória"}), 400
+
+    job = criar_job_ai_prospeccao(
+        numero_bem,
+        "ai_analise_chat",
+        {
+            "mensagem": mensagem,
+            "requested_by": {
+                "id": current_user.get("id"),
+                "name": current_user.get("name") or current_user.get("email"),
+                "role": current_user.get("role"),
+            },
+        },
+    )
+    _sinalizar_mac_mini()
+    return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
+
+
+@app.route("/prospeccoes/selecionados/<numero_bem>/ai-analise/job/<job_id>", methods=["GET"])
+@requires_auth
+def get_prospeccao_selecionado_ai_analise_job(numero_bem, job_id):
+    current_user = get_current_user() or {}
+    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
+    if not contexto:
+        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    if not _usuario_pode_ver_prospeccao(contexto, current_user):
+        return jsonify({"error": "Você não tem permissão para visualizar a análise deste imóvel."}), 403
+
+    job = obter_job_ai_prospeccao(job_id, numero_bem=numero_bem)
+    if not job:
+        return jsonify({"error": "Job não encontrado"}), 404
+    return jsonify(job), 200
+
+
+@app.route("/prospeccoes/selecionados/<numero_bem>/matricula", methods=["POST"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def post_prospeccao_selecionado_matricula(numero_bem):
+    current_user = get_current_user() or {}
+    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
+    if not contexto:
+        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    if not _usuario_pode_ver_prospeccao(contexto, current_user):
+        return jsonify({"error": "Você não tem permissão para acessar a matrícula deste imóvel."}), 403
+    if not _usuario_tem_ai_access(current_user):
+        return jsonify({"error": "Seu usuário não possui acesso à análise de matrícula."}), 403
+
+    job = criar_job_ai_prospeccao(
+        numero_bem,
+        "matricula",
+        {
+            "requested_by": {
+                "id": current_user.get("id"),
+                "name": current_user.get("name") or current_user.get("email"),
+                "role": current_user.get("role"),
+            },
+        },
+    )
+    _sinalizar_mac_mini()
+    return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
 
 
 @app.route("/prospeccoes/selecionados/<numero_bem>/responsaveis", methods=["PUT"])

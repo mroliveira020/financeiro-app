@@ -151,9 +151,17 @@ export async function fetchSelecionados({ status, uf, userId } = {}) {
       })),
       cidade: item.cidade,
       uf: item.uf,
+      bairro: item.bairro,
+      endereco: item.endereco,
       valor: item.valor_venda ?? item.valor_avaliacao,
+      valorVenda: item.valor_venda,
+      valorAvaliacao: item.valor_avaliacao,
+      valorLeilao1: item.valor_leilao_1,
+      valorLeilao2: item.valor_leilao_2,
       link: normalizeLink(item.numero_bem, item.link_consulta),
+      linkGoogleMaps: item.link_google_maps || "",
       modalidade: item.tipo_venda,
+      tipoImovel: item.tipo_imovel,
       disponivel: item.disponivel,
       observacoes: item.observacoes,
       observacoesHistorico: (item.observacoes_historico || []).map((obs) => ({
@@ -163,8 +171,14 @@ export async function fetchSelecionados({ status, uf, userId } = {}) {
         createdAt: obs.created_at,
       })),
       descricao: item.detalhes,
+      desconto: item.desconto,
+      data_leilao_1: item.data_leilao_1,
+      data_leilao_2: item.data_leilao_2,
+      data_licitacao_aberta: item.data_licitacao_aberta,
+      data_hora_encerramento: item.data_hora_encerramento,
       dataLeilao: item.data_leilao,
       analiseSalva: Boolean(item.analise_salva),
+      analiseIaSalva: Boolean(item.analise_ia_salva),
       roiEsperadoPercentual: item.roi_esperado_percentual,
       lucroEsperadoValor: item.lucro_esperado_valor,
       avaliacaoAutomatica: item.avaliacao || null,
@@ -234,4 +248,41 @@ export async function salvarScoreRegiao(numeroBem, scoreRegiao) {
     score_regiao: scoreRegiao,
   });
   return data;
+}
+
+export async function fetchAiAnalise(numeroBem) {
+  const { data } = await api.get(`/prospeccoes/selecionados/${numeroBem}/ai-analise`);
+  return data;
+}
+
+export async function salvarAiAnalise(numeroBem, payload) {
+  const { data } = await api.put(`/prospeccoes/selecionados/${numeroBem}/ai-analise`, payload);
+  return data;
+}
+
+export async function enviarMensagemAiChat(numeroBem, mensagem) {
+  const { data } = await api.post(`/prospeccoes/selecionados/${numeroBem}/ai-analise/chat`, { mensagem });
+  return data;
+}
+
+export async function solicitarMatricula(numeroBem) {
+  const { data } = await api.post(`/prospeccoes/selecionados/${numeroBem}/matricula`);
+  return data;
+}
+
+export async function fetchAiJob(numeroBem, jobId) {
+  const { data } = await api.get(`/prospeccoes/selecionados/${numeroBem}/ai-analise/job/${jobId}`);
+  return data;
+}
+
+export async function pollAiJob(numeroBem, jobId, { intervalMs = 3000, timeoutMs = 120000 } = {}) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const job = await fetchAiJob(numeroBem, jobId);
+    if (job?.status === "done" || job?.status === "error") {
+      return job;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+  }
+  throw new Error("Tempo limite excedido ao aguardar processamento da IA.");
 }

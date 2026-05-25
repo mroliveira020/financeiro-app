@@ -14,6 +14,11 @@ import {
   fetchResponsaveisDisponiveis,
   salvarScoreRegiao,
   salvarResponsaveisSelecionado,
+  fetchAiAnalise,
+  salvarAiAnalise,
+  enviarMensagemAiChat,
+  solicitarMatricula,
+  pollAiJob,
 } from "../services/prospeccoes";
 import { fetchImoveisFinanceiroAcessiveis } from "../services/api";
 import { useAuth } from "../context/AuthContext";
@@ -67,6 +72,62 @@ const formatarDataHoraCompacta = (valor) => {
   const hora = String(data.getHours()).padStart(2, "0");
   const minuto = String(data.getMinutes()).padStart(2, "0");
   return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
+};
+
+const parseDateSafe = (valor) => {
+  if (!valor) return null;
+  const data = new Date(valor);
+  return Number.isNaN(data.getTime()) ? null : data;
+};
+
+const slugifyTexto = (valor) => `${valor || ""}`
+  .toLowerCase()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9\s-]/g, "")
+  .trim()
+  .replace(/\s+/g, "-");
+
+const getLeiloesInfo = (item) => ([
+  { label: "1º Leilão", data: item?.data_leilao_1, valor: item?.valorLeilao1 },
+  { label: "2º Leilão", data: item?.data_leilao_2, valor: item?.valorLeilao2 },
+  { label: "Licitação", data: item?.data_licitacao_aberta, valor: item?.valorVenda ?? item?.valorMinimo ?? item?.valor },
+  { label: "Encerramento", data: item?.data_hora_encerramento, valor: null },
+]).filter((entry) => Boolean(entry.data));
+
+const getLeilaoResumo = (item) => {
+  const pares = getLeiloesInfo(item)
+    .map((entry) => ({ ...entry, parsedDate: parseDateSafe(entry.data) }))
+    .filter((entry) => entry.parsedDate);
+
+  if (!pares.length) return null;
+
+  const agora = Date.now();
+  const futuros = pares
+    .filter((entry) => entry.parsedDate.getTime() >= agora)
+    .sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
+
+  if (futuros.length) return futuros[0];
+
+  return pares.sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime()).at(-1);
+};
+
+const getMapsUrl = (item) => {
+  if (item?.linkGoogleMaps) return item.linkGoogleMaps;
+  const query = [item?.endereco, item?.bairro, item?.cidade, item?.uf].filter(Boolean).join(", ");
+  return query ? `https://www.google.com/maps/search/${encodeURIComponent(query)}` : "";
+};
+
+const getComparaveisLinks = (item) => {
+  const cidadeOriginal = `${item?.cidade || ""}`.trim();
+  const cidade = slugifyTexto(cidadeOriginal);
+  const uf = `${item?.uf || ""}`.trim().toLowerCase();
+  if (!cidade || !uf) return [];
+  return [
+    { label: "Zap", url: `https://www.zapimoveis.com.br/venda/imoveis/${uf}/${cidade}/` },
+    { label: "OLX", url: `https://www.olx.com.br/imoveis/venda/estado-${uf}?q=${encodeURIComponent(cidadeOriginal)}` },
+    { label: "Viva", url: `https://www.vivareal.com.br/venda/imoveis/${uf}/${cidade}/` },
+  ];
 };
 
 const getProspectPhotoAlt = (item) => {
@@ -318,6 +379,24 @@ function ArrowUpRightIcon() {
     <IconBase label="Abrir módulo">
       <path d="M8 16 16 8" />
       <path d="M10 8h6v6" />
+    </IconBase>
+  );
+}
+
+function MapPinIcon() {
+  return (
+    <IconBase label="Abrir no mapa">
+      <path d="M12 20s6-4.8 6-10a6 6 0 1 0-12 0c0 5.2 6 10 6 10Z" />
+      <circle cx="12" cy="10" r="2.2" />
+    </IconBase>
+  );
+}
+
+function SparklesIcon() {
+  return (
+    <IconBase label="Indicador">
+      <path d="m12 3 1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3Z" />
+      <path d="m18.5 15 .7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1Z" />
     </IconBase>
   );
 }
@@ -631,6 +710,7 @@ function TabelaSelecionados({
   onExcluir,
   onEditarObservacoes,
   onAbrirAnalise,
+  onAbrirAvaliacaoDetalhada,
   onEditarResponsaveis,
   onEditarPrioridade,
   removeLoadingIds,
@@ -685,7 +765,11 @@ function TabelaSelecionados({
             </tr>
           </thead>
           <tbody>
-            {dados.map((item) => (
+            {dados.map((item) => {
+              const resumoLeilao = getLeilaoResumo(item);
+              const mapsUrl = getMapsUrl(item);
+              const comparaveis = getComparaveisLinks(item);
+              return (
               <tr key={item.codigo}>
                 <td className="mono">
                   <a className="prospects-link" href={item.link} target="_blank" rel="noreferrer">
@@ -695,11 +779,35 @@ function TabelaSelecionados({
                 <td className="prospects-col-city">
                   <div className="prospects-city-cell">
                     <strong>{item.cidade && item.uf ? `${item.cidade}/${item.uf}` : item.cidade || item.uf || "—"}</strong>
+                    <div className="prospects-table-indicators">
+                      {item.analiseSalva ? (
+                        <span className="prospects-indicator-chip is-financeira" title="Análise financeira salva">
+                          <ChartIcon />
+                          <span>Financeira</span>
+                        </span>
+                      ) : null}
+                      {item.avaliacaoAutomatica ? (
+                        <span className="prospects-indicator-chip is-automatica" title="Pré-análise automática disponível">
+                          <SparklesIcon />
+                          <span>Pré-análise</span>
+                        </span>
+                      ) : null}
+                      {item.analiseIaSalva ? (
+                        <span className="prospects-indicator-chip is-ia" title="Avaliação IA salva">
+                          <SparklesIcon />
+                          <span>IA salva</span>
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </td>
                 <td>
                   <div className="prospects-date-cell">
-                    <strong>{formatarDataHoraCompacta(item.dataLeilao)}</strong>
+                    <strong>{formatarDataHoraCompacta(resumoLeilao?.data || item.dataLeilao)}</strong>
+                    <span>{resumoLeilao?.label || "Data principal"}</span>
+                    {resumoLeilao?.valor !== null && resumoLeilao?.valor !== undefined ? (
+                      <span>{formatarMoeda(resumoLeilao.valor)}</span>
+                    ) : null}
                   </div>
                 </td>
                 <td>{formatarMoeda(item.valorMaximo)}</td>
@@ -708,9 +816,34 @@ function TabelaSelecionados({
                   <div className="prospects-description-cell" title={item.descricao || "—"}>
                     {item.descricao || "—"}
                   </div>
+                  <div className="prospects-inline-links">
+                    {mapsUrl ? (
+                      <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
+                        <MapPinIcon />
+                        <span>Mapa</span>
+                      </a>
+                    ) : null}
+                    {comparaveis.map((link) => (
+                      <a key={`${item.codigo}-${link.label}`} className="prospects-inline-link" href={link.url} target="_blank" rel="noreferrer">
+                        <span>{link.label}</span>
+                        <ArrowUpRightIcon />
+                      </a>
+                    ))}
+                  </div>
                 </td>
                 <td>
                   <div className="prospects-row-actions">
+                    {mapsUrl ? (
+                      <a
+                        className="prospects-table-icon-btn prospects-table-icon-btn--external"
+                        href={mapsUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Abrir no Google Maps"
+                      >
+                        <MapPinIcon />
+                      </a>
+                    ) : null}
                     <button
                       type="button"
                       className={`prospects-table-icon-btn prospects-table-icon-btn--priority ${obterClassePrioridade(item.prioridade)}`}
@@ -781,6 +914,14 @@ function TabelaSelecionados({
                     </button>
                     <button
                       type="button"
+                      className={`prospects-table-icon-btn prospects-table-icon-btn--external ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
+                      title={item.analiseIaSalva ? "Ver avaliação detalhada com IA" : "Abrir avaliação detalhada"}
+                      onClick={() => onAbrirAvaliacaoDetalhada(item, item.analiseIaSalva ? "ia" : "dados")}
+                    >
+                      <SparklesIcon />
+                    </button>
+                    <button
+                      type="button"
                       className="prospects-table-icon-btn prospects-table-icon-btn--danger"
                       title={canDeleteItem(item) ? "Remover da fila" : "Apenas o autor da seleção ou um administrador pode remover este imóvel"}
                       disabled={removeLoadingIds.has(item.codigo) || !canDeleteItem(item)}
@@ -791,7 +932,7 @@ function TabelaSelecionados({
                   </div>
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>
@@ -1335,9 +1476,11 @@ function TabelaCapturados({
         ) : dados.map((item) => {
           const jaSelecionado = selectedCodes.has(item.codigo);
           const enderecoCompacto = [item.endereco, item.bairro].filter(Boolean).join(" - ");
-          const dataEvento = item.data_leilao_1 || item.data_leilao_2 || item.data_hora_encerramento || item.ultima_disputa;
+          const resumoLeilao = getLeilaoResumo(item);
           const descontoExibicao = calcularDescontoExibicao(item);
           const avaliacao = item.avaliacaoAutomatica;
+          const mapsUrl = getMapsUrl(item);
+          const comparaveis = getComparaveisLinks(item);
           return (
             <article
               key={item.codigo}
@@ -1387,6 +1530,34 @@ function TabelaCapturados({
                   {item.descricao || "Sem descrição cadastrada."}
                 </p>
 
+                <div className="prospects-inline-links">
+                  {mapsUrl ? (
+                    <a
+                      className="prospects-inline-link"
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MapPinIcon />
+                      <span>Mapa</span>
+                    </a>
+                  ) : null}
+                  {comparaveis.map((link) => (
+                    <a
+                      key={`${item.codigo}-${link.label}`}
+                      className="prospects-inline-link"
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span>{link.label}</span>
+                      <ArrowUpRightIcon />
+                    </a>
+                  ))}
+                </div>
+
                 <div className="prospects-capture-card__areas">
                   <span>Valor avaliação</span>
                   <strong className="prospects-capture-card__striked">{formatarMoeda(item.valorAvaliacao)}</strong>
@@ -1394,12 +1565,12 @@ function TabelaCapturados({
 
                 <div className="prospects-capture-card__footer">
                   <div className="prospects-capture-card__sale">
-                    <span>{item.modalidade || "Venda"}</span>
-                    <strong>{dataEvento ? `Até ${formatarDataHoraCompacta(dataEvento)}` : "Data não informada"}</strong>
+                    <span>{resumoLeilao?.label || item.modalidade || "Venda"}</span>
+                    <strong>{resumoLeilao?.data ? formatarDataHoraCompacta(resumoLeilao.data) : "Data não informada"}</strong>
                   </div>
                   <div className="prospects-capture-card__price">
-                    <span>Valor mínimo</span>
-                    <strong>{formatarMoeda(item.valorMinimo)}</strong>
+                    <span>{resumoLeilao?.valor !== null && resumoLeilao?.valor !== undefined ? "Lance" : "Valor mínimo"}</span>
+                    <strong>{formatarMoeda(resumoLeilao?.valor ?? item.valorMinimo)}</strong>
                   </div>
                 </div>
 
@@ -1621,6 +1792,207 @@ function AvaliacaoAutomaticaModal({
   );
 }
 
+function AvaliacaoDetalhadaModal({
+  item,
+  tab,
+  aiAnalise,
+  loading,
+  sending,
+  saving,
+  matriculaLoading,
+  sinteseDraft,
+  onSinteseDraftChange,
+  mensagemDraft,
+  onMensagemDraftChange,
+  onTabChange,
+  onClose,
+  onEnviarMensagem,
+  onSalvarSintese,
+  onSolicitarMatricula,
+  onAbrirAnalise,
+  canChat,
+}) {
+  if (!item) return null;
+
+  const resumoLeilao = getLeilaoResumo(item);
+  const leiloes = getLeiloesInfo(item);
+  const mapsUrl = getMapsUrl(item);
+  const comparaveis = getComparaveisLinks(item);
+  const historico = aiAnalise?.historico_chat || [];
+
+  return (
+    <div className="prospects-modal-backdrop" role="presentation">
+      <div className="prospects-modal prospects-modal--wide prospects-modal--auto" role="dialog" aria-modal="true" aria-labelledby="avaliacao-detalhada-title">
+        <div className="prospects-modal__header">
+          <div>
+            <p className="prospects-eyebrow">Avaliação detalhada</p>
+            <h3 id="avaliacao-detalhada-title" className="prospects-modal__title">Imóvel {item.codigo}</h3>
+            <p className="prospects-subtitle prospects-subtitle--compact">
+              Combine dados do leilão, análise financeira e conversa com IA em um único lugar.
+            </p>
+          </div>
+        </div>
+        <div className="prospects-modal__body">
+          <div className="prospects-auto-hero">
+            <div className="prospects-auto-hero__media">
+              <ProspectGallery item={item} className="prospects-auto-hero__photo" />
+            </div>
+            <div className="prospects-auto-hero__summary">
+              <span className="prospects-auto-hero__eyebrow">{item.tipoImovel || "Imóvel"}</span>
+              <h4>{[item.cidade, item.uf].filter(Boolean).join(" - ") || item.codigo}</h4>
+              <p>{[item.endereco, item.bairro].filter(Boolean).join(" - ") || "Endereço não informado"}</p>
+              <div className="prospects-capture-card__auto">
+                <span className="prospects-auto-badge">Desconto {formatarPercentual(calcularDescontoExibicao(item))}</span>
+                <span className="prospects-auto-badge">{resumoLeilao?.label || "Sem evento"}</span>
+                <span className="prospects-auto-badge">{formatarMoeda(resumoLeilao?.valor ?? item.valor)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="prospects-detail-tabs" role="tablist" aria-label="Abas de avaliação detalhada">
+            <button type="button" className={`prospects-sort-chip ${tab === "dados" ? "is-active" : ""}`.trim()} onClick={() => onTabChange("dados")}>Dados</button>
+            <button type="button" className={`prospects-sort-chip ${tab === "ia" ? "is-active" : ""}`.trim()} onClick={() => onTabChange("ia")}>Análise IA</button>
+          </div>
+
+          {tab === "dados" ? (
+            <>
+              <div className="prospects-auto-grid">
+                <div className="prospects-auto-card">
+                  <span>Valor avaliação</span>
+                  <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
+                </div>
+                <div className="prospects-auto-card">
+                  <span>Valor de referência</span>
+                  <strong>{formatarMoeda(item.valor)}</strong>
+                </div>
+                <div className="prospects-auto-card">
+                  <span>Financia</span>
+                  <strong>{item.disponivel === undefined || item.disponivel === null ? "—" : item.disponivel ? "Disponível" : "Indisponível"}</strong>
+                </div>
+                <div className="prospects-auto-card">
+                  <span>Análise financeira</span>
+                  <strong>{item.analiseSalva ? formatarPercentual(item.roiEsperadoPercentual) : "Não salva"}</strong>
+                </div>
+              </div>
+
+              <div className="prospects-auto-comparaveis">
+                <h4>Cenários de leilão</h4>
+                <div className="prospects-table-wrap">
+                  <table className="prospects-table prospects-table--compact">
+                    <thead>
+                      <tr>
+                        <th>Etapa</th>
+                        <th>Data</th>
+                        <th>Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leiloes.length ? leiloes.map((entry) => (
+                        <tr key={`${item.codigo}-${entry.label}`}>
+                          <td>{entry.label}</td>
+                          <td>{formatarDataHoraCompacta(entry.data)}</td>
+                          <td>{entry.valor === null || entry.valor === undefined ? "—" : formatarMoeda(entry.valor)}</td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan={3}>Nenhum cenário de leilão disponível.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="prospects-inline-links">
+                <a className="prospects-inline-link" href={item.link} target="_blank" rel="noreferrer">
+                  <ArrowUpRightIcon />
+                  <span>Anúncio</span>
+                </a>
+                {mapsUrl ? (
+                  <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
+                    <MapPinIcon />
+                    <span>Google Maps</span>
+                  </a>
+                ) : null}
+                {comparaveis.map((link) => (
+                  <a key={`${item.codigo}-det-${link.label}`} className="prospects-inline-link" href={link.url} target="_blank" rel="noreferrer">
+                    <span>{link.label}</span>
+                    <ArrowUpRightIcon />
+                  </a>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="prospects-ai-panel">
+              {loading ? (
+                <p className="prospects-empty">Carregando análise IA...</p>
+              ) : (
+                <>
+                  <div className="prospects-ai-chat">
+                    {historico.length ? historico.map((mensagem, index) => (
+                      <div key={`${mensagem.role}-${index}`} className={`prospects-ai-bubble is-${mensagem.role || "assistant"}`.trim()}>
+                        <span>{mensagem.role === "user" ? "Você" : "IA"}</span>
+                        <p>{mensagem.content || "—"}</p>
+                      </div>
+                    )) : (
+                      <p className="prospects-empty">Nenhuma análise salva ainda. Ao abrir o chat, a avaliação inicial será gerada automaticamente.</p>
+                    )}
+                  </div>
+
+                  <div className="prospects-ai-summary">
+                    <label className="prospects-form-field">
+                      <span>Síntese da análise</span>
+                      <textarea
+                        rows={5}
+                        value={sinteseDraft}
+                        onChange={(e) => onSinteseDraftChange(e.target.value)}
+                        placeholder="Resumo manual do que ficou decidido para este imóvel"
+                      />
+                    </label>
+                    <div className="prospects-inline-links">
+                      <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={onSalvarSintese} disabled={saving}>
+                        {saving ? "Salvando..." : "Salvar síntese"}
+                      </button>
+                      <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onSolicitarMatricula} disabled={!canChat || matriculaLoading}>
+                        {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
+                      </button>
+                      <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={() => onAbrirAnalise(item)}>
+                        Editar análise financeira
+                      </button>
+                    </div>
+                  </div>
+
+                  {canChat ? (
+                    <div className="prospects-ai-composer">
+                      <label className="prospects-form-field">
+                        <span>Pergunta para a IA</span>
+                        <textarea
+                          rows={3}
+                          value={mensagemDraft}
+                          onChange={(e) => onMensagemDraftChange(e.target.value)}
+                          placeholder="Ex.: quais os maiores riscos deste imóvel?"
+                        />
+                      </label>
+                      <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={onEnviarMensagem} disabled={sending || !mensagemDraft.trim()}>
+                        {sending ? "Enviando..." : "Enviar"}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="prospects-modal__hint">Seu usuário pode visualizar o histórico salvo, mas não enviar novas mensagens para a IA.</p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="prospects-modal__footer prospects-modal__footer--auto">
+          <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onClose}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MobileHubCard({
   eyebrow,
   title,
@@ -1695,6 +2067,7 @@ function MobileSelecionadosList({
   onResetFilters,
   onEditarObservacoes,
   onAbrirAnalise,
+  onAbrirAvaliacaoDetalhada,
   onEditarPrioridade,
   onEditarResponsaveis,
   onExcluir,
@@ -1826,6 +2199,9 @@ function MobileSelecionadosList({
           const podeOperar = canOperateItem(item);
           const podeExcluir = canDeleteItem(item);
           const roiClass = obterClasseRoi(item.roiEsperadoPercentual);
+          const resumoLeilao = getLeilaoResumo(item);
+          const mapsUrl = getMapsUrl(item);
+          const comparaveis = getComparaveisLinks(item);
           return (
             <article key={item.codigo} className="prospects-mobile-item-card">
               <div className="prospects-mobile-item-card__top">
@@ -1840,17 +2216,24 @@ function MobileSelecionadosList({
                 <div className="prospects-mobile-item-card__pills">
                   <span className={`prospects-chip priority-${prioridadeLabel.toLowerCase()}`}>{prioridadeLabel}</span>
                   <span className={`prospects-chip prospects-mobile-chip--roi ${roiClass}`}>{formatarPercentual(item.roiEsperadoPercentual)}</span>
+                  {item.analiseSalva ? <span className="prospects-chip prospects-chip--info">Financeira</span> : null}
+                  {item.avaliacaoAutomatica ? <span className="prospects-chip prospects-chip--auto">Pré-análise</span> : null}
+                  {item.analiseIaSalva ? <span className="prospects-chip prospects-chip--ia">IA salva</span> : null}
                 </div>
               </div>
 
               <div className="prospects-mobile-item-card__meta">
                 <div>
-                  <span>Leilão</span>
-                  <strong>{formatarDataHoraCompacta(item.dataLeilao)}</strong>
+                  <span>{resumoLeilao?.label || "Leilão"}</span>
+                  <strong>{formatarDataHoraCompacta(resumoLeilao?.data || item.dataLeilao)}</strong>
                 </div>
                 <div>
                   <span>Valor máximo</span>
                   <strong>{formatarMoeda(item.valorMaximo)}</strong>
+                </div>
+                <div>
+                  <span>Lance do evento</span>
+                  <strong>{formatarMoeda(resumoLeilao?.valor ?? item.valor)}</strong>
                 </div>
                 <div>
                   <span>Responsáveis</span>
@@ -1863,6 +2246,21 @@ function MobileSelecionadosList({
               </div>
 
               <p className="prospects-mobile-item-card__description">{item.descricao || "Sem descrição cadastrada."}</p>
+
+              <div className="prospects-inline-links">
+                {mapsUrl ? (
+                  <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
+                    <MapPinIcon />
+                    <span>Mapa</span>
+                  </a>
+                ) : null}
+                {comparaveis.map((link) => (
+                  <a key={`${item.codigo}-${link.label}`} className="prospects-inline-link" href={link.url} target="_blank" rel="noreferrer">
+                    <span>{link.label}</span>
+                    <ArrowUpRightIcon />
+                  </a>
+                ))}
+              </div>
 
               {item.observacoes ? (
                 <div className="prospects-mobile-item-card__note">
@@ -1889,6 +2287,14 @@ function MobileSelecionadosList({
                 >
                   <ChartIcon />
                   <span>Viabilidade</span>
+                </button>
+                <button
+                  type="button"
+                  className="prospects-btn ghost prospects-btn--mobile-action"
+                  onClick={() => onAbrirAvaliacaoDetalhada(item, item.analiseIaSalva ? "ia" : "dados")}
+                >
+                  <SparklesIcon />
+                  <span>{item.analiseIaSalva ? "Avaliação IA" : "Detalhes"}</span>
                 </button>
                 <button
                   type="button"
@@ -2134,6 +2540,9 @@ function MobileCapturadosList({
         {dados.map((item) => {
           const jaSelecionado = selectedCodes.has(item.codigo);
           const avaliacao = item.avaliacaoAutomatica;
+          const resumoLeilao = getLeilaoResumo(item);
+          const mapsUrl = getMapsUrl(item);
+          const comparaveis = getComparaveisLinks(item);
           return (
             <article
               key={item.codigo}
@@ -2163,16 +2572,16 @@ function MobileCapturadosList({
 
               <div className="prospects-mobile-item-card__meta">
                 <div>
-                  <span>Valor mínimo</span>
-                  <strong>{formatarMoeda(item.valorMinimo)}</strong>
+                  <span>{resumoLeilao?.label || "Valor mínimo"}</span>
+                  <strong>{formatarMoeda(resumoLeilao?.valor ?? item.valorMinimo)}</strong>
                 </div>
                 <div>
                   <span>Valor avaliação</span>
                   <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
                 </div>
                 <div>
-                  <span>Última disputa</span>
-                  <strong>{formatarDataHoraCompacta(item.ultima_disputa)}</strong>
+                  <span>{resumoLeilao?.data ? "Data do evento" : "Última disputa"}</span>
+                  <strong>{formatarDataHoraCompacta(resumoLeilao?.data || item.ultima_disputa)}</strong>
                 </div>
                 <div>
                   <span>Financia</span>
@@ -2192,6 +2601,34 @@ function MobileCapturadosList({
               ) : null}
 
               <p className="prospects-mobile-item-card__description">{item.descricao || "Sem descrição cadastrada."}</p>
+
+              <div className="prospects-inline-links">
+                {mapsUrl ? (
+                  <a
+                    className="prospects-inline-link"
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MapPinIcon />
+                    <span>Mapa</span>
+                  </a>
+                ) : null}
+                {comparaveis.map((link) => (
+                  <a
+                    key={`${item.codigo}-${link.label}`}
+                    className="prospects-inline-link"
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span>{link.label}</span>
+                    <ArrowUpRightIcon />
+                  </a>
+                ))}
+              </div>
 
               <div className="prospects-mobile-item-card__actions">
                 {avaliacao ? (
@@ -2300,6 +2737,15 @@ export default function Prospeccoes() {
   const [avaliacaoAutomaticaLoading, setAvaliacaoAutomaticaLoading] = useState(false);
   const [avaliacaoScoreSaving, setAvaliacaoScoreSaving] = useState(false);
   const [avaliacaoScoreRegiaoDraft, setAvaliacaoScoreRegiaoDraft] = useState("");
+  const [avaliacaoDetalhadaItem, setAvaliacaoDetalhadaItem] = useState(null);
+  const [avaliacaoDetalhadaTab, setAvaliacaoDetalhadaTab] = useState("dados");
+  const [aiAnalise, setAiAnalise] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSending, setAiSending] = useState(false);
+  const [aiSaving, setAiSaving] = useState(false);
+  const [matriculaLoading, setMatriculaLoading] = useState(false);
+  const [aiMensagemDraft, setAiMensagemDraft] = useState("");
+  const [aiSinteseDraft, setAiSinteseDraft] = useState("");
   const [mobileAccess, setMobileAccess] = useState(() => detectMobileAccess());
   const [mobileSection, setMobileSection] = useState("hub");
   const [financeiroCount, setFinanceiroCount] = useState(null);
@@ -2787,6 +3233,114 @@ export default function Prospeccoes() {
     }
   };
 
+  const carregarAiAnalise = async (numeroBem, { autoInit = false } = {}) => {
+    setAiLoading(true);
+    try {
+      const data = await fetchAiAnalise(numeroBem);
+      setAiAnalise(data);
+      setAiSinteseDraft(data?.analise_texto || "");
+
+      const historico = data?.historico_chat || [];
+      if (autoInit && !historico.length && (user?.ai_access || user?.role === "admin")) {
+        const job = await enviarMensagemAiChat(numeroBem, "__init__");
+        const finalJob = await pollAiJob(numeroBem, job.job_id);
+        if (finalJob?.status === "error") {
+          throw new Error(finalJob?.erro || "Falha ao gerar avaliação inicial.");
+        }
+        const refreshed = await fetchAiAnalise(numeroBem);
+        setAiAnalise(refreshed);
+        setAiSinteseDraft(refreshed?.analise_texto || "");
+      }
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados") => {
+    setAvaliacaoDetalhadaItem(item);
+    setAvaliacaoDetalhadaTab(initialTab);
+    setAiMensagemDraft("");
+    setAiSinteseDraft("");
+    setAiAnalise(null);
+    try {
+      await carregarAiAnalise(item.codigo, { autoInit: initialTab === "ia" });
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar avaliação detalhada");
+      setMensagem(message);
+    }
+  };
+
+  const closeAvaliacaoDetalhadaModal = () => {
+    setAvaliacaoDetalhadaItem(null);
+    setAvaliacaoDetalhadaTab("dados");
+    setAiAnalise(null);
+    setAiLoading(false);
+    setAiSending(false);
+    setAiSaving(false);
+    setMatriculaLoading(false);
+    setAiMensagemDraft("");
+    setAiSinteseDraft("");
+  };
+
+  const handleEnviarMensagemAi = async () => {
+    if (!avaliacaoDetalhadaItem || !aiMensagemDraft.trim()) return;
+    setAiSending(true);
+    try {
+      const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, aiMensagemDraft.trim());
+      setAiMensagemDraft("");
+      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id);
+      if (finalJob?.status === "error") {
+        throw new Error(finalJob?.erro || "Erro ao processar mensagem da IA.");
+      }
+      const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo);
+      setAiAnalise(refreshed);
+      setAiSinteseDraft(refreshed?.analise_texto || "");
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao enviar mensagem para IA");
+      setMensagem(message);
+    } finally {
+      setAiSending(false);
+    }
+  };
+
+  const handleSalvarAiSintese = async () => {
+    if (!avaliacaoDetalhadaItem) return;
+    setAiSaving(true);
+    try {
+      const data = await salvarAiAnalise(avaliacaoDetalhadaItem.codigo, {
+        analise_texto: aiSinteseDraft.trim(),
+      });
+      setAiAnalise(data);
+      setMensagem(`Síntese da avaliação IA do imóvel ${avaliacaoDetalhadaItem.codigo} salva.`);
+      await refreshSelecionados();
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao salvar síntese da IA");
+      setMensagem(message);
+    } finally {
+      setAiSaving(false);
+    }
+  };
+
+  const handleSolicitarMatricula = async () => {
+    if (!avaliacaoDetalhadaItem) return;
+    setMatriculaLoading(true);
+    try {
+      const job = await solicitarMatricula(avaliacaoDetalhadaItem.codigo);
+      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { timeoutMs: 180000 });
+      if (finalJob?.status === "error") {
+        throw new Error(finalJob?.erro || "Erro ao processar matrícula.");
+      }
+      const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo);
+      setAiAnalise(refreshed);
+      setAiSinteseDraft(refreshed?.analise_texto || "");
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao solicitar matrícula");
+      setMensagem(message);
+    } finally {
+      setMatriculaLoading(false);
+    }
+  };
+
   const openResponsaveisModal = (item) => {
     setResponsaveisItem(item);
     setResponsaveisDraftIds((item.responsaveis || []).map((responsavel) => responsavel.id));
@@ -3053,6 +3607,7 @@ export default function Prospeccoes() {
               }}
               onEditarObservacoes={openObservacoesModal}
               onAbrirAnalise={openAnaliseModal}
+              onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
               onEditarPrioridade={openPrioridadeModal}
               onEditarResponsaveis={openResponsaveisModal}
               onExcluir={setConfirmDeleteItem}
@@ -3239,6 +3794,7 @@ export default function Prospeccoes() {
             onEditarPrioridade={openPrioridadeModal}
             onEditarObservacoes={openObservacoesModal}
             onAbrirAnalise={openAnaliseModal}
+            onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
             onEditarResponsaveis={openResponsaveisModal}
             removeLoadingIds={removeLoadingIds}
             updateLoadingIds={updateLoadingIds}
@@ -3466,6 +4022,27 @@ export default function Prospeccoes() {
         onSalvarScoreRegiao={handleSalvarScoreRegiao}
         onClose={closeAvaliacaoAutomaticaModal}
         onAdicionarAoFunil={handleIncluir}
+      />
+
+      <AvaliacaoDetalhadaModal
+        item={avaliacaoDetalhadaItem}
+        tab={avaliacaoDetalhadaTab}
+        aiAnalise={aiAnalise}
+        loading={aiLoading}
+        sending={aiSending}
+        saving={aiSaving}
+        matriculaLoading={matriculaLoading}
+        sinteseDraft={aiSinteseDraft}
+        onSinteseDraftChange={setAiSinteseDraft}
+        mensagemDraft={aiMensagemDraft}
+        onMensagemDraftChange={setAiMensagemDraft}
+        onTabChange={setAvaliacaoDetalhadaTab}
+        onClose={closeAvaliacaoDetalhadaModal}
+        onEnviarMensagem={handleEnviarMensagemAi}
+        onSalvarSintese={handleSalvarAiSintese}
+        onSolicitarMatricula={handleSolicitarMatricula}
+        onAbrirAnalise={openAnaliseModal}
+        canChat={Boolean(user?.ai_access || user?.role === "admin")}
       />
 
       <ResponsaveisModal

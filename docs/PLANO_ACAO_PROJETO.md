@@ -122,6 +122,27 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
 
 ## Frente Produto, Prospecções e Usuários
 
+### Fase 4 do Portal de Prospecção
+1. [ ] **Evoluir os cards e o detalhe operacional da prospecção**
+   1.1. [x] Exibir fotos reais dos imóveis capturados com suporte a múltiplas imagens.
+   1.2. [x] Exibir badge de desconto nos cards com fallback de cálculo quando a base vier zerada.
+   1.3. [ ] Exibir corretamente os pares de data/valor do leilão no portal, priorizando no resumo a data mais próxima futura e mantendo acesso à visão completa dos cenários.
+   1.4. [ ] Adicionar links discretos para Google Maps e para comparáveis externos (`Zap`, `OLX`, `Viva`) nos cards/modais.
+   1.5. [ ] Exibir de forma explícita indicadores de análise financeira salva e, depois, de análise IA salva nos imóveis selecionados.
+
+2. [ ] **Preparar a camada de avaliação detalhada com IA**
+   2.1. [ ] Garantir a tabela `imoveis_selecionados_ai_analise` no banco com histórico de chat, síntese e matrícula por imóvel.
+   2.2. [ ] Expor no backend o campo `analise_ia_salva` na listagem de selecionados.
+   2.3. [ ] Criar endpoints Render para leitura, escrita e chat da análise IA, com fila em `ia_jobs`.
+   2.4. [ ] Implementar `_sinalizar_mac_mini()` no backend usando Telegram para disparar o worker sob demanda.
+   2.5. [ ] Criar o modal de avaliação detalhada com abas `Dados` e `Análise IA`.
+   2.6. [ ] Integrar o botão de matrícula no mesmo fluxo assíncrono via job.
+
+3. [ ] **Permissões e operação da IA**
+   3.1. [ ] Adicionar a flag `ai_access` em `users` e refletir isso na gestão de usuários.
+   3.2. [ ] Permitir que usuários sem acesso à IA visualizem histórico salvo, mas não enviem novas mensagens.
+   3.3. [ ] Documentar e configurar no Render as variáveis `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`.
+
 ### Roadmap Recomendado — Prospecções e Gestão de Usuários
 1. [x] **Corrigir base do fluxo de usuários**
    1.1. [x] Incluir campo `nome` no cadastro/convite de usuários e armazenar esse valor na tabela `users`.
