@@ -1524,6 +1524,33 @@
   flex-wrap: wrap;
 }
 
+.prospects-inline-status {
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+  border: 1px solid transparent;
+}
+
+.prospects-inline-status.is-info {
+  background: #eef6ff;
+  border-color: #cfe0fb;
+  color: #0f4c81;
+}
+
+.prospects-inline-status.is-success {
+  background: #eefcf5;
+  border-color: #c8f1de;
+  color: #166534;
+}
+
+.prospects-inline-status.is-error {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #b91c1c;
+}
+
 .prospects-detail-kpis {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

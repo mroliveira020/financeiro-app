@@ -97,19 +97,16 @@ const getLeiloesInfo = (item) => ([
 
 const getLeilaoResumo = (item) => {
   const pares = getLeiloesInfo(item)
-    .map((entry) => ({ ...entry, parsedDate: parseDateSafe(entry.data) }))
+    .map((entry, index) => ({ ...entry, parsedDate: parseDateSafe(entry.data), orderIndex: index }))
     .filter((entry) => entry.parsedDate);
 
   if (!pares.length) return null;
 
-  const agora = Date.now();
-  const futuros = pares
-    .filter((entry) => entry.parsedDate.getTime() >= agora)
-    .sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
-
-  if (futuros.length) return futuros[0];
-
-  return pares.sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime()).at(-1);
+  return pares.sort((a, b) => {
+    const byDate = b.parsedDate.getTime() - a.parsedDate.getTime();
+    if (byDate !== 0) return byDate;
+    return b.orderIndex - a.orderIndex;
+  })[0];
 };
 
 const getMapsUrl = (item) => {
@@ -1796,6 +1793,10 @@ function AvaliacaoDetalhadaModal({
   item,
   tab,
   aiAnalise,
+  analiseDetalhada,
+  analiseDetalhadaLoading,
+  statusMessage,
+  statusTone,
   loading,
   sending,
   saving,
@@ -1873,6 +1874,12 @@ function AvaliacaoDetalhadaModal({
             <button type="button" className={`prospects-sort-chip ${tab === "ia" ? "is-active" : ""}`.trim()} onClick={() => onTabChange("ia")}>Análise IA</button>
           </div>
 
+          {statusMessage ? (
+            <div className={`prospects-inline-status is-${statusTone || "info"}`.trim()}>
+              {statusMessage}
+            </div>
+          ) : null}
+
           {tab === "dados" ? (
             <>
               <div className="prospects-auto-grid prospects-auto-grid--detail">
@@ -1892,6 +1899,41 @@ function AvaliacaoDetalhadaModal({
                   <span>Análise financeira</span>
                   <strong>{item.analiseSalva ? formatarPercentual(item.roiEsperadoPercentual) : "Não salva"}</strong>
                 </div>
+              </div>
+
+              <div className="prospects-auto-comparaveis">
+                <h4>Análise financeira manual</h4>
+                {analiseDetalhadaLoading ? (
+                  <p className="prospects-empty">Carregando resumo financeiro...</p>
+                ) : analiseDetalhada?.calculos ? (
+                  <>
+                    {getMensagemPrefillAnalise(analiseDetalhada?.meta) ? (
+                      <p className="prospects-modal__hint">
+                        {getMensagemPrefillAnalise(analiseDetalhada.meta)}
+                      </p>
+                    ) : null}
+                    <div className="prospects-auto-grid prospects-auto-grid--detail">
+                      <div className="prospects-auto-card">
+                        <span>Capital investido</span>
+                        <strong>{formatarMoeda(analiseDetalhada.calculos.capital_investido_estimado)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>Custo total</span>
+                        <strong>{formatarMoeda(analiseDetalhada.calculos.custo_total_imovel)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>Lucro esperado</span>
+                        <strong>{formatarMoeda(analiseDetalhada.calculos.lucro_esperado_valor)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>ROI estimado</span>
+                        <strong>{formatarPercentual(analiseDetalhada.calculos.roi_esperado_percentual)}</strong>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="prospects-empty">Nenhuma análise financeira disponível.</p>
+                )}
               </div>
 
               <div className="prospects-auto-comparaveis">
@@ -2762,12 +2804,16 @@ export default function Prospeccoes() {
   const [avaliacaoDetalhadaItem, setAvaliacaoDetalhadaItem] = useState(null);
   const [avaliacaoDetalhadaTab, setAvaliacaoDetalhadaTab] = useState("dados");
   const [aiAnalise, setAiAnalise] = useState(null);
+  const [analiseDetalhada, setAnaliseDetalhada] = useState(null);
+  const [analiseDetalhadaLoading, setAnaliseDetalhadaLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSending, setAiSending] = useState(false);
   const [aiSaving, setAiSaving] = useState(false);
   const [matriculaLoading, setMatriculaLoading] = useState(false);
   const [aiMensagemDraft, setAiMensagemDraft] = useState("");
   const [aiSinteseDraft, setAiSinteseDraft] = useState("");
+  const [avaliacaoDetalhadaStatus, setAvaliacaoDetalhadaStatus] = useState("");
+  const [avaliacaoDetalhadaStatusTone, setAvaliacaoDetalhadaStatusTone] = useState("info");
   const [mobileAccess, setMobileAccess] = useState(() => detectMobileAccess());
   const [mobileSection, setMobileSection] = useState("hub");
   const [financeiroCount, setFinanceiroCount] = useState(null);
@@ -3185,6 +3231,10 @@ export default function Prospeccoes() {
       const inputs = data?.inputs || payload;
       setAnaliseDraft(createAnaliseDraft(inputs));
       setAnalisePairModes(createAnalisePairModes(inputs));
+      if (avaliacaoDetalhadaItem?.codigo === analiseItem.codigo) {
+        setAnaliseDetalhada(data);
+      }
+      await refreshSelecionados();
       setMensagem(`Análise do imóvel ${analiseItem.codigo} salva com sucesso.`);
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao salvar análise");
@@ -3284,12 +3334,24 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaTab(initialTab);
     setAiMensagemDraft("");
     setAiSinteseDraft("");
+    setAvaliacaoDetalhadaStatus("");
+    setAvaliacaoDetalhadaStatusTone("info");
     setAiAnalise(null);
+    setAnaliseDetalhada(null);
+    setAnaliseDetalhadaLoading(true);
     try {
-      await carregarAiAnalise(item.codigo, { autoInit: initialTab === "ia" });
+      const [analiseData] = await Promise.all([
+        fetchAnaliseSelecionado(item.codigo).catch(() => null),
+        carregarAiAnalise(item.codigo, { autoInit: initialTab === "ia" }),
+      ]);
+      setAnaliseDetalhada(analiseData);
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar avaliação detalhada");
       setMensagem(message);
+      setAvaliacaoDetalhadaStatus(message);
+      setAvaliacaoDetalhadaStatusTone("error");
+    } finally {
+      setAnaliseDetalhadaLoading(false);
     }
   };
 
@@ -3297,17 +3359,23 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaItem(null);
     setAvaliacaoDetalhadaTab("dados");
     setAiAnalise(null);
+    setAnaliseDetalhada(null);
+    setAnaliseDetalhadaLoading(false);
     setAiLoading(false);
     setAiSending(false);
     setAiSaving(false);
     setMatriculaLoading(false);
     setAiMensagemDraft("");
     setAiSinteseDraft("");
+    setAvaliacaoDetalhadaStatus("");
+    setAvaliacaoDetalhadaStatusTone("info");
   };
 
   const handleEnviarMensagemAi = async () => {
     if (!avaliacaoDetalhadaItem || !aiMensagemDraft.trim()) return;
     setAiSending(true);
+    setAvaliacaoDetalhadaStatus("Enviando pergunta para a IA...");
+    setAvaliacaoDetalhadaStatusTone("info");
     try {
       const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, aiMensagemDraft.trim());
       setAiMensagemDraft("");
@@ -3319,9 +3387,13 @@ export default function Prospeccoes() {
       setAiAnalise(refreshed);
       setAiSinteseDraft(refreshed?.analise_texto || "");
       await refreshSelecionados();
+      setAvaliacaoDetalhadaStatus("Resposta da IA recebida e histórico atualizado.");
+      setAvaliacaoDetalhadaStatusTone("success");
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao enviar mensagem para IA");
       setMensagem(message);
+      setAvaliacaoDetalhadaStatus(message);
+      setAvaliacaoDetalhadaStatusTone("error");
     } finally {
       setAiSending(false);
     }
@@ -3330,6 +3402,8 @@ export default function Prospeccoes() {
   const handleSalvarAiSintese = async () => {
     if (!avaliacaoDetalhadaItem) return;
     setAiSaving(true);
+    setAvaliacaoDetalhadaStatus("Salvando síntese da análise...");
+    setAvaliacaoDetalhadaStatusTone("info");
     try {
       const data = await salvarAiAnalise(avaliacaoDetalhadaItem.codigo, {
         analise_texto: aiSinteseDraft.trim(),
@@ -3337,9 +3411,13 @@ export default function Prospeccoes() {
       setAiAnalise(data);
       setMensagem(`Síntese da avaliação IA do imóvel ${avaliacaoDetalhadaItem.codigo} salva.`);
       await refreshSelecionados();
+      setAvaliacaoDetalhadaStatus("Síntese salva com sucesso.");
+      setAvaliacaoDetalhadaStatusTone("success");
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao salvar síntese da IA");
       setMensagem(message);
+      setAvaliacaoDetalhadaStatus(message);
+      setAvaliacaoDetalhadaStatusTone("error");
     } finally {
       setAiSaving(false);
     }
@@ -3348,6 +3426,8 @@ export default function Prospeccoes() {
   const handleSolicitarMatricula = async () => {
     if (!avaliacaoDetalhadaItem) return;
     setMatriculaLoading(true);
+    setAvaliacaoDetalhadaStatus("Solicitação de matrícula enviada. O processamento pode levar cerca de 60 a 90 segundos.");
+    setAvaliacaoDetalhadaStatusTone("info");
     try {
       const job = await solicitarMatricula(avaliacaoDetalhadaItem.codigo);
       const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { timeoutMs: 180000 });
@@ -3358,9 +3438,13 @@ export default function Prospeccoes() {
       setAiAnalise(refreshed);
       setAiSinteseDraft(refreshed?.analise_texto || "");
       await refreshSelecionados();
+      setAvaliacaoDetalhadaStatus("Matrícula processada e adicionada ao histórico da análise.");
+      setAvaliacaoDetalhadaStatusTone("success");
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao solicitar matrícula");
       setMensagem(message);
+      setAvaliacaoDetalhadaStatus(message);
+      setAvaliacaoDetalhadaStatusTone("error");
     } finally {
       setMatriculaLoading(false);
     }
@@ -4065,6 +4149,10 @@ export default function Prospeccoes() {
         item={avaliacaoDetalhadaItem}
         tab={avaliacaoDetalhadaTab}
         aiAnalise={aiAnalise}
+        analiseDetalhada={analiseDetalhada}
+        analiseDetalhadaLoading={analiseDetalhadaLoading}
+        statusMessage={avaliacaoDetalhadaStatus}
+        statusTone={avaliacaoDetalhadaStatusTone}
         loading={aiLoading}
         sending={aiSending}
         saving={aiSaving}
