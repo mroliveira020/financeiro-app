@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import "./Prospeccoes.css";
 
@@ -1819,6 +1819,11 @@ function AvaliacaoDetalhadaModal({
   const mapsUrl = getMapsUrl(item);
   const comparaveis = getComparaveisLinks(item);
   const historico = aiAnalise?.historico_chat || [];
+  const historicoExpandido = aiAnalise?.matricula_texto
+    ? [...historico, { role: "assistant", content: aiAnalise.matricula_texto, kind: "matricula" }]
+    : historico;
+  const descontoExibicao = calcularDescontoExibicao(item);
+  const quantidadeMensagens = historicoExpandido.length;
 
   return (
     <div className="prospects-modal-backdrop" role="presentation">
@@ -1842,9 +1847,23 @@ function AvaliacaoDetalhadaModal({
               <h4>{[item.cidade, item.uf].filter(Boolean).join(" - ") || item.codigo}</h4>
               <p>{[item.endereco, item.bairro].filter(Boolean).join(" - ") || "Endereço não informado"}</p>
               <div className="prospects-capture-card__auto">
-                <span className="prospects-auto-badge">Desconto {formatarPercentual(calcularDescontoExibicao(item))}</span>
+                <span className="prospects-auto-badge">Desconto {formatarPercentual(descontoExibicao)}</span>
                 <span className="prospects-auto-badge">{resumoLeilao?.label || "Sem evento"}</span>
                 <span className="prospects-auto-badge">{formatarMoeda(resumoLeilao?.valor ?? item.valor)}</span>
+              </div>
+              <div className="prospects-detail-kpis">
+                <div className="prospects-detail-kpi">
+                  <span>Status</span>
+                  <strong>{item.disponivel === undefined || item.disponivel === null ? "—" : item.disponivel ? "Disponível" : "Indisponível"}</strong>
+                </div>
+                <div className="prospects-detail-kpi">
+                  <span>Financeira</span>
+                  <strong>{item.analiseSalva ? formatarPercentual(item.roiEsperadoPercentual) : "Pendente"}</strong>
+                </div>
+                <div className="prospects-detail-kpi">
+                  <span>IA</span>
+                  <strong>{item.analiseIaSalva ? "Salva" : "Ainda não"}</strong>
+                </div>
               </div>
             </div>
           </div>
@@ -1856,7 +1875,7 @@ function AvaliacaoDetalhadaModal({
 
           {tab === "dados" ? (
             <>
-              <div className="prospects-auto-grid">
+              <div className="prospects-auto-grid prospects-auto-grid--detail">
                 <div className="prospects-auto-card">
                   <span>Valor avaliação</span>
                   <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
@@ -1866,8 +1885,8 @@ function AvaliacaoDetalhadaModal({
                   <strong>{formatarMoeda(item.valor)}</strong>
                 </div>
                 <div className="prospects-auto-card">
-                  <span>Financia</span>
-                  <strong>{item.disponivel === undefined || item.disponivel === null ? "—" : item.disponivel ? "Disponível" : "Indisponível"}</strong>
+                  <span>Financiamento</span>
+                  <strong>{item.financia === undefined || item.financia === null ? "—" : item.financia ? "Aceita" : "Não aceita"}</strong>
                 </div>
                 <div className="prospects-auto-card">
                   <span>Análise financeira</span>
@@ -1877,33 +1896,20 @@ function AvaliacaoDetalhadaModal({
 
               <div className="prospects-auto-comparaveis">
                 <h4>Cenários de leilão</h4>
-                <div className="prospects-table-wrap">
-                  <table className="prospects-table prospects-table--compact">
-                    <thead>
-                      <tr>
-                        <th>Etapa</th>
-                        <th>Data</th>
-                        <th>Valor</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {leiloes.length ? leiloes.map((entry) => (
-                        <tr key={`${item.codigo}-${entry.label}`}>
-                          <td>{entry.label}</td>
-                          <td>{formatarDataHoraCompacta(entry.data)}</td>
-                          <td>{entry.valor === null || entry.valor === undefined ? "—" : formatarMoeda(entry.valor)}</td>
-                        </tr>
-                      )) : (
-                        <tr>
-                          <td colSpan={3}>Nenhum cenário de leilão disponível.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                <div className="prospects-leiloes-timeline">
+                  {leiloes.length ? leiloes.map((entry) => (
+                    <div key={`${item.codigo}-${entry.label}`} className="prospects-leilao-card">
+                      <span>{entry.label}</span>
+                      <strong>{formatarDataHoraCompacta(entry.data)}</strong>
+                      <p>{entry.valor === null || entry.valor === undefined ? "Valor não informado" : formatarMoeda(entry.valor)}</p>
+                    </div>
+                  )) : (
+                    <p className="prospects-empty">Nenhum cenário de leilão disponível.</p>
+                  )}
                 </div>
               </div>
 
-              <div className="prospects-inline-links">
+              <div className="prospects-inline-links prospects-inline-links--detail">
                 <a className="prospects-inline-link" href={item.link} target="_blank" rel="noreferrer">
                   <ArrowUpRightIcon />
                   <span>Anúncio</span>
@@ -1924,19 +1930,35 @@ function AvaliacaoDetalhadaModal({
             </>
           ) : (
             <div className="prospects-ai-panel">
+              <div className="prospects-ai-toolbar">
+                <span className="prospects-indicator-chip is-automatica">
+                  <SparklesIcon />
+                  <span>{quantidadeMensagens} interações</span>
+                </span>
+                <span className={`prospects-indicator-chip ${canChat ? "is-financeira" : "is-ia"}`}>
+                  <span>{canChat ? "Chat liberado" : "Somente leitura"}</span>
+                </span>
+                {aiAnalise?.updated_at ? (
+                  <span className="prospects-indicator-chip is-ia">
+                    <span>Atualizado em {formatarDataHoraCompacta(aiAnalise.updated_at)}</span>
+                  </span>
+                ) : null}
+              </div>
               {loading ? (
                 <p className="prospects-empty">Carregando análise IA...</p>
               ) : (
                 <>
+                  <div className="prospects-ai-chat-shell">
                   <div className="prospects-ai-chat">
-                    {historico.length ? historico.map((mensagem, index) => (
-                      <div key={`${mensagem.role}-${index}`} className={`prospects-ai-bubble is-${mensagem.role || "assistant"}`.trim()}>
-                        <span>{mensagem.role === "user" ? "Você" : "IA"}</span>
+                    {historicoExpandido.length ? historicoExpandido.map((mensagem, index) => (
+                      <div key={`${mensagem.role}-${mensagem.kind || "chat"}-${index}`} className={`prospects-ai-bubble is-${mensagem.role || "assistant"} ${mensagem.kind === "matricula" ? "is-matricula" : ""}`.trim()}>
+                        <span>{mensagem.kind === "matricula" ? "Matrícula" : mensagem.role === "user" ? "Você" : "IA"}</span>
                         <p>{mensagem.content || "—"}</p>
                       </div>
                     )) : (
                       <p className="prospects-empty">Nenhuma análise salva ainda. Ao abrir o chat, a avaliação inicial será gerada automaticamente.</p>
                     )}
+                  </div>
                   </div>
 
                   <div className="prospects-ai-summary">
@@ -1949,7 +1971,7 @@ function AvaliacaoDetalhadaModal({
                         placeholder="Resumo manual do que ficou decidido para este imóvel"
                       />
                     </label>
-                    <div className="prospects-inline-links">
+                    <div className="prospects-inline-links prospects-inline-links--detail">
                       <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={onSalvarSintese} disabled={saving}>
                         {saving ? "Salvando..." : "Salvar síntese"}
                       </button>
@@ -3005,11 +3027,11 @@ export default function Prospeccoes() {
     }
   };
 
-  const refreshSelecionados = async () => {
+  const refreshSelecionados = useCallback(async () => {
     const sel = await fetchSelecionados({});
     setSelecionados(sel || []);
     return sel || [];
-  };
+  }, []);
 
   const handleAtualizarPrioridade = async (item, prioridadeValue) => {
     const key = `${item.codigo}:prioridade`;
@@ -3233,7 +3255,7 @@ export default function Prospeccoes() {
     }
   };
 
-  const carregarAiAnalise = async (numeroBem, { autoInit = false } = {}) => {
+  const carregarAiAnalise = useCallback(async (numeroBem, { autoInit = false } = {}) => {
     setAiLoading(true);
     try {
       const data = await fetchAiAnalise(numeroBem);
@@ -3250,11 +3272,12 @@ export default function Prospeccoes() {
         const refreshed = await fetchAiAnalise(numeroBem);
         setAiAnalise(refreshed);
         setAiSinteseDraft(refreshed?.analise_texto || "");
+        await refreshSelecionados();
       }
     } finally {
       setAiLoading(false);
     }
-  };
+  }, [user, refreshSelecionados]);
 
   const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados") => {
     setAvaliacaoDetalhadaItem(item);
@@ -3295,6 +3318,7 @@ export default function Prospeccoes() {
       const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo);
       setAiAnalise(refreshed);
       setAiSinteseDraft(refreshed?.analise_texto || "");
+      await refreshSelecionados();
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao enviar mensagem para IA");
       setMensagem(message);
@@ -3333,6 +3357,7 @@ export default function Prospeccoes() {
       const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo);
       setAiAnalise(refreshed);
       setAiSinteseDraft(refreshed?.analise_texto || "");
+      await refreshSelecionados();
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao solicitar matrícula");
       setMensagem(message);
@@ -3340,6 +3365,18 @@ export default function Prospeccoes() {
       setMatriculaLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "ia") return;
+    if (aiLoading || aiSending) return;
+    if (aiAnalise?.historico_chat?.length || aiAnalise?.matricula_texto) return;
+    if (!(user?.ai_access || user?.role === "admin")) return;
+
+    carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: true }).catch((err) => {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao iniciar avaliação IA");
+      setMensagem(message);
+    });
+  }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise]);
 
   const openResponsaveisModal = (item) => {
     setResponsaveisItem(item);

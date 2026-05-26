@@ -1524,10 +1524,53 @@
   flex-wrap: wrap;
 }
 
+.prospects-detail-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prospects-detail-kpi {
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid #dbe5f3;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.prospects-detail-kpi span {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.prospects-detail-kpi strong {
+  font-size: 13px;
+  color: #172033;
+}
+
 .prospects-ai-panel {
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+.prospects-ai-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prospects-ai-chat-shell {
+  padding: 12px;
+  border-radius: 20px;
+  border: 1px solid #e3ebf7;
+  background:
+    radial-gradient(circle at top right, rgba(24, 73, 169, 0.08), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
 .prospects-ai-chat {
@@ -1536,7 +1579,7 @@
   gap: 10px;
   max-height: 420px;
   overflow: auto;
-  padding: 4px 2px;
+  padding: 6px;
 }
 
 .prospects-ai-bubble {
@@ -1556,6 +1599,11 @@
 .prospects-ai-bubble.is-assistant {
   align-self: flex-start;
   background: #fcfdff;
+}
+
+.prospects-ai-bubble.is-matricula {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
 }
 
 .prospects-ai-bubble span {
@@ -1578,10 +1626,58 @@
 
 .prospects-ai-summary,
 .prospects-ai-composer {
-  padding: 14px;
+  padding: 16px;
   border-radius: 16px;
   border: 1px solid #e3ebf7;
   background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+}
+
+.prospects-auto-grid--detail {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.prospects-leiloes-timeline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.prospects-leilao-card {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid #dbe5f3;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+}
+
+.prospects-leilao-card span {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.prospects-leilao-card strong {
+  display: block;
+  font-size: 16px;
+  line-height: 1.2;
+  color: #172033;
+  margin-bottom: 6px;
+}
+
+.prospects-leilao-card p {
+  margin: 0;
+  color: #52627f;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.prospects-inline-links--detail {
+  margin-top: 0;
 }
 
 .prospects-empty {
@@ -2341,6 +2437,11 @@
   }
 
   .prospects-auto-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .prospects-detail-kpis,
+  .prospects-auto-grid--detail {
     grid-template-columns: 1fr;
   }
 
