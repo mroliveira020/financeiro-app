@@ -1413,6 +1413,7 @@ function TabelaCapturados({
   onSortChange,
   selectedCodes,
   onAbrirAvaliacao,
+  onAbrirAvaliacaoDetalhada,
 }) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando capturados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar capturados: {erro}</p></div>;
@@ -1482,15 +1483,6 @@ function TabelaCapturados({
             <article
               key={item.codigo}
               className="prospects-capture-card"
-              onClick={() => window.open(item.link, "_blank", "noopener,noreferrer")}
-              role="link"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  window.open(item.link, "_blank", "noopener,noreferrer");
-                }
-              }}
             >
               <div className="prospects-capture-card__media">
                 <ProspectGallery item={item} className="prospects-capture-card__photo" />
@@ -1508,7 +1500,9 @@ function TabelaCapturados({
               <div className="prospects-capture-card__body">
                 <div className="prospects-capture-card__headline">
                   <span className="prospects-capture-card__type">{item.tipoImovel || "Imóvel"}</span>
-                  <span className="prospects-link mono">{item.codigo}</span>
+                  <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
+                    {item.codigo}
+                  </a>
                 </div>
                 <h3 className="prospects-capture-card__location">
                   {[item.cidade, item.uf].filter(Boolean).join(" - ") || "Sem localização"}
@@ -1528,13 +1522,21 @@ function TabelaCapturados({
                 </p>
 
                 <div className="prospects-inline-links">
+                  <a
+                    className="prospects-inline-link"
+                    href={item.link}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <span>Anúncio</span>
+                    <ArrowUpRightIcon />
+                  </a>
                   {mapsUrl ? (
                     <a
                       className="prospects-inline-link"
                       href={mapsUrl}
                       target="_blank"
                       rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       <MapPinIcon />
                       <span>Mapa</span>
@@ -1547,7 +1549,6 @@ function TabelaCapturados({
                       href={link.url}
                       target="_blank"
                       rel="noreferrer"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       <span>{link.label}</span>
                       <ArrowUpRightIcon />
@@ -1588,24 +1589,25 @@ function TabelaCapturados({
                 <div className="prospects-capture-card__actions">
                   {avaliacao ? (
                     <button
-                      type="button"
-                      className="prospects-btn ghost prospects-btn--subtle"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAbrirAvaliacao(item);
-                      }}
-                    >
-                      Pré-análise
-                    </button>
+                    type="button"
+                    className="prospects-btn ghost prospects-btn--subtle"
+                    onClick={() => onAbrirAvaliacao(item)}
+                  >
+                    Pré-análise
+                  </button>
                   ) : null}
+                  <button
+                    type="button"
+                    className={`prospects-btn ghost prospects-btn--subtle ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
+                    onClick={() => onAbrirAvaliacaoDetalhada(item, item.analiseIaSalva ? "ia" : "dados", "capturados")}
+                  >
+                    {item.analiseIaSalva ? "IA salva" : "Avaliação IA"}
+                  </button>
                   <button
                     type="button"
                     className={`prospects-btn ${jaSelecionado ? "ghost" : "secondary"} prospects-btn--subtle`}
                     disabled={includeLoadingIds.has(item.codigo)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onIncluir(item);
-                    }}
+                    onClick={() => onIncluir(item)}
                   >
                     {includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Reenviar ao funil" : "Selecionar"}
                   </button>
@@ -2427,6 +2429,7 @@ function MobileCapturadosList({
   onPageChange,
   onResetFilters,
   onAbrirAvaliacao,
+  onAbrirAvaliacaoDetalhada,
 }) {
   const [citySearch, setCitySearch] = useState("");
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando base de prospecção...</p></div>;
@@ -2611,7 +2614,6 @@ function MobileCapturadosList({
             <article
               key={item.codigo}
               className="prospects-mobile-item-card"
-              onClick={() => window.open(item.link, "_blank", "noopener,noreferrer")}
             >
               <div className="prospects-mobile-item-card__media">
                 <ProspectGallery item={item} className="prospects-mobile-item-card__photo" compact />
@@ -2667,13 +2669,21 @@ function MobileCapturadosList({
               <p className="prospects-mobile-item-card__description">{item.descricao || "Sem descrição cadastrada."}</p>
 
               <div className="prospects-inline-links">
+                <a
+                  className="prospects-inline-link"
+                  href={item.link}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span>Anúncio</span>
+                  <ArrowUpRightIcon />
+                </a>
                 {mapsUrl ? (
                   <a
                     className="prospects-inline-link"
                     href={mapsUrl}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
                   >
                     <MapPinIcon />
                     <span>Mapa</span>
@@ -2686,7 +2696,6 @@ function MobileCapturadosList({
                     href={link.url}
                     target="_blank"
                     rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
                   >
                     <span>{link.label}</span>
                     <ArrowUpRightIcon />
@@ -2699,21 +2708,22 @@ function MobileCapturadosList({
                   <button
                     type="button"
                     className="prospects-btn ghost prospects-btn--mobile-action"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAbrirAvaliacao(item);
-                    }}
+                    onClick={() => onAbrirAvaliacao(item)}
                   >
                     <span>Pré-análise</span>
                   </button>
                 ) : null}
                 <button
                   type="button"
+                  className={`prospects-btn ghost prospects-btn--mobile-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
+                  onClick={() => onAbrirAvaliacaoDetalhada(item, item.analiseIaSalva ? "ia" : "dados", "capturados")}
+                >
+                  <span>{item.analiseIaSalva ? "IA salva" : "Avaliação IA"}</span>
+                </button>
+                <button
+                  type="button"
                   className={`prospects-btn ${jaSelecionado ? "ghost" : "secondary"} prospects-btn--mobile-action`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onIncluir(item);
-                  }}
+                  onClick={() => onIncluir(item)}
                   disabled={includeLoadingIds.has(item.codigo)}
                 >
                   <span>{includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Reenviar ao funil" : "Selecionar"}</span>
@@ -2802,6 +2812,7 @@ export default function Prospeccoes() {
   const [avaliacaoScoreSaving, setAvaliacaoScoreSaving] = useState(false);
   const [avaliacaoScoreRegiaoDraft, setAvaliacaoScoreRegiaoDraft] = useState("");
   const [avaliacaoDetalhadaItem, setAvaliacaoDetalhadaItem] = useState(null);
+  const [avaliacaoDetalhadaOrigem, setAvaliacaoDetalhadaOrigem] = useState("selecionados");
   const [avaliacaoDetalhadaTab, setAvaliacaoDetalhadaTab] = useState("dados");
   const [aiAnalise, setAiAnalise] = useState(null);
   const [analiseDetalhada, setAnaliseDetalhada] = useState(null);
@@ -3305,32 +3316,49 @@ export default function Prospeccoes() {
     }
   };
 
-  const carregarAiAnalise = useCallback(async (numeroBem, { autoInit = false } = {}) => {
+  const sincronizarIndicadorAnaliseIaCapturada = useCallback((numeroBem, data) => {
+    const possuiHistorico = Boolean(
+      data?.historico_chat?.length
+      || data?.analise_texto
+      || data?.matricula_texto
+    );
+    if (!possuiHistorico) return;
+    setCapturados((prev) => prev.map((item) => (
+      item.codigo === numeroBem
+        ? { ...item, analiseIaSalva: true }
+        : item
+    )));
+  }, []);
+
+  const carregarAiAnalise = useCallback(async (numeroBem, { autoInit = false, origem = "selecionados" } = {}) => {
     setAiLoading(true);
     try {
-      const data = await fetchAiAnalise(numeroBem);
+      const data = await fetchAiAnalise(numeroBem, origem);
       setAiAnalise(data);
       setAiSinteseDraft(data?.analise_texto || "");
+      sincronizarIndicadorAnaliseIaCapturada(numeroBem, data);
 
       const historico = data?.historico_chat || [];
       if (autoInit && !historico.length && (user?.ai_access || user?.role === "admin")) {
-        const job = await enviarMensagemAiChat(numeroBem, "__init__");
-        const finalJob = await pollAiJob(numeroBem, job.job_id);
+        const job = await enviarMensagemAiChat(numeroBem, "__init__", origem);
+        const finalJob = await pollAiJob(numeroBem, job.job_id, { origem });
         if (finalJob?.status === "error") {
           throw new Error(finalJob?.erro || "Falha ao gerar avaliação inicial.");
         }
-        const refreshed = await fetchAiAnalise(numeroBem);
+        const refreshed = await fetchAiAnalise(numeroBem, origem);
         setAiAnalise(refreshed);
         setAiSinteseDraft(refreshed?.analise_texto || "");
+        sincronizarIndicadorAnaliseIaCapturada(numeroBem, refreshed);
         await refreshSelecionados();
       }
     } finally {
       setAiLoading(false);
     }
-  }, [user, refreshSelecionados]);
+  }, [user, refreshSelecionados, sincronizarIndicadorAnaliseIaCapturada]);
 
-  const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados") => {
+  const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados", origem = "selecionados") => {
     setAvaliacaoDetalhadaItem(item);
+    setAvaliacaoDetalhadaOrigem(origem);
     setAvaliacaoDetalhadaTab(initialTab);
     setAiMensagemDraft("");
     setAiSinteseDraft("");
@@ -3342,7 +3370,7 @@ export default function Prospeccoes() {
     try {
       const [analiseData] = await Promise.all([
         fetchAnaliseSelecionado(item.codigo).catch(() => null),
-        carregarAiAnalise(item.codigo, { autoInit: initialTab === "ia" }),
+        carregarAiAnalise(item.codigo, { autoInit: initialTab === "ia", origem }),
       ]);
       setAnaliseDetalhada(analiseData);
     } catch (err) {
@@ -3357,6 +3385,7 @@ export default function Prospeccoes() {
 
   const closeAvaliacaoDetalhadaModal = () => {
     setAvaliacaoDetalhadaItem(null);
+    setAvaliacaoDetalhadaOrigem("selecionados");
     setAvaliacaoDetalhadaTab("dados");
     setAiAnalise(null);
     setAnaliseDetalhada(null);
@@ -3377,15 +3406,16 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaStatus("Enviando pergunta para a IA...");
     setAvaliacaoDetalhadaStatusTone("info");
     try {
-      const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, aiMensagemDraft.trim());
+      const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, aiMensagemDraft.trim(), avaliacaoDetalhadaOrigem);
       setAiMensagemDraft("");
-      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id);
+      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { origem: avaliacaoDetalhadaOrigem });
       if (finalJob?.status === "error") {
         throw new Error(finalJob?.erro || "Erro ao processar mensagem da IA.");
       }
-      const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo);
+      const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
       setAiAnalise(refreshed);
       setAiSinteseDraft(refreshed?.analise_texto || "");
+      sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, refreshed);
       await refreshSelecionados();
       setAvaliacaoDetalhadaStatus("Resposta da IA recebida e histórico atualizado.");
       setAvaliacaoDetalhadaStatusTone("success");
@@ -3407,8 +3437,9 @@ export default function Prospeccoes() {
     try {
       const data = await salvarAiAnalise(avaliacaoDetalhadaItem.codigo, {
         analise_texto: aiSinteseDraft.trim(),
-      });
+      }, avaliacaoDetalhadaOrigem);
       setAiAnalise(data);
+      sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, data);
       setMensagem(`Síntese da avaliação IA do imóvel ${avaliacaoDetalhadaItem.codigo} salva.`);
       await refreshSelecionados();
       setAvaliacaoDetalhadaStatus("Síntese salva com sucesso.");
@@ -3429,14 +3460,15 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaStatus("Solicitação de matrícula enviada. O processamento pode levar cerca de 60 a 90 segundos.");
     setAvaliacaoDetalhadaStatusTone("info");
     try {
-      const job = await solicitarMatricula(avaliacaoDetalhadaItem.codigo);
-      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { timeoutMs: 180000 });
+      const job = await solicitarMatricula(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { timeoutMs: 180000, origem: avaliacaoDetalhadaOrigem });
       if (finalJob?.status === "error") {
         throw new Error(finalJob?.erro || "Erro ao processar matrícula.");
       }
-      const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo);
+      const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
       setAiAnalise(refreshed);
       setAiSinteseDraft(refreshed?.analise_texto || "");
+      sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, refreshed);
       await refreshSelecionados();
       setAvaliacaoDetalhadaStatus("Matrícula processada e adicionada ao histórico da análise.");
       setAvaliacaoDetalhadaStatusTone("success");
@@ -3456,11 +3488,11 @@ export default function Prospeccoes() {
     if (aiAnalise?.historico_chat?.length || aiAnalise?.matricula_texto) return;
     if (!(user?.ai_access || user?.role === "admin")) return;
 
-    carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: true }).catch((err) => {
+    carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: true, origem: avaliacaoDetalhadaOrigem }).catch((err) => {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao iniciar avaliação IA");
       setMensagem(message);
     });
-  }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise]);
+  }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise]);
 
   const openResponsaveisModal = (item) => {
     setResponsaveisItem(item);
@@ -3765,6 +3797,7 @@ export default function Prospeccoes() {
                 setPage(1);
               }}
               onAbrirAvaliacao={openAvaliacaoAutomaticaModal}
+              onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
               sortBy={sortBy}
               setSortBy={setSortBy}
               sortDir={sortDir}
@@ -4082,6 +4115,7 @@ export default function Prospeccoes() {
             onSortChange={handleSortChange}
             selectedCodes={selectedCodes}
             onAbrirAvaliacao={openAvaliacaoAutomaticaModal}
+            onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
           />
         </>
       )}

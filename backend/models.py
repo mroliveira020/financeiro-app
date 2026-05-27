@@ -2644,6 +2644,7 @@ def listar_prospeccoes_capturados(
     roi_min=None,
     somente_com_avaliacao=False,
 ):
+    _garantir_tabela_ai_analise()
     conn, cur = conectar()
     base_cte = """
         WITH base AS (
@@ -2689,6 +2690,7 @@ def listar_prospeccoes_capturados(
                 av.score_regiao,
                 av.resumo_ia,
                 av.pesquisado_em,
+                ai_a.numero_bem AS ai_analise_numero_bem,
                 to_jsonb(p) AS raw_payload,
                 (
                     SELECT MIN(v)
@@ -2716,6 +2718,8 @@ def listar_prospeccoes_capturados(
             ) fotos_rel ON TRUE
             LEFT JOIN avaliacoes av
                 ON av.numero_bem = p.numero_bem
+            LEFT JOIN imoveis_selecionados_ai_analise ai_a
+                ON ai_a.numero_bem = p.numero_bem
         )
     """
     conditions = []
@@ -2837,6 +2841,7 @@ def listar_prospeccoes_capturados(
             "foto_url": fotos[0] if fotos else None,
             "fotos": fotos,
             "avaliacao": avaliacao,
+            "analise_ia_salva": row.get("ai_analise_numero_bem") is not None,
         })
     return {"total": total, "data": result}
 
@@ -4032,6 +4037,31 @@ def buscar_contexto_operacao_prospeccao_selecionado(numero_bem):
             "created_by_name": row[2],
             "ativo": row[3],
             "responsavel_ids": responsavel_ids,
+        }
+    finally:
+        conn.close()
+
+
+def buscar_contexto_operacao_prospeccao_capturado(numero_bem):
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT numero_bem, cidade, uf, tipo_imovel
+            FROM vw_imoveis_prospeccao_latest
+            WHERE numero_bem = %s
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return {
+            "numero_bem": row["numero_bem"],
+            "cidade": row["cidade"],
+            "uf": row["uf"],
+            "tipo_imovel": row["tipo_imovel"],
         }
     finally:
         conn.close()

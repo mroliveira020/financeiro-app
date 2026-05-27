@@ -24,6 +24,7 @@ from models import (
     inserir_prospeccao_selecionado,
     excluir_prospeccao_selecionado,
     buscar_autoria_prospeccao_selecionado,
+    buscar_contexto_operacao_prospeccao_capturado,
     buscar_contexto_operacao_prospeccao_selecionado,
     listar_prospeccoes_meta,
     obter_analise_prospeccao_selecionado,
@@ -362,6 +363,124 @@ def _sinalizar_mac_mini():
             pass
 
 
+def _buscar_contexto_ai_prospeccao(numero_bem, origem):
+    if origem == "selecionados":
+        return buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
+    if origem == "capturados":
+        return buscar_contexto_operacao_prospeccao_capturado(numero_bem)
+    return None
+
+
+def _usuario_pode_ver_ai_prospeccao(contexto, current_user, origem):
+    if origem == "selecionados":
+        return _usuario_pode_ver_prospeccao(contexto, current_user)
+    return bool(current_user)
+
+
+def _resposta_erro_origem_ai(origem):
+    if origem == "capturados":
+        return "Imóvel não encontrado em capturados"
+    return "Imóvel não encontrado em selecionados"
+
+
+def _get_ai_analise_prospeccao(numero_bem, origem):
+    current_user = get_current_user() or {}
+    contexto = _buscar_contexto_ai_prospeccao(numero_bem, origem)
+    if not contexto:
+        return jsonify({"error": _resposta_erro_origem_ai(origem)}), 404
+    if not _usuario_pode_ver_ai_prospeccao(contexto, current_user, origem):
+        return jsonify({"error": "Você não tem permissão para visualizar a análise deste imóvel."}), 403
+    return jsonify(obter_ai_analise_prospeccao_selecionado(numero_bem)), 200
+
+
+def _put_ai_analise_prospeccao(numero_bem, origem):
+    current_user = get_current_user() or {}
+    contexto = _buscar_contexto_ai_prospeccao(numero_bem, origem)
+    if not contexto:
+        return jsonify({"error": _resposta_erro_origem_ai(origem)}), 404
+    if not _usuario_pode_ver_ai_prospeccao(contexto, current_user, origem):
+        return jsonify({"error": "Você não tem permissão para editar a análise deste imóvel."}), 403
+
+    payload = request.get_json(force=True, silent=True) or {}
+    result = salvar_ai_analise_prospeccao_selecionado(
+        numero_bem,
+        analise_texto=(payload.get("analise_texto") or "").strip() or None,
+    )
+    return jsonify(result), 200
+
+
+def _post_ai_analise_chat_prospeccao(numero_bem, origem):
+    current_user = get_current_user() or {}
+    contexto = _buscar_contexto_ai_prospeccao(numero_bem, origem)
+    if not contexto:
+        return jsonify({"error": _resposta_erro_origem_ai(origem)}), 404
+    if not _usuario_pode_ver_ai_prospeccao(contexto, current_user, origem):
+        return jsonify({"error": "Você não tem permissão para acessar a análise deste imóvel."}), 403
+    if not _usuario_tem_ai_access(current_user):
+        return jsonify({"error": "Seu usuário não possui acesso ao chat de IA."}), 403
+
+    payload = request.get_json(force=True, silent=True) or {}
+    mensagem = (payload.get("mensagem") or "").strip()
+    if not mensagem:
+        return jsonify({"error": "mensagem é obrigatória"}), 400
+
+    job = criar_job_ai_prospeccao(
+        numero_bem,
+        "ai_analise_chat",
+        {
+            "mensagem": mensagem,
+            "requested_by": {
+                "id": current_user.get("id"),
+                "name": current_user.get("name") or current_user.get("email"),
+                "role": current_user.get("role"),
+            },
+            "origem": origem,
+        },
+    )
+    _sinalizar_mac_mini()
+    return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
+
+
+def _get_ai_analise_job_prospeccao(numero_bem, job_id, origem):
+    current_user = get_current_user() or {}
+    contexto = _buscar_contexto_ai_prospeccao(numero_bem, origem)
+    if not contexto:
+        return jsonify({"error": _resposta_erro_origem_ai(origem)}), 404
+    if not _usuario_pode_ver_ai_prospeccao(contexto, current_user, origem):
+        return jsonify({"error": "Você não tem permissão para visualizar a análise deste imóvel."}), 403
+
+    job = obter_job_ai_prospeccao(job_id, numero_bem=numero_bem)
+    if not job:
+        return jsonify({"error": "Job não encontrado"}), 404
+    return jsonify(job), 200
+
+
+def _post_matricula_prospeccao(numero_bem, origem):
+    current_user = get_current_user() or {}
+    contexto = _buscar_contexto_ai_prospeccao(numero_bem, origem)
+    if not contexto:
+        return jsonify({"error": _resposta_erro_origem_ai(origem)}), 404
+    if not _usuario_pode_ver_ai_prospeccao(contexto, current_user, origem):
+        return jsonify({"error": "Você não tem permissão para acessar a matrícula deste imóvel."}), 403
+    if not _usuario_tem_ai_access(current_user):
+        return jsonify({"error": "Seu usuário não possui acesso à análise de matrícula."}), 403
+
+    job = criar_job_ai_prospeccao(
+        numero_bem,
+        "matricula",
+        {
+            "requested_by": {
+                "id": current_user.get("id"),
+                "name": current_user.get("name") or current_user.get("email"),
+                "role": current_user.get("role"),
+            },
+            "origem": origem,
+        },
+    )
+    _sinalizar_mac_mini()
+    return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
+
+
 @app.route("/prospeccoes/selecionados", methods=["POST"])
 @requires_prospeccao_write
 @limiter.limit(RATE_LIMIT_EDIT)
@@ -502,110 +621,67 @@ def put_prospeccao_selecionado_analise(numero_bem):
 @app.route("/prospeccoes/selecionados/<numero_bem>/ai-analise", methods=["GET"])
 @requires_auth
 def get_prospeccao_selecionado_ai_analise(numero_bem):
-    current_user = get_current_user() or {}
-    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
-    if not contexto:
-        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
-    if not _usuario_pode_ver_prospeccao(contexto, current_user):
-        return jsonify({"error": "Você não tem permissão para visualizar a análise deste imóvel."}), 403
-    return jsonify(obter_ai_analise_prospeccao_selecionado(numero_bem)), 200
+    return _get_ai_analise_prospeccao(numero_bem, "selecionados")
 
 
 @app.route("/prospeccoes/selecionados/<numero_bem>/ai-analise", methods=["PUT"])
 @requires_auth
 @limiter.limit(RATE_LIMIT_EDIT)
 def put_prospeccao_selecionado_ai_analise(numero_bem):
-    current_user = get_current_user() or {}
-    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
-    if not contexto:
-        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
-    if not _usuario_pode_ver_prospeccao(contexto, current_user):
-        return jsonify({"error": "Você não tem permissão para editar a análise deste imóvel."}), 403
-
-    payload = request.get_json(force=True, silent=True) or {}
-    result = salvar_ai_analise_prospeccao_selecionado(
-        numero_bem,
-        analise_texto=(payload.get("analise_texto") or "").strip() or None,
-    )
-    return jsonify(result), 200
+    return _put_ai_analise_prospeccao(numero_bem, "selecionados")
 
 
 @app.route("/prospeccoes/selecionados/<numero_bem>/ai-analise/chat", methods=["POST"])
 @requires_auth
 @limiter.limit(RATE_LIMIT_EDIT)
 def post_prospeccao_selecionado_ai_analise_chat(numero_bem):
-    current_user = get_current_user() or {}
-    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
-    if not contexto:
-        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
-    if not _usuario_pode_ver_prospeccao(contexto, current_user):
-        return jsonify({"error": "Você não tem permissão para acessar a análise deste imóvel."}), 403
-    if not _usuario_tem_ai_access(current_user):
-        return jsonify({"error": "Seu usuário não possui acesso ao chat de IA."}), 403
-
-    payload = request.get_json(force=True, silent=True) or {}
-    mensagem = (payload.get("mensagem") or "").strip()
-    if not mensagem:
-        return jsonify({"error": "mensagem é obrigatória"}), 400
-
-    job = criar_job_ai_prospeccao(
-        numero_bem,
-        "ai_analise_chat",
-        {
-            "mensagem": mensagem,
-            "requested_by": {
-                "id": current_user.get("id"),
-                "name": current_user.get("name") or current_user.get("email"),
-                "role": current_user.get("role"),
-            },
-        },
-    )
-    _sinalizar_mac_mini()
-    return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
+    return _post_ai_analise_chat_prospeccao(numero_bem, "selecionados")
 
 
 @app.route("/prospeccoes/selecionados/<numero_bem>/ai-analise/job/<job_id>", methods=["GET"])
 @requires_auth
 def get_prospeccao_selecionado_ai_analise_job(numero_bem, job_id):
-    current_user = get_current_user() or {}
-    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
-    if not contexto:
-        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
-    if not _usuario_pode_ver_prospeccao(contexto, current_user):
-        return jsonify({"error": "Você não tem permissão para visualizar a análise deste imóvel."}), 403
-
-    job = obter_job_ai_prospeccao(job_id, numero_bem=numero_bem)
-    if not job:
-        return jsonify({"error": "Job não encontrado"}), 404
-    return jsonify(job), 200
+    return _get_ai_analise_job_prospeccao(numero_bem, job_id, "selecionados")
 
 
 @app.route("/prospeccoes/selecionados/<numero_bem>/matricula", methods=["POST"])
 @requires_auth
 @limiter.limit(RATE_LIMIT_EDIT)
 def post_prospeccao_selecionado_matricula(numero_bem):
-    current_user = get_current_user() or {}
-    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
-    if not contexto:
-        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
-    if not _usuario_pode_ver_prospeccao(contexto, current_user):
-        return jsonify({"error": "Você não tem permissão para acessar a matrícula deste imóvel."}), 403
-    if not _usuario_tem_ai_access(current_user):
-        return jsonify({"error": "Seu usuário não possui acesso à análise de matrícula."}), 403
+    return _post_matricula_prospeccao(numero_bem, "selecionados")
 
-    job = criar_job_ai_prospeccao(
-        numero_bem,
-        "matricula",
-        {
-            "requested_by": {
-                "id": current_user.get("id"),
-                "name": current_user.get("name") or current_user.get("email"),
-                "role": current_user.get("role"),
-            },
-        },
-    )
-    _sinalizar_mac_mini()
-    return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
+
+@app.route("/prospeccoes/capturados/<numero_bem>/ai-analise", methods=["GET"])
+@requires_auth
+def get_prospeccao_capturado_ai_analise(numero_bem):
+    return _get_ai_analise_prospeccao(numero_bem, "capturados")
+
+
+@app.route("/prospeccoes/capturados/<numero_bem>/ai-analise", methods=["PUT"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def put_prospeccao_capturado_ai_analise(numero_bem):
+    return _put_ai_analise_prospeccao(numero_bem, "capturados")
+
+
+@app.route("/prospeccoes/capturados/<numero_bem>/ai-analise/chat", methods=["POST"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def post_prospeccao_capturado_ai_analise_chat(numero_bem):
+    return _post_ai_analise_chat_prospeccao(numero_bem, "capturados")
+
+
+@app.route("/prospeccoes/capturados/<numero_bem>/ai-analise/job/<job_id>", methods=["GET"])
+@requires_auth
+def get_prospeccao_capturado_ai_analise_job(numero_bem, job_id):
+    return _get_ai_analise_job_prospeccao(numero_bem, job_id, "capturados")
+
+
+@app.route("/prospeccoes/capturados/<numero_bem>/matricula", methods=["POST"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def post_prospeccao_capturado_matricula(numero_bem):
+    return _post_matricula_prospeccao(numero_bem, "capturados")
 
 
 @app.route("/prospeccoes/selecionados/<numero_bem>/responsaveis", methods=["PUT"])

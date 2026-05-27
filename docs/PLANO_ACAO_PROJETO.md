@@ -129,6 +129,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    1.3. [x] Exibir corretamente os pares de data/valor do leilão no portal, priorizando no resumo o último estágio disponível e mantendo acesso à visão completa dos cenários.
    1.4. [x] Adicionar links discretos para Google Maps e para comparáveis externos (`Zap`, `OLX`, `Viva`) nos cards/modais.
    1.5. [x] Exibir de forma explícita indicadores de análise financeira salva e de análise IA salva nos imóveis selecionados.
+   1.6. [x] Disponibilizar a entrada da avaliação IA já na base capturada, preservando o mesmo histórico ao mover o imóvel para selecionados.
 
 2. [ ] **Preparar a camada de avaliação detalhada com IA**
    2.1. [x] Garantir a tabela `imoveis_selecionados_ai_analise` no banco com histórico de chat, síntese e matrícula por imóvel.
@@ -137,6 +138,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    2.4. [x] Implementar `_sinalizar_mac_mini()` no backend usando Telegram para disparar o worker sob demanda.
    2.5. [x] Criar o modal de avaliação detalhada com abas `Dados` e `Análise IA`.
    2.6. [x] Integrar o botão de matrícula no mesmo fluxo assíncrono via job.
+   2.7. [x] Reaproveitar a análise IA por `numero_bem`, permitindo continuidade entre prospecção (`capturados`) e aprofundamento (`selecionados`).
 
 3. [ ] **Permissões e operação da IA**
    3.1. [x] Adicionar a flag `ai_access` em `users` e refletir isso na gestão de usuários.

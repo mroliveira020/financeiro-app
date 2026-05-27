@@ -121,6 +121,7 @@ export async function fetchCapturados({
       fonte: row.fonte,
       tipoImovel: row.tipo_imovel,
       desconto: row.desconto,
+      analiseIaSalva: Boolean(row.analise_ia_salva),
       avaliacaoAutomatica: row.avaliacao || null,
     };
   });
@@ -250,35 +251,39 @@ export async function salvarScoreRegiao(numeroBem, scoreRegiao) {
   return data;
 }
 
-export async function fetchAiAnalise(numeroBem) {
-  const { data } = await api.get(`/prospeccoes/selecionados/${numeroBem}/ai-analise`);
+function getAiBasePath(origem = "selecionados", numeroBem) {
+  return `/prospeccoes/${origem}/${numeroBem}`;
+}
+
+export async function fetchAiAnalise(numeroBem, origem = "selecionados") {
+  const { data } = await api.get(`${getAiBasePath(origem, numeroBem)}/ai-analise`);
   return data;
 }
 
-export async function salvarAiAnalise(numeroBem, payload) {
-  const { data } = await api.put(`/prospeccoes/selecionados/${numeroBem}/ai-analise`, payload);
+export async function salvarAiAnalise(numeroBem, payload, origem = "selecionados") {
+  const { data } = await api.put(`${getAiBasePath(origem, numeroBem)}/ai-analise`, payload);
   return data;
 }
 
-export async function enviarMensagemAiChat(numeroBem, mensagem) {
-  const { data } = await api.post(`/prospeccoes/selecionados/${numeroBem}/ai-analise/chat`, { mensagem });
+export async function enviarMensagemAiChat(numeroBem, mensagem, origem = "selecionados") {
+  const { data } = await api.post(`${getAiBasePath(origem, numeroBem)}/ai-analise/chat`, { mensagem });
   return data;
 }
 
-export async function solicitarMatricula(numeroBem) {
-  const { data } = await api.post(`/prospeccoes/selecionados/${numeroBem}/matricula`);
+export async function solicitarMatricula(numeroBem, origem = "selecionados") {
+  const { data } = await api.post(`${getAiBasePath(origem, numeroBem)}/matricula`);
   return data;
 }
 
-export async function fetchAiJob(numeroBem, jobId) {
-  const { data } = await api.get(`/prospeccoes/selecionados/${numeroBem}/ai-analise/job/${jobId}`);
+export async function fetchAiJob(numeroBem, jobId, origem = "selecionados") {
+  const { data } = await api.get(`${getAiBasePath(origem, numeroBem)}/ai-analise/job/${jobId}`);
   return data;
 }
 
-export async function pollAiJob(numeroBem, jobId, { intervalMs = 3000, timeoutMs = 120000 } = {}) {
+export async function pollAiJob(numeroBem, jobId, { intervalMs = 3000, timeoutMs = 120000, origem = "selecionados" } = {}) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    const job = await fetchAiJob(numeroBem, jobId);
+    const job = await fetchAiJob(numeroBem, jobId, origem);
     if (job?.status === "done" || job?.status === "error") {
       return job;
     }
