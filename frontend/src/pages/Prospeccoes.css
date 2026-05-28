@@ -656,6 +656,13 @@
   color: #334155;
   font-size: 13px;
   line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prospects-mobile-item-card__description p {
+  margin: 0;
 }
 
 .prospects-mobile-item-card__note {
@@ -1165,6 +1172,11 @@
   font-weight: 700;
 }
 
+.prospects-auto-badge.is-judicial {
+  background: #f4ecff;
+  color: #6d28d9;
+}
+
 .prospects-auto-badge.is-high {
   background: #e8f7f0;
   color: #0f766e;
@@ -1264,6 +1276,16 @@
 .prospects-chip--selected {
   background: #e8f7f2;
   color: #0f766e;
+}
+
+.prospects-chip--source {
+  background: #eef4ff;
+  color: #3558a8;
+}
+
+.prospects-chip--judicial {
+  background: #7c3aed;
+  color: #fff;
 }
 
 .prospects-chip--info {
@@ -1478,6 +1500,38 @@
   color: var(--prospects-brand);
   border-color: #bfd3ff;
   background: #edf4ff;
+}
+
+.prospects-inline-link--highlight {
+  background: #f4ecff;
+  border-color: #ddd6fe;
+  color: #6d28d9;
+}
+
+.prospects-inline-link--highlight:hover {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.prospects-capture-card__description,
+.prospects-detail-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prospects-capture-card__description p,
+.prospects-detail-text p {
+  margin: 0;
+}
+
+.prospects-capture-card__description a,
+.prospects-mobile-item-card__description a,
+.prospects-detail-text a {
+  color: var(--prospects-brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
 }
 
 .prospects-table-indicators {
@@ -1966,13 +2020,25 @@
 
 .prospects-auto-hero__media {
   min-width: 0;
+  overflow: hidden;
 }
 
-.prospects-auto-hero__photo .prospects-capture-card__photo,
-.prospects-auto-hero__photo .prospects-photo-placeholder {
+.prospects-auto-hero__media .prospects-gallery {
+  width: 100%;
+}
+
+.prospects-auto-hero__photo,
+.prospects-auto-hero__media .prospects-photo-placeholder {
+  width: 100%;
   aspect-ratio: 1.32 / 1;
   border-radius: 18px;
   max-height: 340px;
+  display: block;
+  overflow: hidden;
+}
+
+.prospects-auto-hero__photo {
+  object-fit: cover;
 }
 
 .prospects-auto-hero__summary {
@@ -1985,6 +2051,7 @@
   justify-content: flex-start;
   gap: 12px;
   min-height: 340px;
+  min-width: 0;
 }
 
 .prospects-auto-hero__heading {

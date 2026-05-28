@@ -29,6 +29,12 @@ const PRIORIDADE_OPTIONS = [
   { value: 3, label: "Alta", cls: "alta" },
 ];
 
+const FONTE_OPTIONS = [
+  { value: "todas", label: "Todas" },
+  { value: "caixa", label: "Extrajudicial (Caixa)" },
+  { value: "tjdft", label: "Judicial (TJDFT)" },
+];
+
 const MOBILE_BREAKPOINT = 900;
 
 const formatarMoeda = (valor) => {
@@ -125,6 +131,30 @@ const getComparaveisLinks = (item) => {
     { label: "OLX", url: `https://www.olx.com.br/imoveis/venda/estado-${uf}?q=${encodeURIComponent(cidadeOriginal)}` },
     { label: "Viva", url: `https://www.vivareal.com.br/venda/imoveis/${uf}/${cidade}/` },
   ];
+};
+
+const getFonteLabel = (fonte) => {
+  if (fonte === "caixa_extrajudicial") return "Extrajudicial";
+  if (fonte === "tjdft_judicial") return "Judicial";
+  return "";
+};
+
+const getFonteFilterValues = (filtroFonte) => {
+  if (filtroFonte === "caixa") return ["caixa_extrajudicial"];
+  if (filtroFonte === "tjdft") return ["tjdft_judicial"];
+  return undefined;
+};
+
+const podeAnalisarMatricula = (item) => item?.fonte === "caixa_extrajudicial";
+
+const extrairEditalUrl = (texto) => {
+  const match = `${texto || ""}`.match(/Edital PDF:\s*(https?:\/\/\S+)/i);
+  return match?.[1] || "";
+};
+
+const extrairProcessoNumero = (texto) => {
+  const match = `${texto || ""}`.match(/Processo:\s*([\d.-]+)/i);
+  return match?.[1] || "";
 };
 
 const getProspectPhotoAlt = (item) => {
@@ -226,6 +256,33 @@ function ProspectGallery({ item, className = "", compact = false }) {
   );
 }
 
+function DetalhesTexto({ texto, className = "" }) {
+  if (!texto) return null;
+  const linhas = `${texto}`.split("\n").map((linha) => linha.trim()).filter(Boolean);
+  if (!linhas.length) return null;
+  return (
+    <div className={className}>
+      {linhas.map((linha, index) => {
+        const urlMatch = linha.match(/(https?:\/\/\S+)/);
+        if (!urlMatch) {
+          return <p key={`${linha}-${index}`}>{linha}</p>;
+        }
+        const url = urlMatch[0];
+        const start = linha.indexOf(url);
+        const antes = linha.slice(0, start);
+        const depois = linha.slice(start + url.length);
+        return (
+          <p key={`${linha}-${index}`}>
+            {antes}
+            <a href={url} target="_blank" rel="noreferrer">{url}</a>
+            {depois}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 const getScoreClasse = (scoreTotal) => {
   const valor = Number(scoreTotal);
   if (!Number.isFinite(valor)) return "is-neutral";
@@ -248,6 +305,9 @@ const getMensagemPrefillAnalise = (meta) => {
   const dataFmt = data ? formatarDataHoraCompacta(data) : "data não informada";
   if (source === "motor2") {
     return `Valores pre-preenchidos pelo Motor de Avaliacao Automatica (comparaveis coletados em ${dataFmt}). Ajuste conforme seu conhecimento do imovel.`;
+  }
+  if (source === "fallback_local") {
+    return "Nao foi possivel carregar a analise salva agora. Abrimos a ficha com um pre-preenchimento basico do imovel para nao travar a operacao.";
   }
   return "";
 };
@@ -584,6 +644,37 @@ const createAnalisePairModes = (inputs = {}) => ({
   corretor: inferPairMode(inputs.comissao_corretor_percentual, inputs.comissao_corretor_valor),
   ganhoCapital: inferPairMode(inputs.ganho_capital_percentual, inputs.ganho_capital_valor),
 });
+
+const createAnaliseFallbackInputs = (item = {}) => {
+  const valorReferencia = item.valorMaximo || item.valorLeilao1 || item.valorAvaliacao || item.valorVenda || "";
+  const valorVendaSugerido = item.valorVenda || item.valorAvaliacao || item.valorMaximo || "";
+  return {
+    link_google_maps: item.linkGoogleMaps || "",
+    valor_base_operacao: valorReferencia,
+    tempo_operacao_meses: 12,
+    valor_maximo_lance: valorReferencia,
+    percentual_financiamento: "",
+    prestacao_mensal_financiamento: "",
+    valor_estimado_venda: valorVendaSugerido,
+    reforma: "",
+    condominio_atraso: "",
+    iptu_atraso: "",
+    desocupacao: "",
+    itbi_percentual: "",
+    itbi_valor: "",
+    documentacao: "",
+    manutencao_agua_mensal: "",
+    manutencao_luz_mensal: "",
+    manutencao_condominio_mensal: "",
+    manutencao_iptu_mensal: "",
+    comissao_leiloeiro_percentual: "",
+    comissao_leiloeiro_valor: "",
+    comissao_corretor_percentual: "",
+    comissao_corretor_valor: "",
+    ganho_capital_percentual: "",
+    ganho_capital_valor: "",
+  };
+};
 
 const computeAnalise = (draft, pairModes) => {
   const valorMaximoLance = roundMoney(draft.valor_maximo_lance);
@@ -1479,6 +1570,9 @@ function TabelaCapturados({
           const avaliacao = item.avaliacaoAutomatica;
           const mapsUrl = getMapsUrl(item);
           const comparaveis = getComparaveisLinks(item);
+          const editalUrl = extrairEditalUrl(item.descricao);
+          const fonteLabel = getFonteLabel(item.fonte);
+          const processoNumero = extrairProcessoNumero(item.descricao);
           return (
             <article
               key={item.codigo}
@@ -1488,6 +1582,7 @@ function TabelaCapturados({
                 <ProspectGallery item={item} className="prospects-capture-card__photo" />
                 <div className="prospects-capture-card__badges">
                   <span className="prospects-chip">{item.modalidade || "Sem modalidade"}</span>
+                  {fonteLabel ? <span className={`prospects-chip ${item.fonte === "tjdft_judicial" ? "prospects-chip--judicial" : "prospects-chip--source"}`.trim()}>{fonteLabel}</span> : null}
                   {jaSelecionado ? <span className="prospects-chip prospects-chip--selected">Na fila</span> : null}
                 </div>
                 {descontoExibicao !== null ? (
@@ -1517,9 +1612,14 @@ function TabelaCapturados({
                   <span>{item.situacao || "Sem status"}</span>
                 </div>
 
-                <p className="prospects-capture-card__description">
-                  {item.descricao || "Sem descrição cadastrada."}
-                </p>
+                {processoNumero ? (
+                  <div className="prospects-capture-card__areas">
+                    <span>Processo</span>
+                    <strong>{processoNumero}</strong>
+                  </div>
+                ) : null}
+
+                <DetalhesTexto texto={item.descricao} className="prospects-capture-card__description" />
 
                 <div className="prospects-inline-links">
                   <a
@@ -1554,6 +1654,17 @@ function TabelaCapturados({
                       <ArrowUpRightIcon />
                     </a>
                   ))}
+                  {editalUrl ? (
+                    <a
+                      className="prospects-inline-link prospects-inline-link--highlight"
+                      href={editalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span>Ver edital</span>
+                      <ArrowUpRightIcon />
+                    </a>
+                  ) : null}
                 </div>
 
                 <div className="prospects-capture-card__areas">
@@ -1829,6 +1940,9 @@ function AvaliacaoDetalhadaModal({
   const quantidadeMensagens = historicoExpandido.length;
   const enderecoCompleto = [item.endereco, item.bairro].filter(Boolean).join(" - ");
   const valorReferencia = resumoLeilao?.valor ?? item.valor;
+  const editalUrl = extrairEditalUrl(item.descricao);
+  const processoNumero = extrairProcessoNumero(item.descricao);
+  const fonteLabel = getFonteLabel(item.fonte);
 
   return (
     <div className="prospects-modal-backdrop" role="presentation">
@@ -1859,6 +1973,9 @@ function AvaliacaoDetalhadaModal({
                 ) : null}
                 <span className="prospects-auto-badge">{resumoLeilao?.label || "Sem evento"}</span>
                 <span className="prospects-auto-badge">{formatarMoeda(valorReferencia)}</span>
+                {fonteLabel ? (
+                  <span className={`prospects-auto-badge ${item.fonte === "tjdft_judicial" ? "is-judicial" : ""}`.trim()}>{fonteLabel}</span>
+                ) : null}
               </div>
               <div className="prospects-auto-hero__facts">
                 <div className="prospects-auto-hero__fact">
@@ -1877,6 +1994,12 @@ function AvaliacaoDetalhadaModal({
                   <span>Financiamento</span>
                   <strong>{item.financia === undefined || item.financia === null ? "—" : item.financia ? "Aceita" : "Não aceita"}</strong>
                 </div>
+                {processoNumero ? (
+                  <div className="prospects-auto-hero__fact">
+                    <span>Processo</span>
+                    <strong>{processoNumero}</strong>
+                  </div>
+                ) : null}
               </div>
               <div className="prospects-detail-kpis">
                 <div className="prospects-detail-kpi">
@@ -1909,6 +2032,12 @@ function AvaliacaoDetalhadaModal({
                     <ArrowUpRightIcon />
                   </a>
                 ))}
+                {editalUrl ? (
+                  <a className="prospects-inline-link prospects-inline-link--highlight" href={editalUrl} target="_blank" rel="noreferrer">
+                    <span>Ver edital</span>
+                    <ArrowUpRightIcon />
+                  </a>
+                ) : null}
               </div>
             </div>
           </div>
@@ -1981,6 +2110,11 @@ function AvaliacaoDetalhadaModal({
               </div>
 
               <div className="prospects-auto-comparaveis">
+                <h4>Detalhes do imóvel</h4>
+                <DetalhesTexto texto={item.descricao} className="prospects-detail-text" />
+              </div>
+
+              <div className="prospects-auto-comparaveis">
                 <h4>Cenários de leilão</h4>
                 <div className="prospects-leiloes-timeline">
                   {leiloes.length ? leiloes.map((entry) => (
@@ -2045,9 +2179,11 @@ function AvaliacaoDetalhadaModal({
                       <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={onSalvarSintese} disabled={saving}>
                         {saving ? "Salvando..." : "Salvar síntese"}
                       </button>
-                      <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onSolicitarMatricula} disabled={!canChat || matriculaLoading}>
-                        {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
-                      </button>
+                      {podeAnalisarMatricula(item) ? (
+                        <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onSolicitarMatricula} disabled={!canChat || matriculaLoading}>
+                          {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
+                        </button>
+                      ) : null}
                       <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={() => onAbrirAnalise(item)}>
                         Editar análise financeira
                       </button>
@@ -2438,6 +2574,8 @@ function MobileCapturadosList({
   onIncluir,
   includeLoadingIds,
   selectedCodes,
+  filtroFonteCap,
+  setFiltroFonteCap,
   filtroUfCap,
   setFiltroUfCap,
   ufOptions,
@@ -2490,6 +2628,21 @@ function MobileCapturadosList({
 
       <div className="prospects-card prospects-mobile-filters">
         <div className="prospects-mobile-filters__grid">
+          <label className="prospects-toolbar-field">
+            <span>Origem</span>
+            <select
+              value={filtroFonteCap}
+              onChange={(e) => {
+                setFiltroFonteCap(e.target.value);
+                onPageChange(1);
+              }}
+            >
+              {FONTE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
           <label className="prospects-toolbar-field">
             <span>UF</span>
             <select
@@ -2636,6 +2789,9 @@ function MobileCapturadosList({
           const resumoLeilao = getLeilaoResumo(item);
           const mapsUrl = getMapsUrl(item);
           const comparaveis = getComparaveisLinks(item);
+          const editalUrl = extrairEditalUrl(item.descricao);
+          const fonteLabel = getFonteLabel(item.fonte);
+          const processoNumero = extrairProcessoNumero(item.descricao);
           return (
             <article
               key={item.codigo}
@@ -2656,6 +2812,7 @@ function MobileCapturadosList({
                 </div>
                 <div className="prospects-mobile-item-card__pills">
                   <span className="prospects-chip">{item.modalidade || "Sem modalidade"}</span>
+                  {fonteLabel ? <span className={`prospects-chip ${item.fonte === "tjdft_judicial" ? "prospects-chip--judicial" : "prospects-chip--source"}`.trim()}>{fonteLabel}</span> : null}
                   {jaSelecionado ? (
                     <span className="prospects-chip prospects-chip--selected">Na fila</span>
                   ) : null}
@@ -2683,6 +2840,12 @@ function MobileCapturadosList({
                   <span>Status</span>
                   <strong>{item.situacao || "—"}</strong>
                 </div>
+                {processoNumero ? (
+                  <div>
+                    <span>Processo</span>
+                    <strong>{processoNumero}</strong>
+                  </div>
+                ) : null}
               </div>
 
               {avaliacao ? (
@@ -2692,7 +2855,7 @@ function MobileCapturadosList({
                 </div>
               ) : null}
 
-              <p className="prospects-mobile-item-card__description">{item.descricao || "Sem descrição cadastrada."}</p>
+              <DetalhesTexto texto={item.descricao} className="prospects-mobile-item-card__description" />
 
               <div className="prospects-inline-links">
                 <a
@@ -2727,6 +2890,17 @@ function MobileCapturadosList({
                     <ArrowUpRightIcon />
                   </a>
                 ))}
+                {editalUrl ? (
+                  <a
+                    className="prospects-inline-link prospects-inline-link--highlight"
+                    href={editalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <span>Ver edital</span>
+                    <ArrowUpRightIcon />
+                  </a>
+                ) : null}
               </div>
 
               <div className="prospects-mobile-item-card__actions">
@@ -2788,6 +2962,7 @@ export default function Prospeccoes() {
   const [loadingCap, setLoadingCap] = useState(false);
   const [erroSel, setErroSel] = useState("");
   const [erroCap, setErroCap] = useState("");
+  const [filtroFonteCap, setFiltroFonteCap] = useState("todas");
   const [filtroUfCap, setFiltroUfCap] = useState([]);
   const [filtroCidadesCap, setFiltroCidadesCap] = useState([]);
   const [filtroModalidadeCap, setFiltroModalidadeCap] = useState([]);
@@ -2801,7 +2976,7 @@ export default function Prospeccoes() {
   const [removeLoadingIds, setRemoveLoadingIds] = useState(new Set());
   const [updateLoadingIds, setUpdateLoadingIds] = useState(new Set());
   const [mensagem, setMensagem] = useState("");
-  const [meta, setMeta] = useState({ ufs: [], modalidades: [], financia: [] });
+  const [meta, setMeta] = useState({ ufs: [], fontes: [], modalidades: [], financia: [] });
   const [sortBy, setSortBy] = useState("ultima_disputa");
   const [sortDir, setSortDir] = useState("desc");
   const [activeTab, setActiveTab] = useState("capturados");
@@ -2893,6 +3068,7 @@ export default function Prospeccoes() {
         const resp = await fetchCapturados({
           page,
           pageSize,
+          fonte: getFonteFilterValues(filtroFonteCap),
           uf: filtroUfCap,
           cidade: filtroCidadesCap,
           modalidade: filtroModalidadeCap,
@@ -2918,12 +3094,12 @@ export default function Prospeccoes() {
       }
     };
     carregarCapturados();
-  }, [page, pageSize, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap]);
+  }, [page, pageSize, filtroFonteCap, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap]);
 
   useEffect(() => {
     fetchProspecMeta()
       .then((resp) => setMeta(resp))
-      .catch(() => setMeta({ ufs: [], modalidades: [], financia: [], cidades_por_uf: {} }));
+      .catch(() => setMeta({ ufs: [], fontes: [], modalidades: [], financia: [], cidades_por_uf: {} }));
   }, []);
 
   useEffect(() => {
@@ -3040,6 +3216,7 @@ export default function Prospeccoes() {
   };
 
   const limparFiltros = () => {
+    setFiltroFonteCap("todas");
     setFiltroUfCap([]);
     setFiltroCidadesCap([]);
     setFiltroModalidadeCap([]);
@@ -3198,9 +3375,10 @@ export default function Prospeccoes() {
   };
 
   const openAnaliseModal = async (item) => {
+    const fallbackInputs = createAnaliseFallbackInputs(item);
     setAnaliseItem(item);
-    setAnaliseDraft(createAnaliseDraft({ valor_maximo_lance: item.valorMaximo || "" }));
-    setAnaliseMeta(null);
+    setAnaliseDraft(createAnaliseDraft(fallbackInputs));
+    setAnaliseMeta({ prefill_source: "fallback_local" });
     setAnalisePairModes({ ...ANALISE_PAIR_MODE_DEFAULTS });
     setAnaliseLoading(true);
     try {
@@ -3212,9 +3390,9 @@ export default function Prospeccoes() {
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar análise");
       setMensagem(message);
-      setAnaliseItem(null);
-      setAnaliseDraft(null);
-      setAnaliseMeta(null);
+      setAnaliseDraft(createAnaliseDraft(fallbackInputs));
+      setAnalisePairModes({ ...ANALISE_PAIR_MODE_DEFAULTS });
+      setAnaliseMeta((prev) => prev || { prefill_source: "fallback_local" });
     } finally {
       setAnaliseLoading(false);
     }
@@ -3808,6 +3986,8 @@ export default function Prospeccoes() {
               onIncluir={handleIncluir}
               includeLoadingIds={includeLoadingIds}
               selectedCodes={selectedCodes}
+              filtroFonteCap={filtroFonteCap}
+              setFiltroFonteCap={setFiltroFonteCap}
               filtroUfCap={filtroUfCap}
               setFiltroUfCap={(value) => {
                 setFiltroUfCap(value);
@@ -4003,6 +4183,20 @@ export default function Prospeccoes() {
               </div>
             </div>
             <div className="prospects-filters">
+              <div className="prospects-filter-group">
+                <label>Origem</label>
+                <select
+                  value={filtroFonteCap}
+                  onChange={(e) => {
+                    setFiltroFonteCap(e.target.value);
+                    setPage(1);
+                  }}
+                >
+                  {FONTE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
               <div className="prospects-filter-group">
                 <label>UF (capturados)</label>
                 <div className="prospects-checklist">

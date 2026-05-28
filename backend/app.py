@@ -262,6 +262,7 @@ def get_prospeccoes_capturados():
         page = int(request.args.get("page", 1))
         page_size = int(request.args.get("page_size", 50))
         ufs = request.args.getlist("uf")
+        fontes = request.args.getlist("fonte")
         modalidades = request.args.getlist("modalidade")
         status_list = request.args.getlist("status")
         financia_list = request.args.getlist("financia")
@@ -282,6 +283,7 @@ def get_prospeccoes_capturados():
         limit=page_size,
         offset=offset,
         ufs=ufs or None,
+        fontes=fontes or None,
         modalidades=modalidades or None,
         status=status_list or ["disponivel"],
         financia=financia_list or None,

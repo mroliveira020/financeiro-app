@@ -2634,6 +2634,7 @@ def listar_prospeccoes_capturados(
     limit=50,
     offset=0,
     ufs=None,
+    fontes=None,
     modalidades=None,
     status=None,
     financia=None,
@@ -2729,6 +2730,10 @@ def listar_prospeccoes_capturados(
         placeholders = ",".join(["LOWER(%s)"] * len(ufs))
         conditions.append(f"LOWER(uf) IN ({placeholders})")
         params.extend([item.lower() for item in ufs])
+    if fontes:
+        placeholders = ",".join(["LOWER(%s)"] * len(fontes))
+        conditions.append(f"LOWER(fonte) IN ({placeholders})")
+        params.extend([item.lower() for item in fontes])
     if modalidades:
         placeholders = ",".join(["LOWER(%s)"] * len(modalidades))
         conditions.append(f"LOWER(tipo_venda) IN ({placeholders})")
@@ -2877,6 +2882,7 @@ def listar_prospeccoes_selecionados(
             v.valor_leilao_1,
             v.valor_leilao_2,
             v.link_consulta,
+            v.fonte,
             v.tipo_venda,
             v.tipo_imovel,
             v.disponivel,
@@ -3118,6 +3124,7 @@ def listar_prospeccoes_selecionados(
             "valor_leilao_2": float(row["valor_leilao_2"]) if row["valor_leilao_2"] is not None else None,
             "link_consulta": row["link_consulta"],
             "link_google_maps": row["link_google_maps"],
+            "fonte": row["fonte"],
             "tipo_venda": row["tipo_venda"],
             "tipo_imovel": row["tipo_imovel"],
             "disponivel": row["disponivel"],
@@ -4231,6 +4238,9 @@ def listar_prospeccoes_meta():
     cur.execute("SELECT DISTINCT uf FROM vw_imoveis_prospeccao_latest WHERE uf IS NOT NULL")
     ufs = sorted({row[0] for row in cur.fetchall() if row[0]})
 
+    cur.execute("SELECT DISTINCT fonte FROM vw_imoveis_prospeccao_latest WHERE fonte IS NOT NULL")
+    fontes = sorted({row[0] for row in cur.fetchall() if row[0]})
+
     cur.execute("SELECT DISTINCT tipo_venda FROM vw_imoveis_prospeccao_latest WHERE tipo_venda IS NOT NULL")
     modalidades = sorted({row[0] for row in cur.fetchall() if row[0]})
 
@@ -4247,7 +4257,7 @@ def listar_prospeccoes_meta():
     cidades_por_uf = {uf: sorted(list(cidades)) for uf, cidades in cidades_por_uf.items()}
 
     conn.close()
-    return {"ufs": ufs, "modalidades": modalidades, "financia": financia, "cidades_por_uf": cidades_por_uf}
+    return {"ufs": ufs, "fontes": fontes, "modalidades": modalidades, "financia": financia, "cidades_por_uf": cidades_por_uf}
 
 def atualizar_inserir_orcamentos(id_imovel, orcamentos):
     conn, cur = conectar()

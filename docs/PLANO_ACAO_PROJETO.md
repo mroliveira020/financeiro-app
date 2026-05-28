@@ -139,11 +139,100 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    2.5. [x] Criar o modal de avaliação detalhada com abas `Dados` e `Análise IA`.
    2.6. [x] Integrar o botão de matrícula no mesmo fluxo assíncrono via job.
    2.7. [x] Reaproveitar a análise IA por `numero_bem`, permitindo continuidade entre prospecção (`capturados`) e aprofundamento (`selecionados`).
+   2.8. [ ] Corrigir o layout do modal de avaliação detalhada para evitar sobreposição da foto com os dados do imóvel.
+   2.8.1. [ ] Frontend: revisar a composição entre galeria/foto principal e coluna de informações, garantindo largura, altura máxima e alinhamento consistentes no desktop.
+   2.8.2. [ ] Frontend: impedir que imagens maiores que o previsto invadam o bloco de resumo, com `overflow` controlado, `object-fit` adequado e containers independentes para mídia e conteúdo.
+   2.8.3. [ ] UX: quando não houver espaço horizontal suficiente, empilhar foto e dados em vez de forçar duas colunas concorrendo pela mesma área útil.
+   2.8.4. [ ] UX: validar o comportamento nas abas `Dados` e `Análise IA`, preservando legibilidade dos badges, preço, localização e cards-resumo.
+   2.8.5. [ ] Critério de aceite:
+        - a foto nunca sobrepõe informações textuais ou cards de status;
+        - o cabeçalho do imóvel permanece legível com ou sem imagem;
+        - o modal continua utilizável em resoluções intermediárias, notebook e desktop sem quebrar o grid;
+        - quando necessário, o layout prioriza legibilidade dos dados antes de maximizar a área da imagem.
 
 3. [ ] **Permissões e operação da IA**
    3.1. [x] Adicionar a flag `ai_access` em `users` e refletir isso na gestão de usuários.
    3.2. [x] Permitir que usuários sem acesso à IA visualizem histórico salvo, mas não enviem novas mensagens.
    3.3. [x] Documentar e configurar no Render as variáveis `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`.
+
+4. [ ] **Adequar o portal para múltiplas fontes de captura (`caixa_extrajudicial` e `tjdft_judicial`)**
+   4.1. [ ] Contexto operacional consolidado:
+        - a base capturada agora reúne imóveis extrajudiciais da CAIXA e imóveis judiciais do TJDFT;
+        - essas fontes têm regras diferentes de UX, filtros, campos visíveis e ações permitidas;
+        - o portal deve refletir claramente a origem do imóvel e evitar ações inválidas para o judicial.
+   4.2. [ ] Prioridade alta:
+        - [ ] Backend: adicionar filtro por `fontes` em `backend/models.py`, especialmente em `listar_prospeccoes_capturados`, aplicando `p.fonte = ANY(%s)` quando houver filtro preenchido.
+        - [ ] Backend: expor em `listar_prospeccoes_meta` a lista de fontes disponíveis para alimentar o frontend sem hardcode excessivo.
+        - [ ] Frontend: adicionar filtro `Origem` em `frontend/src/pages/Prospeccoes.jsx`, com estado dedicado (`filtroFonte`) e envio do parâmetro na chamada da API.
+        - [ ] Mapeamento inicial do filtro:
+             - `Todas`: não filtrar por fonte;
+             - `Extrajudicial`: `["caixa_extrajudicial"]`;
+             - `Judicial`: `["tjdft_judicial"]`.
+        - [ ] Frontend: esconder o botão `Analisar matrícula` para qualquer imóvel cuja fonte não seja `caixa_extrajudicial`, evitando fluxo inválido no TJDFT.
+        - [ ] Frontend: exibir badge de origem no card do imóvel, com destaque visual claro para imóveis judiciais.
+        - [ ] Frontend: tornar URLs dentro de `item.detalhes` clicáveis, em especial `Site leiloeiro` e `Edital PDF`.
+        - [ ] Frontend: extrair `Edital PDF` de `detalhes` e exibir CTA dedicado `Ver edital` quando o link existir.
+        - [ ] Frontend: substituir o stub do botão `Editar imóvel` pela abertura real do `ModalEditarImovel`, já existente no projeto.
+   4.3. [ ] Prioridade média:
+        - [ ] Sessão: trocar persistência de JWT de `sessionStorage` para `localStorage` em `frontend/src/context/AuthContext.jsx`, como correção simples de retenção de login.
+        - [ ] Segurança: endurecer fallback de CORS em `backend/app.py`, evitando `origins="*"` quando `ALLOWED_ORIGINS` não estiver configurado no ambiente.
+        - [ ] UX: extrair e exibir o número do processo judicial como campo dedicado no card de imóveis `tjdft_judicial`.
+        - [ ] Paginação: garantir `setPage(1)` ao alterar filtros relevantes em `Prospeccoes.jsx`, evitando estados inconsistentes após refino da busca.
+   4.4. [ ] Prioridade baixa / dívida técnica:
+        - [ ] Refatorar `frontend/src/pages/Prospeccoes.jsx`, hoje concentrando milhares de linhas, múltiplos estados e efeitos em um único arquivo.
+        - [ ] Migrar `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` executados no startup de `backend/models.py` para migrations versionadas.
+        - [ ] Remover `console.log` residuais de produção em `Prospeccoes.jsx`, `Home.jsx` e arquivos correlatos, ou encapsular em logger desabilitável por ambiente.
+   4.5. [ ] Regras específicas do TJDFT a preservar na implementação:
+        - `fonte = "tjdft_judicial"`;
+        - `tipo_venda` segue vindo como `Leilão Eletrônico` ou `Leilão Presencial`;
+        - `uf` é sempre `DF`, mas cidade e tipo de imóvel devem continuar filtráveis normalmente;
+        - `link_consulta` aponta para o site do leiloeiro;
+        - `detalhes` pode conter `Processo`, `Devedor`, `Credor`, `Site leiloeiro` e `Edital PDF`;
+        - `valor_leilao_2` pode permanecer nulo sem representar erro;
+        - `financia = false` e fluxos que dependam de lógica típica da CAIXA devem ser ocultados ou adaptados.
+   4.6. [ ] Critério de aceite:
+        - usuário consegue separar a base entre judicial e extrajudicial pelo filtro `Origem`;
+        - imóveis judiciais aparecem identificados visualmente no card e na listagem;
+        - o botão `Analisar matrícula` nunca aparece para itens do TJDFT;
+        - links presentes em `detalhes` abrem corretamente em nova aba;
+        - quando houver `Edital PDF`, o usuário encontra um CTA visível e direto;
+        - o botão `Editar imóvel` passa a executar ação real em vez de apenas registrar `console.log`;
+        - a sessão permanece ativa após fechamento e reabertura da aba no fluxo padrão;
+        - mudança de filtros não deixa a paginação em estado inválido.
+
+### Ordem Recomendada de Execução — Próxima Sprint
+1. [ ] **Etapa 1 — Destravar a operação da fila de selecionados**
+   1.1. [ ] Corrigir o clique de `Abrir ficha de viabilidade` na lista de selecionados, garantindo abertura do modal e carregamento dos dados.
+   1.2. [ ] Validar manualmente o fluxo completo: abrir, editar, salvar, fechar e reabrir a ficha do mesmo imóvel.
+   1.3. [ ] Se houver causa compartilhada, revisar binding de ações, estado do modal e carregamento assíncrono da análise/viabilidade.
+
+2. [ ] **Etapa 2 — Corrigir a leitura da avaliação detalhada**
+   2.1. [ ] Ajustar o layout do modal de avaliação detalhada para eliminar sobreposição entre foto, resumo do imóvel e cards de status.
+   2.2. [ ] Validar a tela em resoluções de notebook e desktop, priorizando legibilidade antes de ocupação máxima da imagem.
+   2.3. [ ] Revisar rapidamente o comportamento nas abas `Dados` e `Análise IA` para evitar regressão visual.
+
+3. [ ] **Etapa 3 — Adaptar Prospecções para CAIXA + TJDFT**
+   3.1. [ ] Backend primeiro:
+        - adicionar filtro por `fontes` nas consultas;
+        - expor fontes disponíveis no metadata da tela.
+   3.2. [ ] Frontend em seguida:
+        - incluir filtro `Origem`;
+        - exibir badge `Judicial`;
+        - esconder `Analisar matrícula` quando a origem não for CAIXA;
+        - transformar links em `detalhes` em ações clicáveis;
+        - exibir CTA `Ver edital` quando houver `Edital PDF`.
+   3.3. [ ] Fechar a etapa com smoke test de comparação entre um imóvel da CAIXA e um do TJDFT.
+
+4. [ ] **Etapa 4 — Ajustes de estabilidade e segurança logo após a entrega principal**
+   4.1. [ ] Trocar `sessionStorage` por `localStorage` no token de autenticação.
+   4.2. [ ] Corrigir fallback de CORS para não depender de `origins="*"` em produção.
+   4.3. [ ] Garantir reset de paginação ao trocar filtros em `Prospecções`.
+
+5. [ ] **Estimativa qualitativa**
+   5.1. [ ] Etapa 1: esforço baixo a médio, alto impacto operacional.
+   5.2. [ ] Etapa 2: esforço baixo a médio, alto impacto de UX.
+   5.3. [ ] Etapa 3: esforço médio, impacto funcional alto por introduzir suporte claro às duas fontes.
+   5.4. [ ] Etapa 4: esforço baixo, importante para robustez e pós-entrega.
 
 ### Roadmap Recomendado — Prospecções e Gestão de Usuários
 1. [x] **Corrigir base do fluxo de usuários**
@@ -234,6 +323,7 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - `% de financiamento`
         - valor estimado da venda
    7.3. [x] Backend/API: expor endpoint de leitura/gravação da ficha de análise por imóvel selecionado.
+   7.3.1. [ ] Corrigir o acionamento da ficha de viabilidade na lista de selecionados, garantindo que o modal abra e carregue os dados do imóvel ao clicar na ação correspondente.
    7.4. [x] Frontend: criar formulário de análise no imóvel selecionado com cálculos dinâmicos em tempo real, sem persistir cada alteração automaticamente.
    7.5. [x] Regra de persistência: cálculos e alterações de campos ficam locais na UI enquanto o usuário edita; gravação ocorre apenas ao clicar em `Salvar`.
    7.6. [x] Cálculos dinâmicos esperados:
@@ -305,7 +395,8 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - custo do financiamento no período respeita o tempo da operação e a prestação mensal informada;
         - nada é persistido antes do clique em `Salvar`;
         - ao salvar, os valores reaparecem idênticos ao recarregar a página;
-        - link do Google Maps fica acessível a partir do modal de observações do imóvel selecionado.
+        - link do Google Maps fica acessível a partir do modal de observações do imóvel selecionado;
+        - ao clicar para abrir a ficha de viabilidade na lista de selecionados, o modal carrega sem ficar em branco ou travado.
 
 8. [ ] **Revisar a experiência da lista de selecionados**
    8.1. [x] Backend: manter retorno de `data_leilao` considerando a maior data disponível entre `data_leilao_1`, `data_leilao_2` e `data_hora_encerramento`.

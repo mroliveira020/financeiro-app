@@ -59,6 +59,7 @@ export async function fetchCapturados({
   page = 1,
   pageSize = 50,
   uf,
+  fonte,
   cidade,
   modalidade,
   financia,
@@ -74,6 +75,7 @@ export async function fetchCapturados({
       page,
       page_size: pageSize,
       uf,
+      fonte,
       cidade,
       modalidade,
       financia,
@@ -161,6 +163,7 @@ export async function fetchSelecionados({ status, uf, userId } = {}) {
       valorLeilao2: item.valor_leilao_2,
       link: normalizeLink(item.numero_bem, item.link_consulta),
       linkGoogleMaps: item.link_google_maps || "",
+      fonte: item.fonte,
       modalidade: item.tipo_venda,
       tipoImovel: item.tipo_imovel,
       disponivel: item.disponivel,
@@ -223,6 +226,7 @@ export async function fetchProspecMeta() {
   const { data } = await api.get("/prospeccoes/meta");
   return {
     ufs: data?.ufs || [],
+    fontes: data?.fontes || [],
     modalidades: data?.modalidades || [],
     financia: data?.financia || [],
     cidades_por_uf: data?.cidades_por_uf || {},
