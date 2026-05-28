@@ -3692,7 +3692,7 @@ def obter_analise_prospeccao_selecionado(numero_bem):
                 a.updated_at,
                 v.valor_venda,
                 v.valor_avaliacao,
-                v.valor_minimo,
+                COALESCE(s.valor_maximo, v.valor_venda, v.valor_avaliacao) AS valor_minimo,
                 v.financia,
                 av.numero_bem AS avaliacao_numero_bem,
                 av.preco_m2_regiao,
