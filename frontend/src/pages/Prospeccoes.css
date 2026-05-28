@@ -1727,6 +1727,46 @@
   white-space: pre-wrap;
 }
 
+.prospects-rich-text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: #1f2937;
+}
+
+.prospects-rich-text__block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prospects-rich-text h5 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #111827;
+}
+
+.prospects-rich-text p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.prospects-rich-text ul,
+.prospects-rich-text ol {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prospects-rich-text li {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .prospects-ai-summary,
 .prospects-ai-composer {
   padding: 16px;
@@ -1737,6 +1777,26 @@
 
 .prospects-auto-grid--detail {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.prospects-ai-preview {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #dce7f4;
+  background: #f8fbff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prospects-ai-preview__label,
+.prospects-subsection-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
 }
 
 .prospects-leiloes-timeline {

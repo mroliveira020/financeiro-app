@@ -300,6 +300,65 @@ function DetalhesTexto({ texto, className = "" }) {
   );
 }
 
+const renderTextoInline = (texto) => {
+  const partes = `${texto || ""}`.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+  return partes.map((parte, index) => {
+    if (parte.startsWith("**") && parte.endsWith("**")) {
+      return <strong key={`${parte}-${index}`}>{parte.slice(2, -2)}</strong>;
+    }
+    return <React.Fragment key={`${parte}-${index}`}>{parte}</React.Fragment>;
+  });
+};
+
+function TextoEstruturado({ texto, className = "" }) {
+  const bruto = `${texto || ""}`.trim();
+  if (!bruto) return null;
+
+  const blocos = bruto.split(/\n\s*\n/).map((bloco) => bloco.trim()).filter(Boolean);
+
+  return (
+    <div className={`prospects-rich-text ${className}`.trim()}>
+      {blocos.map((bloco, blocoIndex) => {
+        const linhas = bloco.split("\n").map((linha) => linha.trim()).filter(Boolean);
+        if (!linhas.length) return null;
+
+        const todosBullet = linhas.every((linha) => /^[-*]\s+/.test(linha));
+        if (todosBullet) {
+          return (
+            <ul key={`b-${blocoIndex}`}>
+              {linhas.map((linha, linhaIndex) => <li key={`l-${blocoIndex}-${linhaIndex}`}>{renderTextoInline(linha.replace(/^[-*]\s+/, ""))}</li>)}
+            </ul>
+          );
+        }
+
+        const todosNumerados = linhas.every((linha) => /^\d+[.)]\s+/.test(linha));
+        if (todosNumerados) {
+          return (
+            <ol key={`o-${blocoIndex}`}>
+              {linhas.map((linha, linhaIndex) => <li key={`l-${blocoIndex}-${linhaIndex}`}>{renderTextoInline(linha.replace(/^\d+[.)]\s+/, ""))}</li>)}
+            </ol>
+          );
+        }
+
+        if (linhas.length === 1 && /^#{1,3}\s+/.test(linhas[0])) {
+          return <h5 key={`h-${blocoIndex}`}>{renderTextoInline(linhas[0].replace(/^#{1,3}\s+/, ""))}</h5>;
+        }
+
+        return (
+          <div key={`p-${blocoIndex}`} className="prospects-rich-text__block">
+            {linhas.map((linha, linhaIndex) => {
+              if (/^#{1,3}\s+/.test(linha)) {
+                return <h5 key={`h-${blocoIndex}-${linhaIndex}`}>{renderTextoInline(linha.replace(/^#{1,3}\s+/, ""))}</h5>;
+              }
+              return <p key={`p-${blocoIndex}-${linhaIndex}`}>{renderTextoInline(linha)}</p>;
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 const getScoreClasse = (scoreTotal) => {
   const valor = Number(scoreTotal);
   if (!Number.isFinite(valor)) return "is-neutral";
@@ -815,6 +874,7 @@ function TabelaSelecionados({
   onExcluir,
   onEditarObservacoes,
   onAbrirAnalise,
+  onAbrirEnriquecimentos,
   onAbrirAvaliacaoDetalhada,
   onEditarResponsaveis,
   onEditarPrioridade,
@@ -1016,6 +1076,15 @@ function TabelaSelecionados({
                       disabled={!canOperateItem(item)}
                     >
                       <ChartIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className={`prospects-table-icon-btn prospects-table-icon-btn--external ${item.avaliacaoAutomatica ? "is-active" : ""}`.trim()}
+                      title={item.avaliacaoAutomatica ? "Ver enriquecimentos automáticos" : "Sem enriquecimentos automáticos disponíveis"}
+                      onClick={() => item.avaliacaoAutomatica && onAbrirEnriquecimentos(item)}
+                      disabled={!item.avaliacaoAutomatica}
+                    >
+                      <SparklesIcon />
                     </button>
                     <button
                       type="button"
@@ -1961,6 +2030,7 @@ function AvaliacaoDetalhadaModal({
   const editalUrl = extrairEditalUrl(item.descricao);
   const processoNumero = extrairProcessoNumero(item.descricao);
   const fonteLabel = getFonteLabel(item.fonte);
+  const avaliacaoAuto = item.avaliacaoAutomatica;
 
   return (
     <div className="prospects-modal-backdrop" role="presentation">
@@ -2127,6 +2197,36 @@ function AvaliacaoDetalhadaModal({
                 )}
               </div>
 
+              {avaliacaoAuto ? (
+                <div className="prospects-auto-comparaveis">
+                  <h4>Enriquecimentos automáticos</h4>
+                  <div className="prospects-auto-grid prospects-auto-grid--detail">
+                    <div className="prospects-auto-card">
+                      <span>Fonte de comparáveis</span>
+                      <strong>{avaliacaoAuto.fonte_pesquisa || "—"}</strong>
+                    </div>
+                    <div className="prospects-auto-card">
+                      <span>Preço m² da região</span>
+                      <strong>{formatarMoeda(avaliacaoAuto.preco_m2_regiao)}</strong>
+                    </div>
+                    <div className="prospects-auto-card">
+                      <span>Score automático</span>
+                      <strong>{avaliacaoAuto.score_total ?? "—"}/85</strong>
+                    </div>
+                    <div className="prospects-auto-card">
+                      <span>ROI estimado</span>
+                      <strong>{formatarPercentual(avaliacaoAuto.retorno_pct)}</strong>
+                    </div>
+                  </div>
+                  {avaliacaoAuto.resumo_ia ? (
+                    <>
+                      <h5 className="prospects-subsection-title">Resumo automático</h5>
+                      <TextoEstruturado texto={avaliacaoAuto.resumo_ia} />
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="prospects-auto-comparaveis">
                 <h4>Detalhes do imóvel</h4>
                 <DetalhesTexto texto={item.descricao} className="prospects-detail-text" />
@@ -2195,7 +2295,7 @@ function AvaliacaoDetalhadaModal({
                     {historicoExpandido.length ? historicoExpandido.map((mensagem, index) => (
                       <div key={`${mensagem.role}-${mensagem.kind || "chat"}-${index}`} className={`prospects-ai-bubble is-${mensagem.role || "assistant"} ${mensagem.kind === "matricula" ? "is-matricula" : ""}`.trim()}>
                         <span>{mensagem.kind === "matricula" ? "Matrícula" : mensagem.role === "user" ? "Você" : "IA"}</span>
-                        <p>{mensagem.content || "—"}</p>
+                        <TextoEstruturado texto={mensagem.content || "—"} />
                       </div>
                     )) : (
                       <p className="prospects-empty">Nenhuma análise salva ainda. Ao abrir o chat, a avaliação inicial será gerada automaticamente.</p>
@@ -2204,6 +2304,12 @@ function AvaliacaoDetalhadaModal({
                   </div>
 
                   <div className="prospects-ai-summary">
+                    {sinteseDraft?.trim() ? (
+                      <div className="prospects-ai-preview">
+                        <span className="prospects-ai-preview__label">Visualização da síntese</span>
+                        <TextoEstruturado texto={sinteseDraft} />
+                      </div>
+                    ) : null}
                     <label className="prospects-form-field">
                       <span>Síntese da análise</span>
                       <textarea
@@ -2331,6 +2437,7 @@ function MobileSelecionadosList({
   onResetFilters,
   onEditarObservacoes,
   onAbrirAnalise,
+  onAbrirEnriquecimentos,
   onAbrirAvaliacaoDetalhada,
   onEditarPrioridade,
   onEditarResponsaveis,
@@ -2551,6 +2658,15 @@ function MobileSelecionadosList({
                 >
                   <ChartIcon />
                   <span>Viabilidade</span>
+                </button>
+                <button
+                  type="button"
+                  className={`prospects-btn ghost prospects-btn--mobile-action ${item.avaliacaoAutomatica ? "is-active" : ""}`.trim()}
+                  onClick={() => item.avaliacaoAutomatica && onAbrirEnriquecimentos(item)}
+                  disabled={!item.avaliacaoAutomatica}
+                >
+                  <SparklesIcon />
+                  <span>Enriquecimentos</span>
                 </button>
                 <button
                   type="button"
@@ -4047,6 +4163,7 @@ export default function Prospeccoes() {
               }}
               onEditarObservacoes={openObservacoesModal}
               onAbrirAnalise={openAnaliseModal}
+              onAbrirEnriquecimentos={openAvaliacaoAutomaticaModal}
               onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
               onEditarPrioridade={openPrioridadeModal}
               onEditarResponsaveis={openResponsaveisModal}
@@ -4237,6 +4354,7 @@ export default function Prospeccoes() {
             onEditarPrioridade={openPrioridadeModal}
             onEditarObservacoes={openObservacoesModal}
             onAbrirAnalise={openAnaliseModal}
+            onAbrirEnriquecimentos={openAvaliacaoAutomaticaModal}
             onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
             onEditarResponsaveis={openResponsaveisModal}
             removeLoadingIds={removeLoadingIds}
