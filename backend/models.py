@@ -1034,6 +1034,12 @@ def _garantir_tabela_ai_analise():
             )
             """
         )
+        cur.execute(
+            """
+            ALTER TABLE imoveis_selecionados_ai_analise
+            DROP CONSTRAINT IF EXISTS imoveis_selecionados_ai_analise_numero_bem_fkey
+            """
+        )
         conn.commit()
     finally:
         conn.close()

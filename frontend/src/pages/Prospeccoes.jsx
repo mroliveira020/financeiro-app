@@ -54,17 +54,34 @@ const formatarNumero = (valor) => {
 
 const calcularDescontoExibicao = (item) => {
   const descontoInformado = Number(item?.desconto);
-  if (Number.isFinite(descontoInformado) && descontoInformado > 0) {
-    return descontoInformado;
-  }
-
   const valorAvaliacao = Number(item?.valorAvaliacao);
   const valorMinimo = Number(item?.valorMinimo ?? item?.valor);
+  const descontoCalculado = (!Number.isFinite(valorAvaliacao) || valorAvaliacao <= 0 || !Number.isFinite(valorMinimo) || valorMinimo < 0)
+    ? null
+    : ((valorAvaliacao - valorMinimo) / valorAvaliacao) * 100;
+
+  if (Number.isFinite(descontoInformado) && descontoInformado > 0) {
+    const candidatos = [
+      descontoInformado,
+      descontoInformado / 10,
+      descontoInformado / 100,
+      descontoInformado / 1000,
+    ].filter((valor) => Number.isFinite(valor) && valor > 0 && valor <= 100);
+
+    if (candidatos.length) {
+      if (descontoCalculado !== null) {
+        return candidatos.reduce((melhor, atual) => (
+          Math.abs(atual - descontoCalculado) < Math.abs(melhor - descontoCalculado) ? atual : melhor
+        ));
+      }
+      return candidatos[0];
+    }
+  }
+
   if (!Number.isFinite(valorAvaliacao) || valorAvaliacao <= 0 || !Number.isFinite(valorMinimo) || valorMinimo < 0) {
     return null;
   }
 
-  const descontoCalculado = ((valorAvaliacao - valorMinimo) / valorAvaliacao) * 100;
   return descontoCalculado > 0 ? descontoCalculado : null;
 };
 
