@@ -1827,6 +1827,8 @@ function AvaliacaoDetalhadaModal({
     : historico;
   const descontoExibicao = calcularDescontoExibicao(item);
   const quantidadeMensagens = historicoExpandido.length;
+  const enderecoCompleto = [item.endereco, item.bairro].filter(Boolean).join(" - ");
+  const valorReferencia = resumoLeilao?.valor ?? item.valor;
 
   return (
     <div className="prospects-modal-backdrop" role="presentation">
@@ -1846,13 +1848,35 @@ function AvaliacaoDetalhadaModal({
               <ProspectGallery item={item} className="prospects-auto-hero__photo" />
             </div>
             <div className="prospects-auto-hero__summary">
-              <span className="prospects-auto-hero__eyebrow">{item.tipoImovel || "Imóvel"}</span>
-              <h4>{[item.cidade, item.uf].filter(Boolean).join(" - ") || item.codigo}</h4>
-              <p>{[item.endereco, item.bairro].filter(Boolean).join(" - ") || "Endereço não informado"}</p>
-              <div className="prospects-capture-card__auto">
-                <span className="prospects-auto-badge">Desconto {formatarPercentual(descontoExibicao)}</span>
+              <div className="prospects-auto-hero__heading">
+                <span className="prospects-auto-hero__eyebrow">{item.tipoImovel || "Imóvel"}</span>
+                <h4>{[item.cidade, item.uf].filter(Boolean).join(" - ") || item.codigo}</h4>
+                <p>{enderecoCompleto || "Endereço não informado"}</p>
+              </div>
+              <div className="prospects-capture-card__auto prospects-capture-card__auto--hero">
+                {descontoExibicao !== null ? (
+                  <span className="prospects-auto-badge">Desconto {formatarPercentual(descontoExibicao)}</span>
+                ) : null}
                 <span className="prospects-auto-badge">{resumoLeilao?.label || "Sem evento"}</span>
-                <span className="prospects-auto-badge">{formatarMoeda(resumoLeilao?.valor ?? item.valor)}</span>
+                <span className="prospects-auto-badge">{formatarMoeda(valorReferencia)}</span>
+              </div>
+              <div className="prospects-auto-hero__facts">
+                <div className="prospects-auto-hero__fact">
+                  <span>Código</span>
+                  <strong>{item.codigo}</strong>
+                </div>
+                <div className="prospects-auto-hero__fact">
+                  <span>Valor avaliação</span>
+                  <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
+                </div>
+                <div className="prospects-auto-hero__fact">
+                  <span>Evento foco</span>
+                  <strong>{resumoLeilao?.data ? formatarDataHoraCompacta(resumoLeilao.data) : "Não informado"}</strong>
+                </div>
+                <div className="prospects-auto-hero__fact">
+                  <span>Financiamento</span>
+                  <strong>{item.financia === undefined || item.financia === null ? "—" : item.financia ? "Aceita" : "Não aceita"}</strong>
+                </div>
               </div>
               <div className="prospects-detail-kpis">
                 <div className="prospects-detail-kpi">
@@ -1867,6 +1891,24 @@ function AvaliacaoDetalhadaModal({
                   <span>IA</span>
                   <strong>{item.analiseIaSalva ? "Salva" : "Ainda não"}</strong>
                 </div>
+              </div>
+              <div className="prospects-inline-links prospects-inline-links--detail">
+                <a className="prospects-inline-link" href={item.link} target="_blank" rel="noreferrer">
+                  <ArrowUpRightIcon />
+                  <span>Anúncio</span>
+                </a>
+                {mapsUrl ? (
+                  <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
+                    <MapPinIcon />
+                    <span>Google Maps</span>
+                  </a>
+                ) : null}
+                {comparaveis.map((link) => (
+                  <a key={`${item.codigo}-hero-${link.label}`} className="prospects-inline-link" href={link.url} target="_blank" rel="noreferrer">
+                    <span>{link.label}</span>
+                    <ArrowUpRightIcon />
+                  </a>
+                ))}
               </div>
             </div>
           </div>
@@ -1952,25 +1994,6 @@ function AvaliacaoDetalhadaModal({
                   )}
                 </div>
               </div>
-
-              <div className="prospects-inline-links prospects-inline-links--detail">
-                <a className="prospects-inline-link" href={item.link} target="_blank" rel="noreferrer">
-                  <ArrowUpRightIcon />
-                  <span>Anúncio</span>
-                </a>
-                {mapsUrl ? (
-                  <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
-                    <MapPinIcon />
-                    <span>Google Maps</span>
-                  </a>
-                ) : null}
-                {comparaveis.map((link) => (
-                  <a key={`${item.codigo}-det-${link.label}`} className="prospects-inline-link" href={link.url} target="_blank" rel="noreferrer">
-                    <span>{link.label}</span>
-                    <ArrowUpRightIcon />
-                  </a>
-                ))}
-              </div>
             </>
           ) : (
             <div className="prospects-ai-panel">
@@ -1989,7 +2012,10 @@ function AvaliacaoDetalhadaModal({
                 ) : null}
               </div>
               {loading ? (
-                <p className="prospects-empty">Carregando análise IA...</p>
+                <div className="prospects-ai-loading-card">
+                  <strong>Preparando a pré-análise por IA</strong>
+                  <p>Estamos carregando o histórico e, quando necessário, iniciando a avaliação automática deste imóvel.</p>
+                </div>
               ) : (
                 <>
                   <div className="prospects-ai-chat-shell">
