@@ -3592,6 +3592,25 @@ def salvar_ai_analise_prospeccao_selecionado(numero_bem, analise_texto=None, his
 def criar_job_ai_prospeccao(numero_bem, tipo, input_payload=None):
     conn, cur = conectar()
     try:
+        cur.execute(
+            """
+            SELECT id, numero_bem, tipo, status
+            FROM ia_jobs
+            WHERE numero_bem = %s AND tipo = %s AND status IN ('pending', 'processing')
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (numero_bem, tipo),
+        )
+        existente = cur.fetchone()
+        if existente:
+            return {
+                "job_id": str(existente["id"]),
+                "numero_bem": existente["numero_bem"],
+                "tipo": existente["tipo"],
+                "status": existente["status"],
+            }
+
         job_id = str(uuid.uuid4())
         cur.execute(
             """

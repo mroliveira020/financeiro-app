@@ -7,6 +7,10 @@ Planos anteriores agora servem apenas como referência rápida e apontam para es
 - `garimpo/PLANO_ACAO.md`
 - `docs/PLANO_DE_ACAO.md`
 
+## Especificação Operacional dos Agentes
+- A especificação operacional do `agente_site` foi movida para [docs/AGENTE_SITE.md](/Users/matheusoliveira/Documents/Leiloes/Aplicacoes/Financeiro/docs/AGENTE_SITE.md).
+- Sempre manter esse documento como fonte de verdade para fila `agent_tasks`, integração com Supabase e comunicação com o `agente_coleta`.
+
 ## Visão Geral
 
 ### Objetivo do Projeto
