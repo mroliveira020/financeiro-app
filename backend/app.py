@@ -428,7 +428,7 @@ def _post_ai_analise_chat_prospeccao(numero_bem, origem):
 
     job = criar_job_ai_prospeccao(
         numero_bem,
-        "ai_analise_chat",
+        "chat",
         {
             "mensagem": mensagem,
             "requested_by": {

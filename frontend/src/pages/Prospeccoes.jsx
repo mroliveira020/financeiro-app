@@ -1938,6 +1938,7 @@ function AvaliacaoDetalhadaModal({
   onTabChange,
   onClose,
   onEnviarMensagem,
+  onGerarAnaliseInicial,
   onSalvarSintese,
   onSolicitarMatricula,
   onAbrirAnalise,
@@ -2161,6 +2162,26 @@ function AvaliacaoDetalhadaModal({
                     <span>Atualizado em {formatarDataHoraCompacta(aiAnalise.updated_at)}</span>
                   </span>
                 ) : null}
+                {canChat ? (
+                  <button
+                    type="button"
+                    className="prospects-btn secondary prospects-btn--subtle"
+                    onClick={onGerarAnaliseInicial}
+                    disabled={loading || sending || matriculaLoading}
+                  >
+                    {loading || sending ? "Processando IA..." : "Gerar análise inicial"}
+                  </button>
+                ) : null}
+                {podeAnalisarMatricula(item) ? (
+                  <button
+                    type="button"
+                    className="prospects-btn ghost prospects-btn--subtle"
+                    onClick={onSolicitarMatricula}
+                    disabled={!canChat || loading || sending || matriculaLoading}
+                  >
+                    {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
+                  </button>
+                ) : null}
               </div>
               {loading ? (
                 <div className="prospects-ai-loading-card">
@@ -2196,11 +2217,7 @@ function AvaliacaoDetalhadaModal({
                       <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={onSalvarSintese} disabled={saving}>
                         {saving ? "Salvando..." : "Salvar síntese"}
                       </button>
-                      {podeAnalisarMatricula(item) ? (
-                        <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onSolicitarMatricula} disabled={!canChat || matriculaLoading}>
-                          {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
-                        </button>
-                      ) : (
+                      {podeAnalisarMatricula(item) ? null : (
                         <span className="prospects-modal__hint">Análise de matrícula disponível apenas para imóveis da Caixa.</span>
                       )}
                       <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={() => onAbrirAnalise(item)}>
@@ -3671,6 +3688,34 @@ export default function Prospeccoes() {
     }
   };
 
+  const handleGerarAnaliseInicialAi = async () => {
+    if (!avaliacaoDetalhadaItem) return;
+    setAiSending(true);
+    setAvaliacaoDetalhadaStatus("Gerando análise inicial por IA...");
+    setAvaliacaoDetalhadaStatusTone("info");
+    try {
+      const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, "__init__", avaliacaoDetalhadaOrigem);
+      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { origem: avaliacaoDetalhadaOrigem });
+      if (finalJob?.status === "error") {
+        throw new Error(finalJob?.erro || "Erro ao gerar análise inicial da IA.");
+      }
+      const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+      setAiAnalise(refreshed);
+      setAiSinteseDraft(refreshed?.analise_texto || "");
+      sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, refreshed);
+      await refreshSelecionados();
+      setAvaliacaoDetalhadaStatus("Análise inicial gerada com sucesso.");
+      setAvaliacaoDetalhadaStatusTone("success");
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao gerar análise inicial da IA");
+      setMensagem(message);
+      setAvaliacaoDetalhadaStatus(message);
+      setAvaliacaoDetalhadaStatusTone("error");
+    } finally {
+      setAiSending(false);
+    }
+  };
+
   const handleSalvarAiSintese = async () => {
     if (!avaliacaoDetalhadaItem) return;
     setAiSaving(true);
@@ -4456,6 +4501,7 @@ export default function Prospeccoes() {
         onTabChange={setAvaliacaoDetalhadaTab}
         onClose={closeAvaliacaoDetalhadaModal}
         onEnviarMensagem={handleEnviarMensagemAi}
+        onGerarAnaliseInicial={handleGerarAnaliseInicialAi}
         onSalvarSintese={handleSalvarAiSintese}
         onSolicitarMatricula={handleSolicitarMatricula}
         onAbrirAnalise={openAnaliseModal}
