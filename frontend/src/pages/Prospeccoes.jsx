@@ -1004,7 +1004,7 @@ function TabelaSelecionados({
                       type="button"
                       className={`prospects-table-icon-btn prospects-table-icon-btn--external ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
                       title={item.analiseIaSalva ? "Ver avaliação detalhada com IA" : "Abrir avaliação detalhada"}
-                      onClick={() => onAbrirAvaliacaoDetalhada(item, item.analiseIaSalva ? "ia" : "dados")}
+                      onClick={() => onAbrirAvaliacaoDetalhada(item, "ia")}
                     >
                       <SparklesIcon />
                     </button>
@@ -1710,7 +1710,7 @@ function TabelaCapturados({
                   <button
                     type="button"
                     className={`prospects-btn ghost prospects-btn--subtle ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
-                    onClick={() => onAbrirAvaliacaoDetalhada(item, item.analiseIaSalva ? "ia" : "dados", "capturados")}
+                    onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
                   >
                     {item.analiseIaSalva ? "IA salva" : "Avaliação IA"}
                   </button>
@@ -2183,7 +2183,9 @@ function AvaliacaoDetalhadaModal({
                         <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onSolicitarMatricula} disabled={!canChat || matriculaLoading}>
                           {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
                         </button>
-                      ) : null}
+                      ) : (
+                        <span className="prospects-modal__hint">Análise de matrícula disponível apenas para imóveis da Caixa.</span>
+                      )}
                       <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={() => onAbrirAnalise(item)}>
                         Editar análise financeira
                       </button>
@@ -2206,7 +2208,7 @@ function AvaliacaoDetalhadaModal({
                       </button>
                     </div>
                   ) : (
-                    <p className="prospects-modal__hint">Seu usuário pode visualizar o histórico salvo, mas não enviar novas mensagens para a IA.</p>
+                    <p className="prospects-modal__hint">Seu usuário pode visualizar o histórico salvo, mas não enviar novas mensagens para a IA. Se esse acesso já foi liberado pelo administrador, entre novamente para atualizar a sessão.</p>
                   )}
                 </>
               )}
@@ -2519,7 +2521,7 @@ function MobileSelecionadosList({
                 <button
                   type="button"
                   className="prospects-btn ghost prospects-btn--mobile-action"
-                  onClick={() => onAbrirAvaliacaoDetalhada(item, item.analiseIaSalva ? "ia" : "dados")}
+                  onClick={() => onAbrirAvaliacaoDetalhada(item, "ia")}
                 >
                   <SparklesIcon />
                   <span>{item.analiseIaSalva ? "Avaliação IA" : "Detalhes"}</span>
@@ -2916,7 +2918,7 @@ function MobileCapturadosList({
                 <button
                   type="button"
                   className={`prospects-btn ghost prospects-btn--mobile-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
-                  onClick={() => onAbrirAvaliacaoDetalhada(item, item.analiseIaSalva ? "ia" : "dados", "capturados")}
+                  onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
                 >
                   <span>{item.analiseIaSalva ? "IA salva" : "Avaliação IA"}</span>
                 </button>
@@ -3000,6 +3002,7 @@ export default function Prospeccoes() {
   const [analiseItem, setAnaliseItem] = useState(null);
   const [analiseDraft, setAnaliseDraft] = useState(null);
   const [analiseMeta, setAnaliseMeta] = useState(null);
+  const [analiseCache, setAnaliseCache] = useState({});
   const [analisePairModes, setAnalisePairModes] = useState(ANALISE_PAIR_MODE_DEFAULTS);
   const [analiseLoading, setAnaliseLoading] = useState(false);
   const [analiseSaving, setAnaliseSaving] = useState(false);
@@ -3376,23 +3379,29 @@ export default function Prospeccoes() {
 
   const openAnaliseModal = async (item) => {
     const fallbackInputs = createAnaliseFallbackInputs(item);
+    const cachedAnalise = analiseCache[item.codigo];
     setAnaliseItem(item);
-    setAnaliseDraft(createAnaliseDraft(fallbackInputs));
-    setAnaliseMeta({ prefill_source: "fallback_local" });
-    setAnalisePairModes({ ...ANALISE_PAIR_MODE_DEFAULTS });
+    setAnaliseDraft(createAnaliseDraft(cachedAnalise?.inputs || fallbackInputs));
+    setAnaliseMeta(cachedAnalise?.meta || { prefill_source: "fallback_local" });
+    setAnalisePairModes(createAnalisePairModes(cachedAnalise?.inputs || fallbackInputs));
     setAnaliseLoading(true);
     try {
       const data = await fetchAnaliseSelecionado(item.codigo);
       const inputs = data?.inputs || {};
+      setAnaliseCache((prev) => ({ ...prev, [item.codigo]: data }));
       setAnaliseDraft(createAnaliseDraft(inputs));
       setAnalisePairModes(createAnalisePairModes(inputs));
       setAnaliseMeta(data?.meta || null);
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar análise");
       setMensagem(message);
-      setAnaliseDraft(createAnaliseDraft(fallbackInputs));
-      setAnalisePairModes({ ...ANALISE_PAIR_MODE_DEFAULTS });
-      setAnaliseMeta((prev) => prev || { prefill_source: "fallback_local" });
+      const fallbackData = cachedAnalise || {
+        inputs: fallbackInputs,
+        meta: { prefill_source: "fallback_local" },
+      };
+      setAnaliseDraft(createAnaliseDraft(fallbackData.inputs));
+      setAnalisePairModes(createAnalisePairModes(fallbackData.inputs));
+      setAnaliseMeta(fallbackData.meta || { prefill_source: "fallback_local" });
     } finally {
       setAnaliseLoading(false);
     }
@@ -3444,11 +3453,23 @@ export default function Prospeccoes() {
       const payload = buildAnalisePayload(analiseDraft, analisePairModes);
       const data = await salvarAnaliseSelecionado(analiseItem.codigo, payload);
       const inputs = data?.inputs || payload;
+      setAnaliseCache((prev) => ({ ...prev, [analiseItem.codigo]: data }));
       setAnaliseDraft(createAnaliseDraft(inputs));
       setAnalisePairModes(createAnalisePairModes(inputs));
+      setAnaliseMeta(data?.meta || null);
       if (avaliacaoDetalhadaItem?.codigo === analiseItem.codigo) {
         setAnaliseDetalhada(data);
       }
+      setSelecionados((prev) => prev.map((item) => (
+        item.codigo === analiseItem.codigo
+          ? {
+              ...item,
+              analiseSalva: true,
+              roiEsperadoPercentual: data?.calculos?.roi_esperado_percentual ?? item.roiEsperadoPercentual,
+              lucroEsperadoValor: data?.calculos?.lucro_esperado_valor ?? item.lucroEsperadoValor,
+            }
+          : item
+      )));
       await refreshSelecionados();
       setMensagem(`Análise do imóvel ${analiseItem.codigo} salva com sucesso.`);
     } catch (err) {
