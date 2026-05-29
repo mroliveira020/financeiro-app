@@ -288,7 +288,7 @@ export async function pollAiJob(numeroBem, jobId, { intervalMs = 3000, timeoutMs
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     const job = await fetchAiJob(numeroBem, jobId, origem);
-    if (job?.status === "done" || job?.status === "error") {
+    if (job?.status === "done" || job?.status === "error" || job?.status === "failed") {
       return job;
     }
     await new Promise((resolve) => window.setTimeout(resolve, intervalMs));

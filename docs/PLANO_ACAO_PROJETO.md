@@ -143,16 +143,23 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
    2.5. [x] Criar o modal de avaliação detalhada com abas `Dados` e `Análise IA`.
    2.6. [x] Integrar o botão de matrícula no mesmo fluxo assíncrono via job.
    2.7. [x] Reaproveitar a análise IA por `numero_bem`, permitindo continuidade entre prospecção (`capturados`) e aprofundamento (`selecionados`).
-   2.8. [ ] Corrigir o layout do modal de avaliação detalhada para evitar sobreposição da foto com os dados do imóvel.
-   2.8.1. [ ] Frontend: revisar a composição entre galeria/foto principal e coluna de informações, garantindo largura, altura máxima e alinhamento consistentes no desktop.
-   2.8.2. [ ] Frontend: impedir que imagens maiores que o previsto invadam o bloco de resumo, com `overflow` controlado, `object-fit` adequado e containers independentes para mídia e conteúdo.
-   2.8.3. [ ] UX: quando não houver espaço horizontal suficiente, empilhar foto e dados em vez de forçar duas colunas concorrendo pela mesma área útil.
-   2.8.4. [ ] UX: validar o comportamento nas abas `Dados` e `Análise IA`, preservando legibilidade dos badges, preço, localização e cards-resumo.
-   2.8.5. [ ] Critério de aceite:
+   2.8. [x] Corrigir o layout do modal de avaliação detalhada para evitar sobreposição da foto com os dados do imóvel.
+   2.8.1. [x] Frontend: revisar a composição entre galeria/foto principal e coluna de informações, garantindo largura, altura máxima e alinhamento consistentes no desktop.
+   2.8.2. [x] Frontend: impedir que imagens maiores que o previsto invadam o bloco de resumo, com `overflow` controlado, `object-fit` adequado e containers independentes para mídia e conteúdo.
+   2.8.3. [x] UX: quando não houver espaço horizontal suficiente, empilhar foto e dados em vez de forçar duas colunas concorrendo pela mesma área útil.
+   2.8.4. [x] UX: validar o comportamento nas abas `Dados` e `Análise IA`, preservando legibilidade dos badges, preço, localização e cards-resumo.
+   2.8.5. [x] Critério de aceite:
         - a foto nunca sobrepõe informações textuais ou cards de status;
         - o cabeçalho do imóvel permanece legível com ou sem imagem;
         - o modal continua utilizável em resoluções intermediárias, notebook e desktop sem quebrar o grid;
         - quando necessário, o layout prioriza legibilidade dos dados antes de maximizar a área da imagem.
+   2.9. [ ] Fechar a operação real da IA e da matrícula no uso diário.
+   2.9.1. [x] Adicionar CTA explícito `Gerar análise inicial` na aba `Análise IA`.
+   2.9.2. [x] Evitar criação de jobs duplicados de IA/matrícula para o mesmo imóvel e tipo.
+   2.9.3. [x] Melhorar a leitura da resposta da IA no frontend sem depender de HTML salvo no banco.
+   2.9.4. [ ] Investigar e corrigir o `Erro interno do servidor` ainda percebido em execuções reais da análise inicial e/ou da matrícula.
+   2.9.5. [ ] Tornar o status do job mais claro para o usuário (`pendente`, `processando`, `concluído`, `falhou`) no modal.
+   2.9.6. [ ] Confirmar ponta a ponta, com imóvel real da CAIXA, o fluxo: abrir modal, gerar análise inicial, analisar matrícula, salvar síntese e reabrir o histórico.
 
 3. [ ] **Permissões e operação da IA**
    3.1. [x] Adicionar a flag `ai_access` em `users` e refletir isso na gestão de usuários.
@@ -165,22 +172,22 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - essas fontes têm regras diferentes de UX, filtros, campos visíveis e ações permitidas;
         - o portal deve refletir claramente a origem do imóvel e evitar ações inválidas para o judicial.
    4.2. [ ] Prioridade alta:
-        - [ ] Backend: adicionar filtro por `fontes` em `backend/models.py`, especialmente em `listar_prospeccoes_capturados`, aplicando `p.fonte = ANY(%s)` quando houver filtro preenchido.
-        - [ ] Backend: expor em `listar_prospeccoes_meta` a lista de fontes disponíveis para alimentar o frontend sem hardcode excessivo.
-        - [ ] Frontend: adicionar filtro `Origem` em `frontend/src/pages/Prospeccoes.jsx`, com estado dedicado (`filtroFonte`) e envio do parâmetro na chamada da API.
-        - [ ] Mapeamento inicial do filtro:
+        - [x] Backend: adicionar filtro por `fontes` em `backend/models.py`, especialmente em `listar_prospeccoes_capturados`, aplicando `p.fonte = ANY(%s)` quando houver filtro preenchido.
+        - [x] Backend: expor em `listar_prospeccoes_meta` a lista de fontes disponíveis para alimentar o frontend sem hardcode excessivo.
+        - [x] Frontend: adicionar filtro `Origem` em `frontend/src/pages/Prospeccoes.jsx`, com estado dedicado (`filtroFonte`) e envio do parâmetro na chamada da API.
+        - [x] Mapeamento inicial do filtro:
              - `Todas`: não filtrar por fonte;
              - `Extrajudicial`: `["caixa_extrajudicial"]`;
              - `Judicial`: `["tjdft_judicial"]`.
-        - [ ] Frontend: esconder o botão `Analisar matrícula` para qualquer imóvel cuja fonte não seja `caixa_extrajudicial`, evitando fluxo inválido no TJDFT.
-        - [ ] Frontend: exibir badge de origem no card do imóvel, com destaque visual claro para imóveis judiciais.
-        - [ ] Frontend: tornar URLs dentro de `item.detalhes` clicáveis, em especial `Site leiloeiro` e `Edital PDF`.
-        - [ ] Frontend: extrair `Edital PDF` de `detalhes` e exibir CTA dedicado `Ver edital` quando o link existir.
+        - [x] Frontend: esconder o botão `Analisar matrícula` para qualquer imóvel cuja fonte não seja `caixa_extrajudicial`, evitando fluxo inválido no TJDFT.
+        - [x] Frontend: exibir badge de origem no card do imóvel, com destaque visual claro para imóveis judiciais.
+        - [x] Frontend: tornar URLs dentro de `item.detalhes` clicáveis, em especial `Site leiloeiro` e `Edital PDF`.
+        - [x] Frontend: extrair `Edital PDF` de `detalhes` e exibir CTA dedicado `Ver edital` quando o link existir.
         - [ ] Frontend: substituir o stub do botão `Editar imóvel` pela abertura real do `ModalEditarImovel`, já existente no projeto.
    4.3. [ ] Prioridade média:
         - [ ] Sessão: trocar persistência de JWT de `sessionStorage` para `localStorage` em `frontend/src/context/AuthContext.jsx`, como correção simples de retenção de login.
         - [ ] Segurança: endurecer fallback de CORS em `backend/app.py`, evitando `origins="*"` quando `ALLOWED_ORIGINS` não estiver configurado no ambiente.
-        - [ ] UX: extrair e exibir o número do processo judicial como campo dedicado no card de imóveis `tjdft_judicial`.
+        - [x] UX: extrair e exibir o número do processo judicial como campo dedicado no card de imóveis `tjdft_judicial`.
         - [ ] Paginação: garantir `setPage(1)` ao alterar filtros relevantes em `Prospeccoes.jsx`, evitando estados inconsistentes após refino da busca.
    4.4. [ ] Prioridade baixa / dívida técnica:
         - [ ] Refatorar `frontend/src/pages/Prospeccoes.jsx`, hoje concentrando milhares de linhas, múltiplos estados e efeitos em um único arquivo.
@@ -204,39 +211,34 @@ Consolidar em um único sistema as frentes de Garimpo, Prospecções, Financeiro
         - a sessão permanece ativa após fechamento e reabertura da aba no fluxo padrão;
         - mudança de filtros não deixa a paginação em estado inválido.
 
-### Ordem Recomendada de Execução — Próxima Sprint
-1. [ ] **Etapa 1 — Destravar a operação da fila de selecionados**
-   1.1. [ ] Corrigir o clique de `Abrir ficha de viabilidade` na lista de selecionados, garantindo abertura do modal e carregamento dos dados.
-   1.2. [ ] Validar manualmente o fluxo completo: abrir, editar, salvar, fechar e reabrir a ficha do mesmo imóvel.
-   1.3. [ ] Se houver causa compartilhada, revisar binding de ações, estado do modal e carregamento assíncrono da análise/viabilidade.
+### Próxima Sprint Recomendada
+1. [ ] **Estabilizar IA, matrícula e ficha de viabilidade**
+   1.1. [ ] Reproduzir e corrigir o `Erro interno do servidor` no fluxo real da `Análise IA`, com foco no worker/job e no retorno final ao modal.
+   1.2. [ ] Reproduzir e corrigir o fluxo de `Analisar matrícula` em imóvel real da CAIXA, incluindo visibilidade do botão, processamento e persistência do resultado.
+   1.3. [ ] Validar manualmente a ficha de viabilidade ponta a ponta: abrir, editar, salvar, fechar e reabrir o mesmo imóvel sem perda de dados.
+   1.4. [ ] Exibir status operacional mais claro no modal (`pendente`, `processando`, `concluído`, `falhou`) para IA e matrícula.
 
-2. [ ] **Etapa 2 — Corrigir a leitura da avaliação detalhada**
-   2.1. [ ] Ajustar o layout do modal de avaliação detalhada para eliminar sobreposição entre foto, resumo do imóvel e cards de status.
-   2.2. [ ] Validar a tela em resoluções de notebook e desktop, priorizando legibilidade antes de ocupação máxima da imagem.
-   2.3. [ ] Revisar rapidamente o comportamento nas abas `Dados` e `Análise IA` para evitar regressão visual.
+2. [ ] **Fechar pendências funcionais da tela de Prospecções**
+   2.1. [ ] Substituir o stub de `Editar imóvel` pela abertura real do `ModalEditarImovel`.
+   2.2. [ ] Garantir `setPage(1)` ao alterar filtros relevantes, evitando paginação inválida após refino da busca.
+   2.3. [ ] Trocar a persistência da sessão de `sessionStorage` para `localStorage` em `AuthContext`.
+   2.4. [ ] Endurecer o fallback de CORS no backend para não depender de `origins="*"` em produção.
 
-3. [ ] **Etapa 3 — Adaptar Prospecções para CAIXA + TJDFT**
-   3.1. [ ] Backend primeiro:
-        - adicionar filtro por `fontes` nas consultas;
-        - expor fontes disponíveis no metadata da tela.
-   3.2. [ ] Frontend em seguida:
-        - incluir filtro `Origem`;
-        - exibir badge `Judicial`;
-        - esconder `Analisar matrícula` quando a origem não for CAIXA;
-        - transformar links em `detalhes` em ações clicáveis;
-        - exibir CTA `Ver edital` quando houver `Edital PDF`.
-   3.3. [ ] Fechar a etapa com smoke test de comparação entre um imóvel da CAIXA e um do TJDFT.
+3. [ ] **Melhorar leitura operacional na lista de selecionados**
+   3.1. [ ] Exibir observação atual em tooltip/hover na tabela para reduzir ruído visual.
+   3.2. [ ] Avaliar se o histórico completo de observações deve ficar em modal administrativo secundário.
+   3.3. [ ] Refinar a apresentação dos enriquecimentos e da síntese da IA para leitura mais rápida no dia a dia.
 
-4. [ ] **Etapa 4 — Ajustes de estabilidade e segurança logo após a entrega principal**
-   4.1. [ ] Trocar `sessionStorage` por `localStorage` no token de autenticação.
-   4.2. [ ] Corrigir fallback de CORS para não depender de `origins="*"` em produção.
-   4.3. [ ] Garantir reset de paginação ao trocar filtros em `Prospecções`.
+4. [ ] **Reduzir dívida técnica antes de nova expansão**
+   4.1. [ ] Iniciar refatoração gradual de `frontend/src/pages/Prospeccoes.jsx`, extraindo blocos como filtros, cards, lista de selecionados e modal de IA.
+   4.2. [ ] Planejar migrations versionadas para substituir `ALTER TABLE ... IF NOT EXISTS` executados no startup.
+   4.3. [ ] Remover `console.log` residuais de produção ou encapsular em logger controlado por ambiente.
 
 5. [ ] **Estimativa qualitativa**
-   5.1. [ ] Etapa 1: esforço baixo a médio, alto impacto operacional.
-   5.2. [ ] Etapa 2: esforço baixo a médio, alto impacto de UX.
-   5.3. [ ] Etapa 3: esforço médio, impacto funcional alto por introduzir suporte claro às duas fontes.
-   5.4. [ ] Etapa 4: esforço baixo, importante para robustez e pós-entrega.
+   5.1. [ ] Bloco 1: esforço médio, maior impacto operacional.
+   5.2. [ ] Bloco 2: esforço baixo a médio, melhora imediata de UX e robustez.
+   5.3. [ ] Bloco 3: esforço baixo, ganho alto de leitura para operação diária.
+   5.4. [ ] Bloco 4: esforço médio, importante para manter velocidade nas próximas mudanças.
 
 ### Roadmap Recomendado — Prospecções e Gestão de Usuários
 1. [x] **Corrigir base do fluxo de usuários**

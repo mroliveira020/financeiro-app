@@ -3594,6 +3594,23 @@ def criar_job_ai_prospeccao(numero_bem, tipo, input_payload=None):
     try:
         cur.execute(
             """
+            UPDATE ia_jobs
+               SET status = 'error',
+                   erro = COALESCE(
+                       NULLIF(erro, ''),
+                       'Job expirado por inatividade antes de concluir o processamento.'
+                   ),
+                   updated_at = now()
+             WHERE numero_bem = %s
+               AND tipo = %s
+               AND status IN ('pending', 'processing')
+               AND COALESCE(updated_at, created_at) < (now() - interval '20 minutes')
+            """,
+            (numero_bem, tipo),
+        )
+
+        cur.execute(
+            """
             SELECT id, numero_bem, tipo, status
             FROM ia_jobs
             WHERE numero_bem = %s AND tipo = %s AND status IN ('pending', 'processing')

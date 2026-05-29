@@ -1,4 +1,4 @@
-import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import "./Prospeccoes.css";
 
@@ -36,6 +36,7 @@ const FONTE_OPTIONS = [
 ];
 
 const MOBILE_BREAKPOINT = 900;
+const AI_JOB_ERROR_STATUSES = new Set(["error", "failed"]);
 
 const formatarMoeda = (valor) => {
   if (valor === null || valor === undefined) return "—";
@@ -3175,6 +3176,7 @@ export default function Prospeccoes() {
   const [aiSending, setAiSending] = useState(false);
   const [aiSaving, setAiSaving] = useState(false);
   const [matriculaLoading, setMatriculaLoading] = useState(false);
+  const aiAutoInitAttemptRef = useRef(new Set());
   const [aiMensagemDraft, setAiMensagemDraft] = useState("");
   const [aiSinteseDraft, setAiSinteseDraft] = useState("");
   const [avaliacaoDetalhadaStatus, setAvaliacaoDetalhadaStatus] = useState("");
@@ -3717,7 +3719,7 @@ export default function Prospeccoes() {
       if (autoInit && !historico.length && (user?.ai_access || user?.role === "admin")) {
         const job = await enviarMensagemAiChat(numeroBem, "__init__", origem);
         const finalJob = await pollAiJob(numeroBem, job.job_id, { origem });
-        if (finalJob?.status === "error") {
+        if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
           throw new Error(finalJob?.erro || "Falha ao gerar avaliação inicial.");
         }
         const refreshed = await fetchAiAnalise(numeroBem, origem);
@@ -3732,6 +3734,8 @@ export default function Prospeccoes() {
   }, [user, refreshSelecionados, sincronizarIndicadorAnaliseIaCapturada]);
 
   const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados", origem = "selecionados") => {
+    const aiAttemptKey = `${origem}:${item.codigo}`;
+    aiAutoInitAttemptRef.current.delete(aiAttemptKey);
     setAvaliacaoDetalhadaItem(item);
     setAvaliacaoDetalhadaOrigem(origem);
     setAvaliacaoDetalhadaTab(initialTab);
@@ -3740,12 +3744,13 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaStatus("");
     setAvaliacaoDetalhadaStatusTone("info");
     setAiAnalise(null);
+    setAiLoading(initialTab === "ia");
     setAnaliseDetalhada(null);
     setAnaliseDetalhadaLoading(true);
     try {
       const [analiseData] = await Promise.all([
         fetchAnaliseSelecionado(item.codigo).catch(() => null),
-        carregarAiAnalise(item.codigo, { autoInit: initialTab === "ia", origem }),
+        carregarAiAnalise(item.codigo, { autoInit: false, origem }),
       ]);
       setAnaliseDetalhada(analiseData);
     } catch (err) {
@@ -3784,7 +3789,7 @@ export default function Prospeccoes() {
       const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, aiMensagemDraft.trim(), avaliacaoDetalhadaOrigem);
       setAiMensagemDraft("");
       const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { origem: avaliacaoDetalhadaOrigem });
-      if (finalJob?.status === "error") {
+      if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao processar mensagem da IA.");
       }
       const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
@@ -3812,7 +3817,7 @@ export default function Prospeccoes() {
     try {
       const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, "__init__", avaliacaoDetalhadaOrigem);
       const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { origem: avaliacaoDetalhadaOrigem });
-      if (finalJob?.status === "error") {
+      if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao gerar análise inicial da IA.");
       }
       const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
@@ -3865,7 +3870,7 @@ export default function Prospeccoes() {
     try {
       const job = await solicitarMatricula(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
       const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { timeoutMs: 180000, origem: avaliacaoDetalhadaOrigem });
-      if (finalJob?.status === "error") {
+      if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao processar matrícula.");
       }
       const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
@@ -3890,10 +3895,15 @@ export default function Prospeccoes() {
     if (aiLoading || aiSending) return;
     if (aiAnalise?.historico_chat?.length || aiAnalise?.matricula_texto) return;
     if (!(user?.ai_access || user?.role === "admin")) return;
+    const aiAttemptKey = `${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem.codigo}`;
+    if (aiAutoInitAttemptRef.current.has(aiAttemptKey)) return;
+    aiAutoInitAttemptRef.current.add(aiAttemptKey);
 
     carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: true, origem: avaliacaoDetalhadaOrigem }).catch((err) => {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao iniciar avaliação IA");
       setMensagem(message);
+      setAvaliacaoDetalhadaStatus(message);
+      setAvaliacaoDetalhadaStatusTone("error");
     });
   }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise]);
 
