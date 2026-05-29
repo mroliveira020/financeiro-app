@@ -120,7 +120,7 @@ export function AuthProvider({ children }) {
       clearError: () => setAuthError(null),
       hasRole: (...roles) => {
         if (!user) return false;
-        const normalized = roles.length ? roles : ["viewer"];
+        const normalized = roles.length ? roles : ["prospector"];
         return normalized.includes(user.role);
       },
     }),

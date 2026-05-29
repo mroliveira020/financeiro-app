@@ -77,7 +77,7 @@ def _decode_access_token(token: str) -> Dict[str, Any]:
     return {
         "id": payload.get("sub"),
         "email": payload.get("email"),
-        "role": payload.get("role", "viewer"),
+        "role": payload.get("role", "prospector"),
         "is_active": payload.get("is_active", True),
     }
 
@@ -102,9 +102,14 @@ def _is_allowed_finance_path(path: str) -> bool:
     return False
 
 
-def user_has_finance_access(user_id: int | None, role: str | None = None) -> bool:
+def user_has_global_finance_access(role: Optional[str] = None) -> bool:
     role_norm = (role or "").strip().lower()
-    if role_norm in {"viewer", "editor", "admin"}:
+    return role_norm in {"admin"}
+
+
+def user_has_finance_access(user_id: Optional[int], role: Optional[str] = None) -> bool:
+    role_norm = (role or "").strip().lower()
+    if user_has_global_finance_access(role_norm):
         return True
     if role_norm != "prospector" or not user_id:
         return False
@@ -129,12 +134,21 @@ def user_has_finance_access(user_id: int | None, role: str | None = None) -> boo
         conn.close()
 
 
+def get_finance_access_scope(user_id: Optional[int], role: Optional[str] = None) -> str:
+    role_norm = (role or "").strip().lower()
+    if user_has_global_finance_access(role_norm):
+        return "global"
+    if role_norm == "prospector" and user_has_finance_access(user_id, role_norm):
+        return "restricted"
+    return "none"
+
+
 def _ensure_module_access(user: Dict[str, Any]) -> Optional[tuple]:
     if user.get("role") != "prospector":
         return None
     if _is_allowed_path_for_prospector(request.path):
         return None
-    if user_has_finance_access(user.get("id"), user.get("role")) and _is_allowed_finance_path(request.path):
+    if get_finance_access_scope(user.get("id"), user.get("role")) != "none" and _is_allowed_finance_path(request.path):
         return None
     _log_auth_failure("Módulo não permitido para este perfil", 403)
     return jsonify({"error": "Permissão insuficiente para este módulo"}), 403
@@ -241,7 +255,7 @@ def requires_editor_token(fn):
         if access_error:
             return access_error
 
-        if user.get("role") not in {"editor", "admin"}:
+        if user.get("role") != "admin":
             _log_auth_failure("Permissão insuficiente", 403)
             return jsonify({"error": "Permissão insuficiente"}), 403
 
@@ -265,7 +279,7 @@ def requires_prospeccao_write(fn):
         if access_error:
             return access_error
 
-        if user.get("role") not in {"prospector", "editor", "admin"}:
+        if user.get("role") not in {"prospector", "admin"}:
             _log_auth_failure("Permissão insuficiente", 403)
             return jsonify({"error": "Permissão insuficiente"}), 403
 

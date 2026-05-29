@@ -14,9 +14,9 @@ def parse_args():
     parser.add_argument("--name", help="Nome do usuário (obrigatório)", required=True)
     parser.add_argument(
         "--role",
-        choices=["viewer", "editor", "admin", "prospector"],
-        default="viewer",
-        help="Papel do usuário (padrão: viewer)",
+        choices=["admin", "prospector"],
+        default="prospector",
+        help="Papel do usuário (padrão: prospector)",
     )
     parser.add_argument(
         "--active",

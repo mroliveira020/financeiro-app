@@ -43,6 +43,9 @@ from models import (
     obter_posicao_financeira_compartilhada,
     usuario_participa_imovel,
     listar_imoveis_financeiro_acessiveis,
+    listar_ultimos_lancamentos_confirmados,
+    listar_totais_mensais_por_imovel,
+    obter_data_ultima_atualizacao,
 )
 from analytics import analytics_bp
 from gpt import gpt_bp
@@ -76,6 +79,18 @@ if TRUST_PROXY:
 # Configura CORS conforme origens permitidas
 cors_resources = {r"/*": {"origins": ALLOWED_ORIGINS_LIST or "*"}}
 CORS(app, resources=cors_resources)
+
+
+def _ids_imoveis_financeiro_permitidos(current_user):
+    if not current_user:
+        return []
+    if current_user.get("role") == "admin":
+        return None
+    imoveis = listar_imoveis_financeiro_acessiveis(
+        viewer_user_id=current_user.get("id"),
+        viewer_role=current_user.get("role"),
+    )
+    return [item.get("id") for item in imoveis if item.get("id") is not None]
 
 # Inicializa rate limiter com storage e limite global opcional (Flask-Limiter v3)
 default_limits = [RATE_LIMIT_GLOBAL] if RATE_LIMIT_GLOBAL else None
@@ -325,7 +340,7 @@ def _usuario_pode_operar_prospeccao(contexto, current_user):
     if not contexto or not current_user:
         return False
     role = current_user.get("role")
-    if role in {"admin", "editor"}:
+    if role == "admin":
         return True
     current_user_id = current_user.get("id")
     if current_user_id is None:
@@ -758,7 +773,7 @@ def delete_imovel(imovel_id):
 def _usuario_pode_ver_financeiro_compartilhado(imovel_id, current_user):
     if not current_user:
         return False
-    if current_user.get("role") in {"admin", "editor", "viewer"}:
+    if current_user.get("role") == "admin":
         return True
     return usuario_participa_imovel(imovel_id, current_user.get("id"))
 
@@ -766,7 +781,7 @@ def _usuario_pode_ver_financeiro_compartilhado(imovel_id, current_user):
 def _usuario_pode_escrever_financeiro_compartilhado(imovel_id, current_user):
     if not current_user:
         return False
-    if current_user.get("role") in {"admin", "editor"}:
+    if current_user.get("role") == "admin":
         return True
     return usuario_participa_imovel(imovel_id, current_user.get("id"))
 
@@ -955,13 +970,17 @@ def get_orcamento_execucao(id_imovel):
 @app.route("/dashboard/resumo-imoveis", methods=["GET"])
 @requires_auth
 def get_resumo_imoveis():
+    current_user = get_current_user() or {}
     incluir_vendidos_raw = request.args.get("includeVendidos") or request.args.get("incluir_vendidos")
     incluir_vendidos = True
     if incluir_vendidos_raw is not None:
         incluir_vendidos = incluir_vendidos_raw.lower() in {"1", "true", "t", "yes", "sim"}
 
     try:
-        dados = listar_resumo_imoveis(incluir_vendidos)
+        dados = listar_resumo_imoveis(
+            incluir_vendidos,
+            _ids_imoveis_financeiro_permitidos(current_user),
+        )
         return jsonify(dados), 200
     except Exception as e:
         print(f"Erro ao buscar resumo de imóveis: {e}")

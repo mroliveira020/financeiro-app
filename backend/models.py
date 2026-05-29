@@ -222,7 +222,7 @@ def _garantir_tabela_usuarios():
                 name TEXT,
                 email TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
-                role TEXT NOT NULL DEFAULT 'viewer',
+                role TEXT NOT NULL DEFAULT 'prospector',
                 pix_key TEXT,
                 ai_access BOOLEAN NOT NULL DEFAULT FALSE,
                 is_active BOOLEAN NOT NULL DEFAULT TRUE,
@@ -308,7 +308,7 @@ def _garantir_tabela_usuarios():
 def criar_usuario(
     email: str,
     senha: str,
-    role: str = "viewer",
+    role: str = "prospector",
     is_active: bool = True,
     nome: str | None = None,
     pix_key: str | None = None,
@@ -321,8 +321,8 @@ def criar_usuario(
     email_norm = (email or "").strip().lower()
     if not email_norm:
         raise ValueError("E-mail obrigatório")
-    role_norm = (role or "viewer").strip().lower()
-    if role_norm not in {"viewer", "editor", "admin", "prospector"}:
+    role_norm = (role or "prospector").strip().lower()
+    if role_norm not in {"admin", "prospector"}:
         raise ValueError("Papel inválido")
     pix_key_norm = (pix_key or "").strip() or None
     ai_access_bool = bool(ai_access)
@@ -1103,7 +1103,7 @@ def listar_usuarios() -> list[dict]:
 def criar_convite_usuario(
     nome: str,
     email: str,
-    role: str = "viewer",
+    role: str = "prospector",
     is_active: bool = True,
     invite_hours: int = 72,
     pix_key: str | None = None,
@@ -1117,8 +1117,8 @@ def criar_convite_usuario(
     email_norm = (email or "").strip().lower()
     if not email_norm:
         raise ValueError("E-mail obrigatório")
-    role_norm = (role or "viewer").strip().lower()
-    if role_norm not in {"viewer", "editor", "admin", "prospector"}:
+    role_norm = (role or "prospector").strip().lower()
+    if role_norm not in {"admin", "prospector"}:
         raise ValueError("Papel inválido")
     pix_key_norm = (pix_key or "").strip() or None
     ai_access_bool = bool(ai_access)
@@ -1959,18 +1959,25 @@ def listar_resumo_financeiro(id_imovel):
 # 🔹 Funções auxiliares — Atualização e últimos lançamentos
 # ======================================================
 
-def obter_data_ultima_atualizacao():
+def obter_data_ultima_atualizacao(id_imoveis_permitidos=None):
     """Retorna a maior data entre lançamentos confirmados (id_situacao = 1)
     com data menor ou igual à data atual. Retorna string DD/MM/AAAA ou None."""
     conn, cur = conectar()
-    cur.execute(
-        """
+    params = []
+    sql = """
         SELECT MAX(data) AS ultima_data
         FROM lancamentos
         WHERE id_situacao = 1
           AND data <= CURRENT_DATE
-        """
-    )
+    """
+    if id_imoveis_permitidos is not None:
+        ids = list(dict.fromkeys(id_imoveis_permitidos))
+        if not ids:
+            conn.close()
+            return None
+        sql += " AND id_imovel = ANY(%s)"
+        params.append(ids)
+    cur.execute(sql, tuple(params))
     row = cur.fetchone()
     conn.close()
     if not row or not row[0]:
@@ -1987,7 +1994,7 @@ def obter_data_ultima_atualizacao():
         return s
 
 
-def listar_ultimos_lancamentos_confirmados(limit=10):
+def listar_ultimos_lancamentos_confirmados(limit=10, id_imoveis_permitidos=None):
     """Lista os últimos lançamentos confirmados (id_situacao = 1),
     com data <= hoje, ordenados por data desc (e id desc), com nome do imóvel e categoria."""
     try:
@@ -2000,8 +2007,8 @@ def listar_ultimos_lancamentos_confirmados(limit=10):
         limit = 50
 
     conn, cur = conectar()
-    cur.execute(
-        """
+    params = []
+    sql = """
         SELECT l.data, l.descricao, l.valor, i.nome AS imovel, c.categoria AS categoria
         FROM lancamentos l
         JOIN imoveis i ON i.id = l.id_imovel
@@ -2009,11 +2016,17 @@ def listar_ultimos_lancamentos_confirmados(limit=10):
         WHERE l.id_situacao = 1
           AND l.data <= CURRENT_DATE
           AND l.id_categoria <> 0
-        ORDER BY l.data DESC, l.id DESC
-        LIMIT %s
-        """,
-        (limit,),
-    )
+    """
+    if id_imoveis_permitidos is not None:
+        ids = list(dict.fromkeys(id_imoveis_permitidos))
+        if not ids:
+            conn.close()
+            return []
+        sql += " AND l.id_imovel = ANY(%s)"
+        params.append(ids)
+    sql += "\n        ORDER BY l.data DESC, l.id DESC\n        LIMIT %s"
+    params.append(limit)
+    cur.execute(sql, tuple(params))
     rows = cur.fetchall()
     conn.close()
 
@@ -2036,7 +2049,7 @@ def listar_ultimos_lancamentos_confirmados(limit=10):
     return itens
 
 
-def listar_totais_mensais_por_imovel(meses=6, categorias_excluidas=None, incluir_vendidos=True):
+def listar_totais_mensais_por_imovel(meses=6, categorias_excluidas=None, incluir_vendidos=True, id_imoveis_permitidos=None):
     """Retorna os totais desembolsados por mês (lancamentos confirmados), agrupados por imóvel."""
 
     try:
@@ -2076,6 +2089,13 @@ def listar_totais_mensais_por_imovel(meses=6, categorias_excluidas=None, incluir
             base_sql.append("  AND (i.vendido IS DISTINCT FROM TRUE)")
 
         params = []
+
+        if id_imoveis_permitidos is not None:
+            ids = list(dict.fromkeys(id_imoveis_permitidos))
+            if not ids:
+                return []
+            base_sql.append("  AND i.id = ANY(%s)")
+            params.append(ids)
 
         if categorias_excluidas:
             base_sql.append("  AND (l.id_categoria IS NULL OR l.id_categoria NOT IN %s)")
@@ -2315,11 +2335,25 @@ def listar_transacoes_mensais(id_imovel, mes, categoria_id=None):
 # 🔹 Resumo agregado dos imóveis
 # ======================================================
 
-def listar_resumo_imoveis(incluir_vendidos=True):
-    conn, cur = conectar()
-    where_clause = ""
+def listar_resumo_imoveis(incluir_vendidos=True, id_imoveis_permitidos=None):
+    filtros = []
+    params = []
     if not incluir_vendidos:
-        where_clause = "WHERE i.vendido IS DISTINCT FROM TRUE"
+        filtros.append("i.vendido IS DISTINCT FROM TRUE")
+    if id_imoveis_permitidos is not None:
+        ids = list(dict.fromkeys(id_imoveis_permitidos))
+        if not ids:
+            return {
+                "totalEfetivado": 0.0,
+                "totalAInvestir": 0.0,
+                "lucroProjetado": 0.0,
+                "investimentoTotal": 0.0,
+                "imoveisConsiderados": 0,
+            }
+        filtros.append("i.id = ANY(%s)")
+        params.append(ids)
+    where_clause = f"WHERE {' AND '.join(filtros)}" if filtros else ""
+    conn, cur = conectar()
 
     query = f"""
         WITH base AS (
@@ -2380,7 +2414,7 @@ def listar_resumo_imoveis(incluir_vendidos=True):
         FROM per_imovel;
     """
 
-    cur.execute(query)
+    cur.execute(query, tuple(params))
     row = cur.fetchone()
     conn.close()
 

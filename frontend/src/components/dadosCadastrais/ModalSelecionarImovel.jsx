@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 function ModalSelecionarImovel({ onClose, onSelectImovel }) {
   const [imoveis, setImoveis] = useState([]);
   const { hasRole } = useAuth();
-  const canAccessAllFinance = hasRole("viewer", "editor", "admin");
+  const canAccessAllFinance = hasRole("admin");
 
   const fetchImoveis = useCallback(async () => {
     try {

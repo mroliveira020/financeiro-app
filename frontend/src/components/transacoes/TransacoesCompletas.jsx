@@ -22,7 +22,7 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
   const [loading, setLoading] = useState(false);
   const [imoveisAcessiveis, setImoveisAcessiveis] = useState([]);
   const { hasRole, user } = useAuth();
-  const canEdit = hasRole("editor", "admin");
+  const canEdit = hasRole("admin");
   const isAdmin = user?.role === "admin";
   const compactLayout = useCompactLayout();
   const { categorias, imoveis } = useCatalogos({ includeImoveis: isAdmin });

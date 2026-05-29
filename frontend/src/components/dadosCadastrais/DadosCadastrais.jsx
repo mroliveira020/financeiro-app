@@ -32,7 +32,7 @@ function DadosCadastrais({ refreshKey = 0, onChanged }) {
     saldo: null,
   });
   const { hasRole, user } = useAuth();
-  const canEdit = hasRole("editor", "admin");
+  const canEdit = hasRole("admin");
   const compactLayout = useCompactLayout();
   const isAdmin = user?.role === "admin";
   const { categorias, imoveis } = useCatalogos({ includeImoveis: isAdmin });

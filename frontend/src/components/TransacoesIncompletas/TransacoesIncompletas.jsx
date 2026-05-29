@@ -80,7 +80,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const [savingAll, setSavingAll] = useState(false);
 
   const { hasRole, user } = useAuth();
-  const canEdit = hasRole("editor", "admin");
+  const canEdit = hasRole("admin");
   const isAdmin = user?.role === "admin";
   const { categorias, imoveis } = useCatalogos({ includeImoveis: isAdmin });
 

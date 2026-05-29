@@ -12,7 +12,7 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
   const [mostrarSegundaTabela, setMostrarSegundaTabela] = useState(false);
   const [mostrarDetalheOrcamentoMobile, setMostrarDetalheOrcamentoMobile] = useState(false);
   const { hasRole } = useAuth();
-  const canEdit = hasRole("editor", "admin");
+  const canEdit = hasRole("admin");
   const compactLayout = useCompactLayout();
 
   const { id: idImovelParam } = useParams();

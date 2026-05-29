@@ -15,7 +15,14 @@ from models import (
     obter_usuario_por_id,
 )
 from ratelimit import limiter
-from security import generate_access_token, get_current_user, requires_auth, requires_role, user_has_finance_access
+from security import (
+    generate_access_token,
+    get_current_user,
+    requires_auth,
+    requires_role,
+    user_has_finance_access,
+    get_finance_access_scope,
+)
 from config import FRONTEND_APP_URL
 
 auth_bp = Blueprint("auth", __name__)
@@ -52,7 +59,7 @@ def login() -> Any:
     token = generate_access_token(
         user_id=user["id"],
         email=user["email"],
-        role=user.get("role", "viewer"),
+        role=user.get("role", "prospector"),
         is_active=user.get("is_active", True),
     )
     return (
@@ -63,10 +70,11 @@ def login() -> Any:
                     "id": user["id"],
                     "name": user.get("name"),
                     "email": user["email"],
-                    "role": user.get("role", "viewer"),
+                    "role": user.get("role", "prospector"),
                     "pix_key": user.get("pix_key"),
                     "ai_access": bool(user.get("ai_access")),
                     "finance_access": user_has_finance_access(user.get("id"), user.get("role")),
+                    "finance_scope": get_finance_access_scope(user.get("id"), user.get("role")),
                 },
             }
         ),
@@ -91,10 +99,11 @@ def me() -> Any:
                 "id": db_user["id"],
                 "name": db_user.get("name"),
                 "email": db_user["email"],
-                "role": db_user.get("role", "viewer"),
+                "role": db_user.get("role", "prospector"),
                 "pix_key": db_user.get("pix_key"),
                 "ai_access": bool(db_user.get("ai_access")),
                 "finance_access": user_has_finance_access(db_user.get("id"), db_user.get("role")),
+                "finance_scope": get_finance_access_scope(db_user.get("id"), db_user.get("role")),
             }
         ),
         200,
@@ -115,12 +124,12 @@ def create_user() -> Any:
     nome = (payload.get("name") or "").strip()
     email = (payload.get("email") or "").strip().lower()
     password = payload.get("password") or ""
-    role = (payload.get("role") or "viewer").strip().lower()
+    role = (payload.get("role") or "prospector").strip().lower()
     pix_key = (payload.get("pix_key") or "").strip() or None
     ai_access = bool(payload.get("ai_access", False))
     is_active = bool(payload.get("is_active", True))
 
-    if role not in {"viewer", "editor", "admin", "prospector"}:
+    if role not in {"admin", "prospector"}:
         return jsonify({"error": "Papel inválido"}), 400
     if not nome or not email or not password:
         return jsonify({"error": "Nome, e-mail e senha são obrigatórios"}), 400
@@ -148,7 +157,7 @@ def create_user() -> Any:
                 "id": user["id"],
                 "name": user.get("name"),
                 "email": user["email"],
-                "role": user.get("role", "viewer"),
+                "role": user.get("role", "prospector"),
                 "pix_key": user.get("pix_key"),
                 "ai_access": bool(user.get("ai_access")),
                 "is_active": user.get("is_active", True),
@@ -162,7 +171,13 @@ def create_user() -> Any:
 @requires_role("admin")
 def list_users() -> Any:
     users = listar_usuarios()
-    return jsonify({"data": users}), 200
+    enriched = []
+    for user in users:
+        item = dict(user)
+        item["finance_access"] = user_has_finance_access(item.get("id"), item.get("role"))
+        item["finance_scope"] = get_finance_access_scope(item.get("id"), item.get("role"))
+        enriched.append(item)
+    return jsonify({"data": enriched}), 200
 
 
 @auth_bp.route("/auth/users/<int:user_id>", methods=["PATCH"])
@@ -184,7 +199,10 @@ def update_user(user_id: int) -> Any:
     if not user:
         return jsonify({"error": "Usuário não encontrado"}), 404
 
-    return jsonify({"user": user}), 200
+    payload = dict(user)
+    payload["finance_access"] = user_has_finance_access(payload.get("id"), payload.get("role"))
+    payload["finance_scope"] = get_finance_access_scope(payload.get("id"), payload.get("role"))
+    return jsonify({"user": payload}), 200
 
 
 @auth_bp.route("/auth/users/invite", methods=["POST"])
@@ -199,7 +217,7 @@ def create_user_invite() -> Any:
     is_active = bool(payload.get("is_active", True))
     invite_hours = int(payload.get("invite_hours", 72))
 
-    if role not in {"viewer", "editor", "admin", "prospector"}:
+    if role not in {"admin", "prospector"}:
         return jsonify({"error": "Papel inválido"}), 400
     if not nome or not email:
         return jsonify({"error": "Nome e e-mail são obrigatórios"}), 400

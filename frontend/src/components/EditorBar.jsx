@@ -16,9 +16,8 @@ export default function EditorBar({ className = "" }) {
   const roleLabel = useMemo(() => {
     if (!user) return "Desconhecido";
     if (user.role === "admin") return "Administrador";
-    if (user.role === "editor") return "Editor";
     if (user.role === "prospector") return "Prospecção";
-    return "Leitor";
+    return "Usuário";
   }, [user]);
 
   const initials = initialsFromEmail(user?.email);

@@ -82,7 +82,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
   const socios = useMemo(() => estado.dados?.socios || [], [estado.dados]);
   const equalizacoes = useMemo(() => estado.dados?.equalizacoes || [], [estado.dados]);
   const totais = estado.dados?.totais || {};
-  const canRegisterEqualizacao = hasRole("admin", "editor") || Boolean(user?.finance_access);
+  const canRegisterEqualizacao = hasRole("admin") || Boolean(user?.finance_access);
   const sociosPorId = useMemo(
     () =>
       socios.reduce((acc, socio) => {

@@ -1015,7 +1015,7 @@ function TabelaSelecionados({
                       className={`prospects-table-icon-btn prospects-table-icon-btn--priority ${obterClassePrioridade(item.prioridade)}`}
                       title={
                         !canOperateItem(item)
-                          ? `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Somente admin, editor, autor ou responsável atribuído podem editar este imóvel`
+                          ? `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Somente admin, autor ou responsável atribuído podem editar este imóvel`
                           : `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Clique para editar`
                       }
                       onClick={() => onEditarPrioridade(item)}
@@ -1055,7 +1055,7 @@ function TabelaSelecionados({
                       className={`prospects-table-icon-btn prospects-table-icon-btn--note ${item.observacoes ? "has-note" : "is-empty"}`}
                       title={
                         !canOperateItem(item)
-                          ? "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"
+                          ? "Somente admin, autor ou responsável atribuído podem editar este imóvel"
                           : item.observacoes || "Nenhuma observação cadastrada."
                       }
                       onClick={() => onEditarObservacoes(item)}
@@ -1068,7 +1068,7 @@ function TabelaSelecionados({
                       className={`prospects-table-icon-btn prospects-table-icon-btn--analysis ${item.analiseSalva ? obterClasseRoi(item.roiEsperadoPercentual) : "is-neutral"}`}
                       title={
                         !canOperateItem(item)
-                          ? "Somente admin, editor, autor ou responsável atribuído podem editar este imóvel"
+                          ? "Somente admin, autor ou responsável atribuído podem editar este imóvel"
                           : item.analiseSalva
                             ? `Abrir análise financeira. ROI: ${formatarPercentual(item.roiEsperadoPercentual)}`
                             : "Abrir ficha de viabilidade"
@@ -3187,7 +3187,7 @@ export default function Prospeccoes() {
   const [financeiroImoveis, setFinanceiroImoveis] = useState([]);
   const pageSizeOptions = [20, 50, 100];
   const deferredSelectedSearch = useDeferredValue(selectedSearch);
-  const canAccessFinance = user?.finance_access ?? hasRole("viewer", "editor", "admin");
+  const canAccessFinance = user?.finance_access ?? hasRole("admin");
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const handleViewportChange = () => {
@@ -3634,7 +3634,7 @@ export default function Prospeccoes() {
 
   const canOperateItem = (item) => {
     if (!user) return false;
-    if (user.role === "admin" || user.role === "editor") return true;
+    if (user.role === "admin") return true;
     if (item?.createdBy && String(item.createdBy) === String(user.id)) return true;
     return Boolean(item?.responsaveis?.some((responsavel) => String(responsavel.id) === String(user.id)));
   };

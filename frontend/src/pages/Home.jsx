@@ -186,8 +186,8 @@ function Home() {
   });
   const [gastosReloadKey, setGastosReloadKey] = useState(0);
   const { hasRole, user } = useAuth();
-  const canEdit = hasRole("editor", "admin");
-  const hasFullFinanceAccess = hasRole("viewer", "editor", "admin");
+  const canEdit = hasRole("admin");
+  const hasFullFinanceAccess = hasRole("admin");
   const hasRestrictedFinanceAccess = !hasFullFinanceAccess && Boolean(user?.finance_access);
 
   const imoveisVisiveis = useMemo(() => {

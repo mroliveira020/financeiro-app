@@ -15,6 +15,7 @@ from models import (
     listar_detalhes_gastos_mensais,
     listar_transacoes_mensais,
     usuario_participa_imovel,
+    listar_imoveis_financeiro_acessiveis,
 )
 
 
@@ -22,9 +23,22 @@ def _usuario_pode_acessar_imovel_financeiro(id_imovel):
     current_user = get_current_user() or {}
     if not current_user:
         return False
-    if current_user.get("role") in {"admin", "editor", "viewer"}:
+    if current_user.get("role") == "admin":
         return True
     return usuario_participa_imovel(id_imovel, current_user.get("id"))
+
+
+def _ids_imoveis_financeiro_permitidos():
+    current_user = get_current_user() or {}
+    if not current_user:
+        return []
+    if current_user.get("role") == "admin":
+        return None
+    imoveis = listar_imoveis_financeiro_acessiveis(
+        viewer_user_id=current_user.get("id"),
+        viewer_role=current_user.get("role"),
+    )
+    return [item.get("id") for item in imoveis if item.get("id") is not None]
 
 
 def _obter_parametros_paginacao():
@@ -197,7 +211,7 @@ def alterar_lancamento_incompleto(id_lancamento):
 @cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
 def get_ultima_atualizacao():
     try:
-        data_str = obter_data_ultima_atualizacao()
+        data_str = obter_data_ultima_atualizacao(_ids_imoveis_financeiro_permitidos())
         return jsonify({"data": data_str}), 200
     except Exception as e:
         print(f"Erro ao obter data de atualização: {e}")
@@ -210,7 +224,7 @@ def get_ultima_atualizacao():
 def get_ultimos_lancamentos():
     try:
         limit = request.args.get('limit', 10)
-        itens = listar_ultimos_lancamentos_confirmados(limit)
+        itens = listar_ultimos_lancamentos_confirmados(limit, _ids_imoveis_financeiro_permitidos())
         return jsonify(itens), 200
     except Exception as e:
         print(f"Erro ao listar últimos lançamentos: {e}")
@@ -241,7 +255,12 @@ def get_gastos_mensais():
         if incluir_vendidos_raw is not None:
             incluir_vendidos = incluir_vendidos_raw.lower() in {"1", "true", "t", "yes", "sim"}
 
-        dados = listar_totais_mensais_por_imovel(meses, categorias_excluidas, incluir_vendidos)
+        dados = listar_totais_mensais_por_imovel(
+            meses,
+            categorias_excluidas,
+            incluir_vendidos,
+            _ids_imoveis_financeiro_permitidos(),
+        )
         return jsonify(dados), 200
     except Exception as e:
         print(f"Erro ao listar gastos mensais: {e}")

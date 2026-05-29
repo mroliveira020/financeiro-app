@@ -4,8 +4,6 @@ import "./Usuarios.css";
 
 const ROLE_OPTIONS = [
   { value: "prospector", label: "Prospecção" },
-  { value: "viewer", label: "Leitor" },
-  { value: "editor", label: "Editor" },
   { value: "admin", label: "Administrador" },
 ];
 
@@ -32,6 +30,13 @@ const formatPercent = (value) => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}%`;
+};
+
+const formatFinanceScope = (user) => {
+  if (!user?.finance_access) return "Não";
+  if (user.finance_scope === "global") return "Global";
+  if (user.finance_scope === "restricted") return "Restrito";
+  return "Sim";
 };
 
 export default function Usuarios() {
@@ -307,6 +312,7 @@ export default function Usuarios() {
             <th>Perfil</th>
             <th>Chave Pix</th>
             <th>Acesso IA</th>
+            <th>Financeiro</th>
             <th>Ativo</th>
             <th>Convite pendente</th>
             <th>Expira em</th>
@@ -317,12 +323,12 @@ export default function Usuarios() {
         <tbody>
           {loading && (
             <tr>
-              <td colSpan={10}>Carregando...</td>
+              <td colSpan={11}>Carregando...</td>
             </tr>
           )}
           {!loading && tableUsers.length === 0 && (
             <tr>
-              <td colSpan={10}>{emptyMessage}</td>
+              <td colSpan={11}>{emptyMessage}</td>
             </tr>
           )}
           {!loading &&
@@ -354,6 +360,9 @@ export default function Usuarios() {
                   ) : (
                     user.pix_key || "—"
                   )}
+                </td>
+                <td>
+                  {formatFinanceScope(user)}
                 </td>
                 <td>
                   {editingUserId === user.id ? (
@@ -581,7 +590,7 @@ export default function Usuarios() {
           </div>
 
           <p className="users-socios-card__hint">
-            O papel do usuário continua sendo administrativo/editorial. A condição de sócio vem do vínculo com o imóvel e da participação definida aqui.
+            O papel do usuário continua sendo administrativo ou de prospecção. A condição de sócio vem do vínculo com o imóvel e da participação definida aqui.
           </p>
 
           <div className="users-socios-grid">
