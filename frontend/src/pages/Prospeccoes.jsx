@@ -37,6 +37,81 @@ const FONTE_OPTIONS = [
 
 const MOBILE_BREAKPOINT = 900;
 const AI_JOB_ERROR_STATUSES = new Set(["error", "failed"]);
+const AI_JOB_STATUS_LABELS = {
+  pending: "Pendente",
+  processing: "Processando",
+  done: "Concluído",
+  error: "Falhou",
+  failed: "Falhou",
+};
+
+const getAiJobStatusTone = (status) => {
+  if (status === "done") return "success";
+  if (status === "error" || status === "failed") return "error";
+  return "info";
+};
+
+const isAiJobExpiredByInactivity = (erro = "") => `${erro}`.toLowerCase().includes("expirado por inatividade");
+
+const buildAiJobStatusState = (job, { fallbackPrefix = "IA", retryAction = null } = {}) => {
+  const prefix = job?.tipo === "matricula" ? "Matrícula" : fallbackPrefix;
+  const status = job?.status;
+  const erro = (job?.erro || "").trim();
+
+  if (status === "pending") {
+    return { message: `${prefix}: Aguardando processamento...`, tone: "info", action: null };
+  }
+  if (status === "processing") {
+    return { message: `${prefix}: Processando...`, tone: "info", action: null };
+  }
+  if (status === "done") {
+    return {
+      message: `${prefix}: resultado disponível.`,
+      tone: "success",
+      action: null,
+    };
+  }
+  if (status === "error" || status === "failed") {
+    if (isAiJobExpiredByInactivity(erro)) {
+      return {
+        message: "Worker não respondeu. Tente novamente.",
+        tone: "error",
+        action: retryAction ? { kind: retryAction, label: "Tentar novamente" } : null,
+      };
+    }
+    return {
+      message: erro ? `${prefix}: ${erro}` : `${prefix}: o processamento retornou um erro.`,
+      tone: "error",
+      action: null,
+    };
+  }
+
+  const label = AI_JOB_STATUS_LABELS[status] || "Em andamento";
+  return { message: `${prefix}: ${label}.`, tone: getAiJobStatusTone(status), action: null };
+};
+
+const buildAiErrorStatusState = (erro, { fallbackPrefix = "IA", retryAction = null } = {}) => {
+  const message = `${erro || ""}`.trim();
+  if (isAiJobExpiredByInactivity(message)) {
+    return {
+      message: "Worker não respondeu. Tente novamente.",
+      tone: "error",
+      action: retryAction ? { kind: retryAction, label: "Tentar novamente" } : null,
+    };
+  }
+  if (message.toLowerCase().includes("tempo limite excedido")) {
+    return {
+      message: `${fallbackPrefix}: o processamento demorou mais do que o esperado. Tente novamente em instantes.`,
+      tone: "error",
+      action: retryAction ? { kind: retryAction, label: "Tentar novamente" } : null,
+    };
+  }
+  return {
+    message: message || `${fallbackPrefix}: não foi possível concluir o processamento.`,
+    tone: "error",
+    action: null,
+  };
+};
 
 const formatarMoeda = (valor) => {
   if (valor === null || valor === undefined) return "—";
@@ -52,6 +127,22 @@ const formatarNumero = (valor) => {
   if (valor === null || valor === undefined) return "—";
   return Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 };
+
+const resumirObservacao = (texto, limite = 96) => {
+  const normalizado = `${texto || ""}`.replace(/\s+/g, " ").trim();
+  if (!normalizado) return "";
+  if (normalizado.length <= limite) return normalizado;
+  return `${normalizado.slice(0, limite - 1).trimEnd()}…`;
+};
+
+const isSelecionadoAtivo = (item) => item?.ativo !== false;
+
+const createManualSelecionadoDraft = () => ({
+  numero_bem: "",
+  valor_maximo: "",
+  prioridade: 2,
+  observacoes: "",
+});
 
 const calcularDescontoExibicao = (item) => {
   const descontoInformado = Number(item?.desconto);
@@ -873,17 +964,20 @@ function TabelaSelecionados({
   loading,
   erro,
   onExcluir,
+  onReativar,
   onEditarObservacoes,
   onAbrirAnalise,
   onAbrirEnriquecimentos,
   onAbrirAvaliacaoDetalhada,
   onEditarResponsaveis,
   onEditarPrioridade,
+  onIncluirManual,
   removeLoadingIds,
   updateLoadingIds,
   canDeleteItem,
   canOperateItem,
   canManageResponsaveis,
+  canReactivateItem,
   collapsed,
   onToggleCollapse,
   sortLabel,
@@ -903,6 +997,11 @@ function TabelaSelecionados({
         </div>
         <div className="prospects-card__header-actions">
           <span className="prospects-pill">{dados.length} imóveis</span>
+          {onIncluirManual ? (
+            <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onIncluirManual}>
+              Adicionar manual
+            </button>
+          ) : null}
           <button
             type="button"
             className="prospects-visibility-btn"
@@ -935,6 +1034,10 @@ function TabelaSelecionados({
               const resumoLeilao = getLeilaoResumo(item);
               const mapsUrl = getMapsUrl(item);
               const comparaveis = getComparaveisLinks(item);
+              const itemAtivo = isSelecionadoAtivo(item);
+              const podeOperar = itemAtivo && canOperateItem(item);
+              const podeExcluir = itemAtivo && canDeleteItem(item);
+              const podeReativar = !itemAtivo && canReactivateItem(item);
               return (
               <tr key={item.codigo}>
                 <td className="mono">
@@ -964,6 +1067,11 @@ function TabelaSelecionados({
                           <span>IA salva</span>
                         </span>
                       ) : null}
+                      {!itemAtivo ? (
+                        <span className="prospects-indicator-chip is-inactive" title="Item fora da fila ativa">
+                          <span>Inativo</span>
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </td>
@@ -982,6 +1090,12 @@ function TabelaSelecionados({
                   <div className="prospects-description-cell" title={item.descricao || "—"}>
                     {item.descricao || "—"}
                   </div>
+                  {item.observacoes ? (
+                    <div className="prospects-note-snippet" title={item.observacoes}>
+                      <span>Observação atual</span>
+                      <strong>{resumirObservacao(item.observacoes)}</strong>
+                    </div>
+                  ) : null}
                   <div className="prospects-inline-links">
                     {mapsUrl ? (
                       <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
@@ -1014,12 +1128,12 @@ function TabelaSelecionados({
                       type="button"
                       className={`prospects-table-icon-btn prospects-table-icon-btn--priority ${obterClassePrioridade(item.prioridade)}`}
                       title={
-                        !canOperateItem(item)
+                        !podeOperar
                           ? `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Somente admin, autor ou responsável atribuído podem editar este imóvel`
                           : `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Clique para editar`
                       }
                       onClick={() => onEditarPrioridade(item)}
-                      disabled={updateLoadingIds.has(`${item.codigo}:prioridade`) || !canOperateItem(item)}
+                      disabled={updateLoadingIds.has(`${item.codigo}:prioridade`) || !podeOperar}
                     >
                       <PriorityIcon level={Number(item.prioridade || 2)} />
                     </button>
@@ -1047,6 +1161,7 @@ function TabelaSelecionados({
                       onClick={() => {
                         if (canManageResponsaveis) onEditarResponsaveis(item);
                       }}
+                      disabled={!itemAtivo}
                     >
                       <UsersIcon />
                     </button>
@@ -1054,12 +1169,12 @@ function TabelaSelecionados({
                       type="button"
                       className={`prospects-table-icon-btn prospects-table-icon-btn--note ${item.observacoes ? "has-note" : "is-empty"}`}
                       title={
-                        !canOperateItem(item)
+                        !podeOperar
                           ? "Somente admin, autor ou responsável atribuído podem editar este imóvel"
                           : item.observacoes || "Nenhuma observação cadastrada."
                       }
                       onClick={() => onEditarObservacoes(item)}
-                      disabled={updateLoadingIds.has(`${item.codigo}:observacoes`) || !canOperateItem(item)}
+                      disabled={updateLoadingIds.has(`${item.codigo}:observacoes`) || !podeOperar}
                     >
                       <NoteIcon />
                     </button>
@@ -1067,14 +1182,14 @@ function TabelaSelecionados({
                       type="button"
                       className={`prospects-table-icon-btn prospects-table-icon-btn--analysis ${item.analiseSalva ? obterClasseRoi(item.roiEsperadoPercentual) : "is-neutral"}`}
                       title={
-                        !canOperateItem(item)
+                        !podeOperar
                           ? "Somente admin, autor ou responsável atribuído podem editar este imóvel"
                           : item.analiseSalva
                             ? `Abrir análise financeira. ROI: ${formatarPercentual(item.roiEsperadoPercentual)}`
                             : "Abrir ficha de viabilidade"
                       }
                       onClick={() => onAbrirAnalise(item)}
-                      disabled={!canOperateItem(item)}
+                      disabled={!podeOperar}
                     >
                       <ChartIcon />
                     </button>
@@ -1083,7 +1198,7 @@ function TabelaSelecionados({
                       className={`prospects-table-icon-btn prospects-table-icon-btn--external ${item.avaliacaoAutomatica ? "is-active" : ""}`.trim()}
                       title={item.avaliacaoAutomatica ? "Ver enriquecimentos automáticos" : "Sem enriquecimentos automáticos disponíveis"}
                       onClick={() => item.avaliacaoAutomatica && onAbrirEnriquecimentos(item)}
-                      disabled={!item.avaliacaoAutomatica}
+                      disabled={!item.avaliacaoAutomatica || !itemAtivo}
                     >
                       <SparklesIcon />
                     </button>
@@ -1092,18 +1207,31 @@ function TabelaSelecionados({
                       className={`prospects-table-icon-btn prospects-table-icon-btn--external ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
                       title={item.analiseIaSalva ? "Ver avaliação detalhada com IA" : "Abrir avaliação detalhada"}
                       onClick={() => onAbrirAvaliacaoDetalhada(item, "ia")}
+                      disabled={!itemAtivo}
                     >
                       <SparklesIcon />
                     </button>
-                    <button
-                      type="button"
-                      className="prospects-table-icon-btn prospects-table-icon-btn--danger"
-                      title={canDeleteItem(item) ? "Remover da fila" : "Apenas o autor da seleção ou um administrador pode remover este imóvel"}
-                      disabled={removeLoadingIds.has(item.codigo) || !canDeleteItem(item)}
-                      onClick={() => onExcluir(item)}
-                    >
-                      {removeLoadingIds.has(item.codigo) ? "..." : <TrashIcon />}
-                    </button>
+                    {podeReativar ? (
+                      <button
+                        type="button"
+                        className="prospects-btn tertiary prospects-btn--toolbar"
+                        title={item.inativadoPorName ? `Reativar item removido por ${item.inativadoPorName}` : "Reativar item"}
+                        disabled={updateLoadingIds.has(`${item.codigo}:reativar`)}
+                        onClick={() => onReativar(item)}
+                      >
+                        Reativar
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="prospects-table-icon-btn prospects-table-icon-btn--danger"
+                        title={podeExcluir ? "Remover da fila" : "Apenas o autor da seleção ou um administrador pode remover este imóvel"}
+                        disabled={removeLoadingIds.has(item.codigo) || !podeExcluir}
+                        onClick={() => onExcluir(item)}
+                      >
+                        {removeLoadingIds.has(item.codigo) ? "..." : <TrashIcon />}
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -1473,6 +1601,80 @@ function ConfirmarExclusaoModal({ item, loading, onCancel, onConfirm }) {
           </button>
           <button type="button" className="prospects-btn danger" onClick={onConfirm} disabled={loading}>
             {loading ? "Removendo..." : "Confirmar remoção"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function IncluirSelecionadoManualModal({ draft, loading, onChange, onCancel, onSave }) {
+  if (!draft) return null;
+
+  return (
+    <div className="prospects-modal-backdrop" role="presentation">
+      <div className="prospects-modal" role="dialog" aria-modal="true" aria-labelledby="incluir-manual-title">
+        <div className="prospects-modal__header">
+          <div>
+            <p className="prospects-eyebrow">Inclusão manual</p>
+            <h3 id="incluir-manual-title" className="prospects-modal__title">Adicionar imóvel fora da base</h3>
+          </div>
+        </div>
+        <div className="prospects-modal__body">
+          <p className="prospects-modal__hint">
+            Use este fluxo quando o imóvel ainda não estiver na base capturada. O funil passa a controlar o código,
+            o teto operacional e as notas, e o restante pode ser refinado depois na ficha de viabilidade.
+          </p>
+          <div className="prospects-analise-grid">
+            <label className="prospects-form-field">
+              <span>Código do imóvel</span>
+              <input
+                type="text"
+                value={draft.numero_bem}
+                onChange={(e) => onChange("numero_bem", e.target.value)}
+                placeholder="Ex.: 8555535398410"
+              />
+            </label>
+            <label className="prospects-form-field">
+              <span>Valor máximo</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={draft.valor_maximo}
+                onChange={(e) => onChange("valor_maximo", e.target.value)}
+                placeholder="0,00"
+              />
+            </label>
+            <label className="prospects-form-field">
+              <span>Prioridade</span>
+              <select
+                value={String(draft.prioridade)}
+                onChange={(e) => onChange("prioridade", Number(e.target.value))}
+              >
+                {PRIORIDADE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="prospects-form-field">
+            <span>Observação inicial</span>
+            <textarea
+              className="prospects-textarea"
+              value={draft.observacoes}
+              onChange={(e) => onChange("observacoes", e.target.value)}
+              placeholder="Contexto curto para quem vai assumir esse imóvel no funil."
+              rows={6}
+            />
+          </label>
+        </div>
+        <div className="prospects-modal__footer">
+          <button type="button" className="prospects-btn secondary" onClick={onCancel} disabled={loading}>
+            Cancelar
+          </button>
+          <button type="button" className="prospects-btn primary" onClick={onSave} disabled={loading}>
+            {loading ? "Incluindo..." : "Adicionar à fila"}
           </button>
         </div>
       </div>
@@ -1997,6 +2199,7 @@ function AvaliacaoDetalhadaModal({
   analiseDetalhadaLoading,
   statusMessage,
   statusTone,
+  statusAction,
   loading,
   sending,
   saving,
@@ -2138,7 +2341,17 @@ function AvaliacaoDetalhadaModal({
 
           {statusMessage ? (
             <div className={`prospects-inline-status is-${statusTone || "info"}`.trim()}>
-              {statusMessage}
+              <span className="prospects-inline-status__content">{statusMessage}</span>
+              {statusAction?.label ? (
+                <button
+                  type="button"
+                  className="prospects-btn ghost prospects-btn--subtle prospects-inline-status__action"
+                  onClick={statusAction.onClick}
+                  disabled={statusAction.disabled}
+                >
+                  {statusAction.label}
+                </button>
+              ) : null}
             </div>
           ) : null}
 
@@ -2417,6 +2630,7 @@ function MobileSelecionadosList({
   loading,
   erro,
   onBack,
+  onIncluirManual,
   searchValue,
   onSearchChange,
   selectedUfFilter,
@@ -2424,6 +2638,8 @@ function MobileSelecionadosList({
   ufOptions,
   selectedPrioridadeFilter,
   onPrioridadeFilterChange,
+  selectedActivityFilter,
+  onActivityFilterChange,
   selectedResponsavelFilter,
   onResponsavelFilterChange,
   selectedSortBy,
@@ -2443,9 +2659,11 @@ function MobileSelecionadosList({
   onEditarPrioridade,
   onEditarResponsaveis,
   onExcluir,
+  onReativar,
   canOperateItem,
   canManageResponsaveis,
   canDeleteItem,
+  canReactivateItem,
   updateLoadingIds,
   removeLoadingIds,
 }) {
@@ -2465,6 +2683,11 @@ function MobileSelecionadosList({
           </div>
           <div className="prospects-card__header-actions">
             <span className="prospects-pill">{dados.length} imóveis</span>
+            {onIncluirManual ? (
+              <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onIncluirManual}>
+                Adicionar manual
+              </button>
+            ) : null}
             <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onBack}>
               <ArrowLeftIcon />
               <span>Menu mobile</span>
@@ -2504,6 +2727,17 @@ function MobileSelecionadosList({
               ))}
             </select>
           </label>
+
+          {canFilterByUser ? (
+            <label className="prospects-toolbar-field">
+              <span>Estado</span>
+              <select value={selectedActivityFilter} onChange={(e) => onActivityFilterChange(e.target.value)}>
+                <option value="ativos">Ativos</option>
+                <option value="inativos">Inativos</option>
+                <option value="todos">Todos</option>
+              </select>
+            </label>
+          ) : null}
 
           <label className="prospects-toolbar-field">
             <span>Responsáveis</span>
@@ -2568,8 +2802,10 @@ function MobileSelecionadosList({
       <div className="prospects-mobile-list">
         {dados.map((item) => {
           const prioridadeLabel = PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média";
-          const podeOperar = canOperateItem(item);
-          const podeExcluir = canDeleteItem(item);
+          const itemAtivo = isSelecionadoAtivo(item);
+          const podeOperar = itemAtivo && canOperateItem(item);
+          const podeExcluir = itemAtivo && canDeleteItem(item);
+          const podeReativar = !itemAtivo && canReactivateItem(item);
           const roiClass = obterClasseRoi(item.roiEsperadoPercentual);
           const resumoLeilao = getLeilaoResumo(item);
           const mapsUrl = getMapsUrl(item);
@@ -2591,6 +2827,7 @@ function MobileSelecionadosList({
                   {item.analiseSalva ? <span className="prospects-chip prospects-chip--info">Financeira</span> : null}
                   {item.avaliacaoAutomatica ? <span className="prospects-chip prospects-chip--auto">Pré-análise</span> : null}
                   {item.analiseIaSalva ? <span className="prospects-chip prospects-chip--ia">IA salva</span> : null}
+                  {!itemAtivo ? <span className="prospects-chip prospects-chip--inactive">Inativo</span> : null}
                 </div>
               </div>
 
@@ -2664,7 +2901,7 @@ function MobileSelecionadosList({
                   type="button"
                   className={`prospects-btn ghost prospects-btn--mobile-action ${item.avaliacaoAutomatica ? "is-active" : ""}`.trim()}
                   onClick={() => item.avaliacaoAutomatica && onAbrirEnriquecimentos(item)}
-                  disabled={!item.avaliacaoAutomatica}
+                  disabled={!item.avaliacaoAutomatica || !itemAtivo}
                 >
                   <SparklesIcon />
                   <span>Enriquecimentos</span>
@@ -2673,6 +2910,7 @@ function MobileSelecionadosList({
                   type="button"
                   className="prospects-btn ghost prospects-btn--mobile-action"
                   onClick={() => onAbrirAvaliacaoDetalhada(item, "ia")}
+                  disabled={!itemAtivo}
                 >
                   <SparklesIcon />
                   <span>{item.analiseIaSalva ? "Avaliação IA" : "Detalhes"}</span>
@@ -2705,6 +2943,17 @@ function MobileSelecionadosList({
                   >
                     <TrashIcon />
                     <span>Remover</span>
+                  </button>
+                ) : null}
+                {podeReativar ? (
+                  <button
+                    type="button"
+                    className="prospects-btn secondary prospects-btn--mobile-action"
+                    onClick={() => onReativar(item)}
+                    disabled={updateLoadingIds.has(`${item.codigo}:reativar`)}
+                  >
+                    <ArrowUpRightIcon />
+                    <span>Reativar</span>
                   </button>
                 ) : null}
               </div>
@@ -3138,6 +3387,7 @@ export default function Prospeccoes() {
   const [selectedSearch, setSelectedSearch] = useState("");
   const [selectedUfFilter, setSelectedUfFilter] = useState("todos");
   const [selectedPrioridadeFilter, setSelectedPrioridadeFilter] = useState("todas");
+  const [selectedActivityFilter, setSelectedActivityFilter] = useState("ativos");
   const [selectedResponsavelFilter, setSelectedResponsavelFilter] = useState("todos");
   const [selectedUserFilter, setSelectedUserFilter] = useState("todos");
   const [selecionadosCollapsed, setSelecionadosCollapsed] = useState(() => {
@@ -3145,6 +3395,8 @@ export default function Prospeccoes() {
     return window.localStorage.getItem("prospeccoes_selecionados_collapsed") === "1";
   });
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(null);
+  const [manualSelecionadoDraft, setManualSelecionadoDraft] = useState(null);
+  const [manualSelecionadoSaving, setManualSelecionadoSaving] = useState(false);
   const [prioridadeItem, setPrioridadeItem] = useState(null);
   const [observacaoItem, setObservacaoItem] = useState(null);
   const [observacaoDraft, setObservacaoDraft] = useState("");
@@ -3181,6 +3433,7 @@ export default function Prospeccoes() {
   const [aiSinteseDraft, setAiSinteseDraft] = useState("");
   const [avaliacaoDetalhadaStatus, setAvaliacaoDetalhadaStatus] = useState("");
   const [avaliacaoDetalhadaStatusTone, setAvaliacaoDetalhadaStatusTone] = useState("info");
+  const [avaliacaoDetalhadaStatusActionKind, setAvaliacaoDetalhadaStatusActionKind] = useState(null);
   const [mobileAccess, setMobileAccess] = useState(() => detectMobileAccess());
   const [mobileSection, setMobileSection] = useState("hub");
   const [financeiroCount, setFinanceiroCount] = useState(null);
@@ -3188,6 +3441,13 @@ export default function Prospeccoes() {
   const pageSizeOptions = [20, 50, 100];
   const deferredSelectedSearch = useDeferredValue(selectedSearch);
   const canAccessFinance = user?.finance_access ?? hasRole("admin");
+  const includeInactiveSelecionados = user?.role === "admin";
+
+  const setAvaliacaoDetalhadaStatusState = useCallback(({ message = "", tone = "info", action = null } = {}) => {
+    setAvaliacaoDetalhadaStatus(message);
+    setAvaliacaoDetalhadaStatusTone(tone);
+    setAvaliacaoDetalhadaStatusActionKind(action?.kind || null);
+  }, []);
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const handleViewportChange = () => {
@@ -3203,7 +3463,7 @@ export default function Prospeccoes() {
       setLoadingSel(true);
       setErroSel("");
       try {
-        const sel = await fetchSelecionados({});
+        const sel = await fetchSelecionados({ incluirInativos: includeInactiveSelecionados });
         setSelecionados(sel || []);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro inesperado";
@@ -3213,7 +3473,7 @@ export default function Prospeccoes() {
       }
     };
     carregarSelecionados();
-  }, []);
+  }, [includeInactiveSelecionados]);
 
   useEffect(() => {
     const carregarCapturados = async () => {
@@ -3329,13 +3589,23 @@ export default function Prospeccoes() {
     return Array.from(set).sort();
   }, [meta, filtroUfCap]);
 
+  const selectedBaseDados = useMemo(() => {
+    if (selectedActivityFilter === "inativos") {
+      return selecionados.filter((item) => !isSelecionadoAtivo(item));
+    }
+    if (selectedActivityFilter === "todos") {
+      return selecionados;
+    }
+    return selecionados.filter((item) => isSelecionadoAtivo(item));
+  }, [selecionados, selectedActivityFilter]);
+
   const selectedUfOptions = useMemo(
-    () => Array.from(new Set(selecionados.map((item) => item.uf).filter(Boolean))).sort(),
-    [selecionados]
+    () => Array.from(new Set(selectedBaseDados.map((item) => item.uf).filter(Boolean))).sort(),
+    [selectedBaseDados]
   );
   const selectedUserOptions = useMemo(() => {
     const usersMap = new Map();
-    selecionados.forEach((item) => {
+    selectedBaseDados.forEach((item) => {
       if (item.createdBy) {
         usersMap.set(String(item.createdBy), {
           id: String(item.createdBy),
@@ -3351,9 +3621,9 @@ export default function Prospeccoes() {
       });
     });
     return Array.from(usersMap.values()).sort((a, b) => a.label.localeCompare(b.label));
-  }, [selecionados]);
+  }, [selectedBaseDados]);
   const selectedCodes = useMemo(
-    () => new Set(selecionados.map((item) => item.codigo)),
+    () => new Set(selecionados.filter((item) => isSelecionadoAtivo(item)).map((item) => item.codigo)),
     [selecionados]
   );
 
@@ -3399,7 +3669,7 @@ export default function Prospeccoes() {
         observacoes: "",
       });
       setMensagem(`Imóvel ${item.codigo} incluído em selecionados.`);
-      const sel = await fetchSelecionados({});
+      const sel = await refreshSelecionados();
       setSelecionados(sel || []);
       const itemSelecionado = (sel || []).find((candidate) => candidate.codigo === item.codigo);
       if (itemSelecionado) {
@@ -3443,10 +3713,88 @@ export default function Prospeccoes() {
   };
 
   const refreshSelecionados = useCallback(async () => {
-    const sel = await fetchSelecionados({});
+    const sel = await fetchSelecionados({ incluirInativos: includeInactiveSelecionados });
     setSelecionados(sel || []);
     return sel || [];
-  }, []);
+  }, [includeInactiveSelecionados]);
+
+  useEffect(() => {
+    if (user?.role === "admin") return;
+    setSelectedActivityFilter("ativos");
+  }, [user?.role]);
+
+  const openIncluirManualModal = () => {
+    setManualSelecionadoDraft(createManualSelecionadoDraft());
+  };
+
+  const handleManualSelecionadoFieldChange = (field, value) => {
+    setManualSelecionadoDraft((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const handleSalvarSelecionadoManual = async () => {
+    if (!manualSelecionadoDraft) return;
+    const numeroBem = `${manualSelecionadoDraft.numero_bem || ""}`.trim();
+    if (!numeroBem) {
+      setMensagem("Informe o código do imóvel para adicionar manualmente.");
+      return;
+    }
+
+    const valorMaximo = manualSelecionadoDraft.valor_maximo === ""
+      ? null
+      : Number(manualSelecionadoDraft.valor_maximo);
+
+    if (valorMaximo !== null && (!Number.isFinite(valorMaximo) || valorMaximo < 0)) {
+      setMensagem("Informe um valor máximo válido para o imóvel manual.");
+      return;
+    }
+
+    setMensagem("");
+    setManualSelecionadoSaving(true);
+    try {
+      await adicionarSelecionado({
+        numero_bem: numeroBem,
+        status: "candidato",
+        valor_maximo: valorMaximo,
+        prioridade: manualSelecionadoDraft.prioridade,
+        observacoes: manualSelecionadoDraft.observacoes.trim(),
+      });
+      await refreshSelecionados();
+      setMensagem(`Imóvel ${numeroBem} incluído manualmente na fila.`);
+      setManualSelecionadoDraft(null);
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao incluir imóvel manual");
+      setMensagem(message);
+    } finally {
+      setManualSelecionadoSaving(false);
+    }
+  };
+
+  const handleReativarSelecionado = async (item) => {
+    if (!item?.codigo) return;
+    const key = `${item.codigo}:reativar`;
+    setMensagem("");
+    setUpdateLoadingIds((prev) => new Set(prev).add(key));
+    try {
+      await adicionarSelecionado({
+        numero_bem: item.codigo,
+        status: item.status,
+        valor_maximo: item.valorMaximo,
+        prioridade: item.prioridade,
+        observacoes: item.observacoes || "",
+      });
+      await refreshSelecionados();
+      setMensagem(`Imóvel ${item.codigo} reativado na fila.`);
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao reativar imóvel");
+      setMensagem(message);
+    } finally {
+      setUpdateLoadingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  };
 
   const handleAtualizarPrioridade = async (item, prioridadeValue) => {
     const key = `${item.codigo}:prioridade`;
@@ -3718,7 +4066,14 @@ export default function Prospeccoes() {
       const historico = data?.historico_chat || [];
       if (autoInit && !historico.length && (user?.ai_access || user?.role === "admin")) {
         const job = await enviarMensagemAiChat(numeroBem, "__init__", origem);
-        const finalJob = await pollAiJob(numeroBem, job.job_id, { origem });
+        const finalJob = await pollAiJob(numeroBem, job.job_id, {
+          origem,
+          onProgress: (progressJob) => {
+            setAvaliacaoDetalhadaStatusState(
+              buildAiJobStatusState(progressJob, { fallbackPrefix: "IA", retryAction: "analise_inicial" })
+            );
+          },
+        });
         if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
           throw new Error(finalJob?.erro || "Falha ao gerar avaliação inicial.");
         }
@@ -3731,7 +4086,7 @@ export default function Prospeccoes() {
     } finally {
       setAiLoading(false);
     }
-  }, [user, refreshSelecionados, sincronizarIndicadorAnaliseIaCapturada]);
+  }, [user, refreshSelecionados, sincronizarIndicadorAnaliseIaCapturada, setAvaliacaoDetalhadaStatusState]);
 
   const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados", origem = "selecionados") => {
     const aiAttemptKey = `${origem}:${item.codigo}`;
@@ -3741,8 +4096,7 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaTab(initialTab);
     setAiMensagemDraft("");
     setAiSinteseDraft("");
-    setAvaliacaoDetalhadaStatus("");
-    setAvaliacaoDetalhadaStatusTone("info");
+    setAvaliacaoDetalhadaStatusState();
     setAiAnalise(null);
     setAiLoading(initialTab === "ia");
     setAnaliseDetalhada(null);
@@ -3756,8 +4110,7 @@ export default function Prospeccoes() {
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar avaliação detalhada");
       setMensagem(message);
-      setAvaliacaoDetalhadaStatus(message);
-      setAvaliacaoDetalhadaStatusTone("error");
+      setAvaliacaoDetalhadaStatusState(buildAiErrorStatusState(message, { fallbackPrefix: "IA" }));
     } finally {
       setAnaliseDetalhadaLoading(false);
     }
@@ -3776,19 +4129,22 @@ export default function Prospeccoes() {
     setMatriculaLoading(false);
     setAiMensagemDraft("");
     setAiSinteseDraft("");
-    setAvaliacaoDetalhadaStatus("");
-    setAvaliacaoDetalhadaStatusTone("info");
+    setAvaliacaoDetalhadaStatusState();
   };
 
   const handleEnviarMensagemAi = async () => {
     if (!avaliacaoDetalhadaItem || !aiMensagemDraft.trim()) return;
     setAiSending(true);
-    setAvaliacaoDetalhadaStatus("Enviando pergunta para a IA...");
-    setAvaliacaoDetalhadaStatusTone("info");
+    setAvaliacaoDetalhadaStatusState({ message: "IA: enviando pergunta...", tone: "info" });
     try {
       const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, aiMensagemDraft.trim(), avaliacaoDetalhadaOrigem);
       setAiMensagemDraft("");
-      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { origem: avaliacaoDetalhadaOrigem });
+      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+        origem: avaliacaoDetalhadaOrigem,
+        onProgress: (progressJob) => {
+          setAvaliacaoDetalhadaStatusState(buildAiJobStatusState(progressJob, { fallbackPrefix: "IA" }));
+        },
+      });
       if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao processar mensagem da IA.");
       }
@@ -3797,13 +4153,11 @@ export default function Prospeccoes() {
       setAiSinteseDraft(refreshed?.analise_texto || "");
       sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, refreshed);
       await refreshSelecionados();
-      setAvaliacaoDetalhadaStatus("Resposta da IA recebida e histórico atualizado.");
-      setAvaliacaoDetalhadaStatusTone("success");
+      setAvaliacaoDetalhadaStatusState({ message: "IA: resultado disponível.", tone: "success" });
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao enviar mensagem para IA");
       setMensagem(message);
-      setAvaliacaoDetalhadaStatus(message);
-      setAvaliacaoDetalhadaStatusTone("error");
+      setAvaliacaoDetalhadaStatusState(buildAiErrorStatusState(message, { fallbackPrefix: "IA" }));
     } finally {
       setAiSending(false);
     }
@@ -3812,11 +4166,17 @@ export default function Prospeccoes() {
   const handleGerarAnaliseInicialAi = async () => {
     if (!avaliacaoDetalhadaItem) return;
     setAiSending(true);
-    setAvaliacaoDetalhadaStatus("Gerando análise inicial por IA...");
-    setAvaliacaoDetalhadaStatusTone("info");
+    setAvaliacaoDetalhadaStatusState({ message: "IA: aguardando processamento...", tone: "info" });
     try {
       const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, "__init__", avaliacaoDetalhadaOrigem);
-      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { origem: avaliacaoDetalhadaOrigem });
+      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+        origem: avaliacaoDetalhadaOrigem,
+        onProgress: (progressJob) => {
+          setAvaliacaoDetalhadaStatusState(
+            buildAiJobStatusState(progressJob, { fallbackPrefix: "IA", retryAction: "analise_inicial" })
+          );
+        },
+      });
       if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao gerar análise inicial da IA.");
       }
@@ -3825,13 +4185,13 @@ export default function Prospeccoes() {
       setAiSinteseDraft(refreshed?.analise_texto || "");
       sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, refreshed);
       await refreshSelecionados();
-      setAvaliacaoDetalhadaStatus("Análise inicial gerada com sucesso.");
-      setAvaliacaoDetalhadaStatusTone("success");
+      setAvaliacaoDetalhadaStatusState({ message: "IA: resultado disponível.", tone: "success" });
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao gerar análise inicial da IA");
       setMensagem(message);
-      setAvaliacaoDetalhadaStatus(message);
-      setAvaliacaoDetalhadaStatusTone("error");
+      setAvaliacaoDetalhadaStatusState(
+        buildAiErrorStatusState(message, { fallbackPrefix: "IA", retryAction: "analise_inicial" })
+      );
     } finally {
       setAiSending(false);
     }
@@ -3840,8 +4200,7 @@ export default function Prospeccoes() {
   const handleSalvarAiSintese = async () => {
     if (!avaliacaoDetalhadaItem) return;
     setAiSaving(true);
-    setAvaliacaoDetalhadaStatus("Salvando síntese da análise...");
-    setAvaliacaoDetalhadaStatusTone("info");
+    setAvaliacaoDetalhadaStatusState({ message: "IA: salvando síntese...", tone: "info" });
     try {
       const data = await salvarAiAnalise(avaliacaoDetalhadaItem.codigo, {
         analise_texto: aiSinteseDraft.trim(),
@@ -3850,13 +4209,11 @@ export default function Prospeccoes() {
       sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, data);
       setMensagem(`Síntese da avaliação IA do imóvel ${avaliacaoDetalhadaItem.codigo} salva.`);
       await refreshSelecionados();
-      setAvaliacaoDetalhadaStatus("Síntese salva com sucesso.");
-      setAvaliacaoDetalhadaStatusTone("success");
+      setAvaliacaoDetalhadaStatusState({ message: "Síntese salva com sucesso.", tone: "success" });
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao salvar síntese da IA");
       setMensagem(message);
-      setAvaliacaoDetalhadaStatus(message);
-      setAvaliacaoDetalhadaStatusTone("error");
+      setAvaliacaoDetalhadaStatusState(buildAiErrorStatusState(message, { fallbackPrefix: "IA" }));
     } finally {
       setAiSaving(false);
     }
@@ -3865,11 +4222,18 @@ export default function Prospeccoes() {
   const handleSolicitarMatricula = async () => {
     if (!avaliacaoDetalhadaItem) return;
     setMatriculaLoading(true);
-    setAvaliacaoDetalhadaStatus("Solicitação de matrícula enviada. O processamento pode levar cerca de 60 a 90 segundos.");
-    setAvaliacaoDetalhadaStatusTone("info");
+    setAvaliacaoDetalhadaStatusState({ message: "Matrícula: aguardando processamento...", tone: "info" });
     try {
       const job = await solicitarMatricula(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
-      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, { timeoutMs: 180000, origem: avaliacaoDetalhadaOrigem });
+      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+        timeoutMs: 180000,
+        origem: avaliacaoDetalhadaOrigem,
+        onProgress: (progressJob) => {
+          setAvaliacaoDetalhadaStatusState(
+            buildAiJobStatusState(progressJob, { fallbackPrefix: "Matrícula", retryAction: "matricula" })
+          );
+        },
+      });
       if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao processar matrícula.");
       }
@@ -3878,17 +4242,36 @@ export default function Prospeccoes() {
       setAiSinteseDraft(refreshed?.analise_texto || "");
       sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, refreshed);
       await refreshSelecionados();
-      setAvaliacaoDetalhadaStatus("Matrícula processada e adicionada ao histórico da análise.");
-      setAvaliacaoDetalhadaStatusTone("success");
+      setAvaliacaoDetalhadaStatusState({ message: "Matrícula: resultado disponível.", tone: "success" });
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao solicitar matrícula");
       setMensagem(message);
-      setAvaliacaoDetalhadaStatus(message);
-      setAvaliacaoDetalhadaStatusTone("error");
+      setAvaliacaoDetalhadaStatusState(
+        buildAiErrorStatusState(message, { fallbackPrefix: "Matrícula", retryAction: "matricula" })
+      );
     } finally {
       setMatriculaLoading(false);
     }
   };
+
+  const handleStatusAction = () => {
+    if (avaliacaoDetalhadaStatusActionKind === "analise_inicial") {
+      handleGerarAnaliseInicialAi();
+      return;
+    }
+    if (avaliacaoDetalhadaStatusActionKind === "matricula") {
+      handleSolicitarMatricula();
+    }
+  };
+
+  const avaliacaoDetalhadaStatusAction = (() => {
+    if (!avaliacaoDetalhadaStatusActionKind) return null;
+    return {
+      label: "Tentar novamente",
+      onClick: handleStatusAction,
+      disabled: aiLoading || aiSending || matriculaLoading,
+    };
+  })();
 
   useEffect(() => {
     if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "ia") return;
@@ -3902,10 +4285,11 @@ export default function Prospeccoes() {
     carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: true, origem: avaliacaoDetalhadaOrigem }).catch((err) => {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao iniciar avaliação IA");
       setMensagem(message);
-      setAvaliacaoDetalhadaStatus(message);
-      setAvaliacaoDetalhadaStatusTone("error");
+      setAvaliacaoDetalhadaStatusState(
+        buildAiErrorStatusState(message, { fallbackPrefix: "IA", retryAction: "analise_inicial" })
+      );
     });
-  }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise]);
+  }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise, setAvaliacaoDetalhadaStatusState]);
 
   const openResponsaveisModal = (item) => {
     setResponsaveisItem(item);
@@ -3944,7 +4328,7 @@ export default function Prospeccoes() {
     };
 
     const normalizedSearch = deferredSelectedSearch.trim().toLowerCase();
-    const filtered = selecionados.filter((item) => {
+    const filtered = selectedBaseDados.filter((item) => {
       if (selectedUfFilter !== "todos" && item.uf !== selectedUfFilter) return false;
       if (selectedPrioridadeFilter !== "todas" && String(item.prioridade || 2) !== selectedPrioridadeFilter) return false;
       if (selectedResponsavelFilter === "com" && !(item.responsaveis?.length)) return false;
@@ -4004,7 +4388,7 @@ export default function Prospeccoes() {
       return `${a.codigo}`.localeCompare(`${b.codigo}`) * direction;
     });
   }, [
-    selecionados,
+    selectedBaseDados,
     deferredSelectedSearch,
     selectedUfFilter,
     selectedPrioridadeFilter,
@@ -4017,11 +4401,20 @@ export default function Prospeccoes() {
   ]);
 
   const selectedMetrics = useMemo(() => {
-    const comAnalise = selecionados.filter((item) => item.analiseSalva).length;
-    const semResponsavel = selecionados.filter((item) => !(item.responsaveis?.length)).length;
-    const altaPrioridade = selecionados.filter((item) => Number(item.prioridade || 2) === 3).length;
-    return { comAnalise, semResponsavel, altaPrioridade };
-  }, [selecionados]);
+    const ativos = selecionados.filter((item) => isSelecionadoAtivo(item));
+    const inativos = selecionados.filter((item) => !isSelecionadoAtivo(item));
+    const universo = selectedBaseDados;
+    const comAnalise = universo.filter((item) => item.analiseSalva).length;
+    const semResponsavel = universo.filter((item) => !(item.responsaveis?.length)).length;
+    const altaPrioridade = universo.filter((item) => Number(item.prioridade || 2) === 3).length;
+    return {
+      ativos: ativos.length,
+      inativos: inativos.length,
+      comAnalise,
+      semResponsavel,
+      altaPrioridade,
+    };
+  }, [selecionados, selectedBaseDados]);
 
   const selectedSortLabel = useMemo(() => {
     const labels = {
@@ -4053,6 +4446,14 @@ export default function Prospeccoes() {
     return String(item.createdBy) === String(user.id);
   };
 
+  const canReactivateItem = (item) => Boolean(user?.role === "admin" && item && !isSelecionadoAtivo(item));
+
+  const selectedPrimaryStatLabel = useMemo(() => {
+    if (selectedActivityFilter === "inativos") return "Inativos";
+    if (selectedActivityFilter === "todos") return "Selecionados";
+    return "Na fila";
+  }, [selectedActivityFilter]);
+
   useEffect(() => {
     if (!setTopbarContent) return undefined;
     if (mobileAccess) {
@@ -4062,8 +4463,8 @@ export default function Prospeccoes() {
     setTopbarContent(
       <div className="prospects-header-summary prospects-header-summary--topbar">
         <div className="prospects-stat-card">
-          <span>Na fila</span>
-          <strong>{selecionados.length}</strong>
+          <span>{selectedPrimaryStatLabel}</span>
+          <strong>{selectedBaseDados.length}</strong>
         </div>
         <div className="prospects-stat-card">
           <span>Alta prioridade</span>
@@ -4076,7 +4477,7 @@ export default function Prospeccoes() {
       </div>
     );
     return () => setTopbarContent(null);
-  }, [mobileAccess, selectedMetrics.altaPrioridade, selectedMetrics.semResponsavel, selecionados.length, setTopbarContent]);
+  }, [mobileAccess, selectedBaseDados.length, selectedMetrics.altaPrioridade, selectedMetrics.semResponsavel, selectedPrimaryStatLabel, setTopbarContent]);
 
   return (
     <div className="prospects-page">
@@ -4101,7 +4502,7 @@ export default function Prospeccoes() {
                   </div>
                   <div className="prospects-mobile-hub__stat">
                     <span>Na fila</span>
-                    <strong>{selecionados.length}</strong>
+                    <strong>{selectedMetrics.ativos}</strong>
                   </div>
                   <div className="prospects-mobile-hub__stat">
                     <span>Alta prioridade</span>
@@ -4132,7 +4533,7 @@ export default function Prospeccoes() {
                   eyebrow="Prospecção"
                   title="Selecionados para prospecção"
                   description="Abra a fila operacional para registrar notas e ajustar a viabilidade dos imóveis."
-                  count={selecionados.length}
+                  count={selectedMetrics.ativos}
                   icon={<QueueIcon />}
                   onClick={() => setMobileSection("selecionados")}
                 />
@@ -4144,6 +4545,7 @@ export default function Prospeccoes() {
               loading={loadingSel}
               erro={erroSel}
               onBack={() => setMobileSection("hub")}
+              onIncluirManual={openIncluirManualModal}
               searchValue={selectedSearch}
               onSearchChange={setSelectedSearch}
               selectedUfFilter={selectedUfFilter}
@@ -4151,6 +4553,8 @@ export default function Prospeccoes() {
               ufOptions={selectedUfOptions}
               selectedPrioridadeFilter={selectedPrioridadeFilter}
               onPrioridadeFilterChange={setSelectedPrioridadeFilter}
+              selectedActivityFilter={selectedActivityFilter}
+              onActivityFilterChange={setSelectedActivityFilter}
               selectedResponsavelFilter={selectedResponsavelFilter}
               onResponsavelFilterChange={setSelectedResponsavelFilter}
               selectedSortBy={selectedSortBy}
@@ -4166,6 +4570,7 @@ export default function Prospeccoes() {
                 setSelectedSearch("");
                 setSelectedUfFilter("todos");
                 setSelectedPrioridadeFilter("todas");
+                setSelectedActivityFilter("ativos");
                 setSelectedResponsavelFilter("todos");
                 setSelectedUserFilter("todos");
                 setSelectedSortBy("dataLeilao");
@@ -4178,9 +4583,11 @@ export default function Prospeccoes() {
               onEditarPrioridade={openPrioridadeModal}
               onEditarResponsaveis={openResponsaveisModal}
               onExcluir={setConfirmDeleteItem}
+              onReativar={handleReativarSelecionado}
               canOperateItem={canOperateItem}
               canManageResponsaveis={canManageResponsaveis}
               canDeleteItem={canDeleteItem}
+              canReactivateItem={canReactivateItem}
               updateLoadingIds={updateLoadingIds}
               removeLoadingIds={removeLoadingIds}
             />
@@ -4251,7 +4658,7 @@ export default function Prospeccoes() {
           onClick={() => setActiveTab("selecionados")}
         >
           <span>Selecionados</span>
-          <strong>{selecionados.length}</strong>
+          <strong>{selectedMetrics.ativos}</strong>
         </button>
       </div>
 
@@ -4269,6 +4676,9 @@ export default function Prospeccoes() {
               <div className="prospects-card__header-actions">
                 <span className="prospects-pill">{selecionadosFiltradosOrdenados.length} na visão</span>
                 <span className="prospects-pill prospects-pill--muted">{selectedMetrics.comAnalise} com análise</span>
+                {user?.role === "admin" ? (
+                  <span className="prospects-pill prospects-pill--muted">{selectedMetrics.inativos} inativos</span>
+                ) : null}
               </div>
             </div>
             <div className="prospects-toolbar">
@@ -4299,6 +4709,16 @@ export default function Prospeccoes() {
                   ))}
                 </select>
               </label>
+              {user?.role === "admin" ? (
+                <label className="prospects-toolbar-field">
+                  <span>Estado</span>
+                  <select value={selectedActivityFilter} onChange={(e) => setSelectedActivityFilter(e.target.value)}>
+                    <option value="ativos">Ativos</option>
+                    <option value="inativos">Inativos</option>
+                    <option value="todos">Todos</option>
+                  </select>
+                </label>
+              ) : null}
               <label className="prospects-toolbar-field">
                 <span>Responsáveis</span>
                 <select value={selectedResponsavelFilter} onChange={(e) => setSelectedResponsavelFilter(e.target.value)}>
@@ -4344,6 +4764,7 @@ export default function Prospeccoes() {
                     setSelectedSearch("");
                     setSelectedUfFilter("todos");
                     setSelectedPrioridadeFilter("todas");
+                    setSelectedActivityFilter("ativos");
                     setSelectedResponsavelFilter("todos");
                     setSelectedUserFilter("todos");
                     setSelectedSortBy("dataLeilao");
@@ -4361,17 +4782,20 @@ export default function Prospeccoes() {
             loading={loadingSel}
             erro={erroSel}
             onExcluir={setConfirmDeleteItem}
+            onReativar={handleReativarSelecionado}
             onEditarPrioridade={openPrioridadeModal}
             onEditarObservacoes={openObservacoesModal}
             onAbrirAnalise={openAnaliseModal}
             onAbrirEnriquecimentos={openAvaliacaoAutomaticaModal}
             onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
             onEditarResponsaveis={openResponsaveisModal}
+            onIncluirManual={openIncluirManualModal}
             removeLoadingIds={removeLoadingIds}
             updateLoadingIds={updateLoadingIds}
             canDeleteItem={canDeleteItem}
             canOperateItem={canOperateItem}
             canManageResponsaveis={canManageResponsaveis}
+            canReactivateItem={canReactivateItem}
             collapsed={selecionadosCollapsed}
             onToggleCollapse={() => setSelecionadosCollapsed((prev) => !prev)}
             sortLabel={selectedSortLabel}
@@ -4560,6 +4984,17 @@ export default function Prospeccoes() {
         onConfirm={() => confirmDelete(confirmDeleteItem)}
       />
 
+      <IncluirSelecionadoManualModal
+        draft={manualSelecionadoDraft}
+        loading={manualSelecionadoSaving}
+        onChange={handleManualSelecionadoFieldChange}
+        onCancel={() => {
+          if (manualSelecionadoSaving) return;
+          setManualSelecionadoDraft(null);
+        }}
+        onSave={handleSalvarSelecionadoManual}
+      />
+
       <PrioridadeModal
         item={prioridadeItem}
         loading={Boolean(prioridadeItem && updateLoadingIds.has(`${prioridadeItem.codigo}:prioridade`))}
@@ -4618,6 +5053,7 @@ export default function Prospeccoes() {
         analiseDetalhadaLoading={analiseDetalhadaLoading}
         statusMessage={avaliacaoDetalhadaStatus}
         statusTone={avaliacaoDetalhadaStatusTone}
+        statusAction={avaliacaoDetalhadaStatusAction}
         loading={aiLoading}
         sending={aiSending}
         saving={aiSaving}

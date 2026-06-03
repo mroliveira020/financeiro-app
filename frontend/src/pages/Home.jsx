@@ -16,6 +16,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import "./Home.css";
 import { invalidateCatalogo } from "../hooks/useCatalogos";
+import ModalEditarImovel from "../components/dadosCadastrais/ModalEditarImovel";
 
 const GastosMensaisChart = lazy(() => import("../components/GastosMensaisChart"));
 const ImovelGrupoPieChart = lazy(() => import("../components/ImovelGrupoPieChart"));
@@ -137,6 +138,7 @@ function Home() {
   const [erroImoveis, setErroImoveis] = useState(false);
   const [newImovel, setNewImovel] = useState({ nome: "", vendido: false });
   const [showAddImovelModal, setShowAddImovelModal] = useState(false);
+  const [editingImovel, setEditingImovel] = useState(null);
   const [addingImovel, setAddingImovel] = useState(false);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState(null);
   const [showUltimos, setShowUltimos] = useState(false);
@@ -450,6 +452,11 @@ function Home() {
     }
   };
 
+  const handleEditarImovelSalvo = useCallback(() => {
+    setEditingImovel(null);
+    carregarImoveis();
+  }, [carregarImoveis]);
+
   const carregarCategorias = async () => {
     setCategoriasLoading(true);
     setCategoriasErro(false);
@@ -736,6 +743,14 @@ function Home() {
           <div className="modal-backdrop fade show" />
         </>
       )}
+
+      {editingImovel ? (
+        <ModalEditarImovel
+          imovel={editingImovel}
+          onClose={() => setEditingImovel(null)}
+          onSave={handleEditarImovelSalvo}
+        />
+      ) : null}
 
       <div className="home-filter-bar card border-0 shadow-sm mb-4">
         <div className="card-body d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
@@ -1059,7 +1074,7 @@ function Home() {
                               src="/img/editar.png"
                               alt="Editar"
                               title="Editar imóvel"
-                              onClick={() => console.log("Editar imóvel:", imovel.id)}
+                              onClick={() => setEditingImovel(imovel)}
                             />
                             {valorEfetivadoCard === 0 && (
                               <img

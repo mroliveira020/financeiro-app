@@ -4,14 +4,40 @@
 - Agente: `agente_site`
 - Projeto Supabase: `thmekudlkuwjuddkyhpi`
 
+## Escopo atual
+- Este agente cuida do portal web, da API do site e das operacoes sobre dados ja persistidos no Supabase.
+- Captura, scraping, enriquecimento e escrita inicial de imoveis no Supabase nao sao mais responsabilidade deste agente.
+- Quando a necessidade envolver interface, filtros, leitura, selecao, analise, permissao ou manipulacao no site, a tarefa pertence ao `agente_site`.
+
+## Backlog oficial
+- O backlog de ambos os agentes vive exclusivamente na tabela `agent_tasks` do Supabase.
+- Não manter listas paralelas de pendências fora desta tabela.
+
+## Schema atual
+```sql
+id            uuid
+de            text
+para          text
+titulo        text
+especificacao text
+status        text
+resposta      text
+prioridade    text
+categoria     text
+sprint        text
+area          text
+created_at    timestamptz
+updated_at    timestamptz
+```
+
 ## Fila de tarefas entre agentes
 Ao iniciar cada sessão, consultar tarefas pendentes destinadas ao `agente_site`:
 
 ```sql
-SELECT id, de, titulo, especificacao, created_at
+SELECT id, titulo, prioridade, sprint, especificacao
 FROM agent_tasks
 WHERE para = 'agente_site' AND status = 'pendente'
-ORDER BY created_at ASC;
+ORDER BY prioridade DESC, created_at ASC;
 ```
 
 Se houver tarefas pendentes:
@@ -32,10 +58,27 @@ Se houver tarefas pendentes:
    ```
 4. Se não for possível executar, marcar como `rejeitado` e explicar o motivo em `resposta`.
 
+## Criação de novas tarefas
+Ao identificar bug, melhoria, feature ou pendência nova, registrar diretamente em `agent_tasks`:
+
+```sql
+INSERT INTO agent_tasks (de, para, titulo, especificacao, prioridade, categoria, sprint, area)
+VALUES ('agente_site', 'agente_site', '<titulo>', '<especificacao completa>', '<prioridade>', '<categoria>', '<sprint>', 'site');
+```
+
 ## Envio de tarefas ao agente de coleta
 Para enviar uma tarefa do `agente_site` para o `agente_coleta`:
 
 ```sql
-INSERT INTO agent_tasks (de, para, titulo, especificacao)
-VALUES ('agente_site', 'agente_coleta', '<titulo>', '<especificacao completa>');
+INSERT INTO agent_tasks (de, para, titulo, especificacao, prioridade, categoria, sprint, area)
+VALUES ('agente_site', 'agente_coleta', '<titulo>', '<especificacao completa>', '<prioridade>', '<categoria>', '<sprint>', '<area>');
 ```
+
+Use este encaminhamento apenas quando a demanda envolver captura, scraping, enriquecimento ou abastecimento do banco. Ajustes de leitura e operacao no portal permanecem com o `agente_site`.
+
+## Sprints ativas
+- `fase4` — Portal web completo
+- `a5` — Resumo IA por botão
+- `a6` — Overrides e comparáveis curáveis
+- `infra` — Melhorias técnicas, testes e segurança
+- `backlog` — Itens sem sprint definida

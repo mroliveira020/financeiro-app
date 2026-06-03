@@ -130,9 +130,9 @@ export async function fetchCapturados({
   return { data: formatted, total, page: currentPage, pageSize: currentPageSize };
 }
 
-export async function fetchSelecionados({ status, uf, userId } = {}) {
+export async function fetchSelecionados({ status, uf, userId, incluirInativos } = {}) {
   const { data } = await api.get("/prospeccoes/selecionados", {
-    params: { status, uf, user_id: userId },
+    params: { status, uf, user_id: userId, incluir_inativos: incluirInativos },
     paramsSerializer: { serialize: serializeParams },
   });
   return (data?.data || []).map((item) => {
@@ -146,6 +146,10 @@ export async function fetchSelecionados({ status, uf, userId } = {}) {
       prioridade: item.prioridade,
       createdBy: item.created_by,
       createdByName: item.created_by_name,
+      ativo: item.ativo !== false,
+      inativadoEm: item.inativado_em,
+      inativadoPor: item.inativado_por,
+      inativadoPorName: item.inativado_por_name,
       responsaveis: (item.responsaveis || []).map((responsavel) => ({
         id: responsavel.id,
         name: responsavel.name,
@@ -284,10 +288,22 @@ export async function fetchAiJob(numeroBem, jobId, origem = "selecionados") {
   return data;
 }
 
-export async function pollAiJob(numeroBem, jobId, { intervalMs = 3000, timeoutMs = 120000, origem = "selecionados" } = {}) {
+export async function pollAiJob(
+  numeroBem,
+  jobId,
+  {
+    intervalMs = 3000,
+    timeoutMs = 120000,
+    origem = "selecionados",
+    onProgress,
+  } = {}
+) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     const job = await fetchAiJob(numeroBem, jobId, origem);
+    if (typeof onProgress === "function") {
+      onProgress(job);
+    }
     if (job?.status === "done" || job?.status === "error" || job?.status === "failed") {
       return job;
     }

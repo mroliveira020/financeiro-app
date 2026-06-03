@@ -5,6 +5,7 @@
 - Propósito: gestão financeira de imóveis com consolidação de orçamento vs. execução, cadastro de imóveis/categorias, lançamentos, edição e importação em lote.
 - Stack: Backend Flask + PostgreSQL; Frontend React (Vite) + Bootstrap.
 - Telas: Home (lista de imóveis) e Dashboard por imóvel (dados cadastrais, resumo financeiro, transações completas e incompletas).
+- Escopo atual de prospecções: este projeto exibe, consulta e manipula no portal os imóveis ja abastecidos no Supabase; a captura e o enriquecimento dos dados acontecem em fluxo externo.
 
 ## Diretrizes para Contribuidores
 
@@ -31,13 +32,10 @@
   - Transações Completas: `frontend/src/components/transacoes/TransacoesCompletas.jsx` — GET completos, PATCH/DELETE; tabela e modal.
   - Tabelas: completas em `frontend/src/components/transacoes/LancamentosTable.jsx` (ordenação/paginação); incompletas em `frontend/src/components/TransacoesIncompletas/LancamentosTable.jsx` (ordenação).
   - Cliente HTTP: centralizado em `frontend/src/services/http.js` (Axios) usando `VITE_API_URL`.
-- Garimpo
-  - Scripts: `garimpo/src/principal.py` (filtro por UF), `garimpo/src/localiza_informacoes.py` (parser HTML) e `garimpo/src/extrajudicial_caixa.py` (vendas diretas).
-  - Entrada/saída: consome `garimpo/data/input/base.xlsx` (ou CSV por UF) e envia diretamente para o Supabase (`imoveis_prospeccao`). Não gera mais planilhas locais.
-  - Execução: configure `garimpo/config.yaml` (`supabase.enabled=true`) e exporte envs `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_ANON_KEY`; rode `python garimpo/src/principal.py` ou `python garimpo/src/extrajudicial_caixa.py` após `source backend/venv/bin/activate`.
-  - Comportamento: pergunta quantas horas recentes ignorar (pula códigos já presentes no Supabase nesse intervalo) e o `chunk_size` de envio. Envia em lotes durante a coleta; erros de integração são salvos em `data/output/erros_supabase.csv`.
-  - Logs: falhas de scraping continuam em `data/output/erros_<script>_<data>.csv`.
-  - Segurança: não mantenha `SUPABASE_ANON_KEY` nem `SUPABASE_SERVICE_KEY` em arquivos versionados. O arquivo `garimpo/config.yaml` deve permanecer sem chaves e receber esses valores somente via ambiente local.
+- Integracao externa de captura
+  - A captura de imoveis, o scraping e o enriquecimento de dados nao fazem mais parte do escopo operacional deste portal.
+  - O banco Supabase continua sendo a fonte de dados consumida pelo site nas telas de Prospeccoes.
+  - Este repositorio segue responsavel pelos contratos de leitura, filtros, listagens, selecao, analise e demais manipulacoes feitas pelo frontend e backend do site.
 
 ## Desenvolvimento (Quickstart)
 
@@ -45,7 +43,6 @@
 - Rodar dev (backend + frontend):
   - `bash dev.sh`
   - Opcional: `bash scripts/install-dev-command.sh` e depois `financeiro-dev`
-  - Garimpo: com venv ativo, `pip install -r garimpo/requirements.txt`
 - Variáveis:
   - Backend (copie `backend/.env.example` para `backend/.env`): `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` (padrão 5432)
     - Flags: `APP_ENV` (development|production), `READ_ONLY` (true|false), `ENABLE_SQL_ENDPOINT` (true|false), `ENABLE_SEARCH_API` (true|false), `ALLOWED_ORIGINS` (origens separadas por vírgula).
@@ -292,7 +289,9 @@ Melhorias propostas para esses endpoints:
 
 ## Plano de Ação
 
-O plano priorizado está em `docs/PLANO_DE_ACAO.md`.
+- O backlog oficial e unico das tarefas em aberto fica no Supabase, na tabela `agent_tasks`.
+- O documento de contexto, historico e roadmap macro fica em `docs/PLANO_ACAO_PROJETO.md`.
+- `docs/PLANO_DE_ACAO.md` permanece apenas como ponteiro legado para evitar fragmentacao.
 
 ### Deploy (Render) — Serviços e Variáveis
 

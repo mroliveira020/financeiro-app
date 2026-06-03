@@ -1572,6 +1572,11 @@
   color: #7c3aed;
 }
 
+.prospects-indicator-chip.is-inactive {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .prospects-detail-tabs {
   display: flex;
   gap: 8px;
@@ -1579,12 +1584,24 @@
 }
 
 .prospects-inline-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 12px 14px;
   border-radius: 14px;
   font-size: 12px;
   font-weight: 700;
   line-height: 1.5;
   border: 1px solid transparent;
+}
+
+.prospects-inline-status__content {
+  flex: 1;
+}
+
+.prospects-inline-status__action {
+  flex-shrink: 0;
 }
 
 .prospects-inline-status.is-info {
@@ -2546,6 +2563,11 @@
   border: 1px solid #d5e2ff;
 }
 
+.prospects-chip--inactive {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .prospects-code-stack {
   display: flex;
   flex-direction: column;
@@ -2581,6 +2603,29 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.prospects-note-snippet {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 360px;
+}
+
+.prospects-note-snippet span {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.prospects-note-snippet strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.45;
 }
 
 @media (max-width: 900px) {

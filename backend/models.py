@@ -2897,6 +2897,7 @@ def listar_prospeccoes_selecionados(
     viewer_user_id=None,
     viewer_role=None,
     related_user_id=None,
+    incluir_inativos=False,
 ):
     _garantir_colunas_prospeccao_autoria()
     _garantir_tabela_prospeccao_observacoes()
@@ -2913,6 +2914,10 @@ def listar_prospeccoes_selecionados(
             s.observacoes,
             s.created_by,
             COALESCE(NULLIF(u.name, ''), NULLIF(s.created_by_name, ''), u.email) AS created_by_name,
+            COALESCE(s.ativo, TRUE) AS ativo,
+            s.inativado_em,
+            s.inativado_por,
+            COALESCE(NULLIF(u_inativador.name, ''), NULLIF(s.inativado_por_name, ''), u_inativador.email) AS inativado_por_name,
             v.cidade,
             v.uf,
             v.bairro,
@@ -2988,6 +2993,8 @@ def listar_prospeccoes_selecionados(
         FROM imoveis_selecionados s
         LEFT JOIN users u
             ON u.id = s.created_by
+        LEFT JOIN users u_inativador
+            ON u_inativador.id = s.inativado_por
         LEFT JOIN imoveis_selecionados_analise a
             ON a.numero_bem = s.numero_bem
         LEFT JOIN imoveis_selecionados_ai_analise ai_a
@@ -3007,7 +3014,8 @@ def listar_prospeccoes_selecionados(
     conditions = []
     params = []
 
-    conditions.append("COALESCE(s.ativo, TRUE) = TRUE")
+    if not incluir_inativos:
+        conditions.append("COALESCE(s.ativo, TRUE) = TRUE")
 
     if status:
         conditions.append("LOWER(s.status) = LOWER(%s)")
@@ -3153,6 +3161,10 @@ def listar_prospeccoes_selecionados(
             "observacoes_historico": historico_por_imovel.get(row["numero_bem"], []),
             "created_by": row["created_by"],
             "created_by_name": row["created_by_name"],
+            "ativo": row["ativo"],
+            "inativado_em": row["inativado_em"].isoformat() if row["inativado_em"] else None,
+            "inativado_por": row["inativado_por"],
+            "inativado_por_name": row["inativado_por_name"],
             "responsaveis": responsaveis_por_imovel.get(row["numero_bem"], []),
             "cidade": row["cidade"],
             "uf": row["uf"],
@@ -3560,10 +3572,14 @@ def obter_ai_analise_prospeccao_selecionado(numero_bem):
                 "created_at": None,
                 "updated_at": None,
             }
+        historico_chat = row["historico_chat"] or []
+        analise_texto = row["analise_texto"]
+        if not analise_texto:
+            analise_texto = _inferir_analise_texto_do_historico(historico_chat)
         return {
             "numero_bem": row["numero_bem"],
-            "historico_chat": row["historico_chat"] or [],
-            "analise_texto": row["analise_texto"],
+            "historico_chat": historico_chat,
+            "analise_texto": analise_texto,
             "matricula_texto": row["matricula_texto"],
             "created_at": _iso_or_none(row["created_at"]),
             "updated_at": _iso_or_none(row["updated_at"]),
@@ -3621,6 +3637,20 @@ def salvar_ai_analise_prospeccao_selecionado(numero_bem, analise_texto=None, his
         raise
     finally:
         conn.close()
+
+
+def _inferir_analise_texto_do_historico(historico_chat):
+    if not isinstance(historico_chat, list):
+        return None
+    for mensagem in reversed(historico_chat):
+        if not isinstance(mensagem, dict):
+            continue
+        if mensagem.get("role") != "assistant":
+            continue
+        content = (mensagem.get("content") or "").strip()
+        if content:
+            return content
+    return None
 
 
 def criar_job_ai_prospeccao(numero_bem, tipo, input_payload=None):

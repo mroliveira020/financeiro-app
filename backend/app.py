@@ -77,8 +77,16 @@ app = Flask(__name__)
 if TRUST_PROXY:
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 # Configura CORS conforme origens permitidas
-cors_resources = {r"/*": {"origins": ALLOWED_ORIGINS_LIST or "*"}}
-CORS(app, resources=cors_resources)
+cors_resources = None
+if ALLOWED_ORIGINS_LIST:
+    cors_resources = {r"/*": {"origins": ALLOWED_ORIGINS_LIST}}
+elif APP_ENV != "production":
+    cors_resources = {r"/*": {"origins": "*"}}
+else:
+    app.logger.warning("cors_disabled_missing_allowed_origins")
+
+if cors_resources:
+    CORS(app, resources=cors_resources)
 
 
 def _ids_imoveis_financeiro_permitidos(current_user):
@@ -324,14 +332,17 @@ def get_prospeccoes_selecionados():
     status = request.args.get("status")
     uf = request.args.get("uf")
     related_user_id = request.args.get("user_id")
+    incluir_inativos = (request.args.get("incluir_inativos") or "").strip().lower() in {"1", "true", "sim", "yes"}
     if current_user.get("role") != "admin":
         related_user_id = None
+        incluir_inativos = False
     dados = listar_prospeccoes_selecionados(
         status=status,
         uf=uf,
         viewer_user_id=current_user.get("id"),
         viewer_role=current_user.get("role"),
         related_user_id=related_user_id,
+        incluir_inativos=incluir_inativos,
     )
     return jsonify({"data": dados})
 
@@ -369,15 +380,22 @@ def _usuario_tem_ai_access(current_user):
 def _sinalizar_mac_mini():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    if token and chat_id:
-        try:
-            _req.post(
-                f"https://api.telegram.org/bot{token}/sendMessage",
-                json={"chat_id": chat_id, "text": "__jobs__"},
-                timeout=5,
-            )
-        except Exception:
-            pass
+    if not token or not chat_id:
+        app.logger.warning(
+            "ia_signal_skipped_missing_telegram_config",
+            extra={"has_token": bool(token), "has_chat_id": bool(chat_id)},
+        )
+        return False
+    try:
+        _req.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat_id, "text": "__jobs__"},
+            timeout=5,
+        )
+        return True
+    except Exception:
+        app.logger.exception("ia_signal_failed")
+        return False
 
 
 def _buscar_contexto_ai_prospeccao(numero_bem, origem):
@@ -454,7 +472,18 @@ def _post_ai_analise_chat_prospeccao(numero_bem, origem):
             "origem": origem,
         },
     )
-    _sinalizar_mac_mini()
+    sinalizado = _sinalizar_mac_mini()
+    app.logger.info(
+        "ai_chat_job_requested",
+        extra={
+            "numero_bem": numero_bem,
+            "origem": origem,
+            "job_id": job["job_id"],
+            "job_status": job["status"],
+            "requested_by": current_user.get("id"),
+            "signal_sent": sinalizado,
+        },
+    )
     return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
 
 
@@ -468,7 +497,23 @@ def _get_ai_analise_job_prospeccao(numero_bem, job_id, origem):
 
     job = obter_job_ai_prospeccao(job_id, numero_bem=numero_bem)
     if not job:
+        app.logger.warning(
+            "ai_job_not_found",
+            extra={"numero_bem": numero_bem, "origem": origem, "job_id": job_id},
+        )
         return jsonify({"error": "Job não encontrado"}), 404
+    if job.get("status") in {"error", "failed"}:
+        app.logger.warning(
+            "ai_job_failed",
+            extra={
+                "numero_bem": numero_bem,
+                "origem": origem,
+                "job_id": job_id,
+                "job_status": job.get("status"),
+                "job_type": job.get("tipo"),
+                "erro": job.get("erro"),
+            },
+        )
     return jsonify(job), 200
 
 
@@ -494,7 +539,18 @@ def _post_matricula_prospeccao(numero_bem, origem):
             "origem": origem,
         },
     )
-    _sinalizar_mac_mini()
+    sinalizado = _sinalizar_mac_mini()
+    app.logger.info(
+        "ai_matricula_job_requested",
+        extra={
+            "numero_bem": numero_bem,
+            "origem": origem,
+            "job_id": job["job_id"],
+            "job_status": job["status"],
+            "requested_by": current_user.get("id"),
+            "signal_sent": sinalizado,
+        },
+    )
     return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
 
 
@@ -604,6 +660,12 @@ def patch_prospeccao_capturado_score_regiao(numero_bem):
 def get_prospeccao_selecionado_analise(numero_bem):
     if not numero_bem:
         return jsonify({"error": "numero_bem é obrigatório"}), 400
+    current_user = get_current_user() or {}
+    contexto = buscar_contexto_operacao_prospeccao_selecionado(numero_bem)
+    if not contexto:
+        return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    if not _usuario_pode_operar_prospeccao(contexto, current_user):
+        return jsonify({"error": "Você não tem permissão para visualizar a análise deste imóvel."}), 403
     result = obter_analise_prospeccao_selecionado(numero_bem)
     if not result:
         return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
