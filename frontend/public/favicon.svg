@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>Financeiro Imoveis</title>
+  <rect width="64" height="64" rx="14" fill="#0F172A"/>
+  <path d="M18 18h28v8H28v8h16v8H28v14h-10V18Z" fill="#FFFFFF"/>
+  <path d="M50 18v38h-10V18h10Z" fill="#2563EB"/>
+</svg>
