@@ -31,7 +31,7 @@ const formatarDataBrasil = (valor) => {
   return data.toLocaleDateString("pt-BR");
 };
 
-function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
+function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "total" }) {
   const { id } = useParams();
   const { hasRole, user } = useAuth();
   const [estado, setEstado] = useState({
@@ -137,6 +137,24 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
   }, [credores, devedores, direcaoEqualizacao]);
   const chavePixAtual = socioAtual?.user_pix_key || "";
   const chavePixContraparte = contrapartePrincipal?.user_pix_key || "";
+  const participationRatio = useMemo(() => {
+    const percentual = Number(socioAtual?.percentual_participacao || 0);
+    if (!Number.isFinite(percentual) || percentual <= 0) return 1;
+    return percentual / 100;
+  }, [socioAtual]);
+  const usandoMinhaParticipacao = viewMode === "minha_participacao" && participationRatio > 0 && participationRatio < 1;
+  const sociosExibidos = useMemo(
+    () => (usandoMinhaParticipacao ? socios.filter((socio) => Number(socio.user_id) === Number(user?.id)) : socios),
+    [socios, usandoMinhaParticipacao, user?.id]
+  );
+  const equalizacoesExibidas = useMemo(
+    () => (
+      usandoMinhaParticipacao
+        ? equalizacoes.filter((item) => Number(item.paid_by_user_id) === Number(user?.id) || Number(item.beneficiary_user_id) === Number(user?.id))
+        : equalizacoes
+    ),
+    [equalizacoes, usandoMinhaParticipacao, user?.id]
+  );
 
   useEffect(() => {
     if (podeRegistrarMinhaEqualizacao && !form.paid_by_user_id && !form.beneficiary_user_id) {
@@ -251,6 +269,14 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
           <span className="text-muted small">
             Acompanhe a divisão das despesas, os saldos entre sócios e os acertos de equalização deste imóvel.
           </span>
+          {usandoMinhaParticipacao ? (
+            <div className="financeiro-compartilhado-card__view-note">
+              Exibindo sua parcela proporcional de {(participationRatio * 100).toLocaleString("pt-BR", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+              })}% e os eventos que impactam a sua posição.
+            </div>
+          ) : null}
         </div>
       </header>
 
@@ -264,16 +290,16 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
         <div className="financeiro-compartilhado-card__content">
           <div className="financeiro-compartilhado-card__metrics">
             <article className="financeiro-compartilhado-card__metric">
-              <span>Despesas operacionais</span>
-              <strong>{formatarMoeda(totais.total_despesas_operacionais)}</strong>
+              <span>{usandoMinhaParticipacao ? "Minha parte nas despesas" : "Despesas operacionais"}</span>
+              <strong>{formatarMoeda(usandoMinhaParticipacao ? socioAtual?.valor_devido_participacao : totais.total_despesas_operacionais)}</strong>
             </article>
             <article className="financeiro-compartilhado-card__metric">
-              <span>Equalizações</span>
-              <strong>{formatarMoeda(totais.total_equalizacoes)}</strong>
+              <span>{usandoMinhaParticipacao ? "Meu total pago" : "Equalizações"}</span>
+              <strong>{formatarMoeda(usandoMinhaParticipacao ? socioAtual?.total_pago_operacional : totais.total_equalizacoes)}</strong>
             </article>
             <article className="financeiro-compartilhado-card__metric">
-              <span>Não atribuído</span>
-              <strong>{formatarMoeda(totais.total_nao_atribuido)}</strong>
+              <span>{usandoMinhaParticipacao ? "Meu saldo líquido" : "Não atribuído"}</span>
+              <strong>{formatarMoeda(usandoMinhaParticipacao ? socioAtual?.saldo_liquido : totais.total_nao_atribuido)}</strong>
             </article>
           </div>
 
@@ -317,11 +343,11 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
           )}
 
           <div className="financeiro-compartilhado-card__section">
-            <h3>Sócios e posição atual</h3>
-            {socios.length ? (
+            <h3>{usandoMinhaParticipacao ? "Minha posição atual" : "Sócios e posição atual"}</h3>
+            {sociosExibidos.length ? (
               compactLayout ? (
                 <div className="financeiro-compartilhado-card__mobile-list">
-                  {socios.map((socio) => {
+                  {sociosExibidos.map((socio) => {
                     const expandido = socioExpandido === socio.user_id;
                     return (
                       <article key={socio.user_id} className="financeiro-compartilhado-card__mobile-item">
@@ -393,7 +419,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {socios.map((socio) => (
+                  {sociosExibidos.map((socio) => (
                         <tr key={socio.user_id}>
                           <td>
                             <div className="financeiro-compartilhado-card__person">
@@ -427,11 +453,11 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
           </div>
 
           <div className="financeiro-compartilhado-card__section">
-            <h3>Equalizações registradas</h3>
-            {equalizacoes.length ? (
+            <h3>{usandoMinhaParticipacao ? "Equalizações que impactam minha posição" : "Equalizações registradas"}</h3>
+            {equalizacoesExibidas.length ? (
               compactLayout ? (
                 <div className="financeiro-compartilhado-card__mobile-list">
-                  {equalizacoes.map((item) => (
+                  {equalizacoesExibidas.map((item) => (
                     <article key={item.id} className="financeiro-compartilhado-card__mobile-item">
                       <dl>
                         <div>
@@ -471,7 +497,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {equalizacoes.map((item) => (
+                  {equalizacoesExibidas.map((item) => (
                         <tr key={item.id}>
                           <td>{formatarDataBrasil(item.data)}</td>
                           <td>{formatarNomeSocio(item.paid_by_user_id)}</td>
@@ -485,7 +511,11 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged }) {
                 </div>
               )
             ) : (
-              <p className="text-muted mb-0">Nenhuma equalização registrada até o momento.</p>
+              <p className="text-muted mb-0">
+                {usandoMinhaParticipacao
+                  ? "Nenhuma equalização relacionada à sua participação foi registrada até o momento."
+                  : "Nenhuma equalização registrada até o momento."}
+              </p>
             )}
           </div>
         </div>

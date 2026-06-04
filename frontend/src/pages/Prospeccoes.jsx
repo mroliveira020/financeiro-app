@@ -144,6 +144,8 @@ const createManualSelecionadoDraft = () => ({
   observacoes: "",
 });
 
+const getAnaliseIaActionLabel = (item) => (item?.analiseIaSalva ? "Reanalisar" : "Gerar análise inicial");
+
 const calcularDescontoExibicao = (item) => {
   const descontoInformado = Number(item?.desconto);
   const valorAvaliacao = Number(item?.valorAvaliacao);
@@ -965,10 +967,10 @@ function TabelaSelecionados({
   erro,
   onExcluir,
   onReativar,
+  onAcionarAnaliseIa,
   onEditarObservacoes,
   onAbrirAnalise,
   onAbrirEnriquecimentos,
-  onAbrirAvaliacaoDetalhada,
   onEditarResponsaveis,
   onEditarPrioridade,
   onIncluirManual,
@@ -1205,8 +1207,9 @@ function TabelaSelecionados({
                     <button
                       type="button"
                       className={`prospects-table-icon-btn prospects-table-icon-btn--external ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
-                      title={item.analiseIaSalva ? "Ver avaliação detalhada com IA" : "Abrir avaliação detalhada"}
-                      onClick={() => onAbrirAvaliacaoDetalhada(item, "ia")}
+                      title={item.analiseIaSalva ? "Ver análise atual e reanalisar se necessário" : "Gerar análise inicial por IA"}
+                      aria-label={`${getAnaliseIaActionLabel(item)} do imóvel ${item.codigo}`}
+                      onClick={() => onAcionarAnaliseIa(item)}
                       disabled={!itemAtivo}
                     >
                       <SparklesIcon />
@@ -2483,7 +2486,7 @@ function AvaliacaoDetalhadaModal({
                     onClick={onGerarAnaliseInicial}
                     disabled={loading || sending || matriculaLoading}
                   >
-                    {loading || sending ? "Processando IA..." : "Gerar análise inicial"}
+                    {loading || sending ? "Processando IA..." : getAnaliseIaActionLabel(item)}
                   </button>
                 ) : null}
                 {podeAnalisarMatricula(item) ? (
@@ -2655,7 +2658,7 @@ function MobileSelecionadosList({
   onEditarObservacoes,
   onAbrirAnalise,
   onAbrirEnriquecimentos,
-  onAbrirAvaliacaoDetalhada,
+  onAcionarAnaliseIa,
   onEditarPrioridade,
   onEditarResponsaveis,
   onExcluir,
@@ -2909,11 +2912,11 @@ function MobileSelecionadosList({
                 <button
                   type="button"
                   className="prospects-btn ghost prospects-btn--mobile-action"
-                  onClick={() => onAbrirAvaliacaoDetalhada(item, "ia")}
+                  onClick={() => onAcionarAnaliseIa(item)}
                   disabled={!itemAtivo}
                 >
                   <SparklesIcon />
-                  <span>{item.analiseIaSalva ? "Avaliação IA" : "Detalhes"}</span>
+                  <span>{getAnaliseIaActionLabel(item)}</span>
                 </button>
                 <button
                   type="button"
@@ -3429,6 +3432,7 @@ export default function Prospeccoes() {
   const [aiSaving, setAiSaving] = useState(false);
   const [matriculaLoading, setMatriculaLoading] = useState(false);
   const aiAutoInitAttemptRef = useRef(new Set());
+  const aiDeferredActionRef = useRef(null);
   const [aiMensagemDraft, setAiMensagemDraft] = useState("");
   const [aiSinteseDraft, setAiSinteseDraft] = useState("");
   const [avaliacaoDetalhadaStatus, setAvaliacaoDetalhadaStatus] = useState("");
@@ -4116,6 +4120,22 @@ export default function Prospeccoes() {
     }
   };
 
+  const handleAcionarAnaliseIa = (item, origem = "selecionados") => {
+    if (!item?.codigo) return;
+    if (item.analiseIaSalva) {
+      openAvaliacaoDetalhadaModal(item, "ia", origem);
+      return;
+    }
+    const aiAttemptKey = `${origem}:${item.codigo}`;
+    aiAutoInitAttemptRef.current.add(aiAttemptKey);
+    aiDeferredActionRef.current = {
+      numeroBem: item.codigo,
+      origem,
+      tipo: "analise_inicial",
+    };
+    openAvaliacaoDetalhadaModal(item, "ia", origem);
+  };
+
   const closeAvaliacaoDetalhadaModal = () => {
     setAvaliacaoDetalhadaItem(null);
     setAvaliacaoDetalhadaOrigem("selecionados");
@@ -4130,6 +4150,7 @@ export default function Prospeccoes() {
     setAiMensagemDraft("");
     setAiSinteseDraft("");
     setAvaliacaoDetalhadaStatusState();
+    aiDeferredActionRef.current = null;
   };
 
   const handleEnviarMensagemAi = async () => {
@@ -4163,7 +4184,7 @@ export default function Prospeccoes() {
     }
   };
 
-  const handleGerarAnaliseInicialAi = async () => {
+  const handleGerarAnaliseInicialAi = useCallback(async () => {
     if (!avaliacaoDetalhadaItem) return;
     setAiSending(true);
     setAvaliacaoDetalhadaStatusState({ message: "IA: aguardando processamento...", tone: "info" });
@@ -4195,7 +4216,13 @@ export default function Prospeccoes() {
     } finally {
       setAiSending(false);
     }
-  };
+  }, [
+    avaliacaoDetalhadaItem,
+    avaliacaoDetalhadaOrigem,
+    refreshSelecionados,
+    setAvaliacaoDetalhadaStatusState,
+    sincronizarIndicadorAnaliseIaCapturada,
+  ]);
 
   const handleSalvarAiSintese = async () => {
     if (!avaliacaoDetalhadaItem) return;
@@ -4290,6 +4317,16 @@ export default function Prospeccoes() {
       );
     });
   }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise, setAvaliacaoDetalhadaStatusState]);
+
+  useEffect(() => {
+    const pendingAction = aiDeferredActionRef.current;
+    if (!pendingAction || pendingAction.tipo !== "analise_inicial") return;
+    if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "ia") return;
+    if (pendingAction.numeroBem !== avaliacaoDetalhadaItem.codigo || pendingAction.origem !== avaliacaoDetalhadaOrigem) return;
+    if (aiLoading || aiSending || matriculaLoading) return;
+    aiDeferredActionRef.current = null;
+    handleGerarAnaliseInicialAi();
+  }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaOrigem, avaliacaoDetalhadaTab, aiLoading, aiSending, matriculaLoading, handleGerarAnaliseInicialAi]);
 
   const openResponsaveisModal = (item) => {
     setResponsaveisItem(item);
@@ -4580,6 +4617,7 @@ export default function Prospeccoes() {
               onAbrirAnalise={openAnaliseModal}
               onAbrirEnriquecimentos={openAvaliacaoAutomaticaModal}
               onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
+              onAcionarAnaliseIa={handleAcionarAnaliseIa}
               onEditarPrioridade={openPrioridadeModal}
               onEditarResponsaveis={openResponsaveisModal}
               onExcluir={setConfirmDeleteItem}
@@ -4788,6 +4826,7 @@ export default function Prospeccoes() {
             onAbrirAnalise={openAnaliseModal}
             onAbrirEnriquecimentos={openAvaliacaoAutomaticaModal}
             onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
+            onAcionarAnaliseIa={handleAcionarAnaliseIa}
             onEditarResponsaveis={openResponsaveisModal}
             onIncluirManual={openIncluirManualModal}
             removeLoadingIds={removeLoadingIds}

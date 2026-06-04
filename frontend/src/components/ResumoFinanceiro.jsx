@@ -4,14 +4,16 @@ import api from "../services/http";
 import ModalEditarOrcamento from "./ModalEditarOrcamento";
 import { useAuth } from "../context/AuthContext";
 import { useCompactLayout } from "../hooks/useCompactLayout";
+import { fetchSociosImovel } from "../services/api";
 
-function ResumoFinanceiro({ refreshKey = 0 }) {
+function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
   const [resumo, setResumo] = useState([]);
   const [aliquotaGanhoCapital, setAliquotaGanhoCapital] = useState(0.15);
   const [mostrarModalOrcamento, setMostrarModalOrcamento] = useState(false);
   const [mostrarSegundaTabela, setMostrarSegundaTabela] = useState(false);
   const [mostrarDetalheOrcamentoMobile, setMostrarDetalheOrcamentoMobile] = useState(false);
-  const { hasRole } = useAuth();
+  const [participationRatio, setParticipationRatio] = useState(1);
+  const { hasRole, user } = useAuth();
   const canEdit = hasRole("admin");
   const compactLayout = useCompactLayout();
 
@@ -36,21 +38,57 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
     carregarResumo();
   }, [carregarResumo, refreshKey]);
 
-  // Funções auxiliares
-  const calcularEfetivadoMaisContratacao = (item) => {
-    return (item.valor_efetivado || 0) + (item.valor_em_contratacao || 0);
-  };
+  useEffect(() => {
+    if (!id_imovel || !user?.id) {
+      setParticipationRatio(1);
+      return undefined;
+    }
+    let ativo = true;
+    fetchSociosImovel(id_imovel)
+      .then((socios) => {
+        if (!ativo) return;
+        const socioAtual = (socios || []).find((item) => Number(item.user_id) === Number(user.id));
+        const percentual = Number(socioAtual?.percentual_participacao || 0);
+        if (Number.isFinite(percentual) && percentual > 0) {
+          setParticipationRatio(percentual / 100);
+          return;
+        }
+        setParticipationRatio(1);
+      })
+      .catch(() => {
+        if (!ativo) return;
+        setParticipationRatio(1);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [id_imovel, user?.id, refreshKey]);
 
-  const calcularTotalEstimado = (item) => {
+  const usandoMinhaParticipacao = viewMode === "minha_participacao" && participationRatio > 0 && participationRatio < 1;
+  const scaleMoney = useCallback(
+    (valor) => {
+      const numerico = Number(valor || 0);
+      if (!usandoMinhaParticipacao) return numerico;
+      return numerico * participationRatio;
+    },
+    [participationRatio, usandoMinhaParticipacao]
+  );
+
+  // Funções auxiliares
+  const calcularEfetivadoMaisContratacao = useCallback((item) => {
+    return (item.valor_efetivado || 0) + (item.valor_em_contratacao || 0);
+  }, []);
+
+  const calcularTotalEstimado = useCallback((item) => {
     const orcamento = item.orcamento || 0;
     const efetivadoMaisContratacao = calcularEfetivadoMaisContratacao(item);
     return Math.max(orcamento, efetivadoMaisContratacao);
-  };
+  }, [calcularEfetivadoMaisContratacao]);
 
-  const calcularSaldoAInvestir = (item) => {
+  const calcularSaldoAInvestir = useCallback((item) => {
      // Saldo individual = Total Estimado para o item - Valor Efetivado do item
     return calcularTotalEstimado(item) - (item.valor_efetivado || 0);
-  };
+  }, [calcularTotalEstimado]);
 
 
   // Filtra os dados para as tabelas
@@ -123,9 +161,9 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
 
   const kpis = useMemo(
     () => [
-      { titulo: "Investimento total", valor: formatarMoeda(investimentoTotal || 0) },
-      { titulo: "Saldo a investir", valor: formatarMoeda(totaisPrimeira.saldo_a_investir_total || 0) },
-      { titulo: "Resultado líquido", valor: formatarMoeda(resultadoLiquido || 0) },
+      { titulo: usandoMinhaParticipacao ? "Meu investimento" : "Investimento total", valor: formatarMoeda(scaleMoney(investimentoTotal || 0)) },
+      { titulo: usandoMinhaParticipacao ? "Meu saldo a investir" : "Saldo a investir", valor: formatarMoeda(scaleMoney(totaisPrimeira.saldo_a_investir_total || 0)) },
+      { titulo: usandoMinhaParticipacao ? "Meu resultado líquido" : "Resultado líquido", valor: formatarMoeda(scaleMoney(resultadoLiquido || 0)) },
       {
         titulo: "ROI projetado",
         valor: `${(roi * 100).toLocaleString("pt-BR", {
@@ -134,26 +172,28 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
         })}%`,
       },
     ],
-    [investimentoTotal, totaisPrimeira.saldo_a_investir_total, resultadoLiquido, roi]
+    [investimentoTotal, totaisPrimeira.saldo_a_investir_total, resultadoLiquido, roi, scaleMoney, usandoMinhaParticipacao]
   );
 
   const graficoOrcamento = useMemo(() => {
-    const itens = primeiraTabela.map((item) => ({
-      id: item.id_grupo,
-      grupo: item.grupo,
-      orcamento: Number(item.orcamento || 0),
-      efetivado: Number(item.valor_efetivado || 0),
-      contratado: Number(item.valor_em_contratacao || 0),
+      const itens = primeiraTabela.map((item) => ({
+        id: item.id_grupo,
+        grupo: item.grupo,
+      orcamento: scaleMoney(Number(item.orcamento || 0)),
+      efetivado: scaleMoney(Number(item.valor_efetivado || 0)),
+      contratado: scaleMoney(Number(item.valor_em_contratacao || 0)),
       totalEstimado: Number(
         Math.max(
           Number(item.orcamento || 0),
           Number(item.valor_efetivado || 0) + Number(item.valor_em_contratacao || 0)
         ) || 0
       ),
+      saldoAInvestir: scaleMoney(calcularSaldoAInvestir(item)),
     }));
 
     return itens.map((item) => ({
       ...item,
+      totalEstimado: scaleMoney(item.totalEstimado),
       orcamentoPct: item.totalEstimado > 0 ? Math.min(100, (item.orcamento / item.totalEstimado) * 100) : 0,
       totalEstimadoPct: item.totalEstimado > 0 ? 100 : 0,
       efetivadoPct:
@@ -161,7 +201,7 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
           ? Math.min(100, ((item.efetivado + item.contratado) / item.totalEstimado) * 100)
           : 0,
     }));
-  }, [primeiraTabela]);
+  }, [calcularSaldoAInvestir, primeiraTabela, scaleMoney]);
 
   const tabelaPrimeira = (
     <div className="resumo-card__table table-responsive">
@@ -181,24 +221,24 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
           {primeiraTabela.map((item) => (
             <tr key={item.id_grupo}>
               <td>{item.grupo}</td>
-              <td className="text-end">{formatarMoeda(item.orcamento)}</td>
-              <td className="text-end">{formatarMoeda(item.valor_efetivado)}</td>
-              <td className="text-end">{formatarMoeda(item.valor_em_contratacao)}</td>
-              <td className="text-end">{formatarMoeda(calcularEfetivadoMaisContratacao(item))}</td>
-              <td className="text-end">{formatarMoeda(calcularSaldoAInvestir(item))}</td>
-              <td className="text-end">{formatarMoeda(calcularTotalEstimado(item))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(item.orcamento))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(item.valor_efetivado))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(item.valor_em_contratacao))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(calcularEfetivadoMaisContratacao(item)))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(calcularSaldoAInvestir(item)))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(calcularTotalEstimado(item)))}</td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr>
             <td>Total</td>
-            <td className="text-end">{formatarMoeda(totaisPrimeira.orcamento)}</td>
-            <td className="text-end">{formatarMoeda(totaisPrimeira.valor_efetivado)}</td>
-            <td className="text-end">{formatarMoeda(totaisPrimeira.valor_em_contratacao)}</td>
-            <td className="text-end">{formatarMoeda(totaisPrimeira.efetivado_mais_contratacao)}</td>
-            <td className="text-end">{formatarMoeda(totaisPrimeira.saldo_a_investir_total)}</td>
-            <td className="text-end">{formatarMoeda(totaisPrimeira.valor_total_estimado)}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(totaisPrimeira.orcamento))}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(totaisPrimeira.valor_efetivado))}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(totaisPrimeira.valor_em_contratacao))}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(totaisPrimeira.efetivado_mais_contratacao))}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(totaisPrimeira.saldo_a_investir_total))}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(totaisPrimeira.valor_total_estimado))}</td>
           </tr>
         </tfoot>
       </table>
@@ -215,27 +255,27 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
           <dl>
             <div>
               <dt>Orçamento</dt>
-              <dd>{formatarMoeda(item.orcamento)}</dd>
+              <dd>{formatarMoeda(scaleMoney(item.orcamento))}</dd>
             </div>
             <div>
               <dt>Efetivado</dt>
-              <dd>{formatarMoeda(item.valor_efetivado)}</dd>
+              <dd>{formatarMoeda(scaleMoney(item.valor_efetivado))}</dd>
             </div>
             <div>
               <dt>Em contratação</dt>
-              <dd>{formatarMoeda(item.valor_em_contratacao)}</dd>
+              <dd>{formatarMoeda(scaleMoney(item.valor_em_contratacao))}</dd>
             </div>
             <div>
               <dt>Efetivado + contratação</dt>
-              <dd>{formatarMoeda(calcularEfetivadoMaisContratacao(item))}</dd>
+              <dd>{formatarMoeda(scaleMoney(calcularEfetivadoMaisContratacao(item)))}</dd>
             </div>
             <div>
               <dt>Saldo a investir</dt>
-              <dd>{formatarMoeda(calcularSaldoAInvestir(item))}</dd>
+              <dd>{formatarMoeda(scaleMoney(calcularSaldoAInvestir(item)))}</dd>
             </div>
             <div>
               <dt>Total estimado</dt>
-              <dd>{formatarMoeda(calcularTotalEstimado(item))}</dd>
+              <dd>{formatarMoeda(scaleMoney(calcularTotalEstimado(item)))}</dd>
             </div>
           </dl>
         </article>
@@ -247,27 +287,27 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
         <dl>
           <div>
             <dt>Orçamento</dt>
-            <dd>{formatarMoeda(totaisPrimeira.orcamento)}</dd>
+            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.orcamento))}</dd>
           </div>
           <div>
             <dt>Efetivado</dt>
-            <dd>{formatarMoeda(totaisPrimeira.valor_efetivado)}</dd>
+            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.valor_efetivado))}</dd>
           </div>
           <div>
             <dt>Em contratação</dt>
-            <dd>{formatarMoeda(totaisPrimeira.valor_em_contratacao)}</dd>
+            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.valor_em_contratacao))}</dd>
           </div>
           <div>
             <dt>Efetivado + contratação</dt>
-            <dd>{formatarMoeda(totaisPrimeira.efetivado_mais_contratacao)}</dd>
+            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.efetivado_mais_contratacao))}</dd>
           </div>
           <div>
             <dt>Saldo a investir</dt>
-            <dd>{formatarMoeda(totaisPrimeira.saldo_a_investir_total)}</dd>
+            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.saldo_a_investir_total))}</dd>
           </div>
           <div>
             <dt>Total estimado</dt>
-            <dd>{formatarMoeda(totaisPrimeira.valor_total_estimado)}</dd>
+            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.valor_total_estimado))}</dd>
           </div>
         </dl>
       </article>
@@ -279,35 +319,35 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
       <table className="table align-middle mb-0">
         <tbody>
           <tr>
-            <td>Investimento Total</td>
-            <td className="text-end">{formatarMoeda(investimentoTotal)}</td>
+            <td>{usandoMinhaParticipacao ? "Meu investimento" : "Investimento Total"}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(investimentoTotal))}</td>
           </tr>
           <tr>
             <td>Financiamento a Quitar</td>
-            <td className="text-end">{formatarMoeda(totalEstimadoGrupo6)}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(totalEstimadoGrupo6))}</td>
           </tr>
           <tr className="fw-bold">
             <td>Custo do Imóvel</td>
-            <td className="text-end">{formatarMoeda(custoDoImovel)}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(custoDoImovel))}</td>
           </tr>
           <tr className="table-separator">
             <td colSpan={2}>&nbsp;</td>
           </tr>
           <tr>
             <td>Valor de Venda</td>
-            <td className="text-end">{formatarMoeda(valorDeVenda)}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(valorDeVenda))}</td>
           </tr>
           <tr>
             <td>Corretor</td>
-            <td className="text-end">{formatarMoeda(corretor)}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(corretor))}</td>
           </tr>
           <tr>
             <td>IR Ganho de Capital</td>
-            <td className="text-end">{formatarMoeda(irGanhoDeCapital)}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(irGanhoDeCapital))}</td>
           </tr>
           <tr className="fw-bold">
             <td>Resultado Líquido</td>
-            <td className="text-end">{formatarMoeda(resultadoLiquido)}</td>
+            <td className="text-end">{formatarMoeda(scaleMoney(resultadoLiquido))}</td>
           </tr>
           <tr className="fw-bold">
             <td>ROI</td>
@@ -326,13 +366,13 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
   const tabelaFechamentoCompacta = (
     <div className="resumo-card__mobile-list resumo-card__mobile-list--closing">
       {[
-        ["Investimento Total", investimentoTotal],
-        ["Financiamento a Quitar", totalEstimadoGrupo6],
-        ["Custo do Imóvel", custoDoImovel, true],
-        ["Valor de Venda", valorDeVenda],
-        ["Corretor", corretor],
-        ["IR Ganho de Capital", irGanhoDeCapital],
-        ["Resultado Líquido", resultadoLiquido, true],
+        [usandoMinhaParticipacao ? "Meu investimento" : "Investimento Total", scaleMoney(investimentoTotal)],
+        ["Financiamento a Quitar", scaleMoney(totalEstimadoGrupo6)],
+        ["Custo do Imóvel", scaleMoney(custoDoImovel), true],
+        ["Valor de Venda", scaleMoney(valorDeVenda)],
+        ["Corretor", scaleMoney(corretor)],
+        ["IR Ganho de Capital", scaleMoney(irGanhoDeCapital)],
+        ["Resultado Líquido", scaleMoney(resultadoLiquido), true],
       ].map(([label, valor, destaque]) => (
         <article
           key={label}
@@ -373,11 +413,11 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
           {terceiraTabela.map((item) => (
             <tr key={item.id_grupo}>
               <td>{item.grupo}</td>
-              <td className="text-end">{formatarMoeda(item.orcamento)}</td>
-              <td className="text-end">{formatarMoeda(item.valor_efetivado)}</td>
-              <td className="text-end">{formatarMoeda(item.valor_em_contratacao)}</td>
-              <td className="text-end">{formatarMoeda(calcularEfetivadoMaisContratacao(item))}</td>
-              <td className="text-end">{formatarMoeda(calcularTotalEstimado(item))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(item.orcamento))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(item.valor_efetivado))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(item.valor_em_contratacao))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(calcularEfetivadoMaisContratacao(item)))}</td>
+              <td className="text-end">{formatarMoeda(scaleMoney(calcularTotalEstimado(item)))}</td>
             </tr>
           ))}
         </tbody>
@@ -395,23 +435,23 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
           <dl>
             <div>
               <dt>Orçamento</dt>
-              <dd>{formatarMoeda(item.orcamento)}</dd>
+              <dd>{formatarMoeda(scaleMoney(item.orcamento))}</dd>
             </div>
             <div>
               <dt>Efetivado</dt>
-              <dd>{formatarMoeda(item.valor_efetivado)}</dd>
+              <dd>{formatarMoeda(scaleMoney(item.valor_efetivado))}</dd>
             </div>
             <div>
               <dt>Em contratação</dt>
-              <dd>{formatarMoeda(item.valor_em_contratacao)}</dd>
+              <dd>{formatarMoeda(scaleMoney(item.valor_em_contratacao))}</dd>
             </div>
             <div>
               <dt>Efetivado + contratação</dt>
-              <dd>{formatarMoeda(calcularEfetivadoMaisContratacao(item))}</dd>
+              <dd>{formatarMoeda(scaleMoney(calcularEfetivadoMaisContratacao(item)))}</dd>
             </div>
             <div>
               <dt>Total estimado</dt>
-              <dd>{formatarMoeda(calcularTotalEstimado(item))}</dd>
+              <dd>{formatarMoeda(scaleMoney(calcularTotalEstimado(item)))}</dd>
             </div>
           </dl>
         </article>
@@ -426,6 +466,14 @@ function ResumoFinanceiro({ refreshKey = 0 }) {
           <div>
             <h2>Resumo Financeiro</h2>
             <small className="text-muted">Síntese dos grupos orçamentários e projeções do imóvel</small>
+            {usandoMinhaParticipacao ? (
+              <div className="resumo-card__view-note">
+                Exibindo valores proporcionais à sua participação de {(participationRatio * 100).toLocaleString("pt-BR", {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 2,
+                })}% neste imóvel.
+              </div>
+            ) : null}
           </div>
           <div className="resumo-card__toggle">
             <button

@@ -48,6 +48,7 @@ function DeferredSection({ children, placeholder = "Carregando seção...", root
 
 function Dashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [financeViewMode, setFinanceViewMode] = useState("total");
   const compactLayout = useCompactLayout();
   const dispararAtualizacao = useCallback(() => {
     setRefreshKey((prev) => prev + 1);
@@ -57,13 +58,43 @@ function Dashboard() {
     <div className="dashboard-page">
       <div className="dashboard-container">
         <section className="dashboard-main">
+          <section className="dashboard-card dashboard-view-toolbar">
+            <div className="dashboard-view-toolbar__copy">
+              <h2>Visão financeira</h2>
+              <span>Alterne entre os números totais do imóvel e a leitura proporcional da sua participação.</span>
+            </div>
+            <div className="dashboard-view-toggle" role="tablist" aria-label="Alternar visão financeira">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={financeViewMode === "total"}
+                className={`dashboard-view-toggle__button ${financeViewMode === "total" ? "is-active" : ""}`.trim()}
+                onClick={() => setFinanceViewMode("total")}
+              >
+                Total
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={financeViewMode === "minha_participacao"}
+                className={`dashboard-view-toggle__button ${financeViewMode === "minha_participacao" ? "is-active" : ""}`.trim()}
+                onClick={() => setFinanceViewMode("minha_participacao")}
+              >
+                Minha participação
+              </button>
+            </div>
+          </section>
           <DadosCadastrais refreshKey={refreshKey} onChanged={dispararAtualizacao} />
           <section id="resumo-financeiro">
-            <ResumoFinanceiro refreshKey={refreshKey} />
+            <ResumoFinanceiro refreshKey={refreshKey} viewMode={financeViewMode} />
           </section>
           <section id="financeiro-compartilhado">
             <DeferredSection placeholder="Preparando posição compartilhada...">
-              <FinanceiroCompartilhadoCard refreshKey={refreshKey} onChanged={dispararAtualizacao} />
+              <FinanceiroCompartilhadoCard
+                refreshKey={refreshKey}
+                onChanged={dispararAtualizacao}
+                viewMode={financeViewMode}
+              />
             </DeferredSection>
           </section>
         </section>
