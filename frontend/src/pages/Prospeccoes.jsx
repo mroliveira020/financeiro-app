@@ -3430,6 +3430,8 @@ export default function Prospeccoes() {
   const [sortBy, setSortBy] = useState("ultima_disputa");
   const [sortDir, setSortDir] = useState("desc");
   const [activeTab, setActiveTab] = useState("capturados");
+  const [capturadosFiltersExpanded, setCapturadosFiltersExpanded] = useState(false);
+  const [capturadosCitySearch, setCapturadosCitySearch] = useState("");
   const [selectedSortBy, setSelectedSortBy] = useState("dataLeilao");
   const [selectedSortDir, setSelectedSortDir] = useState("asc");
   const [selectedSearch, setSelectedSearch] = useState("");
@@ -3637,6 +3639,36 @@ export default function Prospeccoes() {
     });
     return Array.from(set).sort();
   }, [meta, filtroUfCap]);
+  const normalizedCapturadosCitySearch = capturadosCitySearch.trim().toLowerCase();
+  const cidadesCapturadasVisiveis = useMemo(() => (
+    normalizedCapturadosCitySearch
+      ? cidadesOptions.filter((cidade) => cidade.toLowerCase().includes(normalizedCapturadosCitySearch))
+      : cidadesOptions
+  ), [cidadesOptions, normalizedCapturadosCitySearch]);
+  const capturadosAdvancedFiltersCount = [
+    filtroUfCap.length,
+    filtroCidadesCap.length,
+    filtroModalidadeCap.length,
+    filtroFinanciaCap.length,
+  ].reduce((acc, value) => acc + value, 0);
+  const capturadosQuickFiltersCount = [
+    filtroFonteCap !== "todas" ? 1 : 0,
+    scoreMinCap !== "" ? 1 : 0,
+    roiMinCap !== "" ? 1 : 0,
+    somenteComAvaliacaoCap ? 1 : 0,
+    pageSize !== 20 ? 1 : 0,
+  ].reduce((acc, value) => acc + value, 0);
+  const capturadosHasFilters = capturadosQuickFiltersCount + capturadosAdvancedFiltersCount > 0;
+  const capturadosVisibleActiveFilters = [
+    filtroFonteCap !== "todas" ? `Origem: ${FONTE_OPTIONS.find((option) => option.value === filtroFonteCap)?.label || filtroFonteCap}` : null,
+    filtroUfCap.length ? `UF: ${filtroUfCap.join(", ")}` : null,
+    filtroCidadesCap.length ? `${filtroCidadesCap.length} cidade${filtroCidadesCap.length > 1 ? "s" : ""}` : null,
+    filtroModalidadeCap.length ? `${filtroModalidadeCap.length} modalidade${filtroModalidadeCap.length > 1 ? "s" : ""}` : null,
+    filtroFinanciaCap.length ? `Financia: ${filtroFinanciaCap.join(", ")}` : null,
+    scoreMinCap !== "" ? `Score >= ${scoreMinCap}` : null,
+    roiMinCap !== "" ? `ROI >= ${roiMinCap}%` : null,
+    somenteComAvaliacaoCap ? "Só com pré-análise" : null,
+  ].filter(Boolean);
 
   const selectedBaseDados = useMemo(() => {
     if (selectedActivityFilter === "inativos") {
@@ -3698,6 +3730,8 @@ export default function Prospeccoes() {
     setScoreMinCap("");
     setRoiMinCap("");
     setSomenteComAvaliacaoCap(false);
+    setCapturadosCitySearch("");
+    setCapturadosFiltersExpanded(false);
     setPageSize(20);
     setPage(1);
   };
@@ -4916,142 +4950,224 @@ export default function Prospeccoes() {
                 <span className="prospects-pill prospects-pill--muted">{selectedCodes.size} na fila</span>
               </div>
             </div>
-            <div className="prospects-filters">
-              <div className="prospects-filter-group">
-                <label>Origem</label>
-                <select
-                  value={filtroFonteCap}
-                  onChange={(e) => {
-                    setFiltroFonteCap(e.target.value);
-                    setPage(1);
-                  }}
-                >
-                  {FONTE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="prospects-filter-group">
-                <label>UF (capturados)</label>
-                <div className="prospects-checklist">
-                  {ufOptions.map((uf) => (
-                    <label key={uf} className="prospects-check">
-                      <input
-                        type="checkbox"
-                        checked={filtroUfCap.includes(uf)}
-                        onChange={() => toggleValue(uf, setFiltroUfCap)}
-                      />
-                      <span>{uf}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="prospects-filter-group">
-                <label>Cidade</label>
-                <div className="prospects-checklist">
-                  {cidadesOptions.map((c) => (
-                    <label key={c} className="prospects-check">
-                      <input
-                        type="checkbox"
-                        checked={filtroCidadesCap.includes(c)}
-                        onChange={() => toggleValue(c, setFiltroCidadesCap)}
-                      />
-                      <span>{c}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="prospects-filter-group">
-                <label>Modalidade</label>
-                <div className="prospects-checklist">
-                  {modalidadeOptions.map((m) => (
-                    <label key={m} className="prospects-check">
-                      <input
-                        type="checkbox"
-                        checked={filtroModalidadeCap.includes(m)}
-                        onChange={() => toggleValue(m, setFiltroModalidadeCap)}
-                      />
-                      <span>{m}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="prospects-filter-group">
-                <label>Financia</label>
-                <div className="prospects-checklist">
-                  <label className="prospects-check">
-                    <input
-                      type="checkbox"
-                      checked={filtroFinanciaCap.includes("sim")}
-                      onChange={() => toggleValue("sim", setFiltroFinanciaCap)}
-                    />
-                    <span>Sim</span>
-                  </label>
-                  <label className="prospects-check">
-                    <input
-                      type="checkbox"
-                      checked={filtroFinanciaCap.includes("nao")}
-                      onChange={() => toggleValue("nao", setFiltroFinanciaCap)}
-                    />
-                    <span>Não</span>
-                  </label>
-                </div>
-              </div>
-              <div className="prospects-filter-group">
-                <label>Itens por página</label>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value));
-                    setPage(1);
-                  }}
-                >
-                  {pageSizeOptions.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="prospects-filter-group">
-                <label>Score mínimo</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="85"
-                  value={scoreMinCap}
-                  onChange={(e) => {
-                    setScoreMinCap(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </div>
-              <div className="prospects-filter-group">
-                <label>ROI mínimo (%)</label>
-                <input
-                  type="number"
-                  value={roiMinCap}
-                  onChange={(e) => {
-                    setRoiMinCap(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </div>
-              <div className="prospects-filter-group">
-                <label>Pré-análise</label>
-                <label className="prospects-check">
-                  <input
-                    type="checkbox"
-                    checked={somenteComAvaliacaoCap}
+            <div className="prospects-captured-toolbar">
+              <div className="prospects-captured-toolbar__quick">
+                <label className="prospects-toolbar-field">
+                  <span>Origem</span>
+                  <select
+                    value={filtroFonteCap}
                     onChange={(e) => {
-                      setSomenteComAvaliacaoCap(e.target.checked);
+                      setFiltroFonteCap(e.target.value);
                       setPage(1);
                     }}
-                  />
-                  <span>Mostrar só imóveis com pré-análise</span>
+                  >
+                    {FONTE_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
                 </label>
+                <label className="prospects-toolbar-field">
+                  <span>Itens por página</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(1);
+                    }}
+                  >
+                    {pageSizeOptions.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="prospects-toolbar-field">
+                  <span>Score mínimo</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="85"
+                    value={scoreMinCap}
+                    onChange={(e) => {
+                      setScoreMinCap(e.target.value);
+                      setPage(1);
+                    }}
+                    placeholder="0 a 85"
+                  />
+                </label>
+                <label className="prospects-toolbar-field">
+                  <span>ROI mínimo (%)</span>
+                  <input
+                    type="number"
+                    value={roiMinCap}
+                    onChange={(e) => {
+                      setRoiMinCap(e.target.value);
+                      setPage(1);
+                    }}
+                    placeholder="Ex.: 8"
+                  />
+                </label>
+                <div className="prospects-captured-toggle">
+                  <span>Pré-análise</span>
+                  <label className="prospects-check">
+                    <input
+                      type="checkbox"
+                      checked={somenteComAvaliacaoCap}
+                      onChange={(e) => {
+                        setSomenteComAvaliacaoCap(e.target.checked);
+                        setPage(1);
+                      }}
+                    />
+                    <span>Mostrar só imóveis com pré-análise</span>
+                  </label>
+                </div>
+                <div className="prospects-captured-toolbar__actions">
+                  <button
+                    type="button"
+                    className={`prospects-btn ${capturadosFiltersExpanded ? "secondary" : "ghost"}`}
+                    onClick={() => setCapturadosFiltersExpanded((prev) => !prev)}
+                  >
+                    {capturadosFiltersExpanded ? "Ocultar refinamentos" : "Refinar localização"}
+                    {capturadosAdvancedFiltersCount ? ` (${capturadosAdvancedFiltersCount})` : ""}
+                  </button>
+                  <button
+                    type="button"
+                    className="prospects-btn secondary"
+                    onClick={limparFiltros}
+                    disabled={!capturadosHasFilters}
+                  >
+                    Limpar filtros
+                  </button>
+                </div>
               </div>
-              <div className="prospects-filter-actions">
-                <button type="button" className="prospects-btn secondary" onClick={limparFiltros}>Limpar filtros</button>
+
+              <div className="prospects-captured-toolbar__summary">
+                <div className="prospects-captured-toolbar__metrics">
+                  <span className="prospects-pill">{capturados.length} na visão</span>
+                  <span className="prospects-pill prospects-pill--muted">{capturadosTotal} capturados</span>
+                  <span className="prospects-pill prospects-pill--muted">{selectedCodes.size} na fila</span>
+                </div>
+                {capturadosVisibleActiveFilters.length ? (
+                  <div className="prospects-captured-toolbar__active">
+                    {capturadosVisibleActiveFilters.map((label) => (
+                      <span key={label} className="prospects-inline-link">{label}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="prospects-captured-toolbar__hint">
+                    Use os refinamentos para cruzar origem, localização, score e ROI sem lotar a tela de campos.
+                  </p>
+                )}
               </div>
+
+              {capturadosFiltersExpanded ? (
+                <div className="prospects-captured-toolbar__advanced">
+                  <div className="prospects-filter-panel">
+                    <div className="prospects-filter-panel__head">
+                      <span>UF</span>
+                      <strong>{filtroUfCap.length ? `${filtroUfCap.length} selecionadas` : "Todas"}</strong>
+                    </div>
+                    <div className="prospects-filter-chip-grid">
+                      {ufOptions.map((uf) => (
+                        <button
+                          key={uf}
+                          type="button"
+                          className={`prospects-filter-chip ${filtroUfCap.includes(uf) ? "is-active" : ""}`}
+                          onClick={() => toggleValue(uf, setFiltroUfCap)}
+                        >
+                          {uf}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="prospects-filter-panel">
+                    <div className="prospects-filter-panel__head">
+                      <span>Cidade</span>
+                      <strong>{filtroCidadesCap.length ? `${filtroCidadesCap.length} selecionadas` : "Todas"}</strong>
+                    </div>
+                    <label className="prospects-toolbar-field prospects-toolbar-field--checklist">
+                      <input
+                        type="search"
+                        value={capturadosCitySearch}
+                        onChange={(e) => setCapturadosCitySearch(e.target.value)}
+                        placeholder="Buscar cidade"
+                      />
+                    </label>
+                    {filtroCidadesCap.length ? (
+                      <div className="prospects-mobile-city-selected">
+                        {filtroCidadesCap.map((cidade) => (
+                          <button
+                            key={cidade}
+                            type="button"
+                            className="prospects-mobile-city-chip is-selected"
+                            onClick={() => toggleValue(cidade, setFiltroCidadesCap)}
+                          >
+                            <span>{cidade}</span>
+                            <strong>x</strong>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="prospects-mobile-city-grid">
+                      {cidadesCapturadasVisiveis.map((cidade) => (
+                        <button
+                          key={cidade}
+                          type="button"
+                          className={`prospects-mobile-city-chip ${filtroCidadesCap.includes(cidade) ? "is-selected" : ""}`}
+                          onClick={() => toggleValue(cidade, setFiltroCidadesCap)}
+                        >
+                          <span>{cidade}</span>
+                          {filtroCidadesCap.includes(cidade) ? <strong>x</strong> : null}
+                        </button>
+                      ))}
+                      {!cidadesCapturadasVisiveis.length ? (
+                        <p className="prospects-empty prospects-empty--inline">Nenhuma cidade encontrada.</p>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="prospects-filter-panel">
+                    <div className="prospects-filter-panel__head">
+                      <span>Modalidade</span>
+                      <strong>{filtroModalidadeCap.length ? `${filtroModalidadeCap.length} selecionadas` : "Todas"}</strong>
+                    </div>
+                    <div className="prospects-filter-chip-grid">
+                      {modalidadeOptions.map((modalidade) => (
+                        <button
+                          key={modalidade}
+                          type="button"
+                          className={`prospects-filter-chip ${filtroModalidadeCap.includes(modalidade) ? "is-active" : ""}`}
+                          onClick={() => toggleValue(modalidade, setFiltroModalidadeCap)}
+                        >
+                          {modalidade}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="prospects-filter-panel">
+                    <div className="prospects-filter-panel__head">
+                      <span>Financia</span>
+                      <strong>{filtroFinanciaCap.length ? `${filtroFinanciaCap.length} selecionados` : "Todos"}</strong>
+                    </div>
+                    <div className="prospects-filter-chip-grid">
+                      {[
+                        { value: "sim", label: "Sim" },
+                        { value: "nao", label: "Não" },
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`prospects-filter-chip ${filtroFinanciaCap.includes(option.value) ? "is-active" : ""}`}
+                          onClick={() => toggleValue(option.value, setFiltroFinanciaCap)}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </section>
           <TabelaCapturados
