@@ -628,6 +628,15 @@ function SparklesIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <IconBase label="Fechar">
+      <path d="M6 6l12 12" />
+      <path d="M18 6 6 18" />
+    </IconBase>
+  );
+}
+
 const detectMobileAccess = () => {
   if (typeof window === "undefined") return false;
   const width = window.innerWidth <= MOBILE_BREAKPOINT;
@@ -2251,12 +2260,22 @@ function AvaliacaoDetalhadaModal({
     <div className="prospects-modal-backdrop" role="presentation">
       <div className="prospects-modal prospects-modal--wide prospects-modal--auto" role="dialog" aria-modal="true" aria-labelledby="avaliacao-detalhada-title">
         <div className="prospects-modal__header">
-          <div>
-            <p className="prospects-eyebrow">Avaliação detalhada</p>
-            <h3 id="avaliacao-detalhada-title" className="prospects-modal__title">Imóvel {item.codigo}</h3>
-            <p className="prospects-subtitle prospects-subtitle--compact">
-              Combine dados do leilão, análise financeira e conversa com IA em um único lugar.
-            </p>
+          <div className="prospects-modal__header-main">
+            <div>
+              <p className="prospects-eyebrow">Avaliação detalhada</p>
+              <h3 id="avaliacao-detalhada-title" className="prospects-modal__title">Imóvel {item.codigo}</h3>
+              <p className="prospects-subtitle prospects-subtitle--compact">
+                Combine dados do leilão, análise financeira e conversa com IA em um único lugar.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="prospects-modal__close"
+              onClick={onClose}
+              aria-label="Fechar avaliação detalhada"
+            >
+              <CloseIcon />
+            </button>
           </div>
         </div>
         <div className="prospects-modal__body">
@@ -2279,6 +2298,20 @@ function AvaliacaoDetalhadaModal({
                 {fonteLabel ? (
                   <span className={`prospects-auto-badge ${item.fonte === "tjdft_judicial" ? "is-judicial" : ""}`.trim()}>{fonteLabel}</span>
                 ) : null}
+              </div>
+              <div className="prospects-auto-hero__status-row">
+                <span className="prospects-detail-status-chip">
+                  <strong>Status</strong>
+                  <span>{item.disponivel === undefined || item.disponivel === null ? "—" : item.disponivel ? "Disponível" : "Indisponível"}</span>
+                </span>
+                <span className="prospects-detail-status-chip">
+                  <strong>Financeira</strong>
+                  <span>{item.analiseSalva ? formatarPercentual(item.roiEsperadoPercentual) : "Pendente"}</span>
+                </span>
+                <span className="prospects-detail-status-chip">
+                  <strong>IA</strong>
+                  <span>{item.analiseIaSalva ? "Salva" : "Ainda não"}</span>
+                </span>
               </div>
               <div className="prospects-auto-hero__facts">
                 <div className="prospects-auto-hero__fact">
@@ -2304,21 +2337,9 @@ function AvaliacaoDetalhadaModal({
                   </div>
                 ) : null}
               </div>
-              <div className="prospects-detail-kpis">
-                <div className="prospects-detail-kpi">
-                  <span>Status</span>
-                  <strong>{item.disponivel === undefined || item.disponivel === null ? "—" : item.disponivel ? "Disponível" : "Indisponível"}</strong>
-                </div>
-                <div className="prospects-detail-kpi">
-                  <span>Financeira</span>
-                  <strong>{item.analiseSalva ? formatarPercentual(item.roiEsperadoPercentual) : "Pendente"}</strong>
-                </div>
-                <div className="prospects-detail-kpi">
-                  <span>IA</span>
-                  <strong>{item.analiseIaSalva ? "Salva" : "Ainda não"}</strong>
-                </div>
-              </div>
-              <div className="prospects-inline-links prospects-inline-links--detail">
+              <div className="prospects-auto-hero__links">
+                <span className="prospects-ai-section__label">Ações rápidas</span>
+                <div className="prospects-inline-links prospects-inline-links--detail">
                 <a className="prospects-inline-link" href={item.link} target="_blank" rel="noreferrer">
                   <ArrowUpRightIcon />
                   <span>Anúncio</span>
@@ -2341,6 +2362,7 @@ function AvaliacaoDetalhadaModal({
                     <ArrowUpRightIcon />
                   </a>
                 ) : null}
+                </div>
               </div>
             </div>
           </div>
@@ -2475,38 +2497,42 @@ function AvaliacaoDetalhadaModal({
           ) : (
             <div className="prospects-ai-panel">
               <div className="prospects-ai-toolbar">
-                <span className="prospects-indicator-chip is-automatica">
-                  <SparklesIcon />
-                  <span>{quantidadeMensagens} interações</span>
-                </span>
-                <span className={`prospects-indicator-chip ${canChat ? "is-financeira" : "is-ia"}`}>
-                  <span>{canChat ? "Chat liberado" : "Somente leitura"}</span>
-                </span>
-                {aiAnalise?.updated_at ? (
-                  <span className="prospects-indicator-chip is-ia">
-                    <span>Atualizado em {formatarDataHoraCompacta(aiAnalise.updated_at)}</span>
+                <div className="prospects-ai-toolbar__meta">
+                  <span className="prospects-indicator-chip is-automatica">
+                    <SparklesIcon />
+                    <span>{quantidadeMensagens} interações</span>
                   </span>
-                ) : null}
-                {canChat ? (
-                  <button
-                    type="button"
-                    className="prospects-btn secondary prospects-btn--subtle"
-                    onClick={onGerarAnaliseInicial}
-                    disabled={loading || sending || matriculaLoading}
-                  >
-                    {loading || sending ? "Processando IA..." : getAnaliseIaActionLabel(item)}
-                  </button>
-                ) : null}
-                {podeAnalisarMatricula(item) ? (
-                  <button
-                    type="button"
-                    className="prospects-btn ghost prospects-btn--subtle"
-                    onClick={onSolicitarMatricula}
-                    disabled={!canChat || loading || sending || matriculaLoading}
-                  >
-                    {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
-                  </button>
-                ) : null}
+                  <span className={`prospects-indicator-chip ${canChat ? "is-financeira" : "is-ia"}`}>
+                    <span>{canChat ? "Chat liberado" : "Somente leitura"}</span>
+                  </span>
+                  {aiAnalise?.updated_at ? (
+                    <span className="prospects-indicator-chip is-ia">
+                      <span>Atualizado em {formatarDataHoraCompacta(aiAnalise.updated_at)}</span>
+                    </span>
+                  ) : null}
+                </div>
+                <div className="prospects-ai-toolbar__actions">
+                  {canChat ? (
+                    <button
+                      type="button"
+                      className="prospects-btn primary prospects-btn--subtle"
+                      onClick={onGerarAnaliseInicial}
+                      disabled={loading || sending || matriculaLoading}
+                    >
+                      {loading || sending ? "Processando IA..." : getAnaliseIaActionLabel(item)}
+                    </button>
+                  ) : null}
+                  {podeAnalisarMatricula(item) ? (
+                    <button
+                      type="button"
+                      className="prospects-btn secondary prospects-btn--subtle"
+                      onClick={onSolicitarMatricula}
+                      disabled={!canChat || loading || sending || matriculaLoading}
+                    >
+                      {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
+                    </button>
+                  ) : null}
+                </div>
               </div>
               {loading ? (
                 <div className="prospects-ai-loading-card">
@@ -2515,26 +2541,28 @@ function AvaliacaoDetalhadaModal({
                 </div>
               ) : (
                 <>
-                  <div className="prospects-ai-chat-shell">
-                  <div className="prospects-ai-chat">
-                    {historicoExpandido.length ? historicoExpandido.map((mensagem, index) => (
-                      <div key={`${mensagem.role}-${mensagem.kind || "chat"}-${index}`} className={`prospects-ai-bubble is-${mensagem.role || "assistant"} ${mensagem.kind === "matricula" ? "is-matricula" : ""}`.trim()}>
-                        <span>{mensagem.kind === "matricula" ? "Matrícula" : mensagem.role === "user" ? "Você" : "IA"}</span>
-                        <TextoEstruturado texto={mensagem.content || "—"} />
-                      </div>
-                    )) : (
-                      <p className="prospects-empty">Nenhuma análise salva ainda. Ao abrir o chat, a avaliação inicial será gerada automaticamente.</p>
-                    )}
-                  </div>
-                  </div>
+                  <section className="prospects-ai-section">
+                    <div className="prospects-ai-section__header">
+                      <span className="prospects-ai-section__label">Leitura principal da análise</span>
+                      <p>Tudo o que a IA respondeu fica concentrado aqui, incluindo a matrícula quando ela existir.</p>
+                    </div>
+                    <div className="prospects-ai-chat">
+                      {historicoExpandido.length ? historicoExpandido.map((mensagem, index) => (
+                        <div key={`${mensagem.role}-${mensagem.kind || "chat"}-${index}`} className={`prospects-ai-bubble is-${mensagem.role || "assistant"} ${mensagem.kind === "matricula" ? "is-matricula" : ""}`.trim()}>
+                          <span>{mensagem.kind === "matricula" ? "Matrícula" : mensagem.role === "user" ? "Você" : "IA"}</span>
+                          <TextoEstruturado texto={mensagem.content || "—"} />
+                        </div>
+                      )) : (
+                        <p className="prospects-empty">Nenhuma análise salva ainda. Ao abrir o chat, a avaliação inicial será gerada automaticamente.</p>
+                      )}
+                    </div>
+                  </section>
 
-                  <div className="prospects-ai-summary">
-                    {sinteseDraft?.trim() ? (
-                      <div className="prospects-ai-preview">
-                        <span className="prospects-ai-preview__label">Visualização da síntese</span>
-                        <TextoEstruturado texto={sinteseDraft} />
-                      </div>
-                    ) : null}
+                  <section className="prospects-ai-summary">
+                    <div className="prospects-ai-section__header">
+                      <span className="prospects-ai-section__label">Síntese editável</span>
+                      <p>Condense aqui a decisão final, sem abrir uma segunda janela com o mesmo conteúdo.</p>
+                    </div>
                     <label className="prospects-form-field">
                       <span>Síntese da análise</span>
                       <textarea
@@ -2544,21 +2572,25 @@ function AvaliacaoDetalhadaModal({
                         placeholder="Resumo manual do que ficou decidido para este imóvel"
                       />
                     </label>
-                    <div className="prospects-inline-links prospects-inline-links--detail">
-                      <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={onSalvarSintese} disabled={saving}>
+                    <div className="prospects-ai-summary__actions">
+                      <button type="button" className="prospects-btn primary prospects-btn--subtle" onClick={onSalvarSintese} disabled={saving}>
                         {saving ? "Salvando..." : "Salvar síntese"}
                       </button>
-                      {podeAnalisarMatricula(item) ? null : (
-                        <span className="prospects-modal__hint">Análise de matrícula disponível apenas para imóveis da Caixa.</span>
-                      )}
-                      <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={() => onAbrirAnalise(item)}>
+                      <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={() => onAbrirAnalise(item)}>
                         Editar análise financeira
                       </button>
                     </div>
-                  </div>
+                    {podeAnalisarMatricula(item) ? null : (
+                      <span className="prospects-modal__hint">Análise de matrícula disponível apenas para imóveis da Caixa.</span>
+                    )}
+                  </section>
 
                   {canChat ? (
-                    <div className="prospects-ai-composer">
+                    <section className="prospects-ai-composer">
+                      <div className="prospects-ai-section__header">
+                        <span className="prospects-ai-section__label">Pergunta complementar</span>
+                        <p>Use uma nova pergunta só quando precisar expandir a análise já consolidada acima.</p>
+                      </div>
                       <label className="prospects-form-field">
                         <span>Pergunta para a IA</span>
                         <textarea
@@ -2568,10 +2600,10 @@ function AvaliacaoDetalhadaModal({
                           placeholder="Ex.: quais os maiores riscos deste imóvel?"
                         />
                       </label>
-                      <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={onEnviarMensagem} disabled={sending || !mensagemDraft.trim()}>
+                      <button type="button" className="prospects-btn primary prospects-btn--subtle" onClick={onEnviarMensagem} disabled={sending || !mensagemDraft.trim()}>
                         {sending ? "Enviando..." : "Enviar"}
                       </button>
-                    </div>
+                    </section>
                   ) : (
                     <p className="prospects-modal__hint">Seu usuário pode visualizar o histórico salvo, mas não enviar novas mensagens para a IA. Se esse acesso já foi liberado pelo administrador, entre novamente para atualizar a sessão.</p>
                   )}
@@ -2579,9 +2611,6 @@ function AvaliacaoDetalhadaModal({
               )}
             </div>
           )}
-        </div>
-        <div className="prospects-modal__footer prospects-modal__footer--auto">
-          <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onClose}>Fechar</button>
         </div>
       </div>
     </div>
