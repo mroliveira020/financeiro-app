@@ -1034,10 +1034,21 @@
 .prospects-capture-card__badges {
   position: absolute;
   left: 10px;
-  bottom: 10px;
+  top: 10px;
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  max-width: calc(100% - 92px);
+  z-index: 2;
+}
+
+.prospects-capture-card__badges .prospects-chip {
+  padding: 5px 8px;
+  border-radius: 9px;
+  font-size: 11px;
+  line-height: 1.15;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .prospects-capture-card__body {
@@ -1165,27 +1176,29 @@
 .prospects-capture-card__discount {
   position: absolute;
   right: 10px;
-  bottom: 10px;
-  padding: 7px 10px;
-  border-radius: 12px;
+  top: 10px;
+  padding: 6px 10px;
+  border-radius: 10px;
   background: #42b66d;
   color: #fff;
   font-size: 11px;
   font-weight: 800;
   box-shadow: 0 8px 16px rgba(66, 182, 109, 0.25);
+  z-index: 2;
 }
 
 .prospects-capture-card__actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .prospects-capture-card__actions .prospects-btn {
-  min-height: 40px;
-  padding: 9px 12px;
-  border-radius: 12px;
-  font-size: 12px;
+  min-height: 35px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .prospects-auto-badge {
@@ -1501,27 +1514,27 @@
 .prospects-inline-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-top: 10px;
 }
 
 .prospects-inline-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
+  gap: 5px;
+  padding: 6px 9px;
   border-radius: 8px;
   border: 1px solid #dce7f4;
   background: #ffffff;
   color: #475569;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   text-decoration: none;
 }
 
 .prospects-inline-link svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
 .prospects-inline-link:hover {
