@@ -43,36 +43,59 @@ function SidebarLink({ to, icon, label }) {
 }
 
 export default function AppLayout() {
-  const { user, hasCapability } = useAuth();
+  const { user, hasCapability, logout } = useAuth();
   const location = useLocation();
   const [topbarContent, setTopbarContent] = useState(null);
   const canAccessFinance = Boolean(user?.finance_access || hasCapability("admin"));
   const canAccessProspeccoes = hasCapability("admin", "prospector");
   const isAdmin = hasCapability("admin");
   const isProspeccoesPage = location.pathname.startsWith("/prospeccoes");
-  const pageTitle = isProspeccoesPage ? "Gestão de imóveis" : "Financeiro";
-  const pageSubtitle = isProspeccoesPage
-    ? "Central operacional para seleção, prospecção e acompanhamento dos imóveis."
-    : "Controle financeiro dos imóveis já adquiridos.";
+  const isUsuariosPage = location.pathname.startsWith("/usuarios");
+  const pageTitle = isUsuariosPage
+    ? "Usuários"
+    : isProspeccoesPage
+      ? "Gestão de imóveis"
+      : "Financeiro";
+  const pageSubtitle = isUsuariosPage
+    ? "Gestão de acessos, permissões e composição societária do portal."
+    : isProspeccoesPage
+      ? "Central operacional para seleção, prospecção e acompanhamento dos imóveis."
+      : "Controle financeiro dos imóveis já adquiridos.";
+  const sidebarUserLabel = user?.name || user?.email || "Sessão ativa";
 
   return (
     <div className="app-shell">
       <aside className="app-shell__sidebar">
         <div className="app-shell__brand">
-          <img src={logo} alt="Financeiro" />
+          <img src={logo} alt="Financeiro Imóveis" />
+          <div className="app-shell__brand-copy">
+            <span className="app-shell__brand-title">Financeiro</span>
+            <span className="app-shell__brand-subtitle">Imóveis</span>
+          </div>
         </div>
         <nav className="app-shell__nav">
           {canAccessFinance && <SidebarLink to="/" icon={icons.home} label="Financeiro" />}
-          {canAccessProspeccoes && <SidebarLink to="/prospeccoes" icon={icons.prospects} label="Prospec." />}
+          {canAccessProspeccoes && <SidebarLink to="/prospeccoes" icon={icons.prospects} label="Prospecções" />}
           {isAdmin && <SidebarLink to="/usuarios" icon={icons.users} label="Usuários" />}
         </nav>
-        <div className="app-shell__sidebar-foot text-muted">v1.0</div>
+        <div className="app-shell__sidebar-foot">
+          <span className="app-shell__sidebar-version">v1.0</span>
+          <span className="app-shell__sidebar-user" title={user?.email || ""}>{sidebarUserLabel}</span>
+          <button type="button" className="app-shell__sidebar-logout" onClick={logout}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M14 6V4.75A1.75 1.75 0 0 0 12.25 3h-5.5A1.75 1.75 0 0 0 5 4.75v14.5C5 20.216 5.784 21 6.75 21h5.5A1.75 1.75 0 0 0 14 19.25V18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M10 12h9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="m16 8 4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span>Sair</span>
+          </button>
+        </div>
       </aside>
       <div className="app-shell__content">
         <header className="app-shell__topbar">
-          <div className="app-shell__headline">
+          <div className="app-shell__topbar-main">
             <div className="app-shell__headline-copy">
-              <h1 className="app-shell__title">{pageTitle}</h1>
+              <h1 className="app-shell__topbar-title">{pageTitle}</h1>
               <p className="app-shell__subtitle mb-0">{pageSubtitle}</p>
             </div>
             {topbarContent ? <div className="app-shell__headline-extra">{topbarContent}</div> : null}

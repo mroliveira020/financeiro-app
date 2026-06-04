@@ -50,9 +50,9 @@ describe("AppLayout", () => {
       hasCapability: (...caps) => caps.includes("prospector"),
     });
 
-    expect(screen.queryByText("Financeiro")).not.toBeInTheDocument();
-    expect(screen.getByText("Prospec.")).toBeInTheDocument();
-    expect(screen.queryByText("Usuários")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /financeiro/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /prospec/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /usuários/i })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Gestão de imóveis" })).toBeInTheDocument();
   });
 
@@ -63,8 +63,8 @@ describe("AppLayout", () => {
     });
 
     expect(screen.getByRole("link", { name: /financeiro/i })).toBeInTheDocument();
-    expect(screen.queryByText("Prospec.")).not.toBeInTheDocument();
-    expect(screen.queryByText("Usuários")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /prospec/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /usuários/i })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Financeiro" })).toBeInTheDocument();
   });
 

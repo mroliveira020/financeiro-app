@@ -2,23 +2,26 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #f8fafc;
-  border: 1px solid #dbe4f3;
-  border-radius: 999px;
-  padding: 6px 10px 6px 6px;
-  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.05);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  min-width: 0;
 }
 
 .editor-bar__avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  background: #1e40af;
   color: #fff;
   display: grid;
   place-items: center;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 12px;
+  letter-spacing: 0;
+  flex-shrink: 0;
 }
 
 .editor-bar__info {
@@ -31,44 +34,42 @@
 .editor-bar__email {
   font-size: 12px;
   font-weight: 600;
-  color: #1f2933;
+  color: #0f172a;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 220px;
+  max-width: 200px;
 }
 
 .editor-bar__role {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #475569;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.2;
 }
 
 .editor-bar__logout {
-  margin-left: auto;
-  border: none;
-  background: #e2e8f0;
-  color: #1f2933;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 5px 10px;
-  border-radius: 999px;
-  transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
+  margin-left: 4px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 12px;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
 }
 
 .editor-bar__logout:hover {
-  background: #2563eb;
-  color: #fff;
-  transform: translateY(-1px);
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
 }
 
 @media (max-width: 768px) {
   .editor-bar {
     width: 100%;
-    padding: 8px 10px;
     gap: 10px;
-    border-radius: 22px;
   }
 
   .editor-bar__email {
