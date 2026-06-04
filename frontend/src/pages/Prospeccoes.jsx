@@ -1909,17 +1909,28 @@ function TabelaCapturados({
                 </p>
 
                 <div className="prospects-capture-card__facts">
-                  <span>{item.modalidade || "Sem modalidade"}</span>
                   <span>{item.financia === undefined || item.financia === null ? "Financiamento n/d" : item.financia ? "Aceita FGTS/financiamento" : "Sem financiamento"}</span>
                   <span>{item.situacao || "Sem status"}</span>
                 </div>
 
-                {processoNumero ? (
-                  <div className="prospects-capture-card__areas">
-                    <span>Processo</span>
-                    <strong>{processoNumero}</strong>
+                <div className="prospects-capture-card__meta-grid">
+                  <div className="prospects-capture-card__meta-item">
+                    <span>Valor avaliação</span>
+                    <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
                   </div>
-                ) : null}
+                  <div className="prospects-capture-card__meta-item">
+                    <span>{resumoLeilao?.label || "Evento"}</span>
+                    <strong>{resumoLeilao?.data ? formatarDataHoraCompacta(resumoLeilao.data) : "Data não informada"}</strong>
+                  </div>
+                  <div className="prospects-capture-card__meta-item prospects-capture-card__meta-item--accent">
+                    <span>{resumoLeilao?.valor !== null && resumoLeilao?.valor !== undefined ? "Lance" : "Valor mínimo"}</span>
+                    <strong>{formatarMoeda(resumoLeilao?.valor ?? item.valorMinimo)}</strong>
+                  </div>
+                  <div className="prospects-capture-card__meta-item">
+                    <span>{processoNumero ? "Processo" : "Financia"}</span>
+                    <strong>{processoNumero || (item.financia === undefined || item.financia === null ? "—" : item.financia ? "Sim" : "Não")}</strong>
+                  </div>
+                </div>
 
                 <DetalhesTexto texto={item.descricao} className="prospects-capture-card__description" />
 
@@ -1967,22 +1978,6 @@ function TabelaCapturados({
                       <ArrowUpRightIcon />
                     </a>
                   ) : null}
-                </div>
-
-                <div className="prospects-capture-card__areas">
-                  <span>Valor avaliação</span>
-                  <strong className="prospects-capture-card__striked">{formatarMoeda(item.valorAvaliacao)}</strong>
-                </div>
-
-                <div className="prospects-capture-card__footer">
-                  <div className="prospects-capture-card__sale">
-                    <span>{resumoLeilao?.label || item.modalidade || "Venda"}</span>
-                    <strong>{resumoLeilao?.data ? formatarDataHoraCompacta(resumoLeilao.data) : "Data não informada"}</strong>
-                  </div>
-                  <div className="prospects-capture-card__price">
-                    <span>{resumoLeilao?.valor !== null && resumoLeilao?.valor !== undefined ? "Lance" : "Valor mínimo"}</span>
-                    <strong>{formatarMoeda(resumoLeilao?.valor ?? item.valorMinimo)}</strong>
-                  </div>
                 </div>
 
                 {avaliacao ? (

@@ -1054,7 +1054,7 @@
 .prospects-capture-card__body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -1073,9 +1073,9 @@
 
 .prospects-capture-card__location {
   margin: 0;
-  font-size: 17px;
-  line-height: 1.15;
-  letter-spacing: -0.03em;
+  font-size: 18px;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
   color: var(--prospects-ink);
 }
 
@@ -1097,12 +1097,55 @@
 }
 
 .prospects-capture-card__facts span {
-  padding: 5px 8px;
+  padding: 4px 8px;
   border-radius: 999px;
-  background: #f1f5fb;
-  color: #51607d;
+  background: #f3f6fb;
+  color: #55637f;
   font-size: 10px;
   font-weight: 700;
+}
+
+.prospects-capture-card__meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.prospects-capture-card__meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  border: 1px solid #e3ebf7;
+  background: #f8fbff;
+}
+
+.prospects-capture-card__meta-item span,
+.prospects-capture-card__sale span,
+.prospects-capture-card__price span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6c7895;
+  font-weight: 700;
+}
+
+.prospects-capture-card__meta-item strong {
+  font-size: 13px;
+  color: #1f2f4a;
+  line-height: 1.35;
+}
+
+.prospects-capture-card__meta-item--accent {
+  background: #eef4ff;
+  border-color: #d5e2ff;
+}
+
+.prospects-capture-card__meta-item--accent strong {
+  color: #135b8d;
+  font-size: 18px;
+  letter-spacing: -0.03em;
 }
 
 .prospects-capture-card__description {
@@ -1116,28 +1159,8 @@
   overflow: hidden;
 }
 
-.prospects-capture-card__areas {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-top: 2px;
-  border-top: 1px dashed #d6e0ec;
-}
-
-.prospects-capture-card__areas span,
-.prospects-capture-card__sale span,
-.prospects-capture-card__price span {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #6c7895;
-  font-weight: 700;
-}
-
-.prospects-capture-card__striked {
-  font-size: 13px;
-  color: #7b87a3;
-  text-decoration: line-through;
+.prospects-capture-card__description p {
+  margin: 0;
 }
 
 .prospects-capture-card__footer {
@@ -1191,6 +1214,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+  padding-top: 2px;
 }
 
 .prospects-capture-card__actions .prospects-btn {
