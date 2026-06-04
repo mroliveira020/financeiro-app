@@ -28,6 +28,17 @@ from config import FRONTEND_APP_URL
 auth_bp = Blueprint("auth", __name__)
 
 
+def _parse_capabilities(payload: Dict[str, Any], role: str) -> list[str]:
+    caps = payload.get("capabilities")
+    if isinstance(caps, str):
+        return [caps]
+    if isinstance(caps, list):
+        return caps
+    if role == "admin":
+        return ["admin", "prospector", "socio", "editor"]
+    return ["prospector", "editor"]
+
+
 def _resolve_frontend_app_url() -> str:
     origin = (request.headers.get("Origin") or "").strip()
     if origin.startswith(("http://", "https://")):
@@ -60,6 +71,7 @@ def login() -> Any:
         user_id=user["id"],
         email=user["email"],
         role=user.get("role", "prospector"),
+        capabilities=user.get("capabilities") or [],
         is_active=user.get("is_active", True),
     )
     return (
@@ -71,10 +83,11 @@ def login() -> Any:
                     "name": user.get("name"),
                     "email": user["email"],
                     "role": user.get("role", "prospector"),
+                    "capabilities": user.get("capabilities") or [],
                     "pix_key": user.get("pix_key"),
                     "ai_access": bool(user.get("ai_access")),
-                    "finance_access": user_has_finance_access(user.get("id"), user.get("role")),
-                    "finance_scope": get_finance_access_scope(user.get("id"), user.get("role")),
+                    "finance_access": user_has_finance_access(user.get("id"), user.get("role"), user.get("capabilities")),
+                    "finance_scope": get_finance_access_scope(user.get("id"), user.get("role"), user.get("capabilities")),
                 },
             }
         ),
@@ -100,10 +113,11 @@ def me() -> Any:
                 "name": db_user.get("name"),
                 "email": db_user["email"],
                 "role": db_user.get("role", "prospector"),
+                "capabilities": db_user.get("capabilities") or [],
                 "pix_key": db_user.get("pix_key"),
                 "ai_access": bool(db_user.get("ai_access")),
-                "finance_access": user_has_finance_access(db_user.get("id"), db_user.get("role")),
-                "finance_scope": get_finance_access_scope(db_user.get("id"), db_user.get("role")),
+                "finance_access": user_has_finance_access(db_user.get("id"), db_user.get("role"), db_user.get("capabilities")),
+                "finance_scope": get_finance_access_scope(db_user.get("id"), db_user.get("role"), db_user.get("capabilities")),
             }
         ),
         200,
@@ -125,6 +139,7 @@ def create_user() -> Any:
     email = (payload.get("email") or "").strip().lower()
     password = payload.get("password") or ""
     role = (payload.get("role") or "prospector").strip().lower()
+    capabilities = _parse_capabilities(payload, role)
     pix_key = (payload.get("pix_key") or "").strip() or None
     ai_access = bool(payload.get("ai_access", False))
     is_active = bool(payload.get("is_active", True))
@@ -143,6 +158,7 @@ def create_user() -> Any:
             nome=nome,
             pix_key=pix_key,
             ai_access=ai_access,
+            capabilities=capabilities,
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -158,6 +174,7 @@ def create_user() -> Any:
                 "name": user.get("name"),
                 "email": user["email"],
                 "role": user.get("role", "prospector"),
+                "capabilities": user.get("capabilities") or [],
                 "pix_key": user.get("pix_key"),
                 "ai_access": bool(user.get("ai_access")),
                 "is_active": user.get("is_active", True),
@@ -174,8 +191,8 @@ def list_users() -> Any:
     enriched = []
     for user in users:
         item = dict(user)
-        item["finance_access"] = user_has_finance_access(item.get("id"), item.get("role"))
-        item["finance_scope"] = get_finance_access_scope(item.get("id"), item.get("role"))
+        item["finance_access"] = user_has_finance_access(item.get("id"), item.get("role"), item.get("capabilities"))
+        item["finance_scope"] = get_finance_access_scope(item.get("id"), item.get("role"), item.get("capabilities"))
         enriched.append(item)
     return jsonify({"data": enriched}), 200
 
@@ -188,9 +205,18 @@ def update_user(user_id: int) -> Any:
     pix_key = (payload.get("pix_key") or "").strip() or None
     ai_access = bool(payload.get("ai_access", False))
     is_active = bool(payload.get("is_active", True))
+    role = (payload.get("role") or "prospector").strip().lower()
+    capabilities = _parse_capabilities(payload, role)
 
     try:
-        user = atualizar_usuario(user_id=user_id, nome=nome, is_active=is_active, pix_key=pix_key, ai_access=ai_access)
+        user = atualizar_usuario(
+            user_id=user_id,
+            nome=nome,
+            is_active=is_active,
+            pix_key=pix_key,
+            ai_access=ai_access,
+            capabilities=capabilities,
+        )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     except Exception as exc:  # noqa: BLE001
@@ -200,8 +226,8 @@ def update_user(user_id: int) -> Any:
         return jsonify({"error": "Usuário não encontrado"}), 404
 
     payload = dict(user)
-    payload["finance_access"] = user_has_finance_access(payload.get("id"), payload.get("role"))
-    payload["finance_scope"] = get_finance_access_scope(payload.get("id"), payload.get("role"))
+    payload["finance_access"] = user_has_finance_access(payload.get("id"), payload.get("role"), payload.get("capabilities"))
+    payload["finance_scope"] = get_finance_access_scope(payload.get("id"), payload.get("role"), payload.get("capabilities"))
     return jsonify({"user": payload}), 200
 
 
@@ -212,6 +238,7 @@ def create_user_invite() -> Any:
     nome = (payload.get("name") or "").strip()
     email = (payload.get("email") or "").strip().lower()
     role = (payload.get("role") or "prospector").strip().lower()
+    capabilities = _parse_capabilities(payload, role)
     pix_key = (payload.get("pix_key") or "").strip() or None
     ai_access = bool(payload.get("ai_access", False))
     is_active = bool(payload.get("is_active", True))
@@ -231,6 +258,7 @@ def create_user_invite() -> Any:
             invite_hours=invite_hours,
             pix_key=pix_key,
             ai_access=ai_access,
+            capabilities=capabilities,
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -249,6 +277,7 @@ def create_user_invite() -> Any:
                     "name": invited.get("name"),
                     "email": invited["email"],
                     "role": invited["role"],
+                    "capabilities": invited.get("capabilities") or [],
                     "pix_key": invited.get("pix_key"),
                     "ai_access": bool(invited.get("ai_access")),
                     "is_active": invited["is_active"],

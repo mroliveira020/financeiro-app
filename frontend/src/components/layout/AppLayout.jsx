@@ -43,11 +43,12 @@ function SidebarLink({ to, icon, label }) {
 }
 
 export default function AppLayout() {
-  const { user } = useAuth();
+  const { user, hasCapability } = useAuth();
   const location = useLocation();
   const [topbarContent, setTopbarContent] = useState(null);
-  const canAccessFinance = user?.finance_access ?? user?.role !== "prospector";
-  const isAdmin = user?.role === "admin";
+  const canAccessFinance = Boolean(user?.finance_access || hasCapability("admin"));
+  const canAccessProspeccoes = hasCapability("admin", "prospector");
+  const isAdmin = hasCapability("admin");
   const isProspeccoesPage = location.pathname.startsWith("/prospeccoes");
   const pageTitle = isProspeccoesPage ? "Gestão de imóveis" : "Financeiro";
   const pageSubtitle = isProspeccoesPage
@@ -62,7 +63,7 @@ export default function AppLayout() {
         </div>
         <nav className="app-shell__nav">
           {canAccessFinance && <SidebarLink to="/" icon={icons.home} label="Financeiro" />}
-          <SidebarLink to="/prospeccoes" icon={icons.prospects} label="Prospec." />
+          {canAccessProspeccoes && <SidebarLink to="/prospeccoes" icon={icons.prospects} label="Prospec." />}
           {isAdmin && <SidebarLink to="/usuarios" icon={icons.users} label="Usuários" />}
         </nav>
         <div className="app-shell__sidebar-foot text-muted">v1.0</div>

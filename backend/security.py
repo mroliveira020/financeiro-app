@@ -78,8 +78,47 @@ def _decode_access_token(token: str) -> Dict[str, Any]:
         "id": payload.get("sub"),
         "email": payload.get("email"),
         "role": payload.get("role", "prospector"),
+        "capabilities": payload.get("capabilities") or [],
         "is_active": payload.get("is_active", True),
     }
+
+
+def _legacy_capabilities_for_role(role: Optional[str]) -> set[str]:
+    role_norm = (role or "").strip().lower()
+    if role_norm == "admin":
+        return {"admin", "editor", "prospector", "socio"}
+    if role_norm == "prospector":
+        return {"editor", "prospector"}
+    return set()
+
+
+def _normalize_capabilities(capabilities) -> set[str]:
+    if isinstance(capabilities, str):
+        raw = [capabilities]
+    elif isinstance(capabilities, (list, tuple, set)):
+        raw = capabilities
+    else:
+        raw = []
+    return {
+        (item or "").strip().lower()
+        for item in raw
+        if (item or "").strip().lower() in {"admin", "prospector", "socio", "editor"}
+    }
+
+
+def get_user_capabilities(user: Optional[Dict[str, Any]]) -> set[str]:
+    if not user:
+        return set()
+    return _normalize_capabilities(user.get("capabilities")) | _legacy_capabilities_for_role(user.get("role"))
+
+
+def user_has_any_capability(user: Optional[Dict[str, Any]], *capabilities: str) -> bool:
+    if not user:
+        return False
+    required = {(item or "").strip().lower() for item in capabilities if (item or "").strip()}
+    if not required:
+        return False
+    return bool(get_user_capabilities(user) & required)
 
 
 def _is_allowed_path_for_prospector(path: str) -> bool:
@@ -102,16 +141,18 @@ def _is_allowed_finance_path(path: str) -> bool:
     return False
 
 
-def user_has_global_finance_access(role: Optional[str] = None) -> bool:
-    role_norm = (role or "").strip().lower()
-    return role_norm in {"admin"}
+def user_has_global_finance_access(role: Optional[str] = None, capabilities=None) -> bool:
+    effective = _normalize_capabilities(capabilities) | _legacy_capabilities_for_role(role)
+    return "admin" in effective
 
 
-def user_has_finance_access(user_id: Optional[int], role: Optional[str] = None) -> bool:
-    role_norm = (role or "").strip().lower()
-    if user_has_global_finance_access(role_norm):
+def user_has_finance_access(user_id: Optional[int], role: Optional[str] = None, capabilities=None) -> bool:
+    effective = _normalize_capabilities(capabilities) | _legacy_capabilities_for_role(role)
+    if "admin" in effective:
         return True
-    if role_norm != "prospector" or not user_id:
+    if "socio" not in effective and (role or "").strip().lower() != "prospector":
+        return False
+    if not user_id:
         return False
 
     conn, cur = conectar()
@@ -134,32 +175,36 @@ def user_has_finance_access(user_id: Optional[int], role: Optional[str] = None) 
         conn.close()
 
 
-def get_finance_access_scope(user_id: Optional[int], role: Optional[str] = None) -> str:
-    role_norm = (role or "").strip().lower()
-    if user_has_global_finance_access(role_norm):
+def get_finance_access_scope(user_id: Optional[int], role: Optional[str] = None, capabilities=None) -> str:
+    if user_has_global_finance_access(role, capabilities):
         return "global"
-    if role_norm == "prospector" and user_has_finance_access(user_id, role_norm):
+    if user_has_finance_access(user_id, role, capabilities):
         return "restricted"
     return "none"
 
 
 def _ensure_module_access(user: Dict[str, Any]) -> Optional[tuple]:
-    if user.get("role") != "prospector":
+    capabilities = get_user_capabilities(user)
+    if "admin" in capabilities:
         return None
-    if _is_allowed_path_for_prospector(request.path):
+    if "prospector" in capabilities and _is_allowed_path_for_prospector(request.path):
         return None
-    if get_finance_access_scope(user.get("id"), user.get("role")) != "none" and _is_allowed_finance_path(request.path):
+    if (
+        "socio" in capabilities
+        or (user.get("role") or "").strip().lower() == "prospector"
+    ) and get_finance_access_scope(user.get("id"), user.get("role"), user.get("capabilities")) != "none" and _is_allowed_finance_path(request.path):
         return None
     _log_auth_failure("Módulo não permitido para este perfil", 403)
     return jsonify({"error": "Permissão insuficiente para este módulo"}), 403
 
 
-def generate_access_token(user_id: int, email: str, role: str, is_active: bool = True) -> str:
+def generate_access_token(user_id: int, email: str, role: str, capabilities=None, is_active: bool = True) -> str:
     expires = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRES_MINUTES)
     payload = {
         "sub": user_id,
         "email": email,
         "role": role,
+        "capabilities": sorted(_normalize_capabilities(capabilities)),
         "is_active": is_active,
         "type": "access",
         "exp": expires,
@@ -219,7 +264,7 @@ def requires_role(*roles: str):
             if access_error:
                 return access_error
 
-            if user.get("role") not in roles:
+            if not user_has_any_capability(user, *roles):
                 _log_auth_failure("Permissão insuficiente", 403)
                 return jsonify({"error": "Permissão insuficiente"}), 403
             return fn(*args, **kwargs)
@@ -255,7 +300,7 @@ def requires_editor_token(fn):
         if access_error:
             return access_error
 
-        if user.get("role") != "admin":
+        if not user_has_any_capability(user, "admin", "editor"):
             _log_auth_failure("Permissão insuficiente", 403)
             return jsonify({"error": "Permissão insuficiente"}), 403
 
@@ -279,7 +324,7 @@ def requires_prospeccao_write(fn):
         if access_error:
             return access_error
 
-        if user.get("role") not in {"prospector", "admin"}:
+        if not user_has_any_capability(user, "admin", "editor", "prospector"):
             _log_auth_failure("Permissão insuficiente", 403)
             return jsonify({"error": "Permissão insuficiente"}), 403
 

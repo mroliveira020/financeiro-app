@@ -40,6 +40,27 @@ function ModalEdicao({
     };
   }, [formEdicao?.id_imovel]);
 
+  useEffect(() => {
+    if (!formEdicao) return;
+    if (socios.length === 1) {
+      const socioId = String(socios[0].user_id);
+      if (String(formEdicao.paid_by_user_id ?? "") !== socioId) {
+        setFormEdicao({ ...formEdicao, paid_by_user_id: socioId });
+      }
+      return;
+    }
+    if (socios.length > 1) {
+      const idsValidos = new Set(socios.map((socio) => String(socio.user_id)));
+      if (formEdicao.paid_by_user_id && !idsValidos.has(String(formEdicao.paid_by_user_id))) {
+        setFormEdicao({ ...formEdicao, paid_by_user_id: "" });
+      }
+      return;
+    }
+    if (formEdicao.paid_by_user_id) {
+      setFormEdicao({ ...formEdicao, paid_by_user_id: "" });
+    }
+  }, [formEdicao, setFormEdicao, socios]);
+
   const deveMostrarPagador = socios.length > 0;
 
   if (!formEdicao) return null;
@@ -181,7 +202,7 @@ function ModalEdicao({
                       paid_by_user_id: e.target.value,
                     })
                   }
-                  disabled={carregandoSocios}
+                  disabled={carregandoSocios || socios.length === 1}
                 >
                   <option value="">Selecione um sócio</option>
                   {socios.map((socio) => (
@@ -191,6 +212,9 @@ function ModalEdicao({
                     </option>
                   ))}
                 </select>
+                {socios.length > 1 ? (
+                  <small className="text-muted">Obrigatório para imóveis com múltiplos sócios.</small>
+                ) : null}
               </div>
             )}
           </div>

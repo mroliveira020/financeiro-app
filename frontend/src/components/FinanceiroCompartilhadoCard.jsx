@@ -33,7 +33,7 @@ const formatarDataBrasil = (valor) => {
 
 function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "total" }) {
   const { id } = useParams();
-  const { hasRole, user } = useAuth();
+  const { hasCapability, user } = useAuth();
   const [estado, setEstado] = useState({
     carregando: true,
     erro: "",
@@ -82,7 +82,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
   const socios = useMemo(() => estado.dados?.socios || [], [estado.dados]);
   const equalizacoes = useMemo(() => estado.dados?.equalizacoes || [], [estado.dados]);
   const totais = estado.dados?.totais || {};
-  const canRegisterEqualizacao = hasRole("admin") || Boolean(user?.finance_access);
+  const canRegisterEqualizacao = hasCapability("admin", "editor") || Boolean(user?.finance_access);
   const sociosPorId = useMemo(
     () =>
       socios.reduce((acc, socio) => {
@@ -260,6 +260,17 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
     }
     return { classe: "is-neutral", icone: "•", texto: "Equalizado" };
   }, []);
+
+  const descreverImpactoEqualizacao = useCallback((item) => {
+    if (!user?.id) return null;
+    if (Number(item?.paid_by_user_id) === Number(user.id)) {
+      return { classe: "is-negative", texto: "Você pagou" };
+    }
+    if (Number(item?.beneficiary_user_id) === Number(user.id)) {
+      return { classe: "is-positive", texto: "Você recebeu" };
+    }
+    return null;
+  }, [user?.id]);
 
   return (
     <section className="dashboard-card financeiro-compartilhado-card">
@@ -459,6 +470,11 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
                 <div className="financeiro-compartilhado-card__mobile-list">
                   {equalizacoesExibidas.map((item) => (
                     <article key={item.id} className="financeiro-compartilhado-card__mobile-item">
+                      {usandoMinhaParticipacao && descreverImpactoEqualizacao(item) ? (
+                        <div className={`financeiro-compartilhado-card__flag ${descreverImpactoEqualizacao(item).classe}`}>
+                          {descreverImpactoEqualizacao(item).texto}
+                        </div>
+                      ) : null}
                       <dl>
                         <div>
                           <dt>Data</dt>
@@ -497,12 +513,21 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
                       </tr>
                     </thead>
                     <tbody>
-                  {equalizacoesExibidas.map((item) => (
+                      {equalizacoesExibidas.map((item) => (
                         <tr key={item.id}>
                           <td>{formatarDataBrasil(item.data)}</td>
                           <td>{formatarNomeSocio(item.paid_by_user_id)}</td>
                           <td>{formatarNomeSocio(item.beneficiary_user_id)}</td>
-                          <td>{item.descricao || "Equalização entre sócios"}</td>
+                          <td>
+                            <div className="financeiro-compartilhado-card__equalizacao-desc">
+                              <span>{item.descricao || "Equalização entre sócios"}</span>
+                              {usandoMinhaParticipacao && descreverImpactoEqualizacao(item) ? (
+                                <small className={`financeiro-compartilhado-card__impact-note ${descreverImpactoEqualizacao(item).classe}`}>
+                                  {descreverImpactoEqualizacao(item).texto}
+                                </small>
+                              ) : null}
+                            </div>
+                          </td>
                           <td className="text-end">{formatarMoeda(item.valor)}</td>
                         </tr>
                       ))}

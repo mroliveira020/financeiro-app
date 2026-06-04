@@ -40,6 +40,27 @@ function ModalNovaTransacao({
     };
   }, [form?.id_imovel]);
 
+  useEffect(() => {
+    if (!form) return;
+    if (socios.length === 1) {
+      const socioId = String(socios[0].user_id);
+      if (String(form.paid_by_user_id ?? "") !== socioId) {
+        setForm({ ...form, paid_by_user_id: socioId });
+      }
+      return;
+    }
+    if (socios.length > 1) {
+      const idsValidos = new Set(socios.map((socio) => String(socio.user_id)));
+      if (form.paid_by_user_id && !idsValidos.has(String(form.paid_by_user_id))) {
+        setForm({ ...form, paid_by_user_id: "" });
+      }
+      return;
+    }
+    if (form.paid_by_user_id) {
+      setForm({ ...form, paid_by_user_id: "" });
+    }
+  }, [form, setForm, socios]);
+
   if (!form) return null;
 
   return (
@@ -122,9 +143,9 @@ function ModalNovaTransacao({
                 className="form-select form-select-sm"
                 value={form.paid_by_user_id ?? ""}
                 onChange={(e) => setForm({ ...form, paid_by_user_id: e.target.value })}
-                disabled={carregandoSocios || !form.id_imovel}
+                disabled={carregandoSocios || !form.id_imovel || socios.length === 1}
               >
-                <option value="">Selecione</option>
+                <option value="">{socios.length > 1 ? "Selecione" : "Selecione um imóvel"}</option>
                 {socios.map((socio) => (
                   <option key={socio.user_id} value={socio.user_id}>
                     {socio.user_name || socio.user_email}
@@ -132,6 +153,9 @@ function ModalNovaTransacao({
                   </option>
                 ))}
               </select>
+              {socios.length > 1 ? (
+                <small className="text-muted">Obrigatório para imóveis com múltiplos sócios.</small>
+              ) : null}
             </div>
           </div>
 

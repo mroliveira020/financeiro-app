@@ -19,13 +19,16 @@ class FinanceiroPermissoesTestCase(unittest.TestCase):
     def test_helpers_de_escopo_financeiro(self):
         self.assertTrue(user_has_global_finance_access("admin"))
         self.assertFalse(user_has_global_finance_access("prospector"))
+        self.assertTrue(user_has_global_finance_access(None, ["admin"]))
 
         self.assertTrue(user_has_finance_access(2, "admin"))
         self.assertTrue(user_has_finance_access(6, "prospector"))
+        self.assertTrue(user_has_finance_access(6, "prospector", ["socio"]))
         self.assertFalse(user_has_finance_access(4, "prospector"))
 
         self.assertEqual(get_finance_access_scope(2, "admin"), "global")
         self.assertEqual(get_finance_access_scope(6, "prospector"), "restricted")
+        self.assertEqual(get_finance_access_scope(6, "prospector", ["socio"]), "restricted")
         self.assertEqual(get_finance_access_scope(4, "prospector"), "none")
 
     def test_prospector_marco_ve_apenas_imovel_vinculado(self):

@@ -79,9 +79,9 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const [rowSaving, setRowSaving] = useState({});
   const [savingAll, setSavingAll] = useState(false);
 
-  const { hasRole, user } = useAuth();
-  const canEdit = hasRole("admin");
-  const isAdmin = user?.role === "admin";
+  const { hasCapability } = useAuth();
+  const canEdit = hasCapability("admin", "editor");
+  const isAdmin = hasCapability("admin");
   const { categorias, imoveis } = useCatalogos({ includeImoveis: isAdmin });
 
   const totais = useMemo(() => ({

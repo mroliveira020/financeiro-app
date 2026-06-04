@@ -7,6 +7,32 @@ const ROLE_OPTIONS = [
   { value: "admin", label: "Administrador" },
 ];
 
+const CAPABILITY_OPTIONS = [
+  { value: "prospector", label: "Prospecção" },
+  { value: "socio", label: "Sócio" },
+  { value: "editor", label: "Edição" },
+  { value: "admin", label: "Administrador" },
+];
+
+const normalizeCapabilities = (capabilities = [], role = "prospector") => {
+  const values = Array.from(new Set(Array.isArray(capabilities) ? capabilities : []));
+  if (!values.length) {
+    return role === "admin" ? ["admin", "prospector", "socio", "editor"] : ["prospector", "editor"];
+  }
+  if (values.includes("admin")) {
+    return ["admin", "prospector", "socio", "editor"];
+  }
+  return CAPABILITY_OPTIONS.map((item) => item.value).filter((item) => values.includes(item));
+};
+
+const capabilityLabel = (value) =>
+  CAPABILITY_OPTIONS.find((item) => item.value === value)?.label || value;
+
+const formatRoleLabel = (user) => {
+  if (user?.role === "admin") return "Administrador";
+  return "Prospecção";
+};
+
 const createSocioRow = (overrides = {}) => ({
   localId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   user_id: "",
@@ -54,6 +80,7 @@ export default function Usuarios() {
   const [editingPixKey, setEditingPixKey] = useState("");
   const [editingAiAccess, setEditingAiAccess] = useState(false);
   const [editingIsActive, setEditingIsActive] = useState(true);
+  const [editingCapabilities, setEditingCapabilities] = useState(["prospector", "editor"]);
   const [updatingUserId, setUpdatingUserId] = useState(null);
   const [selectedImovelId, setSelectedImovelId] = useState("");
   const [sociosRows, setSociosRows] = useState([]);
@@ -64,6 +91,7 @@ export default function Usuarios() {
   const [pixKey, setPixKey] = useState("");
   const [aiAccess, setAiAccess] = useState(false);
   const [role, setRole] = useState("prospector");
+  const [inviteCapabilities, setInviteCapabilities] = useState(["prospector", "editor"]);
   const [inviteHours, setInviteHours] = useState(72);
   const [isActive, setIsActive] = useState(true);
 
@@ -182,6 +210,7 @@ export default function Usuarios() {
         name: name.trim(),
         email: email.trim().toLowerCase(),
         role,
+        capabilities: inviteCapabilities,
         pix_key: pixKey.trim(),
         ai_access: aiAccess,
         is_active: isActive,
@@ -193,6 +222,7 @@ export default function Usuarios() {
       setEmail("");
       setPixKey("");
       setAiAccess(false);
+      setInviteCapabilities(normalizeCapabilities([], role));
       await loadUsers();
     } catch (err) {
       setError(err?.response?.data?.error || "Erro ao gerar convite");
@@ -217,6 +247,7 @@ export default function Usuarios() {
     setEditingPixKey(user.pix_key || "");
     setEditingAiAccess(Boolean(user.ai_access));
     setEditingIsActive(Boolean(user.is_active));
+    setEditingCapabilities(normalizeCapabilities(user.capabilities, user.role));
     setError("");
     setMessage("");
   };
@@ -227,6 +258,7 @@ export default function Usuarios() {
     setEditingPixKey("");
     setEditingAiAccess(false);
     setEditingIsActive(true);
+    setEditingCapabilities(["prospector", "editor"]);
   };
 
   const handleUpdateUser = async (userId) => {
@@ -239,6 +271,8 @@ export default function Usuarios() {
         pix_key: editingPixKey.trim(),
         ai_access: editingAiAccess,
         is_active: editingIsActive,
+        role: editingCapabilities.includes("admin") ? "admin" : "prospector",
+        capabilities: editingCapabilities,
       });
       setMessage("Usuário atualizado com sucesso.");
       cancelEditing();
@@ -255,6 +289,31 @@ export default function Usuarios() {
       current.map((row) => (row.localId === localId ? { ...row, [field]: value } : row))
     );
   };
+
+  const handleInviteCapabilityToggle = (capability, checked) => {
+    setInviteCapabilities((current) => {
+      const next = checked
+        ? [...current, capability]
+        : current.filter((item) => item !== capability);
+      return normalizeCapabilities(next, role).filter((item) => role === "admin" || item !== "admin");
+    });
+  };
+
+  const handleEditingCapabilityToggle = (capability, checked) => {
+    setEditingCapabilities((current) => {
+      const next = checked
+        ? [...current, capability]
+        : current.filter((item) => item !== capability);
+      return normalizeCapabilities(next, checked && capability === "admin" ? "admin" : "prospector");
+    });
+  };
+
+  useEffect(() => {
+    setInviteCapabilities((current) => {
+      const next = normalizeCapabilities(current, role);
+      return role === "admin" ? next : next.filter((item) => item !== "admin");
+    });
+  }, [role]);
 
   const handleAddSocioRow = () => {
     setSociosRows((current) => [...current, createSocioRow()]);
@@ -347,7 +406,33 @@ export default function Usuarios() {
                   )}
                 </td>
                 <td>{user.email}</td>
-                <td>{user.role}</td>
+                <td>
+                  {editingUserId === user.id ? (
+                    <div className="d-grid gap-1">
+                      {CAPABILITY_OPTIONS.map((item) => (
+                        <label key={item.value} className="users-table__check">
+                          <input
+                            type="checkbox"
+                            checked={editingCapabilities.includes(item.value)}
+                            onChange={(e) => handleEditingCapabilityToggle(item.value, e.target.checked)}
+                          />
+                          <span>{item.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="d-grid gap-1">
+                      <strong>{formatRoleLabel(user)}</strong>
+                      <div className="d-flex flex-wrap gap-1">
+                        {normalizeCapabilities(user.capabilities, user.role).map((item) => (
+                          <span key={item} className="badge text-bg-light border">
+                            {capabilityLabel(item)}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </td>
                 <td>
                   {editingUserId === user.id ? (
                     <input
@@ -475,6 +560,23 @@ export default function Usuarios() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="users-form__check">
+          <label>Capacidades</label>
+          <div className="d-grid gap-1 mt-2">
+            {CAPABILITY_OPTIONS.filter((item) => role === "admin" || item.value !== "admin").map((item) => (
+              <label key={item.value}>
+                <input
+                  type="checkbox"
+                  checked={inviteCapabilities.includes(item.value)}
+                  disabled={role === "admin"}
+                  onChange={(e) => handleInviteCapabilityToggle(item.value, e.target.checked)}
+                />
+                <span>{capabilityLabel(item.value)}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <div className="users-form__row">

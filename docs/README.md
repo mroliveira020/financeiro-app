@@ -82,10 +82,28 @@
   - `imoveis_selecionados_observacoes`
   - `imoveis_selecionados_responsaveis`
   - `imovel_socios`
+- Tabelas cobertas na rodada incremental validada em produção:
+  - `agent_tasks`
+  - `alugueis_comparaveis`
+  - `avaliacoes`
+  - `bairros_enriquecidos`
+  - `cidades_enriquecidas`
+  - `comparaveis`
+  - `contexto_leilao`
+  - `fontes_coleta`
+  - `ia_jobs`
+  - `imoveis_fotos`
+  - `imoveis_selecionados_ai_analise`
+  - `matriculas_enriquecidas`
+  - `user_capabilities`
 - Estratégia adotada:
   - habilitar `RLS`
   - criar policy mínima para `service_role`
   - não liberar `anon` nem `authenticated` até que políticas específicas sejam desenhadas
+- Achados da validação de amostra real:
+  - `imoveis_selecionados_ai_analise` ainda possui registros órfãos para `numero_bem` fora da fila atual;
+  - `imoveis_selecionados_observacoes` também possui histórico órfão para itens já removidos da seleção;
+  - esses casos ficaram como insumo direto para a frente de banco que trata a ficha de capturados e o desacoplamento da FK.
 - Ação operacional obrigatória:
   - rotacionar `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_KEY` no painel do Supabase antes de continuar usando o ambiente atual, pois havia chaves reais expostas em configuração local do projeto.
 

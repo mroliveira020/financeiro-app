@@ -15,8 +15,11 @@ export default function EditorBar({ className = "" }) {
   const { user, logout } = useAuth();
   const roleLabel = useMemo(() => {
     if (!user) return "Desconhecido";
-    if (user.role === "admin") return "Administrador";
-    if (user.role === "prospector") return "Prospecção";
+    const caps = Array.isArray(user.capabilities) ? user.capabilities : [];
+    if (caps.includes("admin") || user.role === "admin") return "Administrador";
+    if (caps.includes("prospector") && caps.includes("socio")) return "Prospecção + Sócio";
+    if (caps.includes("socio")) return "Sócio";
+    if (caps.includes("prospector") || user.role === "prospector") return "Prospecção";
     return "Usuário";
   }, [user]);
 

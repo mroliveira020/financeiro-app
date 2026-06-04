@@ -21,9 +21,9 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [imoveisAcessiveis, setImoveisAcessiveis] = useState([]);
-  const { hasRole, user } = useAuth();
-  const canEdit = hasRole("admin");
-  const isAdmin = user?.role === "admin";
+  const { hasCapability } = useAuth();
+  const canEdit = hasCapability("admin", "editor");
+  const isAdmin = hasCapability("admin");
   const compactLayout = useCompactLayout();
   const { categorias, imoveis } = useCatalogos({ includeImoveis: isAdmin });
 

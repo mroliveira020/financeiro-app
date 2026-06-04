@@ -1797,6 +1797,7 @@ function TabelaCapturados({
   selectedCodes,
   onAbrirAvaliacao,
   onAbrirAvaliacaoDetalhada,
+  onAbrirAnalise,
 }) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando capturados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar capturados: {erro}</p></div>;
@@ -2005,6 +2006,13 @@ function TabelaCapturados({
                     onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
                   >
                     {item.analiseIaSalva ? "IA salva" : "Avaliação IA"}
+                  </button>
+                  <button
+                    type="button"
+                    className={`prospects-btn ghost prospects-btn--subtle ${item.analiseSalva ? "is-active" : ""}`.trim()}
+                    onClick={() => onAbrirAnalise(item, "capturados")}
+                  >
+                    {item.analiseSalva ? "Viabilidade salva" : "Viabilidade"}
                   </button>
                   <button
                     type="button"
@@ -2999,6 +3007,7 @@ function MobileCapturadosList({
   onResetFilters,
   onAbrirAvaliacao,
   onAbrirAvaliacaoDetalhada,
+  onAbrirAnalise,
 }) {
   const [citySearch, setCitySearch] = useState("");
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando base de prospecção...</p></div>;
@@ -3324,6 +3333,13 @@ function MobileCapturadosList({
                   onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
                 >
                   <span>{item.analiseIaSalva ? "IA salva" : "Avaliação IA"}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`prospects-btn ghost prospects-btn--mobile-action ${item.analiseSalva ? "is-active" : ""}`.trim()}
+                  onClick={() => onAbrirAnalise(item, "capturados")}
+                >
+                  <span>{item.analiseSalva ? "Viabilidade salva" : "Viabilidade"}</span>
                 </button>
                 <button
                   type="button"
@@ -3881,18 +3897,19 @@ export default function Prospeccoes() {
     }
   };
 
-  const openAnaliseModal = async (item) => {
+  const openAnaliseModal = async (item, origem = "selecionados") => {
     const fallbackInputs = createAnaliseFallbackInputs(item);
-    const cachedAnalise = analiseCache[item.codigo];
-    setAnaliseItem(item);
+    const cacheKey = `${origem}:${item.codigo}`;
+    const cachedAnalise = analiseCache[cacheKey];
+    setAnaliseItem({ ...item, origem });
     setAnaliseDraft(createAnaliseDraft(cachedAnalise?.inputs || fallbackInputs));
     setAnaliseMeta(cachedAnalise?.meta || { prefill_source: "fallback_local" });
     setAnalisePairModes(createAnalisePairModes(cachedAnalise?.inputs || fallbackInputs));
     setAnaliseLoading(true);
     try {
-      const data = await fetchAnaliseSelecionado(item.codigo);
+      const data = await fetchAnaliseSelecionado(item.codigo, origem);
       const inputs = data?.inputs || {};
-      setAnaliseCache((prev) => ({ ...prev, [item.codigo]: data }));
+      setAnaliseCache((prev) => ({ ...prev, [cacheKey]: data }));
       setAnaliseDraft(createAnaliseDraft(inputs));
       setAnalisePairModes(createAnalisePairModes(inputs));
       setAnaliseMeta(data?.meta || null);
@@ -3955,25 +3972,38 @@ export default function Prospeccoes() {
     setMensagem("");
     try {
       const payload = buildAnalisePayload(analiseDraft, analisePairModes);
-      const data = await salvarAnaliseSelecionado(analiseItem.codigo, payload);
+      const origem = analiseItem.origem || "selecionados";
+      const cacheKey = `${origem}:${analiseItem.codigo}`;
+      const data = await salvarAnaliseSelecionado(analiseItem.codigo, payload, origem);
       const inputs = data?.inputs || payload;
-      setAnaliseCache((prev) => ({ ...prev, [analiseItem.codigo]: data }));
+      setAnaliseCache((prev) => ({ ...prev, [cacheKey]: data }));
       setAnaliseDraft(createAnaliseDraft(inputs));
       setAnalisePairModes(createAnalisePairModes(inputs));
       setAnaliseMeta(data?.meta || null);
       if (avaliacaoDetalhadaItem?.codigo === analiseItem.codigo) {
         setAnaliseDetalhada(data);
       }
-      setSelecionados((prev) => prev.map((item) => (
-        item.codigo === analiseItem.codigo
-          ? {
-              ...item,
-              analiseSalva: true,
-              roiEsperadoPercentual: data?.calculos?.roi_esperado_percentual ?? item.roiEsperadoPercentual,
-              lucroEsperadoValor: data?.calculos?.lucro_esperado_valor ?? item.lucroEsperadoValor,
-            }
-          : item
-      )));
+      if (origem === "selecionados") {
+        setSelecionados((prev) => prev.map((item) => (
+          item.codigo === analiseItem.codigo
+            ? {
+                ...item,
+                analiseSalva: true,
+                roiEsperadoPercentual: data?.calculos?.roi_esperado_percentual ?? item.roiEsperadoPercentual,
+                lucroEsperadoValor: data?.calculos?.lucro_esperado_valor ?? item.lucroEsperadoValor,
+              }
+            : item
+        )));
+      } else {
+        setCapturados((prev) => prev.map((item) => (
+          item.codigo === analiseItem.codigo
+            ? {
+                ...item,
+                analiseSalva: true,
+              }
+            : item
+        )));
+      }
       await refreshSelecionados();
       setMensagem(`Análise do imóvel ${analiseItem.codigo} salva com sucesso.`);
     } catch (err) {
@@ -4659,6 +4689,7 @@ export default function Prospeccoes() {
               }}
               onAbrirAvaliacao={openAvaliacaoAutomaticaModal}
               onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
+              onAbrirAnalise={openAnaliseModal}
               sortBy={sortBy}
               setSortBy={setSortBy}
               sortDir={sortDir}
@@ -5010,6 +5041,7 @@ export default function Prospeccoes() {
             selectedCodes={selectedCodes}
             onAbrirAvaliacao={openAvaliacaoAutomaticaModal}
             onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
+            onAbrirAnalise={openAnaliseModal}
           />
         </>
       )}

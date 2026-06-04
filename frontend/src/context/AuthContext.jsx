@@ -5,6 +5,18 @@ import { safeErrorMessage } from "./authUtils";
 
 const AuthContext = createContext(undefined);
 
+const normalizeCapabilities = (user) => {
+  if (!user) return [];
+  const fromPayload = Array.isArray(user.capabilities) ? user.capabilities : [];
+  const fromRole =
+    user.role === "admin"
+      ? ["admin", "prospector", "socio", "editor"]
+      : user.role === "prospector"
+        ? ["prospector", "editor"]
+        : [];
+  return Array.from(new Set([...fromPayload, ...fromRole].map((item) => `${item || ""}`.trim().toLowerCase()).filter(Boolean)));
+};
+
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => getAccessToken());
   const [user, setUser] = useState(() => getStoredUser());
@@ -121,7 +133,14 @@ export function AuthProvider({ children }) {
       hasRole: (...roles) => {
         if (!user) return false;
         const normalized = roles.length ? roles : ["prospector"];
-        return normalized.includes(user.role);
+        return normalized.map((item) => `${item || ""}`.trim().toLowerCase()).includes(`${user.role || ""}`.trim().toLowerCase());
+      },
+      hasCapability: (...capabilities) => {
+        if (!user) return false;
+        const normalized = capabilities.map((item) => `${item || ""}`.trim().toLowerCase()).filter(Boolean);
+        if (!normalized.length) return false;
+        const userCapabilities = normalizeCapabilities(user);
+        return normalized.some((item) => userCapabilities.includes(item));
       },
     }),
     [user, token, loading, authError]

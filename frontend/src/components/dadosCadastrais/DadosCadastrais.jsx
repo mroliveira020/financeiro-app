@@ -31,10 +31,10 @@ function DadosCadastrais({ refreshKey = 0, onChanged }) {
     historico: 0,
     saldo: null,
   });
-  const { hasRole, user } = useAuth();
-  const canEdit = hasRole("admin");
+  const { hasCapability, user } = useAuth();
+  const canEdit = hasCapability("admin", "editor");
   const compactLayout = useCompactLayout();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = hasCapability("admin");
   const { categorias, imoveis } = useCatalogos({ includeImoveis: isAdmin });
 
   const irParaSecao = useCallback((sectionId) => {

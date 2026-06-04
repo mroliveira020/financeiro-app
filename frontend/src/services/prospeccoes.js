@@ -95,6 +95,7 @@ export async function fetchCapturados({
   const formatted = rows.map((row) => {
     const fotos = normalizeFotos(row);
     return {
+      origem: "capturados",
       fotos,
       fotoUrl: fotos[0] || null,
       codigo: row.numero_bem,
@@ -123,6 +124,7 @@ export async function fetchCapturados({
       fonte: row.fonte,
       tipoImovel: row.tipo_imovel,
       desconto: row.desconto,
+      analiseSalva: Boolean(row.analise_salva),
       analiseIaSalva: Boolean(row.analise_ia_salva),
       avaliacaoAutomatica: row.avaliacao || null,
     };
@@ -138,6 +140,7 @@ export async function fetchSelecionados({ status, uf, userId, incluirInativos } 
   return (data?.data || []).map((item) => {
     const fotos = normalizeFotos(item);
     return {
+      origem: "selecionados",
       fotos,
       fotoUrl: fotos[0] || null,
       codigo: item.numero_bem,
@@ -237,13 +240,17 @@ export async function fetchProspecMeta() {
   };
 }
 
-export async function fetchAnaliseSelecionado(numeroBem) {
-  const { data } = await api.get(`/prospeccoes/selecionados/${numeroBem}/analise`);
+function getAnaliseBasePath(origem = "selecionados", numeroBem) {
+  return `/prospeccoes/${origem}/${numeroBem}/analise`;
+}
+
+export async function fetchAnaliseSelecionado(numeroBem, origem = "selecionados") {
+  const { data } = await api.get(getAnaliseBasePath(origem, numeroBem));
   return data;
 }
 
-export async function salvarAnaliseSelecionado(numeroBem, payload) {
-  const { data } = await api.put(`/prospeccoes/selecionados/${numeroBem}/analise`, payload);
+export async function salvarAnaliseSelecionado(numeroBem, payload, origem = "selecionados") {
+  const { data } = await api.put(getAnaliseBasePath(origem, numeroBem), payload);
   return data;
 }
 

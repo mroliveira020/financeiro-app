@@ -27,8 +27,10 @@ from models import (
     buscar_contexto_operacao_prospeccao_capturado,
     buscar_contexto_operacao_prospeccao_selecionado,
     listar_prospeccoes_meta,
+    obter_analise_prospeccao_capturado,
     obter_analise_prospeccao_selecionado,
     obter_avaliacao_automatica_prospeccao,
+    salvar_analise_prospeccao_capturado,
     salvar_analise_prospeccao_selecionado,
     salvar_score_regiao_avaliacao,
     listar_prospectores_ativos,
@@ -694,6 +696,43 @@ def put_prospeccao_selecionado_analise(numero_bem):
     )
     if not result:
         return jsonify({"error": "Imóvel não encontrado em selecionados"}), 404
+    return jsonify(result), 200
+
+
+@app.route("/prospeccoes/capturados/<numero_bem>/analise", methods=["GET"])
+@requires_auth
+def get_prospeccao_capturado_analise(numero_bem):
+    if not numero_bem:
+        return jsonify({"error": "numero_bem é obrigatório"}), 400
+    contexto = buscar_contexto_operacao_prospeccao_capturado(numero_bem)
+    if not contexto:
+        return jsonify({"error": "Imóvel não encontrado em capturados"}), 404
+    result = obter_analise_prospeccao_capturado(numero_bem)
+    if not result:
+        return jsonify({"error": "Imóvel não encontrado em capturados"}), 404
+    return jsonify(result), 200
+
+
+@app.route("/prospeccoes/capturados/<numero_bem>/analise", methods=["PUT"])
+@requires_prospeccao_write
+@limiter.limit(RATE_LIMIT_EDIT)
+def put_prospeccao_capturado_analise(numero_bem):
+    if not numero_bem:
+        return jsonify({"error": "numero_bem é obrigatório"}), 400
+
+    payload = request.get_json(force=True, silent=True) or {}
+    current_user = get_current_user() or {}
+    contexto = buscar_contexto_operacao_prospeccao_capturado(numero_bem)
+    if not contexto:
+        return jsonify({"error": "Imóvel não encontrado em capturados"}), 404
+    result = salvar_analise_prospeccao_capturado(
+        numero_bem,
+        payload,
+        current_user_id=current_user.get("id"),
+        current_user_name=current_user.get("name") or current_user.get("email"),
+    )
+    if not result:
+        return jsonify({"error": "Imóvel não encontrado em capturados"}), 404
     return jsonify(result), 200
 
 

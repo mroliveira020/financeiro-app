@@ -586,6 +586,25 @@
   line-height: 1.35;
 }
 
+.financeiro-compartilhado-card__equalizacao-desc {
+  display: grid;
+  gap: 0.22rem;
+}
+
+.financeiro-compartilhado-card__impact-note {
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.financeiro-compartilhado-card__impact-note.is-positive {
+  color: #147d54;
+}
+
+.financeiro-compartilhado-card__impact-note.is-negative {
+  color: #b02a37;
+}
+
 .financeiro-compartilhado-card__person {
   display: flex;
   flex-direction: column;

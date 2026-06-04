@@ -1,4 +1,5 @@
-import { Navigate, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import AppLayout from "./components/layout/AppLayout";
@@ -11,6 +12,18 @@ import Usuarios from "./pages/Usuarios";
 import PrimeiroAcesso from "./pages/PrimeiroAcesso";
 
 const MOBILE_BREAKPOINT = 900;
+const APP_TITLE_BASE = "Financeiro Imóveis";
+
+function getRouteTitle(pathname) {
+  if (!pathname || pathname === "/") return `Financeiro — ${APP_TITLE_BASE}`;
+  if (pathname === "/financeiro") return `Financeiro — ${APP_TITLE_BASE}`;
+  if (pathname === "/prospeccoes") return `Prospecção — ${APP_TITLE_BASE}`;
+  if (pathname === "/usuarios") return `Usuários — ${APP_TITLE_BASE}`;
+  if (pathname === "/login") return `Entrar — ${APP_TITLE_BASE}`;
+  if (pathname === "/primeiro-acesso") return `Primeiro acesso — ${APP_TITLE_BASE}`;
+  if (pathname.startsWith("/dashboard/")) return `Dashboard do Imóvel — ${APP_TITLE_BASE}`;
+  return `Portal — ${APP_TITLE_BASE}`;
+}
 
 function isMobileDevice() {
   if (typeof window === "undefined") return false;
@@ -24,8 +37,9 @@ function isMobileDevice() {
 }
 
 function HomeEntry() {
-  const { user } = useAuth();
-  if (user?.role === "prospector" && !user?.finance_access) {
+  const { user, hasCapability } = useAuth();
+  const canAccessFinance = Boolean(user?.finance_access || hasCapability("admin"));
+  if (!canAccessFinance && hasCapability("prospector")) {
     return <Navigate to="/prospeccoes" replace />;
   }
   if (isMobileDevice()) {
@@ -35,32 +49,46 @@ function HomeEntry() {
 }
 
 function FinanceiroEntry() {
-  const { user } = useAuth();
-  if (user?.role === "prospector" && !user?.finance_access) {
+  const { user, hasCapability } = useAuth();
+  const canAccessFinance = Boolean(user?.finance_access || hasCapability("admin"));
+  if (!canAccessFinance && hasCapability("prospector")) {
     return <Navigate to="/prospeccoes" replace />;
   }
   return <Home />;
 }
 
 function DashboardEntry() {
-  const { user } = useAuth();
-  if (user?.role === "prospector" && !user?.finance_access) {
+  const { user, hasCapability } = useAuth();
+  const canAccessFinance = Boolean(user?.finance_access || hasCapability("admin"));
+  if (!canAccessFinance && hasCapability("prospector")) {
     return <Navigate to="/prospeccoes" replace />;
   }
   return <Dashboard />;
 }
 
 function UsuariosEntry() {
-  const { user } = useAuth();
-  if (user?.role !== "admin") {
+  const { hasCapability } = useAuth();
+  if (!hasCapability("admin")) {
     return <Navigate to="/" replace />;
   }
   return <Usuarios />;
 }
 
+function RouteDocumentMetadata() {
+  const location = useLocation();
+
+  useEffect(() => {
+    document.documentElement.lang = "pt-BR";
+    document.title = getRouteTitle(location.pathname);
+  }, [location.pathname]);
+
+  return null;
+}
+
 function App() {
   return (
     <AuthProvider>
+      <RouteDocumentMetadata />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/primeiro-acesso" element={<PrimeiroAcesso />} />

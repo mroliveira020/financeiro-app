@@ -40,6 +40,38 @@ def _normalizar_tipo_movimentacao(valor):
     return tipo
 
 
+def _listar_socios_ativos_ids(cur, id_imovel):
+    cur.execute(
+        """
+        SELECT user_id
+        FROM imovel_socios
+        WHERE id_imovel = %s
+          AND COALESCE(ativo, TRUE) = TRUE
+          AND percentual_participacao > 0
+        ORDER BY user_id
+        """,
+        (id_imovel,),
+    )
+    return [row[0] if not isinstance(row, dict) else row["user_id"] for row in cur.fetchall()]
+
+
+def _resolver_pagador_lancamento(cur, id_imovel, paid_by_user_id, tipo_movimentacao):
+    tipo_norm = _normalizar_tipo_movimentacao(tipo_movimentacao)
+    paid_by_user_id = _to_int_or_none(paid_by_user_id)
+    if tipo_norm != "despesa_imovel":
+        return paid_by_user_id
+
+    socios_ids = _listar_socios_ativos_ids(cur, id_imovel)
+    if len(socios_ids) <= 1:
+        return socios_ids[0] if socios_ids else paid_by_user_id
+
+    if paid_by_user_id is None:
+        raise ValueError("Informe quem pagou a despesa para imóveis com múltiplos sócios.")
+    if paid_by_user_id not in socios_ids:
+        raise ValueError("Quem pagou precisa ser um sócio ativo do imóvel.")
+    return paid_by_user_id
+
+
 def _aliquota_ganho_capital(valor):
     taxa = _to_float(valor)
     if taxa < 0:
@@ -313,6 +345,7 @@ def criar_usuario(
     nome: str | None = None,
     pix_key: str | None = None,
     ai_access: bool = False,
+    capabilities=None,
 ) -> dict:
     _garantir_tabela_usuarios()
     nome_norm = (nome or "").strip()
@@ -322,8 +355,8 @@ def criar_usuario(
     if not email_norm:
         raise ValueError("E-mail obrigatório")
     role_norm = (role or "prospector").strip().lower()
-    if role_norm not in {"admin", "prospector"}:
-        raise ValueError("Papel inválido")
+    capabilities_norm = _normalizar_capacidades_usuario(capabilities, role_norm)
+    role_norm = _derivar_role_primario(capabilities_norm, role_norm)
     pix_key_norm = (pix_key or "").strip() or None
     ai_access_bool = bool(ai_access)
     senha_hash = generate_password_hash(senha, method="pbkdf2:sha256", salt_length=16)
@@ -339,8 +372,11 @@ def criar_usuario(
             (nome_norm, email_norm, senha_hash, role_norm, pix_key_norm, ai_access_bool, is_active),
         )
         row = cur.fetchone()
+        _sincronizar_capacidades_usuario_cur(cur, row["id"], capabilities_norm, role_norm)
         conn.commit()
-        return dict(row)
+        payload = dict(row)
+        payload["capabilities"] = capabilities_norm
+        return payload
     except Exception:
         conn.rollback()
         raise
@@ -353,6 +389,175 @@ def _hash_invite_token(token: str) -> str:
 
 
 DEFAULT_SHARED_OWNER_EMAIL = "matheus.mro@gmail.com"
+ALLOWED_USER_CAPABILITIES = {"admin", "prospector", "socio", "editor"}
+
+
+def _capabilities_padrao_do_role(role: str | None) -> list[str]:
+    role_norm = (role or "prospector").strip().lower()
+    if role_norm == "admin":
+        return ["admin", "editor", "prospector", "socio"]
+    return ["editor", "prospector"]
+
+
+def _normalizar_capacidades_usuario(capabilities, role: str | None = None) -> list[str]:
+    valores = []
+    if isinstance(capabilities, str):
+        valores = [capabilities]
+    elif isinstance(capabilities, (list, tuple, set)):
+        valores = list(capabilities)
+
+    normalizadas = []
+    vistos = set()
+    for item in valores:
+        capability = (item or "").strip().lower()
+        if capability not in ALLOWED_USER_CAPABILITIES or capability in vistos:
+            continue
+        vistos.add(capability)
+        normalizadas.append(capability)
+
+    if not normalizadas:
+        normalizadas = _capabilities_padrao_do_role(role)
+
+    if "admin" in normalizadas:
+        normalizadas = ["admin", "editor", "prospector", "socio"]
+    elif "prospector" not in normalizadas and "socio" not in normalizadas:
+        normalizadas.append("prospector")
+
+    ordem = ["admin", "prospector", "socio", "editor"]
+    return [cap for cap in ordem if cap in normalizadas]
+
+
+def _derivar_role_primario(capabilities, role_fallback: str | None = None) -> str:
+    capabilities_norm = set(_normalizar_capacidades_usuario(capabilities, role_fallback))
+    if "admin" in capabilities_norm:
+        return "admin"
+    return "prospector"
+
+
+@lru_cache(maxsize=1)
+def _garantir_tabela_user_capabilities():
+    _garantir_tabela_usuarios()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_capabilities (
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                capability TEXT NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (user_id, capability)
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_user_capabilities_user
+            ON user_capabilities (user_id)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_user_capabilities_capability
+            ON user_capabilities (capability)
+            """
+        )
+        cur.execute(
+            """
+            DELETE FROM user_capabilities
+            WHERE capability NOT IN ('admin', 'prospector', 'socio', 'editor')
+            """
+        )
+        cur.execute(
+            """
+            INSERT INTO user_capabilities (user_id, capability)
+            SELECT u.id, caps.capability
+            FROM users u
+            JOIN LATERAL (
+                SELECT unnest(
+                    CASE
+                        WHEN LOWER(COALESCE(u.role, 'prospector')) = 'admin'
+                            THEN ARRAY['admin', 'prospector', 'socio', 'editor']
+                        ELSE ARRAY['prospector', 'editor']
+                    END
+                ) AS capability
+            ) caps ON TRUE
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM user_capabilities uc
+                WHERE uc.user_id = u.id
+            )
+            ON CONFLICT (user_id, capability) DO NOTHING
+            """
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _listar_capacidades_usuario_cur(cur, user_id: int) -> list[str]:
+    _garantir_tabela_user_capabilities()
+    cur.execute(
+        """
+        SELECT capability
+        FROM user_capabilities
+        WHERE user_id = %s
+        ORDER BY capability
+        """,
+        (user_id,),
+    )
+    return [row[0] if not isinstance(row, dict) else row["capability"] for row in cur.fetchall()]
+
+
+def _mapear_capacidades_por_usuario_cur(cur, user_ids) -> dict[int, list[str]]:
+    _garantir_tabela_user_capabilities()
+    ids = [int(user_id) for user_id in (user_ids or []) if user_id]
+    if not ids:
+        return {}
+    cur.execute(
+        """
+        SELECT user_id, capability
+        FROM user_capabilities
+        WHERE user_id = ANY(%s)
+        ORDER BY user_id, capability
+        """,
+        (ids,),
+    )
+    mapa = {}
+    for row in cur.fetchall():
+        user_id = row["user_id"] if isinstance(row, dict) else row[0]
+        capability = row["capability"] if isinstance(row, dict) else row[1]
+        mapa.setdefault(user_id, []).append(capability)
+    return mapa
+
+
+def _sincronizar_capacidades_usuario_cur(cur, user_id: int, capabilities, role: str | None = None) -> list[str]:
+    finais = _normalizar_capacidades_usuario(capabilities, role)
+    _garantir_tabela_user_capabilities()
+    cur.execute("DELETE FROM user_capabilities WHERE user_id = %s", (user_id,))
+    if finais:
+        cur.executemany(
+            """
+            INSERT INTO user_capabilities (user_id, capability)
+            VALUES (%s, %s)
+            """,
+            [(user_id, capability) for capability in finais],
+        )
+    return finais
+
+
+def obter_capacidades_usuario(user_id: int) -> list[str]:
+    if not user_id:
+        return []
+    _garantir_tabela_user_capabilities()
+    conn, cur = conectar()
+    try:
+        return _listar_capacidades_usuario_cur(cur, user_id)
+    finally:
+        conn.close()
 
 
 @lru_cache(maxsize=1)
@@ -480,7 +685,11 @@ def _obter_usuario_por_email(email: str):
             (email.strip(),),
         )
         row = cur.fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        payload = dict(row)
+        payload["capabilities"] = _listar_capacidades_usuario_cur(cur, payload["id"])
+        return payload
     finally:
         conn.close()
 
@@ -850,13 +1059,14 @@ def obter_posicao_financeira_compartilhada(id_imovel):
     for socio in socios_por_id.values():
         percentual = _to_float(socio.get("percentual_participacao"))
         socio["valor_devido_participacao"] = round(total_despesas_operacionais * (percentual / 100.0), 2)
-        socio["saldo_liquido"] = round(
+        saldo_liquido = round(
             socio["total_pago_operacional"]
             - socio["valor_devido_participacao"]
             + socio["equalizacao_enviada"]
             - socio["equalizacao_recebida"],
             2,
         )
+        socio["saldo_liquido"] = 0.0 if abs(saldo_liquido) < 0.005 else saldo_liquido
         socio["total_pago_operacional"] = round(socio["total_pago_operacional"], 2)
         socio["equalizacao_enviada"] = round(socio["equalizacao_enviada"], 2)
         socio["equalizacao_recebida"] = round(socio["equalizacao_recebida"], 2)
@@ -1014,6 +1224,12 @@ def _garantir_tabela_prospeccao_analise():
             ADD COLUMN IF NOT EXISTS prestacao_mensal_financiamento NUMERIC NULL
             """
         )
+        cur.execute(
+            """
+            ALTER TABLE imoveis_selecionados_analise
+            DROP CONSTRAINT IF EXISTS imoveis_selecionados_analise_numero_bem_fkey
+            """
+        )
         conn.commit()
     finally:
         conn.close()
@@ -1094,8 +1310,11 @@ def listar_usuarios() -> list[dict]:
             ORDER BY created_at DESC
             """
         )
-        rows = cur.fetchall()
-        return [dict(row) for row in rows]
+        rows = [dict(row) for row in cur.fetchall()]
+        capabilities_por_usuario = _mapear_capacidades_por_usuario_cur(cur, [item["id"] for item in rows])
+        for item in rows:
+            item["capabilities"] = capabilities_por_usuario.get(item["id"], [])
+        return rows
     finally:
         conn.close()
 
@@ -1108,6 +1327,7 @@ def criar_convite_usuario(
     invite_hours: int = 72,
     pix_key: str | None = None,
     ai_access: bool = False,
+    capabilities=None,
 ) -> dict:
     _garantir_tabela_usuarios()
 
@@ -1118,8 +1338,8 @@ def criar_convite_usuario(
     if not email_norm:
         raise ValueError("E-mail obrigatório")
     role_norm = (role or "prospector").strip().lower()
-    if role_norm not in {"admin", "prospector"}:
-        raise ValueError("Papel inválido")
+    capabilities_norm = _normalizar_capacidades_usuario(capabilities, role_norm)
+    role_norm = _derivar_role_primario(capabilities_norm, role_norm)
     pix_key_norm = (pix_key or "").strip() or None
     ai_access_bool = bool(ai_access)
 
@@ -1194,8 +1414,10 @@ def criar_convite_usuario(
             )
 
         user = cur.fetchone()
+        _sincronizar_capacidades_usuario_cur(cur, user["id"], capabilities_norm, role_norm)
         conn.commit()
         result = dict(user)
+        result["capabilities"] = capabilities_norm
         result["invite_token"] = invite_token
         return result
     except Exception:
@@ -1281,7 +1503,11 @@ def obter_usuario_por_email(email: str) -> dict | None:
             (email_norm,),
         )
         row = cur.fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        payload = dict(row)
+        payload["capabilities"] = _listar_capacidades_usuario_cur(cur, payload["id"])
+        return payload
     finally:
         conn.close()
 
@@ -1299,7 +1525,11 @@ def obter_usuario_por_id(user_id: int) -> dict | None:
             (user_id,),
         )
         row = cur.fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        payload = dict(row)
+        payload["capabilities"] = _listar_capacidades_usuario_cur(cur, payload["id"])
+        return payload
     finally:
         conn.close()
 
@@ -1324,7 +1554,14 @@ def atualizar_status_usuario(user_id: int, is_active: bool) -> None:
         conn.close()
 
 
-def atualizar_usuario(user_id: int, nome: str, is_active: bool, pix_key: str | None = None, ai_access: bool = False) -> dict | None:
+def atualizar_usuario(
+    user_id: int,
+    nome: str,
+    is_active: bool,
+    pix_key: str | None = None,
+    ai_access: bool = False,
+    capabilities=None,
+) -> dict | None:
     _garantir_tabela_usuarios()
     nome_norm = (nome or "").strip()
     if not nome_norm:
@@ -1334,11 +1571,19 @@ def atualizar_usuario(user_id: int, nome: str, is_active: bool, pix_key: str | N
 
     conn, cur = conectar()
     try:
+        cur.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+        existing = cur.fetchone()
+        if not existing:
+            return None
+        role_atual = existing["role"] if isinstance(existing, dict) else existing[0]
+        capabilities_norm = _normalizar_capacidades_usuario(capabilities, role_atual)
+        role_norm = _derivar_role_primario(capabilities_norm, role_atual)
         cur.execute(
             """
             UPDATE users
             SET
                 name = %s,
+                role = %s,
                 pix_key = %s,
                 ai_access = %s,
                 is_active = %s,
@@ -1348,11 +1593,16 @@ def atualizar_usuario(user_id: int, nome: str, is_active: bool, pix_key: str | N
                       password_reset_required, invite_expires_at,
                       (invite_token_hash IS NOT NULL) AS invite_pending
             """,
-            (nome_norm, pix_key_norm, ai_access_bool, is_active, user_id),
+            (nome_norm, role_norm, pix_key_norm, ai_access_bool, is_active, user_id),
         )
         row = cur.fetchone()
+        _sincronizar_capacidades_usuario_cur(cur, user_id, capabilities_norm, role_norm)
         conn.commit()
-        return dict(row) if row else None
+        if not row:
+            return None
+        payload = dict(row)
+        payload["capabilities"] = capabilities_norm
+        return payload
     except Exception:
         conn.rollback()
         raise
@@ -1645,6 +1895,7 @@ def adicionar_lancamento(
     _garantir_colunas_lancamentos_compartilhado()
     tipo_norm = _normalizar_tipo_movimentacao(tipo_movimentacao)
     conn, cur = conectar()
+    paid_by_resolvido = _resolver_pagador_lancamento(cur, id_imovel, paid_by_user_id, tipo_norm)
     cur.execute("""
         INSERT INTO lancamentos (
             data,
@@ -1669,7 +1920,7 @@ def adicionar_lancamento(
         descricao,
         valor,
         ativo,
-        _to_int_or_none(paid_by_user_id),
+        paid_by_resolvido,
         _to_int_or_none(beneficiary_user_id),
         tipo_norm,
         _to_int_or_none(created_by_user_id),
@@ -1707,16 +1958,18 @@ def adicionar_lancamentos_em_lote(lista_lancamentos):
         data_str = lancamento.get('data', '').strip()
         data_formatada = converter_data(data_str)
         tipo_norm = _normalizar_tipo_movimentacao(lancamento.get("tipo_movimentacao"))
+        id_imovel = lancamento['id_imovel']
+        paid_by_resolvido = _resolver_pagador_lancamento(cur, id_imovel, lancamento.get("paid_by_user_id"), tipo_norm)
 
         cur.execute(query, (
             data_formatada,
-            lancamento['id_imovel'],
+            id_imovel,
             lancamento.get('id_categoria', 0),
             lancamento.get('id_situacao', 1),
             lancamento['descricao'],
             lancamento['valor'],
             True,  # ativo
-            _to_int_or_none(lancamento.get("paid_by_user_id")),
+            paid_by_resolvido,
             _to_int_or_none(lancamento.get("beneficiary_user_id")),
             tipo_norm,
             _to_int_or_none(lancamento.get("created_by_user_id")),
@@ -2731,6 +2984,7 @@ def listar_prospeccoes_capturados(
                 av.score_regiao,
                 av.resumo_ia,
                 av.pesquisado_em,
+                a.numero_bem AS analise_numero_bem,
                 ai_a.numero_bem AS ai_analise_numero_bem,
                 to_jsonb(p) AS raw_payload,
                 (
@@ -2759,6 +3013,8 @@ def listar_prospeccoes_capturados(
             ) fotos_rel ON TRUE
             LEFT JOIN avaliacoes av
                 ON av.numero_bem = p.numero_bem
+            LEFT JOIN imoveis_selecionados_analise a
+                ON a.numero_bem = p.numero_bem
             LEFT JOIN imoveis_selecionados_ai_analise ai_a
                 ON ai_a.numero_bem = p.numero_bem
         )
@@ -2886,6 +3142,7 @@ def listar_prospeccoes_capturados(
             "foto_url": fotos[0] if fotos else None,
             "fotos": fotos,
             "avaliacao": avaliacao,
+            "analise_salva": row.get("analise_numero_bem") is not None,
             "analise_ia_salva": row.get("ai_analise_numero_bem") is not None,
         })
     return {"total": total, "data": result}
@@ -3756,6 +4013,81 @@ def obter_job_ai_prospeccao(job_id, numero_bem=None):
         conn.close()
 
 
+def _montar_resposta_analise_prospeccao(row, numero_bem):
+    avaliacao = _build_avaliacao_dict(row)
+    tem_analise_salva = row["valor_base_operacao"] is not None or row["valor_estimado_venda"] is not None
+
+    if tem_analise_salva:
+        dados = {
+            "numero_bem": row["numero_bem"],
+            "link_google_maps": row["link_google_maps"],
+            "valor_base_operacao": float(row["valor_base_operacao"]) if row["valor_base_operacao"] is not None else None,
+            "tempo_operacao_meses": row["tempo_operacao_meses"] if row["tempo_operacao_meses"] is not None else 12,
+            "valor_maximo_lance": float(row["valor_maximo_lance"]) if row["valor_maximo_lance"] is not None else (float(row.get("valor_maximo")) if row.get("valor_maximo") is not None else 0.0),
+            "percentual_financiamento": float(row["percentual_financiamento"]) if row["percentual_financiamento"] is not None else 0.0,
+            "prestacao_mensal_financiamento": float(row["prestacao_mensal_financiamento"]) if row["prestacao_mensal_financiamento"] is not None else 0.0,
+            "valor_estimado_venda": float(row["valor_estimado_venda"]) if row["valor_estimado_venda"] is not None else 0.0,
+            "reforma": float(row["reforma"]) if row["reforma"] is not None else 0.0,
+            "condominio_atraso": float(row["condominio_atraso"]) if row["condominio_atraso"] is not None else 0.0,
+            "iptu_atraso": float(row["iptu_atraso"]) if row["iptu_atraso"] is not None else 0.0,
+            "desocupacao": float(row["desocupacao"]) if row["desocupacao"] is not None else 0.0,
+            "itbi_percentual": float(row["itbi_percentual"]) if row["itbi_percentual"] is not None else None,
+            "itbi_valor": float(row["itbi_valor"]) if row["itbi_valor"] is not None else None,
+            "documentacao": float(row["documentacao"]) if row["documentacao"] is not None else 0.0,
+            "manutencao_agua_mensal": float(row["manutencao_agua_mensal"]) if row["manutencao_agua_mensal"] is not None else 0.0,
+            "manutencao_luz_mensal": float(row["manutencao_luz_mensal"]) if row["manutencao_luz_mensal"] is not None else 0.0,
+            "manutencao_condominio_mensal": float(row["manutencao_condominio_mensal"]) if row["manutencao_condominio_mensal"] is not None else 0.0,
+            "manutencao_iptu_mensal": float(row["manutencao_iptu_mensal"]) if row["manutencao_iptu_mensal"] is not None else 0.0,
+            "comissao_leiloeiro_percentual": float(row["comissao_leiloeiro_percentual"]) if row["comissao_leiloeiro_percentual"] is not None else None,
+            "comissao_leiloeiro_valor": float(row["comissao_leiloeiro_valor"]) if row["comissao_leiloeiro_valor"] is not None else None,
+            "comissao_corretor_percentual": float(row["comissao_corretor_percentual"]) if row["comissao_corretor_percentual"] is not None else None,
+            "comissao_corretor_valor": float(row["comissao_corretor_valor"]) if row["comissao_corretor_valor"] is not None else None,
+            "ganho_capital_percentual": float(row["ganho_capital_percentual"]) if row["ganho_capital_percentual"] is not None else None,
+            "ganho_capital_valor": float(row["ganho_capital_valor"]) if row["ganho_capital_valor"] is not None else None,
+        }
+        calculada = calcular_analise_prospeccao(dados)
+        prefill_source = "manual_existente"
+    else:
+        calculada = _build_prefill_analise_motor2(
+            {
+                "valor_venda": row.get("valor_venda"),
+                "valor_avaliacao": row.get("valor_avaliacao"),
+                "financia": row.get("financia"),
+            },
+            avaliacao,
+        )
+        prefill_source = "motor2" if avaliacao else "padrao"
+
+    return {
+        "numero_bem": numero_bem,
+        "inputs": calculada,
+        "calculos": {
+            "despesas_unicas": calculada["despesas_unicas"],
+            "despesa_mensal_total": calculada["despesa_mensal_total"],
+            "despesas_mensais_projetadas": calculada["despesas_mensais_projetadas"],
+            "custo_financiamento_projetado": calculada["custo_financiamento_projetado"],
+            "valor_financiado": calculada["valor_financiado"],
+            "desembolso_aquisicao": calculada["desembolso_aquisicao"],
+            "custo_total_imovel": calculada["custo_total_imovel"],
+            "capital_investido_estimado": calculada["capital_investido_estimado"],
+            "base_ganho_capital": calculada["base_ganho_capital"],
+            "lucro_esperado_valor": calculada["lucro_esperado_valor"],
+            "roi_esperado_percentual": calculada["roi_esperado_percentual"],
+            "roi_esperado_valor": calculada["roi_esperado_valor"],
+        },
+        "meta": {
+            "prefill_source": prefill_source,
+            "avaliacao_automatica": avaliacao,
+            "created_by": row["created_by"],
+            "created_by_name": row["created_by_name"],
+            "updated_by": row["updated_by"],
+            "updated_by_name": row["updated_by_name"],
+            "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+            "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
+        },
+    }
+
+
 def obter_analise_prospeccao_selecionado(numero_bem):
     _garantir_colunas_prospeccao_autoria()
     _garantir_tabela_prospeccao_analise()
@@ -3835,78 +4167,190 @@ def obter_analise_prospeccao_selecionado(numero_bem):
         row = cur.fetchone()
         if not row:
             return None
-
-        avaliacao = _build_avaliacao_dict(row)
-        tem_analise_salva = row["valor_base_operacao"] is not None or row["valor_estimado_venda"] is not None
-
-        if tem_analise_salva:
-            dados = {
-                "numero_bem": row["numero_bem"],
-                "link_google_maps": row["link_google_maps"],
-                "valor_base_operacao": float(row["valor_base_operacao"]) if row["valor_base_operacao"] is not None else None,
-                "tempo_operacao_meses": row["tempo_operacao_meses"] if row["tempo_operacao_meses"] is not None else 12,
-                "valor_maximo_lance": float(row["valor_maximo_lance"]) if row["valor_maximo_lance"] is not None else (float(row["valor_maximo"]) if row["valor_maximo"] is not None else 0.0),
-                "percentual_financiamento": float(row["percentual_financiamento"]) if row["percentual_financiamento"] is not None else 0.0,
-                "prestacao_mensal_financiamento": float(row["prestacao_mensal_financiamento"]) if row["prestacao_mensal_financiamento"] is not None else 0.0,
-                "valor_estimado_venda": float(row["valor_estimado_venda"]) if row["valor_estimado_venda"] is not None else 0.0,
-                "reforma": float(row["reforma"]) if row["reforma"] is not None else 0.0,
-                "condominio_atraso": float(row["condominio_atraso"]) if row["condominio_atraso"] is not None else 0.0,
-                "iptu_atraso": float(row["iptu_atraso"]) if row["iptu_atraso"] is not None else 0.0,
-                "desocupacao": float(row["desocupacao"]) if row["desocupacao"] is not None else 0.0,
-                "itbi_percentual": float(row["itbi_percentual"]) if row["itbi_percentual"] is not None else None,
-                "itbi_valor": float(row["itbi_valor"]) if row["itbi_valor"] is not None else None,
-                "documentacao": float(row["documentacao"]) if row["documentacao"] is not None else 0.0,
-                "manutencao_agua_mensal": float(row["manutencao_agua_mensal"]) if row["manutencao_agua_mensal"] is not None else 0.0,
-                "manutencao_luz_mensal": float(row["manutencao_luz_mensal"]) if row["manutencao_luz_mensal"] is not None else 0.0,
-                "manutencao_condominio_mensal": float(row["manutencao_condominio_mensal"]) if row["manutencao_condominio_mensal"] is not None else 0.0,
-                "manutencao_iptu_mensal": float(row["manutencao_iptu_mensal"]) if row["manutencao_iptu_mensal"] is not None else 0.0,
-                "comissao_leiloeiro_percentual": float(row["comissao_leiloeiro_percentual"]) if row["comissao_leiloeiro_percentual"] is not None else None,
-                "comissao_leiloeiro_valor": float(row["comissao_leiloeiro_valor"]) if row["comissao_leiloeiro_valor"] is not None else None,
-                "comissao_corretor_percentual": float(row["comissao_corretor_percentual"]) if row["comissao_corretor_percentual"] is not None else None,
-                "comissao_corretor_valor": float(row["comissao_corretor_valor"]) if row["comissao_corretor_valor"] is not None else None,
-                "ganho_capital_percentual": float(row["ganho_capital_percentual"]) if row["ganho_capital_percentual"] is not None else None,
-                "ganho_capital_valor": float(row["ganho_capital_valor"]) if row["ganho_capital_valor"] is not None else None,
-            }
-            calculada = calcular_analise_prospeccao(dados)
-            prefill_source = "manual_existente"
-        else:
-            calculada = _build_prefill_analise_motor2({
-                "valor_venda": row["valor_venda"],
-                "valor_avaliacao": row["valor_avaliacao"],
-                "financia": row["financia"],
-            }, avaliacao)
-            prefill_source = "motor2" if avaliacao else "padrao"
-
-        return {
-            "numero_bem": numero_bem,
-            "inputs": calculada,
-            "calculos": {
-                "despesas_unicas": calculada["despesas_unicas"],
-                "despesa_mensal_total": calculada["despesa_mensal_total"],
-                "despesas_mensais_projetadas": calculada["despesas_mensais_projetadas"],
-                "custo_financiamento_projetado": calculada["custo_financiamento_projetado"],
-                "valor_financiado": calculada["valor_financiado"],
-                "desembolso_aquisicao": calculada["desembolso_aquisicao"],
-                "custo_total_imovel": calculada["custo_total_imovel"],
-                "capital_investido_estimado": calculada["capital_investido_estimado"],
-                "base_ganho_capital": calculada["base_ganho_capital"],
-                "lucro_esperado_valor": calculada["lucro_esperado_valor"],
-                "roi_esperado_percentual": calculada["roi_esperado_percentual"],
-                "roi_esperado_valor": calculada["roi_esperado_valor"],
-            },
-            "meta": {
-                "prefill_source": prefill_source,
-                "avaliacao_automatica": avaliacao,
-                "created_by": row["created_by"],
-                "created_by_name": row["created_by_name"],
-                "updated_by": row["updated_by"],
-                "updated_by_name": row["updated_by_name"],
-                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
-                "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
-            },
-        }
+        return _montar_resposta_analise_prospeccao(row, numero_bem)
     finally:
         conn.close()
+
+
+def obter_analise_prospeccao_capturado(numero_bem):
+    _garantir_tabela_prospeccao_analise()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT
+                v.numero_bem,
+                NULL::NUMERIC AS valor_maximo,
+                a.link_google_maps,
+                a.valor_base_operacao,
+                a.tempo_operacao_meses,
+                a.valor_maximo_lance,
+                a.percentual_financiamento,
+                a.prestacao_mensal_financiamento,
+                a.valor_estimado_venda,
+                a.reforma,
+                a.condominio_atraso,
+                a.iptu_atraso,
+                a.desocupacao,
+                a.itbi_percentual,
+                a.itbi_valor,
+                a.documentacao,
+                a.manutencao_agua_mensal,
+                a.manutencao_luz_mensal,
+                a.manutencao_condominio_mensal,
+                a.manutencao_iptu_mensal,
+                a.comissao_leiloeiro_percentual,
+                a.comissao_leiloeiro_valor,
+                a.comissao_corretor_percentual,
+                a.comissao_corretor_valor,
+                a.ganho_capital_percentual,
+                a.ganho_capital_valor,
+                a.created_by,
+                COALESCE(NULLIF(cu.name, ''), NULLIF(a.created_by_name, ''), cu.email) AS created_by_name,
+                a.updated_by,
+                COALESCE(NULLIF(uu.name, ''), NULLIF(a.updated_by_name, ''), uu.email) AS updated_by_name,
+                a.created_at,
+                a.updated_at,
+                v.valor_venda,
+                v.valor_avaliacao,
+                v.financia,
+                av.numero_bem AS avaliacao_numero_bem,
+                av.preco_m2_regiao,
+                av.fonte_pesquisa,
+                av.valor_estimado_venda AS avaliacao_valor_estimado_venda,
+                av.custo_aquisicao_est,
+                av.custo_reforma_est,
+                av.custo_desocupacao_est,
+                av.lucro_estimado,
+                av.retorno_pct,
+                av.score_total,
+                av.score_desconto,
+                av.score_liquidez,
+                av.score_risco,
+                av.score_regiao,
+                av.resumo_ia,
+                av.pesquisado_em
+            FROM vw_imoveis_prospeccao_latest v
+            LEFT JOIN imoveis_selecionados_analise a
+                ON a.numero_bem = v.numero_bem
+            LEFT JOIN avaliacoes av
+                ON av.numero_bem = v.numero_bem
+            LEFT JOIN users cu
+                ON cu.id = a.created_by
+            LEFT JOIN users uu
+                ON uu.id = a.updated_by
+            WHERE v.numero_bem = %s
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        return _montar_resposta_analise_prospeccao(row, numero_bem)
+    finally:
+        conn.close()
+
+
+def _upsert_analise_prospeccao(cur, numero_bem, calculada, current_user_id=None, current_user_name=None):
+    cur.execute(
+        """
+        INSERT INTO imoveis_selecionados_analise (
+            numero_bem,
+            link_google_maps,
+            valor_base_operacao,
+            tempo_operacao_meses,
+            valor_maximo_lance,
+            percentual_financiamento,
+            prestacao_mensal_financiamento,
+            valor_estimado_venda,
+            reforma,
+            condominio_atraso,
+            iptu_atraso,
+            desocupacao,
+            itbi_percentual,
+            itbi_valor,
+            documentacao,
+            manutencao_agua_mensal,
+            manutencao_luz_mensal,
+            manutencao_condominio_mensal,
+            manutencao_iptu_mensal,
+            comissao_leiloeiro_percentual,
+            comissao_leiloeiro_valor,
+            comissao_corretor_percentual,
+            comissao_corretor_valor,
+            ganho_capital_percentual,
+            ganho_capital_valor,
+            created_by,
+            created_by_name,
+            updated_by,
+            updated_by_name
+        )
+        VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+        )
+        ON CONFLICT (numero_bem) DO UPDATE
+        SET
+            link_google_maps = EXCLUDED.link_google_maps,
+            valor_base_operacao = EXCLUDED.valor_base_operacao,
+            tempo_operacao_meses = EXCLUDED.tempo_operacao_meses,
+            valor_maximo_lance = EXCLUDED.valor_maximo_lance,
+            percentual_financiamento = EXCLUDED.percentual_financiamento,
+            prestacao_mensal_financiamento = EXCLUDED.prestacao_mensal_financiamento,
+            valor_estimado_venda = EXCLUDED.valor_estimado_venda,
+            reforma = EXCLUDED.reforma,
+            condominio_atraso = EXCLUDED.condominio_atraso,
+            iptu_atraso = EXCLUDED.iptu_atraso,
+            desocupacao = EXCLUDED.desocupacao,
+            itbi_percentual = EXCLUDED.itbi_percentual,
+            itbi_valor = EXCLUDED.itbi_valor,
+            documentacao = EXCLUDED.documentacao,
+            manutencao_agua_mensal = EXCLUDED.manutencao_agua_mensal,
+            manutencao_luz_mensal = EXCLUDED.manutencao_luz_mensal,
+            manutencao_condominio_mensal = EXCLUDED.manutencao_condominio_mensal,
+            manutencao_iptu_mensal = EXCLUDED.manutencao_iptu_mensal,
+            comissao_leiloeiro_percentual = EXCLUDED.comissao_leiloeiro_percentual,
+            comissao_leiloeiro_valor = EXCLUDED.comissao_leiloeiro_valor,
+            comissao_corretor_percentual = EXCLUDED.comissao_corretor_percentual,
+            comissao_corretor_valor = EXCLUDED.comissao_corretor_valor,
+            ganho_capital_percentual = EXCLUDED.ganho_capital_percentual,
+            ganho_capital_valor = EXCLUDED.ganho_capital_valor,
+            updated_by = EXCLUDED.updated_by,
+            updated_by_name = EXCLUDED.updated_by_name,
+            updated_at = now()
+        """,
+        (
+            numero_bem,
+            calculada["link_google_maps"],
+            calculada["valor_base_operacao"],
+            calculada["tempo_operacao_meses"],
+            calculada["valor_maximo_lance"],
+            calculada["percentual_financiamento"],
+            calculada["prestacao_mensal_financiamento"],
+            calculada["valor_estimado_venda"],
+            calculada["reforma"],
+            calculada["condominio_atraso"],
+            calculada["iptu_atraso"],
+            calculada["desocupacao"],
+            calculada["itbi_percentual"],
+            calculada["itbi_valor"],
+            calculada["documentacao"],
+            calculada["manutencao_agua_mensal"],
+            calculada["manutencao_luz_mensal"],
+            calculada["manutencao_condominio_mensal"],
+            calculada["manutencao_iptu_mensal"],
+            calculada["comissao_leiloeiro_percentual"],
+            calculada["comissao_leiloeiro_valor"],
+            calculada["comissao_corretor_percentual"],
+            calculada["comissao_corretor_valor"],
+            calculada["ganho_capital_percentual"],
+            calculada["ganho_capital_valor"],
+            current_user_id,
+            current_user_name,
+            current_user_id,
+            current_user_name,
+        ),
+    )
 
 
 def salvar_analise_prospeccao_selecionado(numero_bem, payload, current_user_id=None, current_user_name=None):
@@ -3925,110 +4369,35 @@ def salvar_analise_prospeccao_selecionado(numero_bem, payload, current_user_id=N
             **(payload or {}),
             "numero_bem": numero_bem,
         })
-
-        cur.execute(
-            """
-            INSERT INTO imoveis_selecionados_analise (
-                numero_bem,
-                link_google_maps,
-                valor_base_operacao,
-                tempo_operacao_meses,
-                valor_maximo_lance,
-                percentual_financiamento,
-                prestacao_mensal_financiamento,
-                valor_estimado_venda,
-                reforma,
-                condominio_atraso,
-                iptu_atraso,
-                desocupacao,
-                itbi_percentual,
-                itbi_valor,
-                documentacao,
-                manutencao_agua_mensal,
-                manutencao_luz_mensal,
-                manutencao_condominio_mensal,
-                manutencao_iptu_mensal,
-                comissao_leiloeiro_percentual,
-                comissao_leiloeiro_valor,
-                comissao_corretor_percentual,
-                comissao_corretor_valor,
-                ganho_capital_percentual,
-                ganho_capital_valor,
-                created_by,
-                created_by_name,
-                updated_by,
-                updated_by_name
-            )
-            VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-            )
-            ON CONFLICT (numero_bem) DO UPDATE
-            SET
-                link_google_maps = EXCLUDED.link_google_maps,
-                valor_base_operacao = EXCLUDED.valor_base_operacao,
-                tempo_operacao_meses = EXCLUDED.tempo_operacao_meses,
-                valor_maximo_lance = EXCLUDED.valor_maximo_lance,
-                percentual_financiamento = EXCLUDED.percentual_financiamento,
-                prestacao_mensal_financiamento = EXCLUDED.prestacao_mensal_financiamento,
-                valor_estimado_venda = EXCLUDED.valor_estimado_venda,
-                reforma = EXCLUDED.reforma,
-                condominio_atraso = EXCLUDED.condominio_atraso,
-                iptu_atraso = EXCLUDED.iptu_atraso,
-                desocupacao = EXCLUDED.desocupacao,
-                itbi_percentual = EXCLUDED.itbi_percentual,
-                itbi_valor = EXCLUDED.itbi_valor,
-                documentacao = EXCLUDED.documentacao,
-                manutencao_agua_mensal = EXCLUDED.manutencao_agua_mensal,
-                manutencao_luz_mensal = EXCLUDED.manutencao_luz_mensal,
-                manutencao_condominio_mensal = EXCLUDED.manutencao_condominio_mensal,
-                manutencao_iptu_mensal = EXCLUDED.manutencao_iptu_mensal,
-                comissao_leiloeiro_percentual = EXCLUDED.comissao_leiloeiro_percentual,
-                comissao_leiloeiro_valor = EXCLUDED.comissao_leiloeiro_valor,
-                comissao_corretor_percentual = EXCLUDED.comissao_corretor_percentual,
-                comissao_corretor_valor = EXCLUDED.comissao_corretor_valor,
-                ganho_capital_percentual = EXCLUDED.ganho_capital_percentual,
-                ganho_capital_valor = EXCLUDED.ganho_capital_valor,
-                updated_by = EXCLUDED.updated_by,
-                updated_by_name = EXCLUDED.updated_by_name,
-                updated_at = now()
-            """,
-            (
-                numero_bem,
-                calculada["link_google_maps"],
-                calculada["valor_base_operacao"],
-                calculada["tempo_operacao_meses"],
-                calculada["valor_maximo_lance"],
-                calculada["percentual_financiamento"],
-                calculada["prestacao_mensal_financiamento"],
-                calculada["valor_estimado_venda"],
-                calculada["reforma"],
-                calculada["condominio_atraso"],
-                calculada["iptu_atraso"],
-                calculada["desocupacao"],
-                calculada["itbi_percentual"],
-                calculada["itbi_valor"],
-                calculada["documentacao"],
-                calculada["manutencao_agua_mensal"],
-                calculada["manutencao_luz_mensal"],
-                calculada["manutencao_condominio_mensal"],
-                calculada["manutencao_iptu_mensal"],
-                calculada["comissao_leiloeiro_percentual"],
-                calculada["comissao_leiloeiro_valor"],
-                calculada["comissao_corretor_percentual"],
-                calculada["comissao_corretor_valor"],
-                calculada["ganho_capital_percentual"],
-                calculada["ganho_capital_valor"],
-                current_user_id,
-                current_user_name,
-                current_user_id,
-                current_user_name,
-            ),
-        )
+        _upsert_analise_prospeccao(cur, numero_bem, calculada, current_user_id, current_user_name)
         conn.commit()
     finally:
         conn.close()
 
     return obter_analise_prospeccao_selecionado(numero_bem)
+
+
+def salvar_analise_prospeccao_capturado(numero_bem, payload, current_user_id=None, current_user_name=None):
+    _garantir_tabela_prospeccao_analise()
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            "SELECT 1 FROM vw_imoveis_prospeccao_latest WHERE numero_bem = %s LIMIT 1",
+            (numero_bem,),
+        )
+        if not cur.fetchone():
+            return None
+
+        calculada = calcular_analise_prospeccao({
+            **(payload or {}),
+            "numero_bem": numero_bem,
+        })
+        _upsert_analise_prospeccao(cur, numero_bem, calculada, current_user_id, current_user_name)
+        conn.commit()
+    finally:
+        conn.close()
+
+    return obter_analise_prospeccao_capturado(numero_bem)
 
 
 def inserir_prospeccao_selecionado(
@@ -4491,8 +4860,23 @@ def atualizar_lancamentos_em_lote(ids, updates):
     conn, cur = conectar()
 
     try:
-        cur.execute("SELECT id FROM lancamentos WHERE id = ANY(%s)", (ids_normalizados,))
-        encontrados = [row[0] if not isinstance(row, dict) else row["id"] for row in cur.fetchall()]
+        cur.execute(
+            """
+            SELECT id, id_imovel, paid_by_user_id, COALESCE(tipo_movimentacao, 'despesa_imovel') AS tipo_movimentacao
+            FROM lancamentos
+            WHERE id = ANY(%s)
+            """,
+            (ids_normalizados,),
+        )
+        lancamentos_existentes = {
+            (row["id"] if isinstance(row, dict) else row[0]): {
+                "id_imovel": row["id_imovel"] if isinstance(row, dict) else row[1],
+                "paid_by_user_id": row["paid_by_user_id"] if isinstance(row, dict) else row[2],
+                "tipo_movimentacao": row["tipo_movimentacao"] if isinstance(row, dict) else row[3],
+            }
+            for row in cur.fetchall()
+        }
+        encontrados = sorted(lancamentos_existentes.keys())
         if not encontrados:
             raise LookupError("Nenhum lançamento encontrado")
 
@@ -4587,6 +4971,15 @@ def atualizar_lancamentos_em_lote(ids, updates):
 
         if not set_clauses:
             raise ValueError("Nenhum campo válido para atualizar")
+
+        imovel_id_update = locals().get("imovel_id")
+        tipo_update = locals().get("tipo_norm")
+        paid_by_update = locals().get("paid_by_user_id")
+        for lancamento_id, atual in lancamentos_existentes.items():
+            id_imovel_final = imovel_id_update if "id_imovel" in updates else atual["id_imovel"]
+            tipo_final = tipo_update if "tipo_movimentacao" in updates else atual["tipo_movimentacao"]
+            paid_by_final = paid_by_update if "paid_by_user_id" in updates else atual["paid_by_user_id"]
+            _resolver_pagador_lancamento(cur, id_imovel_final, paid_by_final, tipo_final)
 
         valores.append(ids_normalizados)
         cur.execute(

@@ -13,8 +13,8 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
   const [mostrarSegundaTabela, setMostrarSegundaTabela] = useState(false);
   const [mostrarDetalheOrcamentoMobile, setMostrarDetalheOrcamentoMobile] = useState(false);
   const [participationRatio, setParticipationRatio] = useState(1);
-  const { hasRole, user } = useAuth();
-  const canEdit = hasRole("admin");
+  const { hasCapability, user } = useAuth();
+  const canEdit = hasCapability("admin", "editor");
   const compactLayout = useCompactLayout();
 
   const { id: idImovelParam } = useParams();
