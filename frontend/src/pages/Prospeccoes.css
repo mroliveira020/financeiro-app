@@ -2005,14 +2005,6 @@
   align-items: end;
 }
 
-.prospects-captured-toggle {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.prospects-captured-toggle > span,
 .prospects-filter-panel__head span {
   font-size: 10px;
   text-transform: uppercase;
@@ -2021,20 +2013,20 @@
   color: var(--prospects-muted);
 }
 
-.prospects-captured-toggle .prospects-check {
-  min-height: 40px;
-  padding: 0 12px;
-  border-radius: 13px;
-  border: 1px solid #d2dceb;
-  background: #fff;
-}
-
 .prospects-captured-toolbar__actions {
   display: flex;
   gap: 8px;
   align-items: center;
   justify-content: flex-end;
   align-self: end;
+  min-height: 40px;
+}
+
+.prospects-captured-toolbar__actions .prospects-btn {
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 13px;
+  white-space: nowrap;
 }
 
 .prospects-captured-toolbar__summary {
@@ -2104,6 +2096,14 @@
 
 .prospects-filter-panel--cidade {
   min-width: 0;
+}
+
+.prospects-check--panel {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 13px;
+  border: 1px solid #d2dceb;
+  background: #fff;
 }
 
 .prospects-filter-chip-grid {

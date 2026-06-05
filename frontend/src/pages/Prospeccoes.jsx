@@ -4976,6 +4976,20 @@ export default function Prospeccoes() {
                   </select>
                 </label>
                 <label className="prospects-toolbar-field">
+                  <span>Financia</span>
+                  <select
+                    value={filtroFinanciaCap[0] || ""}
+                    onChange={(e) => {
+                      setFiltroFinanciaCap(e.target.value ? [e.target.value] : []);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="">Todos</option>
+                    <option value="sim">Sim</option>
+                    <option value="nao">Não</option>
+                  </select>
+                </label>
+                <label className="prospects-toolbar-field">
                   <span>Score mínimo</span>
                   <input
                     type="number"
@@ -5001,20 +5015,6 @@ export default function Prospeccoes() {
                     placeholder="Ex.: 8"
                   />
                 </label>
-                <div className="prospects-captured-toggle">
-                  <span>Pré-análise</span>
-                  <label className="prospects-check">
-                    <input
-                      type="checkbox"
-                      checked={somenteComAvaliacaoCap}
-                      onChange={(e) => {
-                        setSomenteComAvaliacaoCap(e.target.checked);
-                        setPage(1);
-                      }}
-                    />
-                    <span>Mostrar só imóveis com pré-análise</span>
-                  </label>
-                </div>
                 <div className="prospects-captured-toolbar__actions">
                   <button
                     type="button"
@@ -5142,24 +5142,20 @@ export default function Prospeccoes() {
 
                   <div className="prospects-filter-panel prospects-filter-panel--financia">
                     <div className="prospects-filter-panel__head">
-                      <span>Financia</span>
-                      <strong>{filtroFinanciaCap.length ? `${filtroFinanciaCap.length} selecionados` : "Todos"}</strong>
+                      <span>Filtros complementares</span>
+                      <strong>{somenteComAvaliacaoCap ? "Pré-análise ativa" : "Opcional"}</strong>
                     </div>
-                    <div className="prospects-filter-chip-grid">
-                      {[
-                        { value: "sim", label: "Sim" },
-                        { value: "nao", label: "Não" },
-                      ].map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`prospects-filter-chip ${filtroFinanciaCap.includes(option.value) ? "is-active" : ""}`}
-                          onClick={() => toggleValue(option.value, setFiltroFinanciaCap)}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
+                    <label className="prospects-check prospects-check--panel">
+                      <input
+                        type="checkbox"
+                        checked={somenteComAvaliacaoCap}
+                        onChange={(e) => {
+                          setSomenteComAvaliacaoCap(e.target.checked);
+                          setPage(1);
+                        }}
+                      />
+                      <span>Mostrar só imóveis com pré-análise</span>
+                    </label>
                   </div>
                 </div>
               ) : null}
