@@ -1994,13 +1994,13 @@
 .prospects-captured-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding-top: 4px;
+  gap: 12px;
+  padding-top: 2px;
 }
 
 .prospects-captured-toolbar__quick {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
   gap: 12px;
   align-items: end;
 }
@@ -2034,7 +2034,7 @@
   gap: 8px;
   align-items: center;
   justify-content: flex-end;
-  grid-column: span 4;
+  align-self: end;
 }
 
 .prospects-captured-toolbar__summary {
@@ -2043,9 +2043,9 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 12px 14px;
+  padding: 9px 12px;
   border: 1px solid #e0e8f4;
-  border-radius: 14px;
+  border-radius: 12px;
   background: linear-gradient(180deg, #fbfdff 0%, #f6f9fe 100%);
 }
 
@@ -2067,24 +2067,26 @@
 .prospects-captured-toolbar__hint {
   margin: 0;
   font-size: 12px;
-  line-height: 1.5;
+  line-height: 1.35;
   color: #5e6c89;
 }
 
 .prospects-captured-toolbar__advanced {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: 1fr minmax(360px, 2.1fr) 1.15fr 0.9fr;
+  gap: 12px;
+  align-items: start;
 }
 
 .prospects-filter-panel {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px;
+  padding: 12px;
   border: 1px solid #e4ebf6;
-  border-radius: 16px;
+  border-radius: 14px;
   background: #fbfdff;
+  align-self: start;
 }
 
 .prospects-filter-panel__head {
@@ -2098,6 +2100,10 @@
   font-size: 12px;
   font-weight: 700;
   color: #3f4f6c;
+}
+
+.prospects-filter-panel--cidade {
+  min-width: 0;
 }
 
 .prospects-filter-chip-grid {
@@ -2133,6 +2139,17 @@
   border-color: #bfd3ff;
   background: #eaf2ff;
   color: var(--prospects-brand);
+}
+
+.prospects-filter-panel .prospects-mobile-city-selected {
+  margin-top: 0;
+}
+
+.prospects-filter-panel .prospects-mobile-city-grid {
+  margin-top: 0;
+  max-height: 172px;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .prospects-filter-group {
@@ -2256,7 +2273,7 @@
   }
 
   .prospects-captured-toolbar__advanced {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -2280,6 +2297,10 @@
 
   .prospects-captured-toolbar__summary {
     align-items: flex-start;
+  }
+
+  .prospects-captured-toolbar__advanced {
+    grid-template-columns: 1fr;
   }
 }
 

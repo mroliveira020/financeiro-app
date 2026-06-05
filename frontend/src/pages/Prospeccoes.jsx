@@ -5056,7 +5056,7 @@ export default function Prospeccoes() {
 
               {capturadosFiltersExpanded ? (
                 <div className="prospects-captured-toolbar__advanced">
-                  <div className="prospects-filter-panel">
+                  <div className="prospects-filter-panel prospects-filter-panel--uf">
                     <div className="prospects-filter-panel__head">
                       <span>UF</span>
                       <strong>{filtroUfCap.length ? `${filtroUfCap.length} selecionadas` : "Todas"}</strong>
@@ -5075,7 +5075,7 @@ export default function Prospeccoes() {
                     </div>
                   </div>
 
-                  <div className="prospects-filter-panel">
+                  <div className="prospects-filter-panel prospects-filter-panel--cidade">
                     <div className="prospects-filter-panel__head">
                       <span>Cidade</span>
                       <strong>{filtroCidadesCap.length ? `${filtroCidadesCap.length} selecionadas` : "Todas"}</strong>
@@ -5121,7 +5121,7 @@ export default function Prospeccoes() {
                     </div>
                   </div>
 
-                  <div className="prospects-filter-panel">
+                  <div className="prospects-filter-panel prospects-filter-panel--modalidade">
                     <div className="prospects-filter-panel__head">
                       <span>Modalidade</span>
                       <strong>{filtroModalidadeCap.length ? `${filtroModalidadeCap.length} selecionadas` : "Todas"}</strong>
@@ -5140,7 +5140,7 @@ export default function Prospeccoes() {
                     </div>
                   </div>
 
-                  <div className="prospects-filter-panel">
+                  <div className="prospects-filter-panel prospects-filter-panel--financia">
                     <div className="prospects-filter-panel__head">
                       <span>Financia</span>
                       <strong>{filtroFinanciaCap.length ? `${filtroFinanciaCap.length} selecionados` : "Todos"}</strong>
