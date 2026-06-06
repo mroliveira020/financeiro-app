@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
+  ProspectGallery,
+  DetalhesTexto,
   NoteIcon,
   UsersIcon,
   PriorityIcon,
@@ -352,6 +354,259 @@ export function TabelaSelecionados({
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+export function TabelaCapturados({
+  dados,
+  total,
+  page,
+  pageSize,
+  loading,
+  erro,
+  onIncluir,
+  includeLoadingIds,
+  onPageChange,
+  sortBy,
+  sortDir,
+  onSortChange,
+  selectedCodes,
+  onAbrirAvaliacao,
+  onAbrirAvaliacaoDetalhada,
+  onAbrirAnalise,
+  getLeilaoResumo,
+  calcularDescontoExibicao,
+  getMapsUrl,
+  getComparaveisLinks,
+  extrairEditalUrl,
+  getFonteLabel,
+  extrairProcessoNumero,
+  formatarPercentual,
+  formatarMoeda,
+  formatarDataHoraCompacta,
+  getScoreClasse,
+  getRoiClasse,
+}) {
+  if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando capturados...</p></div>;
+  if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar capturados: {erro}</p></div>;
+
+  const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
+  const isEmpty = !dados.length;
+  const renderSort = (key, label) => {
+    const isActive = sortBy === key;
+    const arrow = isActive ? (sortDir === "asc" ? "▲" : "▼") : "";
+    const handleSort = () => {
+      const nextDir = isActive && sortDir === "asc" ? "desc" : "asc";
+      onSortChange(key, nextDir);
+    };
+    return (
+      <button
+        type="button"
+        className={`prospects-sort-chip ${isActive ? "is-active" : ""}`.trim()}
+        onClick={handleSort}
+        aria-pressed={isActive}
+      >
+        <span>{label}</span>
+        <strong>{arrow || "↕"}</strong>
+      </button>
+    );
+  };
+
+  const renderRange = () => {
+    if (!total) return "0 de 0";
+    const start = (page - 1) * pageSize + 1;
+    const end = Math.min(page * pageSize, total);
+    return `${start} – ${end} de ${total}`;
+  };
+
+  return (
+    <div className="prospects-card">
+      <div className="prospects-card__header">
+        <div>
+          <p className="prospects-eyebrow">Última coleta</p>
+          <h2 className="prospects-title">Capturados</h2>
+          <p className="prospects-subtitle prospects-subtitle--compact">
+            Visualização em cards com foto, resumo financeiro e dados principais do imóvel.
+          </p>
+        </div>
+        <span className="prospects-pill">{total} registros</span>
+      </div>
+      <div className="prospects-card-grid">
+        <div className="prospects-card-grid__toolbar">
+          {renderSort("codigo", "Código")}
+          {renderSort("cidade", "Cidade")}
+          {renderSort("uf", "UF")}
+          {renderSort("modalidade", "Modalidade")}
+          {renderSort("valor_minimo", "Valor")}
+          {renderSort("ultima_disputa", "Última disputa")}
+        </div>
+
+        {isEmpty ? (
+          <p className="prospects-empty">Nenhum capturado encontrado.</p>
+        ) : dados.map((item) => {
+          const jaSelecionado = selectedCodes.has(item.codigo);
+          const enderecoCompacto = [item.endereco, item.bairro].filter(Boolean).join(" - ");
+          const resumoLeilao = getLeilaoResumo(item);
+          const descontoExibicao = calcularDescontoExibicao(item);
+          const avaliacao = item.avaliacaoAutomatica;
+          const mapsUrl = getMapsUrl(item);
+          const comparaveis = getComparaveisLinks(item);
+          const editalUrl = extrairEditalUrl(item.descricao);
+          const fonteLabel = getFonteLabel(item.fonte);
+          const processoNumero = extrairProcessoNumero(item.descricao);
+          return (
+            <article key={item.codigo} className="prospects-capture-card">
+              <div className="prospects-capture-card__media">
+                <ProspectGallery item={item} className="prospects-capture-card__photo" />
+                <div className="prospects-capture-card__badges">
+                  <span className="prospects-chip">{item.modalidade || "Sem modalidade"}</span>
+                  {fonteLabel ? <span className={`prospects-chip ${item.fonte === "tjdft_judicial" ? "prospects-chip--judicial" : "prospects-chip--source"}`.trim()}>{fonteLabel}</span> : null}
+                  {jaSelecionado ? <span className="prospects-chip prospects-chip--selected">Na fila</span> : null}
+                </div>
+                {descontoExibicao !== null ? (
+                  <div className="prospects-capture-card__discount">
+                    {formatarPercentual(descontoExibicao)}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="prospects-capture-card__body">
+                <div className="prospects-capture-card__headline">
+                  <span className="prospects-capture-card__type">{item.tipoImovel || "Imóvel"}</span>
+                  <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
+                    {item.codigo}
+                  </a>
+                </div>
+                <h3 className="prospects-capture-card__location">
+                  {[item.cidade, item.uf].filter(Boolean).join(" - ") || "Sem localização"}
+                </h3>
+                <p className="prospects-capture-card__address">
+                  {enderecoCompacto || "Endereço não informado"}
+                </p>
+
+                <div className="prospects-capture-card__facts">
+                  <span>{item.financia === undefined || item.financia === null ? "Financiamento n/d" : item.financia ? "Aceita FGTS/financiamento" : "Sem financiamento"}</span>
+                  <span>{item.situacao || "Sem status"}</span>
+                </div>
+
+                <div className="prospects-capture-card__meta-grid">
+                  <div className="prospects-capture-card__meta-item">
+                    <span>Valor avaliação</span>
+                    <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
+                  </div>
+                  <div className="prospects-capture-card__meta-item">
+                    <span>{resumoLeilao?.label || "Evento"}</span>
+                    <strong>{resumoLeilao?.data ? formatarDataHoraCompacta(resumoLeilao.data) : "Data não informada"}</strong>
+                  </div>
+                  <div className="prospects-capture-card__meta-item prospects-capture-card__meta-item--accent">
+                    <span>{resumoLeilao?.valor !== null && resumoLeilao?.valor !== undefined ? "Lance" : "Valor mínimo"}</span>
+                    <strong>{formatarMoeda(resumoLeilao?.valor ?? item.valorMinimo)}</strong>
+                  </div>
+                  <div className="prospects-capture-card__meta-item">
+                    <span>{processoNumero ? "Processo" : "Financia"}</span>
+                    <strong>{processoNumero || (item.financia === undefined || item.financia === null ? "—" : item.financia ? "Sim" : "Não")}</strong>
+                  </div>
+                </div>
+
+                <DetalhesTexto texto={item.descricao} className="prospects-capture-card__description" />
+
+                <div className="prospects-inline-links">
+                  <a className="prospects-inline-link" href={item.link} target="_blank" rel="noreferrer">
+                    <span>Anúncio</span>
+                    <ArrowUpRightIcon />
+                  </a>
+                  {mapsUrl ? (
+                    <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
+                      <MapPinIcon />
+                      <span>Mapa</span>
+                    </a>
+                  ) : null}
+                  {comparaveis.map((link) => (
+                    <a
+                      key={`${item.codigo}-${link.label}`}
+                      className="prospects-inline-link"
+                      href={link.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span>{link.label}</span>
+                      <ArrowUpRightIcon />
+                    </a>
+                  ))}
+                  {editalUrl ? (
+                    <a
+                      className="prospects-inline-link prospects-inline-link--highlight"
+                      href={editalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span>Ver edital</span>
+                      <ArrowUpRightIcon />
+                    </a>
+                  ) : null}
+                </div>
+
+                {avaliacao ? (
+                  <div className="prospects-capture-card__auto">
+                    <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
+                      Score: {avaliacao.score_total ?? "—"}/85
+                    </span>
+                    <span className={`prospects-auto-badge ${getRoiClasse(avaliacao.retorno_pct)}`}>
+                      ROI: {formatarPercentual(avaliacao.retorno_pct)}
+                    </span>
+                    <span className="prospects-auto-badge">
+                      Venda est.: {formatarMoeda(avaliacao.valor_estimado_venda)}
+                    </span>
+                  </div>
+                ) : null}
+
+                <div className="prospects-capture-card__actions">
+                  {avaliacao ? (
+                    <button
+                      type="button"
+                      className="prospects-btn ghost prospects-btn--subtle"
+                      onClick={() => onAbrirAvaliacao(item)}
+                    >
+                      Pré-análise
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className={`prospects-btn ghost prospects-btn--subtle ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
+                    onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
+                  >
+                    {item.analiseIaSalva ? "IA salva" : "Avaliação IA"}
+                  </button>
+                  <button
+                    type="button"
+                    className={`prospects-btn ghost prospects-btn--subtle ${item.analiseSalva ? "is-active" : ""}`.trim()}
+                    onClick={() => onAbrirAnalise(item, "capturados")}
+                  >
+                    {item.analiseSalva ? "Viabilidade salva" : "Viabilidade"}
+                  </button>
+                  <button
+                    type="button"
+                    className={`prospects-btn ${jaSelecionado ? "ghost" : "secondary"} prospects-btn--subtle`}
+                    disabled={includeLoadingIds.has(item.codigo)}
+                    onClick={() => onIncluir(item)}
+                  >
+                    {includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Reenviar ao funil" : "Selecionar"}
+                  </button>
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <div className="prospects-pagination">
+        <div className="prospects-pagination__summary">{renderRange()}</div>
+        <div className="prospects-pagination__controls">
+          <button type="button" className="prospects-btn secondary" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>Anterior</button>
+          <span>Página {page} de {totalPages}</span>
+          <button type="button" className="prospects-btn secondary" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>Próxima</button>
+        </div>
+      </div>
     </div>
   );
 }
