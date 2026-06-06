@@ -2895,9 +2895,17 @@
 .prospects-analise-section h4 {
   margin: 0;
   font-size: 13px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: #1b1f33;
+}
+
+.prospects-modal--analise .prospects-form-field span,
+.prospects-modal--analise .prospects-summary-card span,
+.prospects-modal--analise .prospects-analise-kpi span {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
 }
 
 .prospects-analise-section--full {

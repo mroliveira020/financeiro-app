@@ -1485,7 +1485,7 @@ function AnaliseModal({
 
   return (
     <div className="prospects-modal-backdrop" role="presentation">
-      <div className="prospects-modal prospects-modal--wide" role="dialog" aria-modal="true" aria-labelledby="analise-title">
+      <div className="prospects-modal prospects-modal--wide prospects-modal--analise" role="dialog" aria-modal="true" aria-labelledby="analise-title">
         <div className="prospects-modal__header">
           <div>
             <p className="prospects-eyebrow">Viabilidade</p>
@@ -1559,8 +1559,8 @@ function AnaliseModal({
                   <h4>Premissas</h4>
                   <CampoTextoNumerico label="Valor máximo do lance" value={currentDraft.valor_maximo_lance} onChange={(value) => onFieldChange("valor_maximo_lance", value)} onFocus={() => onFieldFocus("valor_maximo_lance")} onBlur={() => onFieldBlur("valor_maximo_lance")} />
                   <CampoTextoNumerico label="Valor base da operação" value={currentDraft.valor_base_operacao} onChange={(value) => onFieldChange("valor_base_operacao", value)} onFocus={() => onFieldFocus("valor_base_operacao")} onBlur={() => onFieldBlur("valor_base_operacao")} />
-                  <CampoNumerico label="Tempo da operação (meses)" value={currentDraft.tempo_operacao_meses} onChange={(value) => onFieldChange("tempo_operacao_meses", value)} onFocus={() => onFieldFocus("tempo_operacao_meses")} onBlur={() => onFieldBlur("tempo_operacao_meses")} />
-                  <CampoTextoNumerico label="% financiamento" value={currentDraft.percentual_financiamento} onChange={(value) => onFieldChange("percentual_financiamento", value)} onFocus={() => onFieldFocus("percentual_financiamento")} onBlur={() => onFieldBlur("percentual_financiamento")} />
+                  <CampoNumerico label="Tempo de operação (meses)" value={currentDraft.tempo_operacao_meses} onChange={(value) => onFieldChange("tempo_operacao_meses", value)} onFocus={() => onFieldFocus("tempo_operacao_meses")} onBlur={() => onFieldBlur("tempo_operacao_meses")} />
+                  <CampoTextoNumerico label="Percentual de financiamento" value={currentDraft.percentual_financiamento} onChange={(value) => onFieldChange("percentual_financiamento", value)} onFocus={() => onFieldFocus("percentual_financiamento")} onBlur={() => onFieldBlur("percentual_financiamento")} />
                   <CampoTextoNumerico label="Valor estimado da venda" value={currentDraft.valor_estimado_venda} onChange={(value) => onFieldChange("valor_estimado_venda", value)} onFocus={() => onFieldFocus("valor_estimado_venda")} onBlur={() => onFieldBlur("valor_estimado_venda")} />
                 </section>
 
@@ -1579,7 +1579,7 @@ function AnaliseModal({
                   <CampoTextoNumerico label="Luz" value={currentDraft.manutencao_luz_mensal} onChange={(value) => onFieldChange("manutencao_luz_mensal", value)} onFocus={() => onFieldFocus("manutencao_luz_mensal")} onBlur={() => onFieldBlur("manutencao_luz_mensal")} />
                   <CampoTextoNumerico label="Condomínio" value={currentDraft.manutencao_condominio_mensal} onChange={(value) => onFieldChange("manutencao_condominio_mensal", value)} onFocus={() => onFieldFocus("manutencao_condominio_mensal")} onBlur={() => onFieldBlur("manutencao_condominio_mensal")} />
                   <CampoTextoNumerico label="IPTU" value={currentDraft.manutencao_iptu_mensal} onChange={(value) => onFieldChange("manutencao_iptu_mensal", value)} onFocus={() => onFieldFocus("manutencao_iptu_mensal")} onBlur={() => onFieldBlur("manutencao_iptu_mensal")} />
-                  <CampoTextoNumerico label="Prestação mensal financiamento" value={currentDraft.prestacao_mensal_financiamento} onChange={(value) => onFieldChange("prestacao_mensal_financiamento", value)} onFocus={() => onFieldFocus("prestacao_mensal_financiamento")} onBlur={() => onFieldBlur("prestacao_mensal_financiamento")} />
+                  <CampoTextoNumerico label="Prestação mensal do financiamento" value={currentDraft.prestacao_mensal_financiamento} onChange={(value) => onFieldChange("prestacao_mensal_financiamento", value)} onFocus={() => onFieldFocus("prestacao_mensal_financiamento")} onBlur={() => onFieldBlur("prestacao_mensal_financiamento")} />
                   <div className="prospects-analise-inline-note">
                     Projeção automática: {formatarMoeda(calculos.despesas_mensais_projetadas)} em {inputs.tempo_operacao_meses} meses, incluindo a prestação.
                   </div>
@@ -1589,14 +1589,14 @@ function AnaliseModal({
                   <h4>ITBI e aquisição</h4>
                   <div className="prospects-pair-grid">
                     <CampoNumerico
-                      label="ITBI %"
+                      label="ITBI (%)"
                       value={resolveDisplayValue("itbi_percentual", "itbi", "percentual")}
                       onChange={(value) => onPairModeChange("itbi", "percentual", "itbi_percentual", value)}
                       onFocus={() => onFieldFocus("itbi_percentual")}
                       onBlur={() => onFieldBlur("itbi_percentual")}
                     />
                     <CampoTextoNumerico
-                      label="ITBI valor"
+                      label="ITBI (valor)"
                       value={resolveDisplayValue("itbi_valor", "itbi", "valor")}
                       onChange={(value) => onPairModeChange("itbi", "valor", "itbi_valor", value)}
                       onFocus={() => onFieldFocus("itbi_valor")}
@@ -1605,14 +1605,14 @@ function AnaliseModal({
                   </div>
                   <div className="prospects-pair-grid">
                     <CampoNumerico
-                      label="Comissão leiloeiro %"
+                      label="Comissão do leiloeiro (%)"
                       value={resolveDisplayValue("comissao_leiloeiro_percentual", "leiloeiro", "percentual")}
                       onChange={(value) => onPairModeChange("leiloeiro", "percentual", "comissao_leiloeiro_percentual", value)}
                       onFocus={() => onFieldFocus("comissao_leiloeiro_percentual")}
                       onBlur={() => onFieldBlur("comissao_leiloeiro_percentual")}
                     />
                     <CampoTextoNumerico
-                      label="Comissão leiloeiro valor"
+                      label="Comissão do leiloeiro (valor)"
                       value={resolveDisplayValue("comissao_leiloeiro_valor", "leiloeiro", "valor")}
                       onChange={(value) => onPairModeChange("leiloeiro", "valor", "comissao_leiloeiro_valor", value)}
                       onFocus={() => onFieldFocus("comissao_leiloeiro_valor")}
@@ -1625,14 +1625,14 @@ function AnaliseModal({
                   <h4>Venda</h4>
                   <div className="prospects-pair-grid">
                     <CampoNumerico
-                      label="Comissão corretor %"
+                      label="Comissão do corretor (%)"
                       value={resolveDisplayValue("comissao_corretor_percentual", "corretor", "percentual")}
                       onChange={(value) => onPairModeChange("corretor", "percentual", "comissao_corretor_percentual", value)}
                       onFocus={() => onFieldFocus("comissao_corretor_percentual")}
                       onBlur={() => onFieldBlur("comissao_corretor_percentual")}
                     />
                     <CampoTextoNumerico
-                      label="Comissão corretor valor"
+                      label="Comissão do corretor (valor)"
                       value={resolveDisplayValue("comissao_corretor_valor", "corretor", "valor")}
                       onChange={(value) => onPairModeChange("corretor", "valor", "comissao_corretor_valor", value)}
                       onFocus={() => onFieldFocus("comissao_corretor_valor")}
@@ -1641,14 +1641,14 @@ function AnaliseModal({
                   </div>
                   <div className="prospects-pair-grid">
                     <CampoNumerico
-                      label="Ganho de capital %"
+                      label="Ganho de capital (%)"
                       value={resolveDisplayValue("ganho_capital_percentual", "ganhoCapital", "percentual")}
                       onChange={(value) => onPairModeChange("ganhoCapital", "percentual", "ganho_capital_percentual", value)}
                       onFocus={() => onFieldFocus("ganho_capital_percentual")}
                       onBlur={() => onFieldBlur("ganho_capital_percentual")}
                     />
                     <CampoTextoNumerico
-                      label="Ganho de capital valor"
+                      label="Ganho de capital (valor)"
                       value={resolveDisplayValue("ganho_capital_valor", "ganhoCapital", "valor")}
                       onChange={(value) => onPairModeChange("ganhoCapital", "valor", "ganho_capital_valor", value)}
                       onFocus={() => onFieldFocus("ganho_capital_valor")}
