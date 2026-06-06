@@ -1849,6 +1849,7 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+  min-width: 0;
 }
 
 .prospects-ai-section,
@@ -1858,6 +1859,7 @@
   border: none;
   border-radius: 0;
   background: transparent;
+  min-width: 0;
 }
 
 .prospects-ai-summary,
@@ -1923,8 +1925,9 @@
   border-radius: 16px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   position: sticky;
-  top: 0;
+  top: 12px;
   z-index: 2;
+  min-width: 0;
 }
 
 .prospects-ai-toolbar__group {
@@ -1970,14 +1973,16 @@
   flex-direction: column;
   gap: 10px;
   padding: 2px 0 0;
+  min-width: 0;
 }
 
 .prospects-ai-bubble {
-  max-width: min(780px, 100%);
+  max-width: 100%;
   padding: 12px 14px;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   background: #f8fbff;
+  min-width: 0;
 }
 
 .prospects-ai-bubble.is-user {
@@ -2019,6 +2024,7 @@
   flex-direction: column;
   gap: 10px;
   color: #1f2937;
+  min-width: 0;
 }
 
 .prospects-rich-text__block {
@@ -2068,6 +2074,7 @@
   border: 1px solid #dbe5f3;
   border-radius: 12px;
   background: #ffffff;
+  max-width: 100%;
 }
 
 .prospects-rich-text__table {
@@ -2591,6 +2598,10 @@
   color: #334155;
 }
 
+.prospects-modal--auto .prospects-modal__body {
+  overflow-x: clip;
+}
+
 .prospects-modal__hint {
   margin: 0;
   padding: 10px 12px;
@@ -2612,6 +2623,7 @@
   grid-template-columns: minmax(280px, 400px) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
+  min-width: 0;
 }
 
 .prospects-auto-hero__media {
@@ -3186,6 +3198,24 @@
   font-weight: 600;
   color: #334155;
   line-height: 1.45;
+}
+
+@media (max-width: 1180px) {
+  .prospects-modal--auto {
+    width: min(100%, 980px);
+  }
+
+  .prospects-modal--auto .prospects-auto-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .prospects-modal--auto .prospects-ai-toolbar {
+    position: static;
+  }
+
+  .prospects-modal--auto .prospects-ai-toolbar__group--utility {
+    align-items: flex-start;
+  }
 }
 
 @media (max-width: 900px) {
