@@ -691,10 +691,15 @@ export function MobileCapturadosList({
               </div>
 
               <div className="prospects-mobile-item-card__actions">
+                <div className="prospects-capture-card__actions-head">
+                  <span className="prospects-capture-card__actions-label">Atalhos do hub</span>
+                  <span className="prospects-capture-card__actions-hint">Toque no card para Dados</span>
+                </div>
                 <button
                   type="button"
                   className={`prospects-btn ghost prospects-btn--mobile-action prospects-btn--card-action ${enriquecimentoDisponivel ? "is-active" : ""}`.trim()}
                   onClick={() => onAbrirAvaliacaoDetalhada(item, "enriquecimento", "capturados")}
+                  title="Abrir a aba Enriquecimento no hub do imóvel"
                 >
                   <span>{enriquecimentoDisponivel ? "Enriquecido" : "Enriquecimento"}</span>
                 </button>
@@ -702,6 +707,7 @@ export function MobileCapturadosList({
                   type="button"
                   className={`prospects-btn ghost prospects-btn--mobile-action prospects-btn--card-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
                   onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
+                  title="Abrir a aba IA no hub do imóvel"
                 >
                   <span>{item.analiseIaSalva ? "IA salva" : "IA"}</span>
                 </button>
@@ -709,6 +715,7 @@ export function MobileCapturadosList({
                   type="button"
                   className={`prospects-btn ghost prospects-btn--mobile-action prospects-btn--card-action ${item.analiseSalva ? "is-active" : ""}`.trim()}
                   onClick={() => onAbrirAvaliacaoDetalhada(item, "viabilidade", "capturados")}
+                  title="Abrir a aba Viabilidade no hub do imóvel"
                 >
                   <span>{item.analiseSalva ? "Viabilidade salva" : "Viabilidade"}</span>
                 </button>
@@ -716,6 +723,7 @@ export function MobileCapturadosList({
                   type="button"
                   className="prospects-btn ghost prospects-btn--mobile-action prospects-btn--card-action"
                   onClick={() => onAbrirAvaliacaoDetalhada(item, "matricula", "capturados")}
+                  title="Abrir a aba Matrícula no hub do imóvel"
                 >
                   <span>Matrícula</span>
                 </button>

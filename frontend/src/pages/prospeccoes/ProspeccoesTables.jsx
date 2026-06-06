@@ -611,10 +611,15 @@ export function TabelaCapturados({
                 </div>
 
                 <div className="prospects-capture-card__actions">
+                  <div className="prospects-capture-card__actions-head">
+                    <span className="prospects-capture-card__actions-label">Atalhos do hub</span>
+                    <span className="prospects-capture-card__actions-hint">O card abre Dados</span>
+                  </div>
                   <button
                     type="button"
                     className={`prospects-btn ghost prospects-btn--subtle prospects-btn--card-action ${enriquecimentoDisponivel ? "is-active" : ""}`.trim()}
                     onClick={() => onAbrirAvaliacaoDetalhada(item, "enriquecimento", "capturados")}
+                    title="Abrir a aba Enriquecimento no hub do imóvel"
                   >
                     {enriquecimentoDisponivel ? "Enriquecido" : "Enriquecimento"}
                   </button>
@@ -622,6 +627,7 @@ export function TabelaCapturados({
                     type="button"
                     className={`prospects-btn ghost prospects-btn--subtle prospects-btn--card-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
                     onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
+                    title="Abrir a aba IA no hub do imóvel"
                   >
                     {item.analiseIaSalva ? "IA salva" : "IA"}
                   </button>
@@ -629,6 +635,7 @@ export function TabelaCapturados({
                     type="button"
                     className={`prospects-btn ghost prospects-btn--subtle prospects-btn--card-action ${item.analiseSalva ? "is-active" : ""}`.trim()}
                     onClick={() => onAbrirAvaliacaoDetalhada(item, "viabilidade", "capturados")}
+                    title="Abrir a aba Viabilidade no hub do imóvel"
                   >
                     {item.analiseSalva ? "Viabilidade salva" : "Viabilidade"}
                   </button>
@@ -636,6 +643,7 @@ export function TabelaCapturados({
                     type="button"
                     className="prospects-btn ghost prospects-btn--subtle prospects-btn--card-action"
                     onClick={() => onAbrirAvaliacaoDetalhada(item, "matricula", "capturados")}
+                    title="Abrir a aba Matrícula no hub do imóvel"
                   >
                     Matrícula
                   </button>
