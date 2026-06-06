@@ -2881,6 +2881,11 @@
   gap: 10px;
 }
 
+.prospects-analise-grid--sticky-summary {
+  grid-template-columns: repeat(8, minmax(0, 1fr)) minmax(300px, 340px);
+  align-items: start;
+}
+
 .prospects-analise-section {
   display: flex;
   flex-direction: column;
@@ -2918,6 +2923,25 @@
 
 .prospects-analise-section--half {
   grid-column: span 6;
+}
+
+.prospects-analise-grid--sticky-summary .prospects-analise-section--summary {
+  grid-column: 9;
+  grid-row: 1 / span 5;
+  position: sticky;
+  top: 12px;
+  align-self: start;
+  gap: 10px;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.08);
+}
+
+.prospects-analise-grid--sticky-summary .prospects-analise-section--quarter {
+  grid-column: span 4;
+}
+
+.prospects-analise-grid--sticky-summary .prospects-analise-section--half,
+.prospects-analise-grid--sticky-summary .prospects-analise-section--full:not(.prospects-analise-section--summary) {
+  grid-column: 1 / span 8;
 }
 
 .prospects-form-field {
@@ -2977,6 +3001,10 @@
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
+}
+
+.prospects-analise-grid--sticky-summary .prospects-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .prospects-summary-grid--outcome {
@@ -3175,9 +3203,25 @@
     grid-template-columns: 1fr;
   }
 
+  .prospects-analise-grid--sticky-summary {
+    grid-template-columns: 1fr;
+  }
+
   .prospects-analise-section,
   .prospects-analise-section--quarter,
   .prospects-analise-section--half {
+    grid-column: 1 / -1;
+  }
+
+  .prospects-analise-grid--sticky-summary .prospects-analise-section--summary {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    position: static;
+    top: auto;
+    box-shadow: none;
+  }
+
+  .prospects-analise-grid--sticky-summary .prospects-analise-section--full:not(.prospects-analise-section--summary) {
     grid-column: 1 / -1;
   }
 

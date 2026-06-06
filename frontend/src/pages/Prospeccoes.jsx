@@ -1505,7 +1505,7 @@ function AnaliseModal({
                   {getMensagemPrefillAnalise(meta)}
                 </div>
               ) : null}
-              <div className="prospects-analise-grid">
+              <div className="prospects-analise-grid prospects-analise-grid--sticky-summary">
                 <section className="prospects-analise-section prospects-analise-section--full prospects-analise-section--summary">
                   <h4>Resumo financeiro</h4>
                   <div className="prospects-summary-grid">
