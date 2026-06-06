@@ -26,8 +26,8 @@
 
   --text-strong: #1c2940;
   --text-base: #334155;
-  --text-muted: #6f7f9d;
-  --text-soft: #8a97b2;
+  --text-muted: #5a6577;
+  --text-soft: #6b7280;
   --text-on-brand: #ffffff;
   --text-brand: #3156d3;
   --text-warn: #a16207;
@@ -116,7 +116,7 @@ textarea {
 .form-label {
   margin-bottom: 0.35rem;
   color: var(--text-muted);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
@@ -161,7 +161,7 @@ textarea {
 
 .table thead th {
   color: var(--text-muted);
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;

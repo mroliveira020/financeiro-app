@@ -285,19 +285,19 @@
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   font-weight: 600;
   padding: 0.28rem 0.62rem;
   border-radius: 999px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  background: rgba(56, 89, 255, 0.12);
-  color: #2c47c7;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .dados-card__status[data-status="vendido"] {
-  background: rgba(30, 187, 135, 0.12);
-  color: #167759;
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .dados-card__summary {
@@ -322,10 +322,10 @@
 }
 
 .dados-card__summary span {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #7381a3;
+  color: #5a6577;
 }
 
 .dados-card__summary strong {
@@ -728,10 +728,10 @@
 .resumo-card__mobile-line span,
 .transacoes-mobile-card__body span {
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #7381a3;
+  color: #5a6577;
 }
 
 .financeiro-compartilhado-card__mobile-item dd,
@@ -780,7 +780,7 @@
 }
 
 .transacoes-mobile-card__head span {
-  color: #7381a3;
+  color: #5a6577;
   font-size: 0.82rem;
   white-space: nowrap;
 }
@@ -808,7 +808,7 @@
   border: 1px solid rgba(35, 50, 74, 0.08);
   border-radius: 14px;
   background: #fbfcff;
-  color: #7381a3;
+  color: #5a6577;
   font-size: 0.82rem;
 }
 
@@ -842,8 +842,8 @@
 }
 
 .transacoes-mobile-card__compact-main small {
-  color: #7381a3;
-  font-size: 0.78rem;
+  color: #5a6577;
+  font-size: 0.8rem;
 }
 
 .transacoes-mobile-card__compact-value {
@@ -860,8 +860,8 @@
 }
 
 .transacoes-mobile-card__compact-value span {
-  color: #7381a3;
-  font-size: 0.74rem;
+  color: #5a6577;
+  font-size: 0.8rem;
 }
 
 .transacoes-mobile-card__compact-meta {
@@ -886,8 +886,8 @@
 }
 
 .transacoes-mobile-card__meta-text {
-  color: #7381a3;
-  font-size: 0.76rem;
+  color: #5a6577;
+  font-size: 0.8rem;
   line-height: 1.25;
 }
 
@@ -895,7 +895,7 @@
   border: 1px dashed rgba(35, 50, 74, 0.12);
   border-radius: 14px;
   padding: 1rem;
-  color: #7381a3;
+  color: #5a6577;
   text-align: center;
   background: #fbfcff;
 }

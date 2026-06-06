@@ -48,8 +48,8 @@
 
 .app-shell__brand-subtitle {
   color: #8a97b2;
-  font-size: 11px;
-  line-height: 1.1;
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .app-shell__nav {
@@ -128,8 +128,8 @@
 
 .app-shell__sidebar-version,
 .app-shell__sidebar-user {
-  font-size: 11px;
-  color: #8a97b2;
+  font-size: 12px;
+  color: #c2ccde;
   line-height: 1.35;
 }
 

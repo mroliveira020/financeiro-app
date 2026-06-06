@@ -16,7 +16,7 @@
 
 .prospects-eyebrow {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--prospects-brand);
@@ -315,9 +315,9 @@
 
 .prospects-mobile-hub__stat span {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.06em;
   color: var(--prospects-muted);
   font-weight: 700;
 }
@@ -1833,10 +1833,10 @@
 }
 
 .prospects-detail-status-chip strong {
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #64748b;
+  letter-spacing: 0.06em;
+  color: #52627f;
 }
 
 .prospects-auto-hero__links {
@@ -1875,6 +1875,13 @@
   margin-bottom: 12px;
 }
 
+.prospects-ai-section__header--row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .prospects-ai-section__header p {
   margin: 0;
   font-size: 12px;
@@ -1885,11 +1892,11 @@
 .prospects-ai-section__label,
 .prospects-subsection-title {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #64748b;
+  color: #52627f;
 }
 
 .prospects-ai-loading-card {
@@ -1946,9 +1953,9 @@
 }
 
 .prospects-ai-toolbar__label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
-  color: #64748b;
+  color: #52627f;
   letter-spacing: 0.04em;
 }
 
@@ -1966,6 +1973,13 @@
 
 .prospects-ai-summary__actions {
   margin-top: 4px;
+}
+
+.prospects-ai-summary__preview {
+  padding: 14px 16px;
+  border: 1px solid #dbe5f3;
+  border-radius: 14px;
+  background: #fbfdff;
 }
 
 .prospects-ai-chat {
@@ -2004,11 +2018,11 @@
 .prospects-ai-bubble span {
   display: block;
   margin-bottom: 6px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #64748b;
+  color: #52627f;
 }
 
 .prospects-ai-bubble p {
@@ -2096,11 +2110,11 @@
 
 .prospects-rich-text__table th {
   background: #f8fbff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #52627f;
+  color: #45556f;
 }
 
 .prospects-rich-text__table tbody tr:last-child td {

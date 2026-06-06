@@ -118,6 +118,12 @@ const buildAiErrorStatusState = (erro, { fallbackPrefix = "IA", retryAction = nu
   };
 };
 
+const hasAiUsefulContent = (data) => Boolean(
+  data?.historico_chat?.length
+  || data?.analise_texto
+  || data?.matricula_texto
+);
+
 const formatarMoeda = (valor) => {
   if (valor === null || valor === undefined) return "—";
   return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -2358,6 +2364,12 @@ function AvaliacaoDetalhadaModal({
   onAbrirAnalise,
   canChat,
 }) {
+  const [sinteseEditando, setSinteseEditando] = useState(false);
+
+  useEffect(() => {
+    setSinteseEditando(false);
+  }, [item?.codigo]);
+
   if (!item) return null;
 
   const resumoLeilao = getLeilaoResumo(item);
@@ -2381,6 +2393,8 @@ function AvaliacaoDetalhadaModal({
   const processoNumero = extrairProcessoNumero(item.descricao);
   const fonteLabel = getFonteLabel(item.fonte);
   const avaliacaoAuto = item.avaliacaoAutomatica;
+  const sinteseDisponivel = Boolean(`${sinteseDraft || ""}`.trim());
+  const mostrarEditorSintese = sinteseEditando || !sinteseDisponivel;
 
   return (
     <div className="prospects-modal-backdrop" role="presentation">
@@ -2710,22 +2724,41 @@ function AvaliacaoDetalhadaModal({
                   </section>
 
                   <section className="prospects-ai-summary">
-                    <div className="prospects-ai-section__header">
-                      <span className="prospects-ai-section__label">Síntese editável</span>
+                    <div className="prospects-ai-section__header prospects-ai-section__header--row">
+                      <span className="prospects-ai-section__label">
+                        {mostrarEditorSintese ? "Editar síntese" : "Síntese da análise"}
+                      </span>
+                      {sinteseDisponivel ? (
+                        <button
+                          type="button"
+                          className="prospects-btn ghost prospects-btn--subtle"
+                          onClick={() => setSinteseEditando((prev) => !prev)}
+                        >
+                          {mostrarEditorSintese ? "Ver formatada" : "Editar síntese"}
+                        </button>
+                      ) : null}
                     </div>
-                    <label className="prospects-form-field">
-                      <span>Síntese da análise</span>
-                      <textarea
-                        rows={5}
-                        value={sinteseDraft}
-                        onChange={(e) => onSinteseDraftChange(e.target.value)}
-                        placeholder="Resumo manual do que ficou decidido para este imóvel"
-                      />
-                    </label>
+                    {mostrarEditorSintese ? (
+                      <label className="prospects-form-field">
+                        <span>Síntese da análise</span>
+                        <textarea
+                          rows={5}
+                          value={sinteseDraft}
+                          onChange={(e) => onSinteseDraftChange(e.target.value)}
+                          placeholder="Resumo manual do que ficou decidido para este imóvel"
+                        />
+                      </label>
+                    ) : (
+                      <div className="prospects-ai-summary__preview">
+                        <TextoEstruturado texto={sinteseDraft} />
+                      </div>
+                    )}
                     <div className="prospects-ai-summary__actions">
-                      <button type="button" className="prospects-btn primary prospects-btn--subtle" onClick={onSalvarSintese} disabled={saving}>
-                        {saving ? "Salvando..." : "Salvar síntese"}
-                      </button>
+                      {mostrarEditorSintese ? (
+                        <button type="button" className="prospects-btn primary prospects-btn--subtle" onClick={onSalvarSintese} disabled={saving}>
+                          {saving ? "Salvando..." : "Salvar síntese"}
+                        </button>
+                      ) : null}
                       <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={() => onAbrirAnalise(item)}>
                         Editar análise financeira
                       </button>
@@ -4302,11 +4335,7 @@ export default function Prospeccoes() {
   };
 
   const sincronizarIndicadorAnaliseIaCapturada = useCallback((numeroBem, data) => {
-    const possuiHistorico = Boolean(
-      data?.historico_chat?.length
-      || data?.analise_texto
-      || data?.matricula_texto
-    );
+    const possuiHistorico = hasAiUsefulContent(data);
     if (!possuiHistorico) return;
     setCapturados((prev) => prev.map((item) => (
       item.codigo === numeroBem
@@ -4322,6 +4351,9 @@ export default function Prospeccoes() {
       setAiAnalise(data);
       setAiSinteseDraft(data?.analise_texto || "");
       sincronizarIndicadorAnaliseIaCapturada(numeroBem, data);
+      if (hasAiUsefulContent(data)) {
+        setAvaliacaoDetalhadaStatusState();
+      }
 
       const historico = data?.historico_chat || [];
       if (autoInit && !historico.length && (user?.ai_access || user?.role === "admin")) {
@@ -4341,6 +4373,9 @@ export default function Prospeccoes() {
         setAiAnalise(refreshed);
         setAiSinteseDraft(refreshed?.analise_texto || "");
         sincronizarIndicadorAnaliseIaCapturada(numeroBem, refreshed);
+        if (hasAiUsefulContent(refreshed)) {
+          setAvaliacaoDetalhadaStatusState();
+        }
         await refreshSelecionados();
       }
     } finally {
