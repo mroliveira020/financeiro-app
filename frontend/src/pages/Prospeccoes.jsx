@@ -52,6 +52,11 @@ import {
   ObservacoesModal,
   PrioridadeModal,
 } from "./prospeccoes/ProspeccoesModals";
+import {
+  MobileSelecionadosList,
+  MobileCapturadosList,
+} from "./prospeccoes/ProspeccoesMobileSections";
+import { TabelaSelecionados } from "./prospeccoes/ProspeccoesTables";
 
 const PRIORIDADE_OPTIONS = [
   { value: 1, label: "Baixa", cls: "baixa" },
@@ -683,339 +688,6 @@ const computeAnalise = (draft, pairModes) => {
 };
 
 const buildAnalisePayload = (draft, pairModes) => computeAnalise(draft, pairModes).inputs;
-
-function TabelaSelecionados({
-  dados,
-  loading,
-  erro,
-  onExcluir,
-  onReativar,
-  onAcionarAnaliseIa,
-  onEditarObservacoes,
-  onAbrirAnalise,
-  onAbrirEnriquecimentos,
-  onEditarResponsaveis,
-  onEditarPrioridade,
-  onIncluirManual,
-  removeLoadingIds,
-  updateLoadingIds,
-  canDeleteItem,
-  canOperateItem,
-  canManageResponsaveis,
-  canReactivateItem,
-  collapsed,
-  onToggleCollapse,
-  sortLabel,
-}) {
-  const [openActionMenuCodigo, setOpenActionMenuCodigo] = useState(null);
-
-  useEffect(() => {
-    if (!openActionMenuCodigo) return undefined;
-    const handlePointerDown = (event) => {
-      if (event.target.closest("[data-row-menu-root='true']")) return;
-      setOpenActionMenuCodigo(null);
-    };
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [openActionMenuCodigo]);
-
-  if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando selecionados...</p></div>;
-  if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar selecionados: {erro}</p></div>;
-
-  return (
-    <div className="prospects-card">
-      <div className="prospects-card__header">
-        <div>
-          <p className="prospects-eyebrow">Fila de decisão</p>
-          <h2 className="prospects-title">Itens da fila</h2>
-          <p className="prospects-subtitle prospects-subtitle--compact">
-            {sortLabel}
-          </p>
-        </div>
-        <div className="prospects-card__header-actions">
-          <span className="prospects-pill">{dados.length} imóveis</span>
-          {onIncluirManual ? (
-            <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onIncluirManual}>
-              Adicionar manual
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="prospects-visibility-btn"
-            onClick={onToggleCollapse}
-            title={collapsed ? "Mostrar selecionados" : "Ocultar selecionados"}
-            aria-label={collapsed ? "Mostrar selecionados" : "Ocultar selecionados"}
-            aria-pressed={collapsed}
-          >
-            <EyeIcon closed={collapsed} />
-          </button>
-        </div>
-      </div>
-      {!dados.length && <p className="prospects-empty">Nenhum item da fila encontrado.</p>}
-      {!dados.length || collapsed ? null : (
-      <div className="prospects-table-wrap">
-        <table className="prospects-table">
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th className="prospects-col-city">Cidade / UF</th>
-              <th>Data leilão</th>
-              <th>Valor máximo</th>
-              <th>Valor referência</th>
-              <th className="prospects-col-description">Descrição</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dados.map((item) => {
-              const resumoLeilao = getLeilaoResumo(item);
-              const mapsUrl = getMapsUrl(item);
-              const comparaveis = getComparaveisLinks(item);
-              const itemAtivo = isSelecionadoAtivo(item);
-              const podeOperar = itemAtivo && canOperateItem(item);
-              const podeExcluir = itemAtivo && canDeleteItem(item);
-              const podeReativar = !itemAtivo && canReactivateItem(item);
-              const podeGerenciarResponsaveis = itemAtivo && canManageResponsaveis;
-              const actionMenuAberto = openActionMenuCodigo === item.codigo;
-              const responsaveisResumo = (() => {
-                const pessoas = [];
-                const seen = new Set();
-                const addPessoa = (id, label, suffix = "") => {
-                  const normalizedId = id ? String(id) : "";
-                  const normalizedLabel = `${label || ""}`.trim();
-                  const key = normalizedId || normalizedLabel.toLowerCase();
-                  if (!key || seen.has(key)) return;
-                  seen.add(key);
-                  pessoas.push(`${normalizedLabel}${suffix}`);
-                };
-                addPessoa(item.createdBy, item.createdByName, item.createdByName ? " (selecionou)" : "");
-                (item.responsaveis || []).forEach((responsavel) => {
-                  addPessoa(responsavel.id, responsavel.name || responsavel.email);
-                });
-                return pessoas.length ? pessoas.join(", ") : "Sem responsáveis definidos.";
-              })();
-              return (
-              <tr key={item.codigo}>
-                <td className="mono">
-                  <a className="prospects-link" href={item.link} target="_blank" rel="noreferrer">
-                    {item.codigo}
-                  </a>
-                </td>
-                <td className="prospects-col-city">
-                  <div className="prospects-city-cell">
-                    <strong>{item.cidade && item.uf ? `${item.cidade}/${item.uf}` : item.cidade || item.uf || "—"}</strong>
-                    <div className="prospects-table-indicators">
-                      {item.analiseSalva ? (
-                        <span className="prospects-indicator-chip is-financeira" title="Análise financeira salva">
-                          <ChartIcon />
-                          <span>Financeira</span>
-                        </span>
-                      ) : null}
-                      {item.avaliacaoAutomatica ? (
-                        <span className="prospects-indicator-chip is-automatica" title="Pré-análise automática disponível">
-                          <SparklesIcon />
-                          <span>Pré-análise</span>
-                        </span>
-                      ) : null}
-                      {item.analiseIaSalva ? (
-                        <span className="prospects-indicator-chip is-ia" title="Avaliação IA salva">
-                          <SparklesIcon />
-                          <span>IA salva</span>
-                        </span>
-                      ) : null}
-                      {!itemAtivo ? (
-                        <span className="prospects-indicator-chip is-inactive" title="Item fora da fila ativa">
-                          <span>Inativo</span>
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <div className="prospects-date-cell">
-                    <strong>{formatarDataHoraCompacta(resumoLeilao?.data || item.dataLeilao)}</strong>
-                    <span>{resumoLeilao?.label || "Data principal"}</span>
-                    {resumoLeilao?.valor !== null && resumoLeilao?.valor !== undefined ? (
-                      <span>{formatarMoeda(resumoLeilao.valor)}</span>
-                    ) : null}
-                  </div>
-                </td>
-                <td>{formatarMoeda(item.valorMaximo)}</td>
-                <td>{item.valor ? formatarMoeda(item.valor) : "—"}</td>
-                <td className="prospects-col-description">
-                  <div className="prospects-description-cell" title={item.descricao || "—"}>
-                    {item.descricao || "—"}
-                  </div>
-                  {item.observacoes ? (
-                    <div className="prospects-note-snippet" title={item.observacoes}>
-                      <span>Observação atual</span>
-                      <strong>{resumirObservacao(item.observacoes)}</strong>
-                    </div>
-                  ) : null}
-                  <div className="prospects-inline-links">
-                    {mapsUrl ? (
-                      <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
-                        <MapPinIcon />
-                        <span>Mapa</span>
-                      </a>
-                    ) : null}
-                    {comparaveis.map((link) => (
-                      <a key={`${item.codigo}-${link.label}`} className="prospects-inline-link" href={link.url} target="_blank" rel="noreferrer">
-                        <span>{link.label}</span>
-                        <ArrowUpRightIcon />
-                      </a>
-                    ))}
-                  </div>
-                </td>
-                <td>
-                  <div className="prospects-row-actions">
-                    <button
-                      type="button"
-                      className={`prospects-table-icon-btn prospects-table-icon-btn--note ${item.observacoes ? "has-note" : "is-empty"}`}
-                      title={
-                        !podeOperar
-                          ? "Somente admin, autor ou responsável atribuído podem editar este imóvel"
-                          : item.observacoes || "Nenhuma observação cadastrada."
-                      }
-                      onClick={() => onEditarObservacoes(item)}
-                      disabled={updateLoadingIds.has(`${item.codigo}:observacoes`) || !podeOperar}
-                    >
-                      <NoteIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className={`prospects-table-icon-btn prospects-table-icon-btn--analysis ${item.analiseSalva ? obterClasseRoi(item.roiEsperadoPercentual) : "is-neutral"}`}
-                      title={
-                        !podeOperar
-                          ? "Somente admin, autor ou responsável atribuído podem editar este imóvel"
-                          : item.analiseSalva
-                            ? `Abrir análise financeira. ROI: ${formatarPercentual(item.roiEsperadoPercentual)}`
-                            : "Abrir ficha de viabilidade"
-                      }
-                      onClick={() => onAbrirAnalise(item)}
-                      disabled={!podeOperar}
-                    >
-                      <ChartIcon />
-                    </button>
-                    <div className="prospects-row-menu" data-row-menu-root="true">
-                      <button
-                        type="button"
-                        className={`prospects-table-icon-btn prospects-table-icon-btn--menu ${actionMenuAberto ? "is-active" : ""}`.trim()}
-                        title="Mais ações"
-                        aria-label={`Mais ações do imóvel ${item.codigo}`}
-                        aria-expanded={actionMenuAberto}
-                        onClick={() => setOpenActionMenuCodigo((prev) => (prev === item.codigo ? null : item.codigo))}
-                      >
-                        <MoreIcon />
-                      </button>
-                      {actionMenuAberto ? (
-                        <div className="prospects-row-menu__panel" role="menu" aria-label={`Ações do imóvel ${item.codigo}`}>
-                          {mapsUrl ? (
-                            <a
-                              className="prospects-row-menu__item"
-                              href={mapsUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              role="menuitem"
-                              onClick={() => setOpenActionMenuCodigo(null)}
-                            >
-                              <MapPinIcon />
-                              <span>Abrir no mapa</span>
-                            </a>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="prospects-row-menu__item"
-                            onClick={() => {
-                              setOpenActionMenuCodigo(null);
-                              onEditarPrioridade(item);
-                            }}
-                            disabled={updateLoadingIds.has(`${item.codigo}:prioridade`) || !podeOperar}
-                          >
-                            <PriorityIcon level={Number(item.prioridade || 2)} />
-                            <span>Editar prioridade</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="prospects-row-menu__item"
-                            title={podeGerenciarResponsaveis ? `${responsaveisResumo} Clique para editar responsáveis.` : responsaveisResumo}
-                            onClick={() => {
-                              setOpenActionMenuCodigo(null);
-                              if (podeGerenciarResponsaveis) onEditarResponsaveis(item);
-                            }}
-                            disabled={!itemAtivo}
-                          >
-                            <UsersIcon />
-                            <span>{podeGerenciarResponsaveis ? "Editar responsáveis" : "Ver responsáveis"}</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="prospects-row-menu__item"
-                            onClick={() => {
-                              setOpenActionMenuCodigo(null);
-                              if (item.avaliacaoAutomatica) onAbrirEnriquecimentos(item);
-                            }}
-                            disabled={!item.avaliacaoAutomatica || !itemAtivo}
-                          >
-                            <SparklesIcon />
-                            <span>Ver enriquecimentos</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="prospects-row-menu__item"
-                            aria-label={`${getAnaliseIaActionLabel(item)} do imóvel ${item.codigo}`}
-                            onClick={() => {
-                              setOpenActionMenuCodigo(null);
-                              onAcionarAnaliseIa(item);
-                            }}
-                            disabled={!itemAtivo}
-                          >
-                            <SparklesIcon />
-                            <span>{getAnaliseIaActionLabel(item)}</span>
-                          </button>
-                          {podeReativar ? (
-                            <button
-                              type="button"
-                              className="prospects-row-menu__item"
-                              title={item.inativadoPorName ? `Reativar item removido por ${item.inativadoPorName}` : "Reativar item"}
-                              disabled={updateLoadingIds.has(`${item.codigo}:reativar`)}
-                              onClick={() => {
-                                setOpenActionMenuCodigo(null);
-                                onReativar(item);
-                              }}
-                            >
-                              <ArrowLeftIcon />
-                              <span>Reativar item</span>
-                            </button>
-                          ) : (
-                            <button
-                              type="button"
-                              className="prospects-row-menu__item is-danger"
-                              title={podeExcluir ? "Remover da fila" : "Apenas o autor da seleção ou um administrador pode remover este imóvel"}
-                              disabled={removeLoadingIds.has(item.codigo) || !podeExcluir}
-                              onClick={() => {
-                                setOpenActionMenuCodigo(null);
-                                onExcluir(item);
-                              }}
-                            >
-                              <TrashIcon />
-                              <span>{removeLoadingIds.has(item.codigo) ? "Removendo..." : "Remover da fila"}</span>
-                            </button>
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            )})}
-          </tbody>
-        </table>
-      </div>
-      )}
-    </div>
-  );
-}
 
 function CampoNumerico({ label, value, onChange, onFocus, onBlur }) {
   return (
@@ -2188,742 +1860,6 @@ function AvaliacaoDetalhadaModal({
   );
 }
 
-function MobileSelecionadosList({
-  dados,
-  loading,
-  erro,
-  onBack,
-  onIncluirManual,
-  searchValue,
-  onSearchChange,
-  selectedUfFilter,
-  onUfFilterChange,
-  ufOptions,
-  selectedPrioridadeFilter,
-  onPrioridadeFilterChange,
-  selectedActivityFilter,
-  onActivityFilterChange,
-  selectedResponsavelFilter,
-  onResponsavelFilterChange,
-  selectedSortBy,
-  onSortByChange,
-  selectedSortDir,
-  onSortDirChange,
-  selectedUserFilter,
-  onUserFilterChange,
-  selectedUserOptions,
-  canFilterByUser,
-  selectedMetrics,
-  onResetFilters,
-  onEditarObservacoes,
-  onAbrirAnalise,
-  onAbrirEnriquecimentos,
-  onAcionarAnaliseIa,
-  onEditarPrioridade,
-  onEditarResponsaveis,
-  onExcluir,
-  onReativar,
-  canOperateItem,
-  canManageResponsaveis,
-  canDeleteItem,
-  canReactivateItem,
-  updateLoadingIds,
-  removeLoadingIds,
-}) {
-  if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando fila...</p></div>;
-  if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar fila: {erro}</p></div>;
-
-  return (
-    <section className="prospects-mobile-section">
-      <div className="prospects-card">
-        <div className="prospects-card__header prospects-card__header--stacked">
-          <div>
-            <p className="prospects-eyebrow">Mobile</p>
-            <h2 className="prospects-title">Fila de prospecção</h2>
-            <p className="prospects-subtitle prospects-subtitle--compact">
-              Abra notas, viabilidade e ajustes operacionais sem depender da tabela desktop.
-            </p>
-          </div>
-          <div className="prospects-card__header-actions">
-            <span className="prospects-pill">{dados.length} imóveis</span>
-            {onIncluirManual ? (
-              <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onIncluirManual}>
-                Adicionar manual
-              </button>
-            ) : null}
-            <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onBack}>
-              <ArrowLeftIcon />
-              <span>Menu mobile</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="prospects-card prospects-mobile-filters">
-        <label className="prospects-toolbar-field prospects-toolbar-field--search">
-          <span>Buscar na fila</span>
-          <input
-            type="search"
-            value={searchValue}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Código, cidade, responsável ou observação"
-          />
-        </label>
-
-        <div className="prospects-mobile-filters__grid">
-          <label className="prospects-toolbar-field">
-            <span>UF</span>
-            <select value={selectedUfFilter} onChange={(e) => onUfFilterChange(e.target.value)}>
-              <option value="todos">Todas</option>
-              {ufOptions.map((uf) => (
-                <option key={uf} value={uf}>{uf}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="prospects-toolbar-field">
-            <span>Prioridade</span>
-            <select value={selectedPrioridadeFilter} onChange={(e) => onPrioridadeFilterChange(e.target.value)}>
-              <option value="todas">Todas</option>
-              {PRIORIDADE_OPTIONS.map((option) => (
-                <option key={option.value} value={String(option.value)}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-
-          {canFilterByUser ? (
-            <label className="prospects-toolbar-field">
-              <span>Estado</span>
-              <select value={selectedActivityFilter} onChange={(e) => onActivityFilterChange(e.target.value)}>
-                <option value="ativos">Ativos</option>
-                <option value="inativos">Inativos</option>
-                <option value="todos">Todos</option>
-              </select>
-            </label>
-          ) : null}
-
-          <label className="prospects-toolbar-field">
-            <span>Responsáveis</span>
-            <select value={selectedResponsavelFilter} onChange={(e) => onResponsavelFilterChange(e.target.value)}>
-              <option value="todos">Todos</option>
-              <option value="com">Com responsáveis</option>
-              <option value="sem">Sem responsáveis</option>
-              <option value="meus">Atribuídos a mim</option>
-            </select>
-          </label>
-
-          {canFilterByUser ? (
-            <label className="prospects-toolbar-field">
-              <span>Usuário</span>
-              <select value={selectedUserFilter} onChange={(e) => onUserFilterChange(e.target.value)}>
-                <option value="todos">Todos</option>
-                {selectedUserOptions.map((option) => (
-                  <option key={option.id} value={option.id}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
-          <label className="prospects-toolbar-field">
-            <span>Ordenar por</span>
-            <select value={selectedSortBy} onChange={(e) => onSortByChange(e.target.value)}>
-              <option value="dataLeilao">Data do leilão</option>
-              <option value="prioridade">Prioridade</option>
-              <option value="cidade">Cidade</option>
-              <option value="valorMaximo">Valor máximo</option>
-              <option value="roi">ROI</option>
-            </select>
-          </label>
-
-          <label className="prospects-toolbar-field">
-            <span>Direção</span>
-            <select value={selectedSortDir} onChange={(e) => onSortDirChange(e.target.value)}>
-              <option value="asc">Crescente</option>
-              <option value="desc">Decrescente</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="prospects-mobile-filters__footer">
-          <div className="prospects-mobile-filters__metrics">
-            <span className="prospects-pill">{dados.length} na visão</span>
-            <span className="prospects-pill prospects-pill--muted">{selectedMetrics.comAnalise} com análise</span>
-            <span className="prospects-pill prospects-pill--muted">{selectedMetrics.altaPrioridade} alta prioridade</span>
-          </div>
-          <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onResetFilters}>
-            Limpar visão
-          </button>
-        </div>
-      </div>
-
-      {!dados.length ? (
-        <div className="prospects-card">
-          <p className="prospects-empty">Nenhum item disponível na fila.</p>
-        </div>
-      ) : null}
-
-      <div className="prospects-mobile-list">
-        {dados.map((item) => {
-          const prioridadeLabel = PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média";
-          const itemAtivo = isSelecionadoAtivo(item);
-          const podeOperar = itemAtivo && canOperateItem(item);
-          const podeExcluir = itemAtivo && canDeleteItem(item);
-          const podeReativar = !itemAtivo && canReactivateItem(item);
-          const roiClass = obterClasseRoi(item.roiEsperadoPercentual);
-          const resumoLeilao = getLeilaoResumo(item);
-          const mapsUrl = getMapsUrl(item);
-          const comparaveis = getComparaveisLinks(item);
-          return (
-            <article key={item.codigo} className="prospects-mobile-item-card">
-              <div className="prospects-mobile-item-card__top">
-                <div>
-                  <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
-                    {item.codigo}
-                  </a>
-                  <p className="prospects-mobile-item-card__location">
-                    {[item.cidade, item.uf].filter(Boolean).join("/") || "Sem localização"}
-                  </p>
-                </div>
-                <div className="prospects-mobile-item-card__pills">
-                  <span className={`prospects-chip priority-${prioridadeLabel.toLowerCase()}`}>{prioridadeLabel}</span>
-                  <span className={`prospects-chip prospects-mobile-chip--roi ${roiClass}`}>{formatarPercentual(item.roiEsperadoPercentual)}</span>
-                  {item.analiseSalva ? <span className="prospects-chip prospects-chip--info">Financeira</span> : null}
-                  {item.avaliacaoAutomatica ? <span className="prospects-chip prospects-chip--auto">Pré-análise</span> : null}
-                  {item.analiseIaSalva ? <span className="prospects-chip prospects-chip--ia">IA salva</span> : null}
-                  {!itemAtivo ? <span className="prospects-chip prospects-chip--inactive">Inativo</span> : null}
-                </div>
-              </div>
-
-              <div className="prospects-mobile-item-card__meta">
-                <div>
-                  <span>{resumoLeilao?.label || "Leilão"}</span>
-                  <strong>{formatarDataHoraCompacta(resumoLeilao?.data || item.dataLeilao)}</strong>
-                </div>
-                <div>
-                  <span>Valor máximo</span>
-                  <strong>{formatarMoeda(item.valorMaximo)}</strong>
-                </div>
-                <div>
-                  <span>Lance do evento</span>
-                  <strong>{formatarMoeda(resumoLeilao?.valor ?? item.valor)}</strong>
-                </div>
-                <div>
-                  <span>Responsáveis</span>
-                  <strong>{item.responsaveis?.length ? item.responsaveis.map((responsavel) => responsavel.name || responsavel.email).join(", ") : "Não definido"}</strong>
-                </div>
-                <div>
-                  <span>Autor</span>
-                  <strong>{item.createdByName || "Não informado"}</strong>
-                </div>
-              </div>
-
-              <p className="prospects-mobile-item-card__description">{item.descricao || "Sem descrição cadastrada."}</p>
-
-              <div className="prospects-inline-links">
-                {mapsUrl ? (
-                  <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
-                    <MapPinIcon />
-                    <span>Mapa</span>
-                  </a>
-                ) : null}
-                {comparaveis.map((link) => (
-                  <a key={`${item.codigo}-${link.label}`} className="prospects-inline-link" href={link.url} target="_blank" rel="noreferrer">
-                    <span>{link.label}</span>
-                    <ArrowUpRightIcon />
-                  </a>
-                ))}
-              </div>
-
-              {item.observacoes ? (
-                <div className="prospects-mobile-item-card__note">
-                  <span>Observação atual</span>
-                  <strong>{item.observacoes}</strong>
-                </div>
-              ) : null}
-
-              <div className="prospects-mobile-item-card__actions">
-                <button
-                  type="button"
-                  className="prospects-btn secondary prospects-btn--mobile-action"
-                  onClick={() => onEditarObservacoes(item)}
-                  disabled={!podeOperar || updateLoadingIds.has(`${item.codigo}:observacoes`)}
-                >
-                  <NoteIcon />
-                  <span>Notas</span>
-                </button>
-                <button
-                  type="button"
-                  className="prospects-btn secondary prospects-btn--mobile-action"
-                  onClick={() => onAbrirAnalise(item)}
-                  disabled={!podeOperar}
-                >
-                  <ChartIcon />
-                  <span>Viabilidade</span>
-                </button>
-                <button
-                  type="button"
-                  className={`prospects-btn ghost prospects-btn--mobile-action ${item.avaliacaoAutomatica ? "is-active" : ""}`.trim()}
-                  onClick={() => item.avaliacaoAutomatica && onAbrirEnriquecimentos(item)}
-                  disabled={!item.avaliacaoAutomatica || !itemAtivo}
-                >
-                  <SparklesIcon />
-                  <span>Enriquecimentos</span>
-                </button>
-                <button
-                  type="button"
-                  className="prospects-btn ghost prospects-btn--mobile-action"
-                  onClick={() => onAcionarAnaliseIa(item)}
-                  disabled={!itemAtivo}
-                >
-                  <SparklesIcon />
-                  <span>{getAnaliseIaActionLabel(item)}</span>
-                </button>
-                <button
-                  type="button"
-                  className="prospects-btn tertiary prospects-btn--mobile-action"
-                  onClick={() => onEditarPrioridade(item)}
-                  disabled={!podeOperar || updateLoadingIds.has(`${item.codigo}:prioridade`)}
-                >
-                  <PriorityIcon level={Number(item.prioridade || 2)} />
-                  <span>Prioridade</span>
-                </button>
-                {canManageResponsaveis ? (
-                  <button
-                    type="button"
-                    className="prospects-btn tertiary prospects-btn--mobile-action"
-                    onClick={() => onEditarResponsaveis(item)}
-                  >
-                    <UsersIcon />
-                    <span>Responsáveis</span>
-                  </button>
-                ) : null}
-                {podeExcluir ? (
-                  <button
-                    type="button"
-                    className="prospects-btn danger prospects-btn--mobile-action"
-                    onClick={() => onExcluir(item)}
-                    disabled={removeLoadingIds.has(item.codigo)}
-                  >
-                    <TrashIcon />
-                    <span>Remover</span>
-                  </button>
-                ) : null}
-                {podeReativar ? (
-                  <button
-                    type="button"
-                    className="prospects-btn secondary prospects-btn--mobile-action"
-                    onClick={() => onReativar(item)}
-                    disabled={updateLoadingIds.has(`${item.codigo}:reativar`)}
-                  >
-                    <ArrowUpRightIcon />
-                    <span>Reativar</span>
-                  </button>
-                ) : null}
-              </div>
-            </article>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-function MobileCapturadosList({
-  dados,
-  total,
-  page,
-  pageSize,
-  loading,
-  erro,
-  onBack,
-  onIncluir,
-  includeLoadingIds,
-  selectedCodes,
-  filtroFonteCap,
-  setFiltroFonteCap,
-  filtroUfCap,
-  setFiltroUfCap,
-  ufOptions,
-  filtroCidadesCap,
-  onToggleCidade,
-  cidadesOptions,
-  filtroFinanciaCap,
-  setFiltroFinanciaCap,
-  sortBy,
-  setSortBy,
-  sortDir,
-  setSortDir,
-  pageSizeOptions,
-  setPageSize,
-  onPageChange,
-  onResetFilters,
-  onAbrirAvaliacao,
-  onAbrirAvaliacaoDetalhada,
-  onAbrirAnalise,
-}) {
-  const [citySearch, setCitySearch] = useState("");
-  if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando base de prospecção...</p></div>;
-  if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar capturados: {erro}</p></div>;
-
-  const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
-  const normalizedCitySearch = citySearch.trim().toLowerCase();
-  const cidadesVisiveis = normalizedCitySearch
-    ? cidadesOptions.filter((cidade) => cidade.toLowerCase().includes(normalizedCitySearch))
-    : cidadesOptions;
-
-  return (
-    <section className="prospects-mobile-section">
-      <div className="prospects-card">
-        <div className="prospects-card__header prospects-card__header--stacked">
-          <div>
-            <p className="prospects-eyebrow">Mobile</p>
-            <h2 className="prospects-title">Selecionar imóveis</h2>
-            <p className="prospects-subtitle prospects-subtitle--compact">
-              Explore a base capturada e envie imóveis para a fila operacional de prospecção.
-            </p>
-          </div>
-          <div className="prospects-card__header-actions">
-            <span className="prospects-pill">{total} capturados</span>
-            <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onBack}>
-              <ArrowLeftIcon />
-              <span>Menu mobile</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="prospects-card prospects-mobile-filters">
-        <div className="prospects-mobile-filters__grid">
-          <label className="prospects-toolbar-field">
-            <span>Origem</span>
-            <select
-              value={filtroFonteCap}
-              onChange={(e) => {
-                setFiltroFonteCap(e.target.value);
-                onPageChange(1);
-              }}
-            >
-              {FONTE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="prospects-toolbar-field">
-            <span>UF</span>
-            <select
-              value={filtroUfCap[0] || ""}
-              onChange={(e) => setFiltroUfCap(e.target.value ? [e.target.value] : [])}
-            >
-              <option value="">Todas</option>
-              {ufOptions.map((uf) => (
-                <option key={uf} value={uf}>{uf}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="prospects-toolbar-field">
-            <span>Financia</span>
-            <select
-              value={filtroFinanciaCap[0] || ""}
-              onChange={(e) => setFiltroFinanciaCap(e.target.value ? [e.target.value] : [])}
-            >
-              <option value="">Todos</option>
-              <option value="sim">Sim</option>
-              <option value="nao">Não</option>
-            </select>
-          </label>
-
-          <label className="prospects-toolbar-field">
-            <span>Ordenar por</span>
-            <select
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value);
-                onPageChange(1);
-              }}
-            >
-              <option value="ultima_disputa">Última disputa</option>
-              <option value="codigo">Código</option>
-              <option value="cidade">Cidade</option>
-              <option value="uf">UF</option>
-              <option value="modalidade">Modalidade</option>
-              <option value="valor_minimo">Valor mínimo</option>
-              <option value="score_total">Score</option>
-              <option value="retorno_pct">ROI estimado</option>
-            </select>
-          </label>
-
-          <label className="prospects-toolbar-field">
-            <span>Direção</span>
-            <select
-              value={sortDir}
-              onChange={(e) => {
-                setSortDir(e.target.value);
-                onPageChange(1);
-              }}
-            >
-              <option value="asc">Crescente</option>
-              <option value="desc">Decrescente</option>
-            </select>
-          </label>
-
-          <label className="prospects-toolbar-field">
-            <span>Itens por página</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                onPageChange(1);
-              }}
-            >
-              {pageSizeOptions.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="prospects-mobile-filters__stack">
-          <div className="prospects-toolbar-field prospects-toolbar-field--checklist">
-            <div className="prospects-mobile-filter-head">
-              <span>Cidades</span>
-              <strong>{filtroCidadesCap.length ? `${filtroCidadesCap.length} selecionadas` : "Todas"}</strong>
-            </div>
-            <input
-              type="search"
-              value={citySearch}
-              onChange={(e) => setCitySearch(e.target.value)}
-              placeholder="Buscar cidade"
-            />
-            {filtroCidadesCap.length ? (
-              <div className="prospects-mobile-city-selected">
-                {filtroCidadesCap.map((cidade) => (
-                  <button
-                    key={cidade}
-                    type="button"
-                    className="prospects-mobile-city-chip is-selected"
-                    onClick={() => onToggleCidade(cidade)}
-                  >
-                    <span>{cidade}</span>
-                    <strong>x</strong>
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <div className="prospects-mobile-city-grid">
-              {cidadesVisiveis.length ? cidadesVisiveis.map((cidade) => {
-                const ativa = filtroCidadesCap.includes(cidade);
-                return (
-                  <button
-                    key={cidade}
-                    type="button"
-                    className={`prospects-mobile-city-chip ${ativa ? "is-selected" : ""}`.trim()}
-                    onClick={() => onToggleCidade(cidade)}
-                  >
-                    {cidade}
-                  </button>
-                );
-              }) : (
-                <p className="prospects-empty prospects-empty--inline">Nenhuma cidade encontrada.</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="prospects-mobile-filters__footer">
-          <div className="prospects-mobile-filters__metrics">
-            <span className="prospects-pill">{dados.length} na página</span>
-            <span className="prospects-pill prospects-pill--muted">{selectedCodes.size} na fila</span>
-          </div>
-          <button type="button" className="prospects-btn tertiary prospects-btn--toolbar" onClick={onResetFilters}>
-            Limpar filtros
-          </button>
-        </div>
-      </div>
-
-      {!dados.length ? (
-        <div className="prospects-card">
-          <p className="prospects-empty">Nenhum imóvel capturado encontrado com os filtros atuais.</p>
-        </div>
-      ) : null}
-
-      <div className="prospects-mobile-list">
-        {dados.map((item) => {
-          const jaSelecionado = selectedCodes.has(item.codigo);
-          const avaliacao = item.avaliacaoAutomatica;
-          const resumoLeilao = getLeilaoResumo(item);
-          const mapsUrl = getMapsUrl(item);
-          const comparaveis = getComparaveisLinks(item);
-          const editalUrl = extrairEditalUrl(item.descricao);
-          const fonteLabel = getFonteLabel(item.fonte);
-          const processoNumero = extrairProcessoNumero(item.descricao);
-          return (
-            <article
-              key={item.codigo}
-              className="prospects-mobile-item-card"
-            >
-              <div className="prospects-mobile-item-card__media">
-                <ProspectGallery item={item} className="prospects-mobile-item-card__photo" compact />
-              </div>
-
-              <div className="prospects-mobile-item-card__top">
-                <div>
-                  <a className="prospects-link mono" href={item.link} target="_blank" rel="noreferrer">
-                    {item.codigo}
-                  </a>
-                  <p className="prospects-mobile-item-card__location">
-                    {[item.cidade, item.uf].filter(Boolean).join("/") || "Sem localização"}
-                  </p>
-                </div>
-                <div className="prospects-mobile-item-card__pills">
-                  <span className="prospects-chip">{item.modalidade || "Sem modalidade"}</span>
-                  {fonteLabel ? <span className={`prospects-chip ${item.fonte === "tjdft_judicial" ? "prospects-chip--judicial" : "prospects-chip--source"}`.trim()}>{fonteLabel}</span> : null}
-                  {jaSelecionado ? (
-                    <span className="prospects-chip prospects-chip--selected">Na fila</span>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="prospects-mobile-item-card__meta">
-                <div>
-                  <span>{resumoLeilao?.label || "Valor mínimo"}</span>
-                  <strong>{formatarMoeda(resumoLeilao?.valor ?? item.valorMinimo)}</strong>
-                </div>
-                <div>
-                  <span>Valor avaliação</span>
-                  <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
-                </div>
-                <div>
-                  <span>{resumoLeilao?.data ? "Data do evento" : "Última disputa"}</span>
-                  <strong>{formatarDataHoraCompacta(resumoLeilao?.data || item.ultima_disputa)}</strong>
-                </div>
-                <div>
-                  <span>Financia</span>
-                  <strong>{item.financia === undefined || item.financia === null ? "—" : item.financia ? "Sim" : "Não"}</strong>
-                </div>
-                <div>
-                  <span>Status</span>
-                  <strong>{item.situacao || "—"}</strong>
-                </div>
-                {processoNumero ? (
-                  <div>
-                    <span>Processo</span>
-                    <strong>{processoNumero}</strong>
-                  </div>
-                ) : null}
-              </div>
-
-              {avaliacao ? (
-                <div className="prospects-mobile-item-card__auto">
-                  <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>{avaliacao.score_total ?? "—"}/85</span>
-                  <span className={`prospects-auto-badge ${getRoiClasse(avaliacao.retorno_pct)}`}>{formatarPercentual(avaliacao.retorno_pct)}</span>
-                </div>
-              ) : null}
-
-              <DetalhesTexto texto={item.descricao} className="prospects-mobile-item-card__description" />
-
-              <div className="prospects-inline-links">
-                <a
-                  className="prospects-inline-link"
-                  href={item.link}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <span>Anúncio</span>
-                  <ArrowUpRightIcon />
-                </a>
-                {mapsUrl ? (
-                  <a
-                    className="prospects-inline-link"
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <MapPinIcon />
-                    <span>Mapa</span>
-                  </a>
-                ) : null}
-                {comparaveis.map((link) => (
-                  <a
-                    key={`${item.codigo}-${link.label}`}
-                    className="prospects-inline-link"
-                    href={link.url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <span>{link.label}</span>
-                    <ArrowUpRightIcon />
-                  </a>
-                ))}
-                {editalUrl ? (
-                  <a
-                    className="prospects-inline-link prospects-inline-link--highlight"
-                    href={editalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <span>Ver edital</span>
-                    <ArrowUpRightIcon />
-                  </a>
-                ) : null}
-              </div>
-
-              <div className="prospects-mobile-item-card__actions">
-                {avaliacao ? (
-                  <button
-                    type="button"
-                    className="prospects-btn ghost prospects-btn--mobile-action"
-                    onClick={() => onAbrirAvaliacao(item)}
-                  >
-                    <span>Pré-análise</span>
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className={`prospects-btn ghost prospects-btn--mobile-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
-                  onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
-                >
-                  <span>{item.analiseIaSalva ? "IA salva" : "Avaliação IA"}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`prospects-btn ghost prospects-btn--mobile-action ${item.analiseSalva ? "is-active" : ""}`.trim()}
-                  onClick={() => onAbrirAnalise(item, "capturados")}
-                >
-                  <span>{item.analiseSalva ? "Viabilidade salva" : "Viabilidade"}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`prospects-btn ${jaSelecionado ? "ghost" : "secondary"} prospects-btn--mobile-action`}
-                  onClick={() => onIncluir(item)}
-                  disabled={includeLoadingIds.has(item.codigo)}
-                >
-                  <span>{includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Reenviar ao funil" : "Selecionar"}</span>
-                </button>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-
-      <div className="prospects-card prospects-mobile-pagination">
-        <div className="prospects-pagination__summary">
-          Página {page} de {totalPages}
-        </div>
-        <div className="prospects-pagination__controls">
-          <button type="button" className="prospects-btn secondary" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-            Anterior
-          </button>
-          <button type="button" className="prospects-btn secondary" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
-            Próxima
-          </button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export default function Prospeccoes() {
   const outletContext = useOutletContext() || {};
   const setTopbarContent = outletContext.setTopbarContent;
@@ -3248,6 +2184,19 @@ export default function Prospeccoes() {
       });
     });
     return Array.from(usersMap.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [selectedBaseDados]);
+  const selectedResponsavelOptions = useMemo(() => {
+    const responsaveisMap = new Map();
+    selectedBaseDados.forEach((item) => {
+      (item.responsaveis || []).forEach((responsavel) => {
+        if (!responsavel?.id) return;
+        responsaveisMap.set(String(responsavel.id), {
+          id: String(responsavel.id),
+          label: responsavel.name || responsavel.email || `Usuário ${responsavel.id}`,
+        });
+      });
+    });
+    return Array.from(responsaveisMap.values()).sort((a, b) => a.label.localeCompare(b.label));
   }, [selectedBaseDados]);
   const selectedCodes = useMemo(
     () => new Set(selecionados.filter((item) => isSelecionadoAtivo(item)).map((item) => item.codigo)),
@@ -4198,6 +3147,33 @@ export default function Prospeccoes() {
     selectedSortBy,
     selectedSortDir,
   ]);
+  const selectedVisibleActiveFilters = useMemo(() => ([
+    selectedSearch.trim() !== "" ? `Busca: ${selectedSearch.trim()}` : null,
+    selectedUfFilter !== "todos" ? `UF: ${selectedUfFilter}` : null,
+    selectedPrioridadeFilter !== "todas"
+      ? `Prioridade: ${PRIORIDADE_OPTIONS.find((option) => String(option.value) === selectedPrioridadeFilter)?.label || selectedPrioridadeFilter}`
+      : null,
+    selectedActivityFilter !== "ativos" ? `Status: ${selectedActivityFilter}` : null,
+    selectedResponsavelFilter === "com" ? "Com responsáveis" : null,
+    selectedResponsavelFilter === "sem" ? "Sem responsáveis" : null,
+    selectedResponsavelFilter === "meus" ? "Atribuídos a mim" : null,
+    selectedUserFilter !== "todos"
+      ? `Autor: ${selectedUserOptions.find((option) => option.id === selectedUserFilter)?.label || selectedUserFilter}`
+      : null,
+    selectedSortBy !== "dataLeilao" ? selectedSortLabel : null,
+    selectedSortDir !== "asc" && selectedSortBy === "dataLeilao" ? selectedSortLabel : null,
+  ].filter(Boolean)), [
+    selectedSearch,
+    selectedUfFilter,
+    selectedPrioridadeFilter,
+    selectedActivityFilter,
+    selectedResponsavelFilter,
+    selectedUserFilter,
+    selectedUserOptions,
+    selectedSortBy,
+    selectedSortDir,
+    selectedSortLabel,
+  ]);
 
   useEffect(() => {
     if (!setTopbarContent) return undefined;
@@ -4299,27 +3275,35 @@ export default function Prospeccoes() {
               erro={erroSel}
               onBack={() => setMobileSection("hub")}
               onIncluirManual={openIncluirManualModal}
-              searchValue={selectedSearch}
-              onSearchChange={setSelectedSearch}
+              onOpenObservacoes={openObservacoesModal}
+              onOpenPrioridade={openPrioridadeModal}
+              onOpenResponsaveis={openResponsaveisModal}
+              onOpenAnalise={openAnaliseModal}
+              onOpenAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
+              onDelete={setConfirmDeleteItem}
+              onReativar={handleReativarSelecionado}
+              updateLoadingIds={updateLoadingIds}
+              removeLoadingIds={removeLoadingIds}
+              selectedSearch={selectedSearch}
+              onSelectedSearchChange={setSelectedSearch}
               selectedUfFilter={selectedUfFilter}
-              onUfFilterChange={setSelectedUfFilter}
-              ufOptions={selectedUfOptions}
+              onSelectedUfFilterChange={setSelectedUfFilter}
+              selectedUfOptions={selectedUfOptions}
               selectedPrioridadeFilter={selectedPrioridadeFilter}
-              onPrioridadeFilterChange={setSelectedPrioridadeFilter}
-              selectedActivityFilter={selectedActivityFilter}
-              onActivityFilterChange={setSelectedActivityFilter}
+              onSelectedPrioridadeFilterChange={setSelectedPrioridadeFilter}
               selectedResponsavelFilter={selectedResponsavelFilter}
-              onResponsavelFilterChange={setSelectedResponsavelFilter}
-              selectedSortBy={selectedSortBy}
-              onSortByChange={setSelectedSortBy}
-              selectedSortDir={selectedSortDir}
-              onSortDirChange={setSelectedSortDir}
+              onSelectedResponsavelFilterChange={setSelectedResponsavelFilter}
+              responsavelOptions={selectedResponsavelOptions}
+              selectedActivityFilter={selectedActivityFilter}
+              onSelectedActivityFilterChange={setSelectedActivityFilter}
               selectedUserFilter={selectedUserFilter}
-              onUserFilterChange={setSelectedUserFilter}
+              onSelectedUserFilterChange={setSelectedUserFilter}
               selectedUserOptions={selectedUserOptions}
-              canFilterByUser={user?.role === "admin"}
-              selectedMetrics={selectedMetrics}
-              onResetFilters={() => {
+              selectedSortBy={selectedSortBy}
+              onSelectedSortByChange={setSelectedSortBy}
+              selectedSortDir={selectedSortDir}
+              onSelectedSortDirChange={setSelectedSortDir}
+              onResetSelectedFilters={() => {
                 setSelectedSearch("");
                 setSelectedUfFilter("todos");
                 setSelectedPrioridadeFilter("todas");
@@ -4329,21 +3313,11 @@ export default function Prospeccoes() {
                 setSelectedSortBy("dataLeilao");
                 setSelectedSortDir("asc");
               }}
-              onEditarObservacoes={openObservacoesModal}
-              onAbrirAnalise={openAnaliseModal}
-              onAbrirEnriquecimentos={openAvaliacaoAutomaticaModal}
-              onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
-              onAcionarAnaliseIa={handleAcionarAnaliseIa}
-              onEditarPrioridade={openPrioridadeModal}
-              onEditarResponsaveis={openResponsaveisModal}
-              onExcluir={setConfirmDeleteItem}
-              onReativar={handleReativarSelecionado}
-              canOperateItem={canOperateItem}
+              onToggleFiltersExpanded={() => setSelectedFiltersExpanded((prev) => !prev)}
+              selectedFiltersExpanded={selectedFiltersExpanded}
+              selectedVisibleActiveFilters={selectedVisibleActiveFilters}
+              canFilterByUser={user?.role === "admin"}
               canManageResponsaveis={canManageResponsaveis}
-              canDeleteItem={canDeleteItem}
-              canReactivateItem={canReactivateItem}
-              updateLoadingIds={updateLoadingIds}
-              removeLoadingIds={removeLoadingIds}
             />
           ) : (
             <MobileCapturadosList
@@ -4376,6 +3350,18 @@ export default function Prospeccoes() {
               onAbrirAvaliacao={openAvaliacaoAutomaticaModal}
               onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
               onAbrirAnalise={openAnaliseModal}
+              sourceOptions={FONTE_OPTIONS}
+              getLeilaoResumo={getLeilaoResumo}
+              getMapsUrl={getMapsUrl}
+              getComparaveisLinks={getComparaveisLinks}
+              extrairEditalUrl={extrairEditalUrl}
+              getFonteLabel={getFonteLabel}
+              extrairProcessoNumero={extrairProcessoNumero}
+              formatarMoeda={formatarMoeda}
+              formatarPercentual={formatarPercentual}
+              formatarDataHoraCompacta={formatarDataHoraCompacta}
+              getScoreClasse={getScoreClasse}
+              getRoiClasse={getRoiClasse}
               sortBy={sortBy}
               setSortBy={setSortBy}
               sortDir={sortDir}
@@ -4576,6 +3562,16 @@ export default function Prospeccoes() {
             collapsed={selecionadosCollapsed}
             onToggleCollapse={() => setSelecionadosCollapsed((prev) => !prev)}
             sortLabel={selectedSortLabel}
+            getLeilaoResumo={getLeilaoResumo}
+            getMapsUrl={getMapsUrl}
+            getComparaveisLinks={getComparaveisLinks}
+            isSelecionadoAtivo={isSelecionadoAtivo}
+            formatarDataHoraCompacta={formatarDataHoraCompacta}
+            formatarMoeda={formatarMoeda}
+            resumirObservacao={resumirObservacao}
+            obterClasseRoi={obterClasseRoi}
+            formatarPercentual={formatarPercentual}
+            getAnaliseIaActionLabel={getAnaliseIaActionLabel}
           />
         </>
       ) : (
