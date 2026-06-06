@@ -2613,49 +2613,70 @@ function AvaliacaoDetalhadaModal({
           ) : (
             <div className="prospects-ai-panel">
               <div className="prospects-ai-toolbar">
-                <div className="prospects-ai-toolbar__meta">
-                  <span className="prospects-indicator-chip is-automatica">
-                    <SparklesIcon />
-                    <span>{quantidadeMensagens} interações</span>
-                  </span>
-                  <span className={`prospects-indicator-chip ${canChat ? "is-financeira" : "is-ia"}`}>
-                    <span>{canChat ? "Chat liberado" : "Somente leitura"}</span>
-                  </span>
-                  {aiAnalise?.updated_at ? (
-                    <span className="prospects-indicator-chip is-ia">
-                      <span>Atualizado em {formatarDataHoraCompacta(aiAnalise.updated_at)}</span>
+                <div className="prospects-ai-toolbar__group">
+                  <span className="prospects-ai-toolbar__label">Contexto</span>
+                  <div className="prospects-ai-toolbar__meta">
+                    <span className="prospects-indicator-chip is-automatica">
+                      <SparklesIcon />
+                      <span>{quantidadeMensagens} interações</span>
                     </span>
-                  ) : null}
+                    <span className={`prospects-indicator-chip ${canChat ? "is-financeira" : "is-ia"}`}>
+                      <span>{canChat ? "Chat liberado" : "Somente leitura"}</span>
+                    </span>
+                    {aiAnalise?.updated_at ? (
+                      <span className="prospects-indicator-chip is-ia">
+                        <span>Atualizado em {formatarDataHoraCompacta(aiAnalise.updated_at)}</span>
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="prospects-ai-toolbar__actions">
-                  {canChat ? (
+                <div className="prospects-ai-toolbar__group prospects-ai-toolbar__group--actions">
+                  <span className="prospects-ai-toolbar__label">Processar</span>
+                  <div className="prospects-ai-toolbar__actions">
+                    {canChat ? (
+                      <button
+                        type="button"
+                        className="prospects-btn primary prospects-btn--subtle"
+                        onClick={onGerarAnaliseInicial}
+                        disabled={loading || sending || matriculaLoading || enriquecimentoLoading}
+                      >
+                        {loading || sending ? "Processando IA..." : getAnaliseIaActionLabel(item)}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
-                      className="prospects-btn primary prospects-btn--subtle"
-                      onClick={onGerarAnaliseInicial}
-                      disabled={loading || sending || matriculaLoading || enriquecimentoLoading}
-                    >
-                      {loading || sending ? "Processando IA..." : getAnaliseIaActionLabel(item)}
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className={`prospects-btn secondary prospects-btn--subtle ${avaliacaoAuto ? "is-active" : ""}`.trim()}
-                    onClick={onSolicitarEnriquecimento}
-                    disabled={!canChat || loading || sending || matriculaLoading || enriquecimentoLoading}
-                  >
-                    {enriquecimentoLoading ? "Processando enriquecimento..." : avaliacaoAuto ? "Reenriquecer" : "Enriquecer"}
-                  </button>
-                  {podeAnalisarMatricula(item) ? (
-                    <button
-                      type="button"
-                      className="prospects-btn secondary prospects-btn--subtle"
-                      onClick={onSolicitarMatricula}
+                      className={`prospects-btn secondary prospects-btn--subtle ${avaliacaoAuto ? "is-active" : ""}`.trim()}
+                      onClick={onSolicitarEnriquecimento}
                       disabled={!canChat || loading || sending || matriculaLoading || enriquecimentoLoading}
                     >
-                      {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
+                      {enriquecimentoLoading ? "Processando enriquecimento..." : avaliacaoAuto ? "Reenriquecer" : "Enriquecer"}
                     </button>
-                  ) : null}
+                    {podeAnalisarMatricula(item) ? (
+                      <button
+                        type="button"
+                        className="prospects-btn secondary prospects-btn--subtle"
+                        onClick={onSolicitarMatricula}
+                        disabled={!canChat || loading || sending || matriculaLoading || enriquecimentoLoading}
+                      >
+                        {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="prospects-ai-toolbar__group prospects-ai-toolbar__group--utility">
+                  <span className="prospects-ai-toolbar__label">Navegação</span>
+                  <div className="prospects-ai-toolbar__actions">
+                    <button
+                      type="button"
+                      className={`prospects-btn ghost prospects-btn--subtle ${tab === "dados" ? "is-active" : ""}`.trim()}
+                      onClick={() => onTabChange("dados")}
+                    >
+                      Ver dados do imóvel
+                    </button>
+                    <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onClose}>
+                      Fechar
+                    </button>
+                  </div>
                 </div>
               </div>
               {loading ? (

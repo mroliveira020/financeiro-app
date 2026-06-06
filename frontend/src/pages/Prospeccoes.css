@@ -1915,9 +1915,38 @@
 .prospects-ai-toolbar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: space-between;
   gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #dbe5f3;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.prospects-ai-toolbar__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.prospects-ai-toolbar__group--actions {
+  flex: 1;
+}
+
+.prospects-ai-toolbar__group--utility {
+  align-items: flex-end;
+}
+
+.prospects-ai-toolbar__label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+  letter-spacing: 0.04em;
 }
 
 .prospects-ai-toolbar__meta,
@@ -1929,7 +1958,7 @@
 }
 
 .prospects-ai-toolbar__actions {
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .prospects-ai-summary__actions {
@@ -3195,6 +3224,18 @@
 
   .prospects-modal__footer {
     flex-direction: column-reverse;
+  }
+
+  .prospects-ai-toolbar {
+    position: static;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .prospects-ai-toolbar__group--utility {
+    align-items: flex-start;
   }
 
   .prospects-analise-grid,
