@@ -1796,6 +1796,7 @@ export default function Prospeccoes() {
 
   const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados", origem = "selecionados") => {
     const aiAttemptKey = `${origem}:${item.codigo}`;
+    const needsAiData = initialTab === "ia" || initialTab === "matricula";
     aiAutoInitAttemptRef.current.delete(aiAttemptKey);
     setAvaliacaoDetalhadaItem(item);
     setAvaliacaoDetalhadaOrigem(origem);
@@ -1804,14 +1805,17 @@ export default function Prospeccoes() {
     setAiSinteseDraft("");
     setAvaliacaoDetalhadaStatusState();
     setAiAnalise(null);
-    setAiLoading(initialTab === "ia");
+    setAiLoading(needsAiData);
     setAnaliseDetalhada(null);
     setAnaliseDetalhadaLoading(true);
     try {
-      const [analiseData] = await Promise.all([
+      const requests = [
         fetchAnaliseSelecionado(item.codigo).catch(() => null),
-        carregarAiAnalise(item.codigo, { autoInit: false, origem }),
-      ]);
+      ];
+      if (needsAiData) {
+        requests.push(carregarAiAnalise(item.codigo, { autoInit: false, origem }));
+      }
+      const [analiseData] = await Promise.all(requests);
       setAnaliseDetalhada(analiseData);
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar avaliação detalhada");
@@ -2066,6 +2070,29 @@ export default function Prospeccoes() {
       );
     });
   }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise, setAvaliacaoDetalhadaStatusState]);
+
+  useEffect(() => {
+    if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "matricula") return;
+    if (aiLoading || aiSending || matriculaLoading) return;
+    if (aiAnalise) return;
+    carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: false, origem: avaliacaoDetalhadaOrigem }).catch((err) => {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar matrícula");
+      setMensagem(message);
+      setAvaliacaoDetalhadaStatusState(
+        buildAiErrorStatusState(message, { fallbackPrefix: "Matrícula", retryAction: "matricula" })
+      );
+    });
+  }, [
+    avaliacaoDetalhadaItem,
+    avaliacaoDetalhadaTab,
+    avaliacaoDetalhadaOrigem,
+    aiAnalise,
+    aiLoading,
+    aiSending,
+    matriculaLoading,
+    carregarAiAnalise,
+    setAvaliacaoDetalhadaStatusState,
+  ]);
 
   useEffect(() => {
     const pendingAction = aiDeferredActionRef.current;
