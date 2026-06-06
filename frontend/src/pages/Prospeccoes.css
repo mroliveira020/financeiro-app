@@ -1,13 +1,13 @@
 .prospects-page {
-  --prospects-ink: #172033;
-  --prospects-muted: #66738f;
-  --prospects-line: #d9e2ef;
-  --prospects-soft: #f3f6fb;
-  --prospects-soft-strong: #e8eef8;
-  --prospects-brand: #1849a9;
-  --prospects-brand-strong: #0f3a8b;
-  --prospects-accent: #dbe7ff;
-  --prospects-danger: #d63b52;
+  --prospects-ink: var(--text-strong);
+  --prospects-muted: var(--text-muted);
+  --prospects-line: var(--line-base);
+  --prospects-soft: var(--surface-subtle);
+  --prospects-soft-strong: #e7eef9;
+  --prospects-brand: var(--text-brand);
+  --prospects-brand-strong: #2447d6;
+  --prospects-accent: var(--surface-brand-soft);
+  --prospects-danger: var(--text-danger);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -59,28 +59,28 @@
 }
 
 .prospects-btn.primary {
-  background: #1e40af;
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(30, 64, 175, 0.22);
+  background: var(--surface-brand-strong);
+  color: var(--text-on-brand);
+  box-shadow: var(--shadow-brand);
 }
 
 .prospects-btn.secondary {
-  background: #fff;
-  border-color: #1e40af;
-  color: #1e40af;
+  background: var(--surface-card);
+  border-color: var(--text-brand);
+  color: var(--text-brand);
 }
 
 .prospects-btn.ghost {
   background: transparent;
   border-color: transparent;
-  color: #475569;
+  color: var(--text-base);
   box-shadow: none;
 }
 
 .prospects-btn.tertiary {
-  background: #ffffff;
+  background: var(--surface-card);
   border-color: var(--prospects-line);
-  color: #334155;
+  color: var(--text-base);
   padding: 6px 10px;
   min-width: auto;
   font-size: 13px;
@@ -94,9 +94,9 @@
 }
 
 .prospects-btn.danger {
-  background: #fff1f2;
+  background: var(--surface-danger-soft);
   border-color: #fecdd3;
-  color: #be123c;
+  color: var(--text-danger);
   padding: 6px 10px;
   min-width: auto;
 }
@@ -137,11 +137,11 @@
 }
 
 .prospects-card {
-  background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
+  background: linear-gradient(180deg, var(--surface-card) 0%, var(--surface-card-soft) 100%);
   border: 1px solid var(--prospects-line);
   border-radius: 22px;
   padding: 16px;
-  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.05);
+  box-shadow: var(--shadow-card);
 }
 
 .prospects-card__header {

@@ -1,7 +1,7 @@
 .dashboard-page {
   min-height: 100vh;
   padding: 2.5rem 0 3.5rem;
-  background: linear-gradient(180deg, #f6f8fc 0%, #f1f4fa 40%, #edf1f9 100%);
+  background: linear-gradient(180deg, var(--surface-app) 0%, var(--surface-subtle) 42%, #eaf0f8 100%);
 }
 
 .dashboard-container {
@@ -29,12 +29,12 @@
 .dashboard-header__title h1 {
   font-size: 1.75rem;
   font-weight: 700;
-  color: #23324a;
+  color: var(--text-strong);
   margin: 0;
 }
 
 .dashboard-header__title span {
-  color: #6c7a95;
+  color: var(--text-muted);
   font-size: 0.95rem;
 }
 
@@ -76,7 +76,7 @@
 }
 
 .dashboard-view-toolbar__copy span {
-  color: #6c7a95;
+  color: var(--text-muted);
   font-size: 0.92rem;
 }
 
@@ -86,14 +86,14 @@
   gap: 0.35rem;
   padding: 0.3rem;
   border-radius: 999px;
-  border: 1px solid rgba(35, 50, 74, 0.08);
-  background: #f5f7fc;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-subtle);
 }
 
 .dashboard-view-toggle__button {
   border: none;
   background: transparent;
-  color: #60708c;
+  color: var(--text-muted);
   font-size: 0.85rem;
   font-weight: 700;
   padding: 0.55rem 0.95rem;
@@ -102,9 +102,9 @@
 }
 
 .dashboard-view-toggle__button.is-active {
-  background: #ffffff;
-  color: #1f2d47;
-  box-shadow: 0 10px 20px -18px rgba(15, 35, 95, 0.55);
+  background: var(--surface-card);
+  color: var(--text-strong);
+  box-shadow: var(--shadow-card);
 }
 
 .dashboard-transactions {
@@ -114,17 +114,17 @@
 }
 
 .dashboard-card {
-  background: #fff;
-  border-radius: 20px;
+  background: var(--surface-card);
+  border-radius: var(--radius-card);
   padding: 1.75rem;
-  box-shadow: 0 20px 45px -25px rgba(15, 35, 95, 0.4);
-  border: 1px solid rgba(35, 50, 74, 0.05);
+  box-shadow: var(--shadow-card-strong);
+  border: 1px solid var(--line-soft);
 }
 
 .dashboard-card h2 {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #1f2a3f;
+  color: var(--text-strong);
 }
 
 .dados-card {
@@ -479,8 +479,8 @@
   gap: 0.45rem;
   padding: 0.42rem 0.72rem;
   border-radius: 999px;
-  background: rgba(56, 89, 255, 0.09);
-  color: #3250c8;
+  background: var(--surface-brand-soft);
+  color: var(--text-brand);
   font-size: 0.78rem;
   font-weight: 700;
 }
@@ -498,9 +498,9 @@
 }
 
 .financeiro-compartilhado-card__metric {
-  border: 1px solid rgba(35, 50, 74, 0.08);
-  border-radius: 16px;
-  background: #f8faff;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card-tight);
+  background: linear-gradient(180deg, var(--surface-card) 0%, var(--surface-card-soft) 100%);
   padding: 1rem 1.1rem;
   display: flex;
   flex-direction: column;
@@ -511,12 +511,12 @@
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #7381a3;
+  color: var(--text-muted);
 }
 
 .financeiro-compartilhado-card__metric strong {
   font-size: 1.05rem;
-  color: #1d2d4b;
+  color: var(--text-strong);
 }
 
 .financeiro-compartilhado-card__section {
