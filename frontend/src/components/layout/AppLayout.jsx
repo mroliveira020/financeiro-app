@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import EditorBar from "../EditorBar";
 import { useAuth } from "../../context/AuthContext";
@@ -33,9 +33,13 @@ const icons = {
   ),
 };
 
-function SidebarLink({ to, icon, label }) {
+function ShellNavLink({ to, icon, label, compact = false }) {
   return (
-    <NavLink to={to} className={({ isActive }) => `app-shell__nav-item ${isActive ? "active" : ""}`} end>
+    <NavLink
+      to={to}
+      className={({ isActive }) => `app-shell__nav-item ${compact ? "app-shell__nav-item--compact" : ""} ${isActive ? "active" : ""}`.trim()}
+      end
+    >
       {icon}
       <span className="app-shell__nav-label">{label}</span>
     </NavLink>
@@ -49,6 +53,9 @@ export default function AppLayout() {
   const canAccessFinance = Boolean(user?.finance_access || hasCapability("admin"));
   const canAccessProspeccoes = hasCapability("admin", "prospector");
   const isAdmin = hasCapability("admin");
+  const [compactNavigation, setCompactNavigation] = useState(() => (
+    typeof window !== "undefined" ? window.innerWidth <= 991 : false
+  ));
   const isProspeccoesPage = location.pathname.startsWith("/prospeccoes");
   const isUsuariosPage = location.pathname.startsWith("/usuarios");
   const pageTitle = isUsuariosPage
@@ -62,6 +69,21 @@ export default function AppLayout() {
       ? "Central operacional para seleção, prospecção e acompanhamento dos imóveis."
       : "Controle financeiro dos imóveis já adquiridos.";
   const sidebarUserLabel = user?.name || user?.email || "Sessão ativa";
+  const navItems = useMemo(() => {
+    const items = [];
+    if (canAccessFinance) items.push({ to: "/", icon: icons.home, label: "Financeiro" });
+    if (canAccessProspeccoes) items.push({ to: "/prospeccoes", icon: icons.prospects, label: "Prospecções" });
+    if (isAdmin) items.push({ to: "/usuarios", icon: icons.users, label: "Usuários" });
+    return items;
+  }, [canAccessFinance, canAccessProspeccoes, isAdmin]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleResize = () => setCompactNavigation(window.innerWidth <= 991);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <div className="app-shell">
@@ -74,9 +96,9 @@ export default function AppLayout() {
           </div>
         </div>
         <nav className="app-shell__nav">
-          {canAccessFinance && <SidebarLink to="/" icon={icons.home} label="Financeiro" />}
-          {canAccessProspeccoes && <SidebarLink to="/prospeccoes" icon={icons.prospects} label="Prospecções" />}
-          {isAdmin && <SidebarLink to="/usuarios" icon={icons.users} label="Usuários" />}
+          {navItems.map((item) => (
+            <ShellNavLink key={item.to} to={item.to} icon={item.icon} label={item.label} />
+          ))}
         </nav>
         <div className="app-shell__sidebar-foot">
           <span className="app-shell__sidebar-version">v1.0</span>
@@ -105,6 +127,13 @@ export default function AppLayout() {
         <main className="app-shell__main">
           <Outlet context={{ setTopbarContent }} />
         </main>
+        {compactNavigation ? (
+          <nav className="app-shell__bottom-nav" aria-label="Navegação principal">
+            {navItems.map((item) => (
+              <ShellNavLink key={`compact-${item.to}`} to={item.to} icon={item.icon} label={item.label} compact />
+            ))}
+          </nav>
+        ) : null}
       </div>
     </div>
   );

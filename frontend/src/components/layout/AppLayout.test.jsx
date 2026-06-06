@@ -1,7 +1,7 @@
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 
 const useAuthMock = vi.fn();
 
@@ -21,6 +21,7 @@ import AppLayout from "./AppLayout";
 
 afterEach(() => {
   cleanup();
+  window.innerWidth = 1024;
 });
 
 function renderLayout(initialPath = "/", authValue = {}) {
@@ -78,5 +79,19 @@ describe("AppLayout", () => {
     expect(screen.getByRole("link", { name: /prospec/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /usuários/i })).toBeInTheDocument();
     expect(screen.getByTestId("editor-bar")).toBeInTheDocument();
+  });
+
+  it("renderiza navegação inferior em viewport de tablet", () => {
+    window.innerWidth = 900;
+
+    renderLayout("/prospeccoes", {
+      user: { finance_access: true },
+      hasCapability: (...caps) => caps.includes("admin") || caps.includes("prospector"),
+    });
+
+    const bottomNav = screen.getByRole("navigation", { name: /navegação principal/i });
+    expect(within(bottomNav).getByRole("link", { name: /financeiro/i })).toBeInTheDocument();
+    expect(within(bottomNav).getByRole("link", { name: /prospec/i })).toBeInTheDocument();
+    expect(within(bottomNav).getByRole("link", { name: /usuários/i })).toBeInTheDocument();
   });
 });

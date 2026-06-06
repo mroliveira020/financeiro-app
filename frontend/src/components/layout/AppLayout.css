@@ -91,6 +91,26 @@
   border-left-color: #60a5fa;
 }
 
+.app-shell__nav-item--compact {
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border-left: none;
+  text-align: center;
+}
+
+.app-shell__nav-item--compact svg {
+  width: 20px;
+  height: 20px;
+}
+
+.app-shell__nav-item--compact.active {
+  border-left-color: transparent;
+}
+
 .app-shell__nav-label {
   letter-spacing: 0;
   text-transform: none;
@@ -213,6 +233,10 @@
   background: #f8fafc;
 }
 
+.app-shell__bottom-nav {
+  display: none;
+}
+
 @media (max-width: 991px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -245,6 +269,40 @@
 
   .app-shell__main {
     grid-column: 1;
-    padding: 18px 16px 28px;
+    padding: 18px 16px 92px;
+  }
+
+  .app-shell__bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid #dbe5f3;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.08);
+  }
+
+  .app-shell__bottom-nav .app-shell__nav-item {
+    justify-content: center;
+    background: transparent;
+    color: #52627f;
+    border: 1px solid transparent;
+  }
+
+  .app-shell__bottom-nav .app-shell__nav-item:hover {
+    background: #eef4ff;
+    color: #1e3a8a;
+  }
+
+  .app-shell__bottom-nav .app-shell__nav-item.active {
+    background: #e8f0ff;
+    color: #1d4ed8;
+    border-color: #bfd3ff;
   }
 }
