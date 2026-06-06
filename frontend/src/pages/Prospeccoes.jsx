@@ -5016,9 +5016,13 @@ export default function Prospeccoes() {
                   />
                 </label>
                 <div className="prospects-captured-toolbar__actions">
+                  <div className="prospects-captured-toolbar__metrics">
+                    <span className="prospects-pill">{capturados.length} na visão</span>
+                    <span className="prospects-pill prospects-pill--muted">{selectedCodes.size} na fila</span>
+                  </div>
                   <button
                     type="button"
-                    className={`prospects-btn ${capturadosFiltersExpanded ? "secondary" : "ghost"}`}
+                    className={`prospects-btn secondary ${capturadosFiltersExpanded ? "is-active" : ""}`.trim()}
                     onClick={() => setCapturadosFiltersExpanded((prev) => !prev)}
                   >
                     {capturadosFiltersExpanded ? "Ocultar refinamentos" : "Refinar localização"}
@@ -5035,24 +5039,13 @@ export default function Prospeccoes() {
                 </div>
               </div>
 
-              <div className="prospects-captured-toolbar__summary">
-                <div className="prospects-captured-toolbar__metrics">
-                  <span className="prospects-pill">{capturados.length} na visão</span>
-                  <span className="prospects-pill prospects-pill--muted">{capturadosTotal} capturados</span>
-                  <span className="prospects-pill prospects-pill--muted">{selectedCodes.size} na fila</span>
+              {capturadosVisibleActiveFilters.length ? (
+                <div className="prospects-captured-toolbar__active">
+                  {capturadosVisibleActiveFilters.map((label) => (
+                    <span key={label} className="prospects-inline-link">{label}</span>
+                  ))}
                 </div>
-                {capturadosVisibleActiveFilters.length ? (
-                  <div className="prospects-captured-toolbar__active">
-                    {capturadosVisibleActiveFilters.map((label) => (
-                      <span key={label} className="prospects-inline-link">{label}</span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="prospects-captured-toolbar__hint">
-                    Use os refinamentos para cruzar origem, localização, score e ROI sem lotar a tela de campos.
-                  </p>
-                )}
-              </div>
+              ) : null}
 
               {capturadosFiltersExpanded ? (
                 <div className="prospects-captured-toolbar__advanced">

@@ -2001,7 +2001,7 @@
 .prospects-captured-toolbar__quick {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
-  gap: 12px;
+  gap: 10px;
   align-items: end;
 }
 
@@ -2022,6 +2022,19 @@
   min-height: 40px;
 }
 
+.prospects-captured-toolbar__metrics {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-right: 2px;
+}
+
+.prospects-captured-toolbar__metrics .prospects-pill {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+}
+
 .prospects-captured-toolbar__actions .prospects-btn {
   min-height: 40px;
   padding: 0 18px;
@@ -2029,19 +2042,6 @@
   white-space: nowrap;
 }
 
-.prospects-captured-toolbar__summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 9px 12px;
-  border: 1px solid #e0e8f4;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #fbfdff 0%, #f6f9fe 100%);
-}
-
-.prospects-captured-toolbar__metrics,
 .prospects-captured-toolbar__active {
   display: flex;
   gap: 8px;
@@ -2051,16 +2051,11 @@
 
 .prospects-captured-toolbar__active .prospects-inline-link {
   pointer-events: none;
-  background: #eef4ff;
-  color: #3558a8;
-  border-color: #cfe0ff;
-}
-
-.prospects-captured-toolbar__hint {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.35;
-  color: #5e6c89;
+  background: #f5f8fe;
+  color: #56709f;
+  border-color: #d8e4f5;
+  font-size: 11px;
+  padding: 5px 9px;
 }
 
 .prospects-captured-toolbar__advanced {
@@ -2270,6 +2265,7 @@
   .prospects-captured-toolbar__actions {
     grid-column: span 2;
     justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .prospects-captured-toolbar__advanced {
@@ -2295,8 +2291,9 @@
     flex-wrap: wrap;
   }
 
-  .prospects-captured-toolbar__summary {
-    align-items: flex-start;
+  .prospects-captured-toolbar__metrics {
+    width: 100%;
+    margin-right: 0;
   }
 
   .prospects-captured-toolbar__advanced {
