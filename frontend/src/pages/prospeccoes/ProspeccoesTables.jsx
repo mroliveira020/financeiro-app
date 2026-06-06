@@ -533,6 +533,20 @@ export function TabelaCapturados({
                   </div>
                 </div>
 
+                {avaliacao ? (
+                  <div className="prospects-capture-card__auto">
+                    <span className={`prospects-auto-badge ${roiEstimadoDisponivel === null ? "is-neutral" : getRoiClasse(avaliacao.retorno_pct)}`}>
+                      ROI: {roiEstimadoDisponivel === null ? "A definir" : formatarPercentual(avaliacao.retorno_pct)}
+                    </span>
+                    <span className={`prospects-auto-badge ${investimentoTotalEstimado === null ? "is-neutral" : ""}`.trim()}>
+                      Invest. est.: {investimentoTotalEstimado === null ? "A definir" : formatarMoeda(investimentoTotalEstimado)}
+                    </span>
+                    <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
+                      Score: {avaliacao.score_total ?? "—"}/85
+                    </span>
+                  </div>
+                ) : null}
+
                 <DetalhesTexto texto={item.descricao} className="prospects-capture-card__description" />
 
                 <div className="prospects-inline-links">
@@ -570,20 +584,6 @@ export function TabelaCapturados({
                     </a>
                   ) : null}
                 </div>
-
-                {avaliacao ? (
-                  <div className="prospects-capture-card__auto">
-                    <span className={`prospects-auto-badge ${roiEstimadoDisponivel === null ? "is-neutral" : getRoiClasse(avaliacao.retorno_pct)}`}>
-                      ROI: {roiEstimadoDisponivel === null ? "A definir" : formatarPercentual(avaliacao.retorno_pct)}
-                    </span>
-                    <span className={`prospects-auto-badge ${investimentoTotalEstimado === null ? "is-neutral" : ""}`.trim()}>
-                      Invest. est.: {investimentoTotalEstimado === null ? "A definir" : formatarMoeda(investimentoTotalEstimado)}
-                    </span>
-                    <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
-                      Score: {avaliacao.score_total ?? "—"}/85
-                    </span>
-                  </div>
-                ) : null}
 
                 <div className="prospects-capture-card__actions">
                   {avaliacao ? (

@@ -251,6 +251,21 @@ export function AvaliacaoDetalhadaModal({
   const avaliacaoAuto = item.avaliacaoAutomatica;
   const sinteseDisponivel = Boolean(`${sinteseDraft || ""}`.trim());
   const mostrarEditorSintese = sinteseEditando || !sinteseDisponivel;
+  const tabs = [
+    { key: "dados", label: "Dados" },
+    { key: "enriquecimento", label: "Enriquecimento" },
+    { key: "viabilidade", label: "Viabilidade" },
+    { key: "matricula", label: "Matrícula" },
+    { key: "ia", label: "IA" },
+  ];
+  const enriquecimentoDisponivel = Boolean(avaliacaoAuto);
+  const matriculaDisponivel = Boolean(`${aiAnalise?.matricula_texto || ""}`.trim());
+  const viabilidadeDisponivel = Boolean(analiseDetalhada?.calculos);
+  const investimentoEstimadoEnriquecimento = avaliacaoAuto
+    ? (avaliacaoAuto.custo_aquisicao_est || 0)
+      + (avaliacaoAuto.custo_reforma_est || 0)
+      + (avaliacaoAuto.custo_desocupacao_est || 0)
+    : null;
 
   return (
     <div className="prospects-modal-backdrop" role="presentation">
@@ -373,8 +388,16 @@ export function AvaliacaoDetalhadaModal({
           </div>
 
           <div className="prospects-detail-tabs" role="tablist" aria-label="Abas de avaliação detalhada">
-            <button type="button" className={`prospects-sort-chip ${tab === "dados" ? "is-active" : ""}`.trim()} onClick={() => onTabChange("dados")}>Dados</button>
-            <button type="button" className={`prospects-sort-chip ${tab === "ia" ? "is-active" : ""}`.trim()} onClick={() => onTabChange("ia")}>Análise IA</button>
+            {tabs.map((tabItem) => (
+              <button
+                key={tabItem.key}
+                type="button"
+                className={`prospects-sort-chip ${tab === tabItem.key ? "is-active" : ""}`.trim()}
+                onClick={() => onTabChange(tabItem.key)}
+              >
+                {tabItem.label}
+              </button>
+            ))}
           </div>
 
           {statusMessage ? (
@@ -394,7 +417,7 @@ export function AvaliacaoDetalhadaModal({
           ) : null}
 
           {tab === "dados" ? (
-            <>
+            <div className="prospects-ai-panel">
               <div className="prospects-auto-grid prospects-auto-grid--detail">
                 <div className="prospects-auto-card">
                   <span>Valor avaliação</span>
@@ -498,8 +521,183 @@ export function AvaliacaoDetalhadaModal({
                   )}
                 </div>
               </div>
-            </>
-          ) : (
+            </div>
+          ) : null}
+
+          {tab === "enriquecimento" ? (
+            <div className="prospects-ai-panel">
+              <section className="prospects-ai-section">
+                <div className="prospects-ai-section__header prospects-ai-section__header--row">
+                  <div>
+                    <span className="prospects-ai-section__label">Leitura automática do imóvel</span>
+                    <p>Veja score, ROI, custos estimados e resumo automático sem depender da conversa com a IA.</p>
+                  </div>
+                  <div className="prospects-ai-summary__actions">
+                    <button
+                      type="button"
+                      className={`prospects-btn secondary prospects-btn--subtle ${avaliacaoAuto ? "is-active" : ""}`.trim()}
+                      onClick={onSolicitarEnriquecimento}
+                      disabled={!canChat || loading || sending || matriculaLoading || enriquecimentoLoading}
+                    >
+                      {enriquecimentoLoading ? "Processando enriquecimento..." : avaliacaoAuto ? "Reenriquecer" : "Enriquecer"}
+                    </button>
+                    <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={() => onTabChange("dados")}>
+                      Ver dados do imóvel
+                    </button>
+                  </div>
+                </div>
+
+                {enriquecimentoDisponivel ? (
+                  <>
+                    <div className="prospects-auto-grid prospects-auto-grid--detail">
+                      <div className="prospects-auto-card">
+                        <span>Fonte de comparáveis</span>
+                        <strong>{avaliacaoAuto.fonte_pesquisa || "—"}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>Preço m² da região</span>
+                        <strong>{formatarMoeda(avaliacaoAuto.preco_m2_regiao)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>Venda estimada</span>
+                        <strong>{formatarMoeda(avaliacaoAuto.valor_estimado_venda)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>Lucro estimado</span>
+                        <strong>{formatarMoeda(avaliacaoAuto.lucro_estimado)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>Investimento estimado</span>
+                        <strong>{formatarMoeda(investimentoEstimadoEnriquecimento)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>ROI estimado</span>
+                        <strong>{formatarPercentual(avaliacaoAuto.retorno_pct)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>Score automático</span>
+                        <strong>{avaliacaoAuto.score_total ?? "—"}/85</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>Pesquisado em</span>
+                        <strong>{avaliacaoAuto.pesquisado_em ? formatarDataHoraCompacta(avaliacaoAuto.pesquisado_em) : "—"}</strong>
+                      </div>
+                    </div>
+                    {avaliacaoAuto.resumo_ia ? (
+                      <div className="prospects-auto-comparaveis">
+                        <h4>Resumo automático</h4>
+                        <TextoEstruturado texto={avaliacaoAuto.resumo_ia} />
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="prospects-ai-loading-card">
+                    <strong>Nenhum enriquecimento disponível ainda</strong>
+                    <p>Rode o enriquecimento para trazer score, comparáveis, custos estimados e uma leitura automática inicial deste imóvel.</p>
+                  </div>
+                )}
+              </section>
+            </div>
+          ) : null}
+
+          {tab === "viabilidade" ? (
+            <div className="prospects-ai-panel">
+              <section className="prospects-ai-section">
+                <div className="prospects-ai-section__header prospects-ai-section__header--row">
+                  <div>
+                    <span className="prospects-ai-section__label">Viabilidade financeira</span>
+                    <p>Aqui fica a leitura manual e a decisão econômica consolidada para este imóvel.</p>
+                  </div>
+                  <div className="prospects-ai-summary__actions">
+                    <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={() => onAbrirAnalise(item)}>
+                      {viabilidadeDisponivel ? "Editar análise financeira" : "Preencher análise financeira"}
+                    </button>
+                  </div>
+                </div>
+
+                {analiseDetalhadaLoading ? (
+                  <p className="prospects-empty">Carregando resumo financeiro...</p>
+                ) : viabilidadeDisponivel ? (
+                  <>
+                    {getMensagemPrefillAnalise(analiseDetalhada?.meta) ? (
+                      <p className="prospects-modal__hint">
+                        {getMensagemPrefillAnalise(analiseDetalhada.meta)}
+                      </p>
+                    ) : null}
+                    <div className="prospects-auto-grid prospects-auto-grid--detail">
+                      <div className="prospects-auto-card">
+                        <span>Capital investido</span>
+                        <strong>{formatarMoeda(analiseDetalhada.calculos.capital_investido_estimado)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>Custo total</span>
+                        <strong>{formatarMoeda(analiseDetalhada.calculos.custo_total_imovel)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>Lucro esperado</span>
+                        <strong>{formatarMoeda(analiseDetalhada.calculos.lucro_esperado_valor)}</strong>
+                      </div>
+                      <div className="prospects-auto-card">
+                        <span>ROI estimado</span>
+                        <strong>{formatarPercentual(analiseDetalhada.calculos.roi_esperado_percentual)}</strong>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="prospects-ai-loading-card">
+                    <strong>Nenhuma análise financeira disponível</strong>
+                    <p>Abra a viabilidade para registrar custos, valor de venda, capital investido e ROI esperado deste imóvel.</p>
+                  </div>
+                )}
+              </section>
+            </div>
+          ) : null}
+
+          {tab === "matricula" ? (
+            <div className="prospects-ai-panel">
+              <section className="prospects-ai-section">
+                <div className="prospects-ai-section__header prospects-ai-section__header--row">
+                  <div>
+                    <span className="prospects-ai-section__label">Leitura da matrícula</span>
+                    <p>Use esta aba para consultar ou atualizar a matrícula sem misturar esse conteúdo com a conversa principal da IA.</p>
+                  </div>
+                  <div className="prospects-ai-summary__actions">
+                    {podeAnalisarMatricula(item) ? (
+                      <button
+                        type="button"
+                        className="prospects-btn secondary prospects-btn--subtle"
+                        onClick={onSolicitarMatricula}
+                        disabled={!canChat || loading || sending || matriculaLoading || enriquecimentoLoading}
+                      >
+                        {matriculaLoading ? "Processando matrícula..." : matriculaDisponivel ? "Atualizar matrícula" : "Analisar matrícula"}
+                      </button>
+                    ) : null}
+                    <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={() => onTabChange("ia")}>
+                      Ver conversa da IA
+                    </button>
+                  </div>
+                </div>
+
+                {!podeAnalisarMatricula(item) ? (
+                  <div className="prospects-ai-loading-card">
+                    <strong>Matrícula indisponível para este imóvel</strong>
+                    <p>A leitura automática de matrícula está liberada apenas para imóveis da Caixa neste momento.</p>
+                  </div>
+                ) : matriculaDisponivel ? (
+                  <div className="prospects-auto-comparaveis">
+                    <TextoEstruturado texto={aiAnalise.matricula_texto} />
+                  </div>
+                ) : (
+                  <div className="prospects-ai-loading-card">
+                    <strong>Nenhuma matrícula analisada ainda</strong>
+                    <p>Quando você rodar a matrícula, o resultado fica salvo aqui para consulta rápida.</p>
+                  </div>
+                )}
+              </section>
+            </div>
+          ) : null}
+
+          {tab === "ia" ? (
             <div className="prospects-ai-panel">
               <div className="prospects-ai-toolbar">
                 <div className="prospects-ai-toolbar__group">
@@ -554,10 +752,13 @@ export function AvaliacaoDetalhadaModal({
                   <div className="prospects-ai-toolbar__actions">
                     <button
                       type="button"
-                      className={`prospects-btn ghost prospects-btn--subtle ${tab === "dados" ? "is-active" : ""}`.trim()}
+                      className="prospects-btn ghost prospects-btn--subtle"
                       onClick={() => onTabChange("dados")}
                     >
                       Ver dados do imóvel
+                    </button>
+                    <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={() => onTabChange("viabilidade")}>
+                      Ver viabilidade
                     </button>
                     <button type="button" className="prospects-btn ghost prospects-btn--subtle" onClick={onClose}>
                       Fechar
@@ -658,7 +859,7 @@ export function AvaliacaoDetalhadaModal({
                 </>
               )}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

@@ -7,6 +7,22 @@ import {
   MapPinIcon,
 } from "./ProspeccoesShared";
 
+const toFiniteNumber = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const getInvestimentoTotalEstimado = (avaliacao) => {
+  if (!avaliacao) return null;
+  const valores = [
+    toFiniteNumber(avaliacao.custo_aquisicao_est),
+    toFiniteNumber(avaliacao.custo_reforma_est),
+    toFiniteNumber(avaliacao.custo_desocupacao_est),
+  ].filter((value) => value !== null);
+  if (!valores.length) return null;
+  return valores.reduce((total, value) => total + value, 0);
+};
+
 export function MobileSelecionadosList({
   dados,
   loading,
@@ -526,6 +542,8 @@ export function MobileCapturadosList({
         {dados.map((item) => {
           const jaSelecionado = selectedCodes.has(item.codigo);
           const avaliacao = item.avaliacaoAutomatica;
+          const investimentoTotalEstimado = getInvestimentoTotalEstimado(avaliacao);
+          const roiEstimadoDisponivel = toFiniteNumber(avaliacao?.retorno_pct);
           const resumoLeilao = getLeilaoResumo(item);
           const mapsUrl = getMapsUrl(item);
           const comparaveis = getComparaveisLinks(item);
@@ -590,8 +608,15 @@ export function MobileCapturadosList({
 
               {avaliacao ? (
                 <div className="prospects-mobile-item-card__auto">
-                  <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>{avaliacao.score_total ?? "—"}/85</span>
-                  <span className={`prospects-auto-badge ${getRoiClasse(avaliacao.retorno_pct)}`}>{formatarPercentual(avaliacao.retorno_pct)}</span>
+                  <span className={`prospects-auto-badge ${roiEstimadoDisponivel === null ? "is-neutral" : getRoiClasse(avaliacao.retorno_pct)}`}>
+                    ROI: {roiEstimadoDisponivel === null ? "A definir" : formatarPercentual(avaliacao.retorno_pct)}
+                  </span>
+                  <span className={`prospects-auto-badge ${investimentoTotalEstimado === null ? "is-neutral" : ""}`.trim()}>
+                    Invest. est.: {investimentoTotalEstimado === null ? "A definir" : formatarMoeda(investimentoTotalEstimado)}
+                  </span>
+                  <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
+                    Score: {avaliacao.score_total ?? "—"}/85
+                  </span>
                 </div>
               ) : null}
 
