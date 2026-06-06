@@ -44,11 +44,11 @@
 
 .prospects-btn {
   border: 1px solid transparent;
-  border-radius: 8px;
-  padding: 9px 16px;
-  min-height: 36px;
+  border-radius: 10px;
+  padding: 9px 15px;
+  min-height: 38px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -56,32 +56,34 @@
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .prospects-btn.primary {
-  background: #1e40af;
+  background: linear-gradient(180deg, #2954e8 0%, #1e40af 100%);
   border-color: #1e40af;
   color: #ffffff;
-  box-shadow: 0 10px 24px -16px rgba(30, 64, 175, 0.58);
+  box-shadow: 0 14px 28px -18px rgba(30, 64, 175, 0.7);
 }
 
 .prospects-btn.secondary {
-  background: #ffffff;
-  border: 1.5px solid #1e40af;
-  color: #1e40af;
+  background: #f8fbff;
+  border: 1px solid #b9ccff;
+  color: #1849a9;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
 }
 
 .prospects-btn.ghost {
   background: transparent;
-  border-color: transparent;
-  color: #475569;
+  border-color: #dbe5f3;
+  color: #3d4d67;
   box-shadow: none;
 }
 
 .prospects-btn.tertiary {
-  background: var(--surface-card);
-  border-color: var(--prospects-line);
-  color: var(--text-base);
+  background: #ffffff;
+  border-color: #dbe5f3;
+  color: #334155;
   padding: 6px 10px;
   min-width: auto;
   font-size: 13px;
@@ -92,6 +94,7 @@
   border-radius: 12px;
   font-size: 12px;
   font-weight: 700;
+  min-height: 36px;
 }
 
 .prospects-btn.danger {
@@ -104,24 +107,25 @@
 
 .prospects-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.08);
 }
 
 .prospects-btn.primary:hover {
-  background: #1d3994;
+  background: linear-gradient(180deg, #2447d6 0%, #1d3994 100%);
   border-color: #1d3994;
 }
 
 .prospects-btn.secondary:hover {
-  background: #dbeafe;
-  border-color: #1d3994;
-  color: #1d3994;
-  box-shadow: none;
+  background: #edf4ff;
+  border-color: #94b2ff;
+  color: #123d97;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.08);
 }
 
 .prospects-btn.ghost:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: #f8fbff;
+  border-color: #bfd3ff;
+  color: #1849a9;
   box-shadow: none;
 }
 
@@ -133,9 +137,9 @@
 .prospects-btn--subtle {
   min-height: 36px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 9px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .prospects-btn:disabled {
@@ -1274,9 +1278,9 @@
 }
 
 .prospects-capture-card__actions .prospects-btn {
-  min-height: 35px;
+  min-height: 36px;
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: 9px;
   font-size: 12px;
   line-height: 1.2;
 }
@@ -1285,15 +1289,14 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 5px 9px;
+  border-radius: 999px;
   border: 1px solid #dbe5f3;
-  background: #eef3fa;
+  background: #f4f7fb;
   color: #334155;
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .prospects-auto-badge::before,
@@ -1398,13 +1401,12 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 9px;
-  border-radius: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
   font-weight: 700;
   font-size: 11px;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  background: #eef2f7;
+  letter-spacing: 0.02em;
+  background: #f4f7fb;
   color: #334155;
   border: 1px solid #dbe3ee;
 }
@@ -1488,18 +1490,18 @@
 }
 
 .prospects-table-icon-btn {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid #d5dfea;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #ffffff;
   color: #475569;
   padding: 0;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
 }
 
 .prospects-table-icon-btn svg {
@@ -1509,10 +1511,10 @@
 
 .prospects-table-icon-btn:hover {
   transform: translateY(-1px);
-  border-color: #94a3b8;
-  background: #f8fafc;
-  color: #0f172a;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.1);
+  border-color: #bfd3ff;
+  background: #f8fbff;
+  color: #1849a9;
+  box-shadow: 0 14px 26px rgba(15, 23, 42, 0.1);
 }
 
 .prospects-table-icon-btn--note.is-empty {
@@ -1699,13 +1701,13 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 6px 9px;
-  border-radius: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
   border: 1px solid #dce7f4;
   background: #ffffff;
   color: #475569;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   text-decoration: none;
 }
 
