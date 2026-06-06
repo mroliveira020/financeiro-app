@@ -909,7 +909,7 @@
 
 .prospects-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(352px, 1fr));
   gap: 18px;
 }
 
@@ -949,20 +949,20 @@
 .prospects-capture-card {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid #dde6f2;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.08);
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #d9e4f2;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
   cursor: pointer;
   transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 
 .prospects-capture-card:hover {
   transform: translateY(-2px);
-  border-color: #cbd9ee;
-  box-shadow: 0 20px 32px rgba(15, 23, 42, 0.1);
+  border-color: #bfd3ff;
+  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.1);
 }
 
 .prospects-capture-card__media {
@@ -1113,21 +1113,24 @@
 .prospects-capture-card__body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
 }
 
 .prospects-capture-card__headline {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
 
 .prospects-capture-card__type {
-  font-size: 12px;
+  font-size: 11px;
   color: #6a7694;
   line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
 }
 
 .prospects-capture-card__location {
@@ -1153,32 +1156,33 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: -4px;
 }
 
 .prospects-capture-card__facts span {
-  padding: 5px 9px;
+  padding: 5px 10px;
   border-radius: 999px;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 12px;
+  background: #f8fbff;
+  color: #52627f;
+  font-size: 11px;
   font-weight: 700;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #dbe5f3;
 }
 
 .prospects-capture-card__meta-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .prospects-capture-card__meta-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 11px;
-  border-radius: 12px;
+  padding: 11px 12px;
+  border-radius: 14px;
   border: 1px solid #e3ebf7;
-  background: #f8fbff;
+  background: #fbfdff;
 }
 
 .prospects-capture-card__meta-item span,
@@ -1197,15 +1201,42 @@
   line-height: 1.35;
 }
 
+.prospects-capture-card__meta-item:nth-child(1) {
+  background: #f7faff;
+  border-color: #dce7f7;
+}
+
+.prospects-capture-card__meta-item:nth-child(1) strong {
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+
+.prospects-capture-card__meta-item:nth-child(2) strong {
+  font-size: 14px;
+}
+
 .prospects-capture-card__meta-item--accent {
-  background: #eef4ff;
-  border-color: #d5e2ff;
+  background: linear-gradient(180deg, #eef4ff 0%, #e8f0ff 100%);
+  border-color: #cbdcff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .prospects-capture-card__meta-item--accent strong {
   color: #135b8d;
-  font-size: 18px;
-  letter-spacing: -0.03em;
+  font-size: 20px;
+  letter-spacing: -0.04em;
+}
+
+.prospects-capture-card__meta-item:last-child {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.prospects-capture-card__meta-item:last-child strong {
+  text-align: right;
 }
 
 .prospects-capture-card__description {
@@ -1217,6 +1248,10 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fbff;
+  border: 1px solid #e7eef8;
 }
 
 .prospects-capture-card__description p {
@@ -1260,21 +1295,22 @@
   position: absolute;
   right: 10px;
   top: 10px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: #42b66d;
+  padding: 7px 11px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #44c978 0%, #38a85f 100%);
   color: #fff;
   font-size: 11px;
   font-weight: 800;
-  box-shadow: 0 8px 16px rgba(66, 182, 109, 0.25);
+  box-shadow: 0 10px 20px rgba(66, 182, 109, 0.26);
   z-index: 2;
 }
 
 .prospects-capture-card__actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  padding-top: 2px;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #e8eef7;
 }
 
 .prospects-capture-card__actions .prospects-btn {
@@ -1283,6 +1319,10 @@
   border-radius: 9px;
   font-size: 12px;
   line-height: 1.2;
+}
+
+.prospects-capture-card__auto {
+  padding-top: 2px;
 }
 
 .prospects-auto-badge {
