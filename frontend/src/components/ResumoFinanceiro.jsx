@@ -13,6 +13,7 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
   const [mostrarSegundaTabela, setMostrarSegundaTabela] = useState(false);
   const [mostrarDetalheOrcamentoMobile, setMostrarDetalheOrcamentoMobile] = useState(false);
   const [participationRatio, setParticipationRatio] = useState(1);
+  const [activeChartItemId, setActiveChartItemId] = useState(null);
   const { hasCapability, user } = useAuth();
   const canEdit = hasCapability("admin", "editor");
   const compactLayout = useCompactLayout();
@@ -527,33 +528,76 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
           </header>
           <div className="resumo-card__chart-list">
             {graficoOrcamento.map((item) => (
-              <article key={item.id} className="resumo-card__chart-item">
+              <article
+                key={item.id}
+                className={`resumo-card__chart-item ${activeChartItemId === item.id ? "is-active" : ""}`.trim()}
+                onMouseEnter={() => setActiveChartItemId(item.id)}
+                onMouseLeave={() => setActiveChartItemId((current) => (current === item.id ? null : current))}
+                onFocus={() => setActiveChartItemId(item.id)}
+                onBlur={(event) => {
+                  if (event.currentTarget.contains(event.relatedTarget)) return;
+                  setActiveChartItemId((current) => (current === item.id ? null : current));
+                }}
+                tabIndex={0}
+              >
                 <div className="resumo-card__chart-item-head">
                   <strong>{item.grupo}</strong>
                   <span>{formatarMoeda(item.totalEstimado)}</span>
                 </div>
-                <div className="resumo-card__chart-bar">
-                  <div
-                    className="resumo-card__chart-bar--budget"
-                    style={{ width: `${item.orcamentoPct}%` }}
-                    title={`Orçamento: ${formatarMoeda(item.orcamento)}`}
-                  />
-                  <div
-                    className="resumo-card__chart-bar--committed"
-                    style={{ width: `${item.efetivadoPct}%` }}
-                    title={`Efetivado + contratação: ${formatarMoeda(item.efetivado + item.contratado)}`}
-                  />
-                  <div
-                    className="resumo-card__chart-bar--estimate"
-                    style={{ width: `${item.totalEstimadoPct}%` }}
-                    title={`Total estimado: ${formatarMoeda(item.totalEstimado)}`}
-                  />
+                <div className="resumo-card__chart-bars" aria-label={`Comparativo do grupo ${item.grupo}`}>
+                  {[
+                    {
+                      key: "budget",
+                      label: "Orçamento",
+                      value: item.orcamento,
+                      percent: item.orcamentoPct,
+                      className: "resumo-card__chart-bar--budget",
+                    },
+                    {
+                      key: "committed",
+                      label: "Comprometido",
+                      value: item.efetivado + item.contratado,
+                      percent: item.efetivadoPct,
+                      className: "resumo-card__chart-bar--committed",
+                    },
+                    {
+                      key: "estimate",
+                      label: "Total estimado",
+                      value: item.totalEstimado,
+                      percent: item.totalEstimadoPct,
+                      className: "resumo-card__chart-bar--estimate",
+                    },
+                  ].map((bar) => (
+                    <div key={bar.key} className="resumo-card__chart-bar-row">
+                      <div className="resumo-card__chart-bar-row-head">
+                        <span>{bar.label}</span>
+                        <strong>{formatarMoeda(bar.value)}</strong>
+                      </div>
+                      <div className="resumo-card__chart-bar-track">
+                        <div
+                          className={`resumo-card__chart-bar-fill ${bar.className}`.trim()}
+                          style={{ width: `${bar.percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="resumo-card__chart-legend">
-                  <span><i className="budget"></i> Orçamento</span>
-                  <span><i className="committed"></i> Comprometido</span>
-                  <span><i className="estimate"></i> Estimado</span>
-                </div>
+                {activeChartItemId === item.id ? (
+                  <div className="resumo-card__chart-tooltip" role="status" aria-live="polite">
+                    <div>
+                      <span>Saldo a investir</span>
+                      <strong>{formatarMoeda(item.saldoAInvestir)}</strong>
+                    </div>
+                    <div>
+                      <span>Comprometido vs. estimado</span>
+                      <strong>{item.efetivadoPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</strong>
+                    </div>
+                    <div>
+                      <span>Orçamento vs. estimado</span>
+                      <strong>{item.orcamentoPct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</strong>
+                    </div>
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>
