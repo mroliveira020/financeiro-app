@@ -1413,6 +1413,7 @@ function AnaliseModal({
   const currentDraft = draft || createAnaliseDraft({});
   const analise = computeAnalise(currentDraft, pairModes);
   const { inputs, calculos } = analise;
+  const vendaEstimadaPendente = Number(inputs.valor_estimado_venda || 0) <= 0;
 
   const resolveDisplayValue = (field, pairName, modeName) => {
     if (pairModes[pairName] === modeName) return currentDraft[field];
@@ -1481,9 +1482,14 @@ function AnaliseModal({
                     </div>
                     <div className="prospects-summary-card prospects-summary-card--accent">
                       <span>ROI sobre capital investido</span>
-                      <strong>{formatarPercentual(calculos.roi_esperado_percentual)}</strong>
+                      <strong>{vendaEstimadaPendente ? "A definir" : formatarPercentual(calculos.roi_esperado_percentual)}</strong>
                     </div>
                   </div>
+                  {vendaEstimadaPendente ? (
+                    <div className="prospects-analise-inline-note prospects-analise-inline-note--warning" role="status" aria-live="polite">
+                      O ROI aparece indefinido enquanto o campo <strong>Valor estimado da venda</strong> estiver zerado. Preencha esse valor para ver a projeção real.
+                    </div>
+                  ) : null}
                 </section>
 
                 <section className="prospects-analise-section prospects-analise-section--quarter">
