@@ -2468,22 +2468,24 @@ function AvaliacaoDetalhadaModal({
                   <span>{item.analiseIaSalva ? "Salva" : "Ainda não"}</span>
                 </span>
               </div>
-              <div className="prospects-auto-hero__facts">
-                <div className="prospects-auto-hero__fact">
-                  <span>Código</span>
-                  <strong>{item.codigo}</strong>
-                </div>
-                <div className="prospects-auto-hero__fact">
-                  <span>Valor avaliação</span>
+              <div className="prospects-auto-hero__decision-grid">
+                <div className="prospects-auto-hero__decision-card prospects-auto-hero__decision-card--highlight">
+                  <span>Valor de avaliação</span>
                   <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
                 </div>
-                <div className="prospects-auto-hero__fact">
+                <div className="prospects-auto-hero__decision-card">
                   <span>Evento foco</span>
                   <strong>{resumoLeilao?.data ? formatarDataHoraCompacta(resumoLeilao.data) : "Não informado"}</strong>
                 </div>
-                <div className="prospects-auto-hero__fact">
+                <div className="prospects-auto-hero__decision-card">
                   <span>Financiamento</span>
                   <strong>{item.financia === undefined || item.financia === null ? "—" : item.financia ? "Aceita" : "Não aceita"}</strong>
+                </div>
+              </div>
+              <div className="prospects-auto-hero__secondary">
+                <div className="prospects-auto-hero__fact">
+                  <span>Código</span>
+                  <strong>{item.codigo}</strong>
                 </div>
                 {processoNumero ? (
                   <div className="prospects-auto-hero__fact">
@@ -2491,32 +2493,39 @@ function AvaliacaoDetalhadaModal({
                     <strong>{processoNumero}</strong>
                   </div>
                 ) : null}
+                <div className="prospects-auto-hero__fact">
+                  <span>Leitura rápida</span>
+                  <strong>{item.analiseSalva ? "Viabilidade registrada" : "Viabilidade pendente"}</strong>
+                </div>
               </div>
               <div className="prospects-auto-hero__links">
-                <span className="prospects-ai-section__label">Ações rápidas</span>
+                <div className="prospects-auto-hero__links-head">
+                  <span className="prospects-ai-section__label">Ações rápidas</span>
+                  <span className="prospects-auto-hero__links-hint">Abra só o que ajuda a decidir agora</span>
+                </div>
                 <div className="prospects-inline-links prospects-inline-links--detail">
-                <a className="prospects-inline-link" href={item.link} target="_blank" rel="noreferrer">
-                  <ArrowUpRightIcon />
-                  <span>Anúncio</span>
-                </a>
-                {mapsUrl ? (
-                  <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
-                    <MapPinIcon />
-                    <span>Google Maps</span>
-                  </a>
-                ) : null}
-                {comparaveis.map((link) => (
-                  <a key={`${item.codigo}-hero-${link.label}`} className="prospects-inline-link" href={link.url} target="_blank" rel="noreferrer">
-                    <span>{link.label}</span>
+                  <a className="prospects-inline-link" href={item.link} target="_blank" rel="noreferrer">
                     <ArrowUpRightIcon />
+                    <span>Anúncio</span>
                   </a>
-                ))}
-                {editalUrl ? (
-                  <a className="prospects-inline-link prospects-inline-link--highlight" href={editalUrl} target="_blank" rel="noreferrer">
-                    <span>Ver edital</span>
-                    <ArrowUpRightIcon />
-                  </a>
-                ) : null}
+                  {mapsUrl ? (
+                    <a className="prospects-inline-link" href={mapsUrl} target="_blank" rel="noreferrer">
+                      <MapPinIcon />
+                      <span>Google Maps</span>
+                    </a>
+                  ) : null}
+                  {comparaveis.map((link) => (
+                    <a key={`${item.codigo}-hero-${link.label}`} className="prospects-inline-link" href={link.url} target="_blank" rel="noreferrer">
+                      <span>{link.label}</span>
+                      <ArrowUpRightIcon />
+                    </a>
+                  ))}
+                  {editalUrl ? (
+                    <a className="prospects-inline-link prospects-inline-link--highlight" href={editalUrl} target="_blank" rel="noreferrer">
+                      <span>Ver edital</span>
+                      <ArrowUpRightIcon />
+                    </a>
+                  ) : null}
                 </div>
               </div>
             </div>
