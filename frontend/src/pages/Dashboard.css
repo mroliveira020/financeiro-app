@@ -1110,6 +1110,14 @@
   width: 100%;
 }
 
+.resumo-card__table,
+.transacoes-card__table-wrapper {
+  border: 1px solid var(--line-soft);
+  border-radius: 18px;
+  background: linear-gradient(180deg, var(--surface-card) 0%, var(--surface-card-soft) 100%);
+  overflow: hidden;
+}
+
 .resumo-card__closing {
   max-width: 420px;
 }
@@ -1119,11 +1127,7 @@
 }
 
 .resumo-card__table thead th {
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #7282a4;
-  background: #f2f5fb;
+  background: #f2f6fc;
   border: none;
 }
 
@@ -1136,11 +1140,12 @@
   padding: 0.75rem 0.85rem;
   border: none !important;
   font-size: 0.92rem;
+  vertical-align: middle;
 }
 
 .resumo-card__table tfoot td {
   font-weight: 700;
-  border-top: 1px solid rgba(35, 50, 74, 0.08) !important;
+  border-top: 1px solid var(--line-soft) !important;
 }
 
 .resumo-card__toggle {
@@ -1245,16 +1250,15 @@
 
 .transacoes-card__table-wrapper {
   flex: 1;
-  border: 1px solid rgba(31, 42, 63, 0.08);
-  border-radius: 16px;
-  overflow: hidden;
-  background: #fff;
+  padding: 0;
 }
 
 .transacoes-card .table-responsive {
   max-height: 540px;
   overflow-y: auto;
-  background: #fff;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
 .transacoes-card .table {
