@@ -675,28 +675,28 @@ export function MobileCapturadosList({
               <div className="prospects-mobile-item-card__actions">
                 <button
                   type="button"
-                  className="prospects-btn ghost prospects-btn--mobile-action"
+                  className="prospects-btn secondary prospects-btn--mobile-action prospects-btn--card-action prospects-btn--card-details"
                   onClick={() => onAbrirAvaliacaoDetalhada(item, "dados", "capturados")}
                 >
                   <span>Detalhes</span>
                 </button>
                 <button
                   type="button"
-                  className={`prospects-btn ghost prospects-btn--mobile-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
+                  className={`prospects-btn ghost prospects-btn--mobile-action prospects-btn--card-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
                   onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
                 >
                   <span>{item.analiseIaSalva ? "IA salva" : "Avaliação IA"}</span>
                 </button>
                 <button
                   type="button"
-                  className={`prospects-btn ghost prospects-btn--mobile-action ${item.analiseSalva ? "is-active" : ""}`.trim()}
+                  className={`prospects-btn ghost prospects-btn--mobile-action prospects-btn--card-action ${item.analiseSalva ? "is-active" : ""}`.trim()}
                   onClick={() => onAbrirAvaliacaoDetalhada(item, "viabilidade", "capturados")}
                 >
                   <span>{item.analiseSalva ? "Viabilidade salva" : "Viabilidade"}</span>
                 </button>
                 <button
                   type="button"
-                  className={`prospects-btn ${jaSelecionado ? "ghost" : "secondary"} prospects-btn--mobile-action`}
+                  className={`prospects-btn ${jaSelecionado ? "secondary" : "primary"} prospects-btn--mobile-action prospects-btn--card-action prospects-btn--card-select`}
                   onClick={() => onIncluir(item)}
                   disabled={includeLoadingIds.has(item.codigo)}
                 >

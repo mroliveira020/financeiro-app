@@ -592,28 +592,28 @@ export function TabelaCapturados({
                 <div className="prospects-capture-card__actions">
                   <button
                     type="button"
-                    className="prospects-btn ghost prospects-btn--subtle"
+                    className="prospects-btn secondary prospects-btn--subtle prospects-btn--card-action prospects-btn--card-details"
                     onClick={() => onAbrirAvaliacaoDetalhada(item, "dados", "capturados")}
                   >
                     Detalhes
                   </button>
                   <button
                     type="button"
-                    className={`prospects-btn ghost prospects-btn--subtle ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
+                    className={`prospects-btn ghost prospects-btn--subtle prospects-btn--card-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
                     onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
                   >
                     {item.analiseIaSalva ? "IA salva" : "Avaliação IA"}
                   </button>
                   <button
                     type="button"
-                    className={`prospects-btn ghost prospects-btn--subtle ${item.analiseSalva ? "is-active" : ""}`.trim()}
+                    className={`prospects-btn ghost prospects-btn--subtle prospects-btn--card-action ${item.analiseSalva ? "is-active" : ""}`.trim()}
                     onClick={() => onAbrirAvaliacaoDetalhada(item, "viabilidade", "capturados")}
                   >
                     {item.analiseSalva ? "Viabilidade salva" : "Viabilidade"}
                   </button>
                   <button
                     type="button"
-                    className={`prospects-btn ${jaSelecionado ? "ghost" : "secondary"} prospects-btn--subtle`}
+                    className={`prospects-btn ${jaSelecionado ? "secondary" : "primary"} prospects-btn--subtle prospects-btn--card-action prospects-btn--card-select`}
                     disabled={includeLoadingIds.has(item.codigo)}
                     onClick={() => onIncluir(item)}
                   >
