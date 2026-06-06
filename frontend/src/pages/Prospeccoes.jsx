@@ -601,6 +601,16 @@ function ArrowLeftIcon() {
   );
 }
 
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 function ArrowUpRightIcon() {
   return (
     <IconBase label="Abrir módulo">
@@ -655,13 +665,6 @@ function obterClasseRoi(roi) {
   if (valor >= 20) return "is-good";
   if (valor > 0) return "is-caution";
   return "is-risk";
-}
-
-function obterClassePrioridade(prioridade) {
-  const valor = Number(prioridade || 2);
-  if (valor >= 3) return "is-high";
-  if (valor <= 1) return "is-low";
-  return "is-medium";
 }
 
 const ANALISE_DEFAULTS = {
@@ -993,6 +996,18 @@ function TabelaSelecionados({
   onToggleCollapse,
   sortLabel,
 }) {
+  const [openActionMenuCodigo, setOpenActionMenuCodigo] = useState(null);
+
+  useEffect(() => {
+    if (!openActionMenuCodigo) return undefined;
+    const handlePointerDown = (event) => {
+      if (event.target.closest("[data-row-menu-root='true']")) return;
+      setOpenActionMenuCodigo(null);
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [openActionMenuCodigo]);
+
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando selecionados...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar selecionados: {erro}</p></div>;
 
@@ -1049,6 +1064,25 @@ function TabelaSelecionados({
               const podeOperar = itemAtivo && canOperateItem(item);
               const podeExcluir = itemAtivo && canDeleteItem(item);
               const podeReativar = !itemAtivo && canReactivateItem(item);
+              const podeGerenciarResponsaveis = itemAtivo && canManageResponsaveis(item);
+              const actionMenuAberto = openActionMenuCodigo === item.codigo;
+              const responsaveisResumo = (() => {
+                const pessoas = [];
+                const seen = new Set();
+                const addPessoa = (id, label, suffix = "") => {
+                  const normalizedId = id ? String(id) : "";
+                  const normalizedLabel = `${label || ""}`.trim();
+                  const key = normalizedId || normalizedLabel.toLowerCase();
+                  if (!key || seen.has(key)) return;
+                  seen.add(key);
+                  pessoas.push(`${normalizedLabel}${suffix}`);
+                };
+                addPessoa(item.createdBy, item.createdByName, item.createdByName ? " (selecionou)" : "");
+                (item.responsaveis || []).forEach((responsavel) => {
+                  addPessoa(responsavel.id, responsavel.name || responsavel.email);
+                });
+                return pessoas.length ? pessoas.join(", ") : "Sem responsáveis definidos.";
+              })();
               return (
               <tr key={item.codigo}>
                 <td className="mono">
@@ -1124,58 +1158,6 @@ function TabelaSelecionados({
                 </td>
                 <td>
                   <div className="prospects-row-actions">
-                    {mapsUrl ? (
-                      <a
-                        className="prospects-table-icon-btn prospects-table-icon-btn--external"
-                        href={mapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Abrir no Google Maps"
-                      >
-                        <MapPinIcon />
-                      </a>
-                    ) : null}
-                    <button
-                      type="button"
-                      className={`prospects-table-icon-btn prospects-table-icon-btn--priority ${obterClassePrioridade(item.prioridade)}`}
-                      title={
-                        !podeOperar
-                          ? `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Somente admin, autor ou responsável atribuído podem editar este imóvel`
-                          : `Prioridade ${PRIORIDADE_OPTIONS.find((option) => option.value === Number(item.prioridade || 2))?.label || "Média"}. Clique para editar`
-                      }
-                      onClick={() => onEditarPrioridade(item)}
-                      disabled={updateLoadingIds.has(`${item.codigo}:prioridade`) || !podeOperar}
-                    >
-                      <PriorityIcon level={Number(item.prioridade || 2)} />
-                    </button>
-                    <button
-                      type="button"
-                      className={`prospects-table-icon-btn prospects-table-icon-btn--responsaveis ${canManageResponsaveis ? "" : "is-readonly"}`.trim()}
-                      title={(() => {
-                        const pessoas = [];
-                        const seen = new Set();
-                        const addPessoa = (id, label, suffix = "") => {
-                          const normalizedId = id ? String(id) : "";
-                          const normalizedLabel = `${label || ""}`.trim();
-                          const key = normalizedId || normalizedLabel.toLowerCase();
-                          if (!key || seen.has(key)) return;
-                          seen.add(key);
-                          pessoas.push(`${normalizedLabel}${suffix}`);
-                        };
-                        addPessoa(item.createdBy, item.createdByName, item.createdByName ? " (selecionou)" : "");
-                        (item.responsaveis || []).forEach((responsavel) => {
-                          addPessoa(responsavel.id, responsavel.name || responsavel.email);
-                        });
-                        const resumo = pessoas.length ? pessoas.join(", ") : "Sem responsáveis definidos.";
-                        return canManageResponsaveis ? `${resumo} Clique para editar responsáveis.` : resumo;
-                      })()}
-                      onClick={() => {
-                        if (canManageResponsaveis) onEditarResponsaveis(item);
-                      }}
-                      disabled={!itemAtivo}
-                    >
-                      <UsersIcon />
-                    </button>
                     <button
                       type="button"
                       className={`prospects-table-icon-btn prospects-table-icon-btn--note ${item.observacoes ? "has-note" : "is-empty"}`}
@@ -1204,46 +1186,114 @@ function TabelaSelecionados({
                     >
                       <ChartIcon />
                     </button>
-                    <button
-                      type="button"
-                      className={`prospects-table-icon-btn prospects-table-icon-btn--external ${item.avaliacaoAutomatica ? "is-active" : ""}`.trim()}
-                      title={item.avaliacaoAutomatica ? "Ver enriquecimentos automáticos" : "Sem enriquecimentos automáticos disponíveis"}
-                      onClick={() => item.avaliacaoAutomatica && onAbrirEnriquecimentos(item)}
-                      disabled={!item.avaliacaoAutomatica || !itemAtivo}
-                    >
-                      <SparklesIcon />
-                    </button>
-                    <button
-                      type="button"
-                      className={`prospects-table-icon-btn prospects-table-icon-btn--external ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
-                      title={item.analiseIaSalva ? "Ver análise atual e reanalisar se necessário" : "Gerar análise inicial por IA"}
-                      aria-label={`${getAnaliseIaActionLabel(item)} do imóvel ${item.codigo}`}
-                      onClick={() => onAcionarAnaliseIa(item)}
-                      disabled={!itemAtivo}
-                    >
-                      <SparklesIcon />
-                    </button>
-                    {podeReativar ? (
+                    <div className="prospects-row-menu" data-row-menu-root="true">
                       <button
                         type="button"
-                        className="prospects-btn tertiary prospects-btn--toolbar"
-                        title={item.inativadoPorName ? `Reativar item removido por ${item.inativadoPorName}` : "Reativar item"}
-                        disabled={updateLoadingIds.has(`${item.codigo}:reativar`)}
-                        onClick={() => onReativar(item)}
+                        className={`prospects-table-icon-btn prospects-table-icon-btn--menu ${actionMenuAberto ? "is-active" : ""}`.trim()}
+                        title="Mais ações"
+                        aria-label={`Mais ações do imóvel ${item.codigo}`}
+                        aria-expanded={actionMenuAberto}
+                        onClick={() => setOpenActionMenuCodigo((prev) => (prev === item.codigo ? null : item.codigo))}
                       >
-                        Reativar
+                        <MoreIcon />
                       </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="prospects-table-icon-btn prospects-table-icon-btn--danger"
-                        title={podeExcluir ? "Remover da fila" : "Apenas o autor da seleção ou um administrador pode remover este imóvel"}
-                        disabled={removeLoadingIds.has(item.codigo) || !podeExcluir}
-                        onClick={() => onExcluir(item)}
-                      >
-                        {removeLoadingIds.has(item.codigo) ? "..." : <TrashIcon />}
-                      </button>
-                    )}
+                      {actionMenuAberto ? (
+                        <div className="prospects-row-menu__panel" role="menu" aria-label={`Ações do imóvel ${item.codigo}`}>
+                          {mapsUrl ? (
+                            <a
+                              className="prospects-row-menu__item"
+                              href={mapsUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              role="menuitem"
+                              onClick={() => setOpenActionMenuCodigo(null)}
+                            >
+                              <MapPinIcon />
+                              <span>Abrir no mapa</span>
+                            </a>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="prospects-row-menu__item"
+                            onClick={() => {
+                              setOpenActionMenuCodigo(null);
+                              onEditarPrioridade(item);
+                            }}
+                            disabled={updateLoadingIds.has(`${item.codigo}:prioridade`) || !podeOperar}
+                          >
+                            <PriorityIcon level={Number(item.prioridade || 2)} />
+                            <span>Editar prioridade</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="prospects-row-menu__item"
+                            title={podeGerenciarResponsaveis ? `${responsaveisResumo} Clique para editar responsáveis.` : responsaveisResumo}
+                            onClick={() => {
+                              setOpenActionMenuCodigo(null);
+                              if (podeGerenciarResponsaveis) onEditarResponsaveis(item);
+                            }}
+                            disabled={!itemAtivo}
+                          >
+                            <UsersIcon />
+                            <span>{podeGerenciarResponsaveis ? "Editar responsáveis" : "Ver responsáveis"}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="prospects-row-menu__item"
+                            onClick={() => {
+                              setOpenActionMenuCodigo(null);
+                              if (item.avaliacaoAutomatica) onAbrirEnriquecimentos(item);
+                            }}
+                            disabled={!item.avaliacaoAutomatica || !itemAtivo}
+                          >
+                            <SparklesIcon />
+                            <span>Ver enriquecimentos</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="prospects-row-menu__item"
+                            aria-label={`${getAnaliseIaActionLabel(item)} do imóvel ${item.codigo}`}
+                            onClick={() => {
+                              setOpenActionMenuCodigo(null);
+                              onAcionarAnaliseIa(item);
+                            }}
+                            disabled={!itemAtivo}
+                          >
+                            <SparklesIcon />
+                            <span>{getAnaliseIaActionLabel(item)}</span>
+                          </button>
+                          {podeReativar ? (
+                            <button
+                              type="button"
+                              className="prospects-row-menu__item"
+                              title={item.inativadoPorName ? `Reativar item removido por ${item.inativadoPorName}` : "Reativar item"}
+                              disabled={updateLoadingIds.has(`${item.codigo}:reativar`)}
+                              onClick={() => {
+                                setOpenActionMenuCodigo(null);
+                                onReativar(item);
+                              }}
+                            >
+                              <ArrowLeftIcon />
+                              <span>Reativar item</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="prospects-row-menu__item is-danger"
+                              title={podeExcluir ? "Remover da fila" : "Apenas o autor da seleção ou um administrador pode remover este imóvel"}
+                              disabled={removeLoadingIds.has(item.codigo) || !podeExcluir}
+                              onClick={() => {
+                                setOpenActionMenuCodigo(null);
+                                onExcluir(item);
+                              }}
+                            >
+                              <TrashIcon />
+                              <span>{removeLoadingIds.has(item.codigo) ? "Removendo..." : "Remover da fila"}</span>
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </td>
               </tr>
