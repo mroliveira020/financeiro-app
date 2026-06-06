@@ -5016,9 +5016,10 @@ export default function Prospeccoes() {
                   />
                 </label>
                 <div className="prospects-captured-toolbar__actions">
-                  <div className="prospects-captured-toolbar__metrics">
-                    <span className="prospects-pill">{capturados.length} na visão</span>
-                    <span className="prospects-pill prospects-pill--muted">{selectedCodes.size} na fila</span>
+                  <div className="prospects-captured-toolbar__summary-inline">
+                    <span><strong>{capturados.length}</strong> na visão</span>
+                    <span><strong>{capturadosTotal}</strong> capturados</span>
+                    <span><strong>{selectedCodes.size}</strong> na fila</span>
                   </div>
                   <button
                     type="button"

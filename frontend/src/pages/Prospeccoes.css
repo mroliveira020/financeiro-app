@@ -850,8 +850,8 @@
 
 .prospects-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 18px;
 }
 
 .prospects-card-grid__toolbar {
@@ -891,7 +891,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid #dde6f2;
   border-radius: 18px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
@@ -1994,14 +1994,14 @@
 .prospects-captured-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding-top: 2px;
 }
 
 .prospects-captured-toolbar__quick {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
-  gap: 10px;
+  gap: 10px 12px;
   align-items: end;
 }
 
@@ -2022,22 +2022,25 @@
   min-height: 40px;
 }
 
-.prospects-captured-toolbar__metrics {
+.prospects-captured-toolbar__summary-inline {
   display: flex;
-  gap: 6px;
+  gap: 12px;
   align-items: center;
-  margin-right: 2px;
+  margin-right: 4px;
+  color: #5f6f8e;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
-.prospects-captured-toolbar__metrics .prospects-pill {
-  min-height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
+.prospects-captured-toolbar__summary-inline strong {
+  color: #1f4fb0;
+  font-size: 13px;
 }
 
 .prospects-captured-toolbar__actions .prospects-btn {
   min-height: 40px;
-  padding: 0 18px;
+  padding: 0 16px;
   border-radius: 13px;
   white-space: nowrap;
 }
@@ -2047,15 +2050,16 @@
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
+  padding-top: 2px;
 }
 
 .prospects-captured-toolbar__active .prospects-inline-link {
   pointer-events: none;
-  background: #f5f8fe;
-  color: #56709f;
+  background: #f7f9fd;
+  color: #60708d;
   border-color: #d8e4f5;
   font-size: 11px;
-  padding: 5px 9px;
+  padding: 4px 8px;
 }
 
 .prospects-captured-toolbar__advanced {
@@ -2069,7 +2073,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
+  padding: 12px 12px 11px;
   border: 1px solid #e4ebf6;
   border-radius: 14px;
   background: #fbfdff;
@@ -2255,7 +2259,7 @@
 
 @media (max-width: 1100px) {
   .prospects-card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
 
   .prospects-captured-toolbar__quick {
@@ -2266,6 +2270,12 @@
     grid-column: span 2;
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .prospects-captured-toolbar__summary-inline {
+    width: 100%;
+    margin-right: 0;
+    white-space: normal;
   }
 
   .prospects-captured-toolbar__advanced {
@@ -2289,11 +2299,6 @@
   .prospects-captured-toolbar__actions {
     grid-column: auto;
     flex-wrap: wrap;
-  }
-
-  .prospects-captured-toolbar__metrics {
-    width: 100%;
-    margin-right: 0;
   }
 
   .prospects-captured-toolbar__advanced {
