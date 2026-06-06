@@ -60,9 +60,9 @@ export function AvaliacaoAutomaticaModal({
                   <h4>{[imovel?.cidade || item.cidade, imovel?.uf || item.uf].filter(Boolean).join(" - ") || item.codigo}</h4>
                   <p>{[imovel?.endereco || item.endereco, imovel?.bairro || item.bairro].filter(Boolean).join(" - ") || "Endereço não informado"}</p>
                   <div className="prospects-capture-card__auto">
-                    <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>Score {avaliacao.score_total ?? "—"}/85</span>
-                    <span className={`prospects-auto-badge ${getRoiClasse(avaliacao.retorno_pct)}`}>ROI {formatarPercentual(avaliacao.retorno_pct)}</span>
-                    <span className="prospects-auto-badge">Venda est. {formatarMoeda(avaliacao.valor_estimado_venda)}</span>
+                    <span className={`prospects-auto-badge is-score ${getScoreClasse(avaliacao.score_total)}`}>Score {avaliacao.score_total ?? "—"}/85</span>
+                    <span className={`prospects-auto-badge is-roi ${getRoiClasse(avaliacao.retorno_pct)}`}>ROI {formatarPercentual(avaliacao.retorno_pct)}</span>
+                    <span className="prospects-auto-badge is-value">Venda est. {formatarMoeda(avaliacao.valor_estimado_venda)}</span>
                   </div>
                 </div>
               </div>
@@ -302,12 +302,12 @@ export function AvaliacaoDetalhadaModal({
               </div>
               <div className="prospects-capture-card__auto prospects-capture-card__auto--hero">
                 {descontoExibicao !== null ? (
-                  <span className="prospects-auto-badge">Desconto {formatarPercentual(descontoExibicao)}</span>
+                  <span className="prospects-auto-badge is-discount">Desconto {formatarPercentual(descontoExibicao)}</span>
                 ) : null}
-                <span className="prospects-auto-badge">{resumoLeilao?.label || "Sem evento"}</span>
-                <span className="prospects-auto-badge">{formatarMoeda(valorReferencia)}</span>
+                <span className="prospects-auto-badge is-event">{resumoLeilao?.label || "Sem evento"}</span>
+                <span className="prospects-auto-badge is-value">{formatarMoeda(valorReferencia)}</span>
                 {fonteLabel ? (
-                  <span className={`prospects-auto-badge ${item.fonte === "tjdft_judicial" ? "is-judicial" : ""}`.trim()}>{fonteLabel}</span>
+                  <span className={`prospects-auto-badge ${item.fonte === "tjdft_judicial" ? "is-judicial" : "is-source"}`.trim()}>{fonteLabel}</span>
                 ) : null}
               </div>
               <div className="prospects-auto-hero__status-row">

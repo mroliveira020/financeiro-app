@@ -537,14 +537,14 @@ export function TabelaCapturados({
 
                 {(avaliacao || item.analiseSalva) ? (
                   <div className="prospects-capture-card__auto">
-                    <span className={`prospects-auto-badge ${roiEstimadoDisponivel === null ? "is-neutral" : getRoiClasse(roiEstimadoDisponivel)}`}>
+                    <span className={`prospects-auto-badge is-roi ${roiEstimadoDisponivel === null ? "is-neutral" : getRoiClasse(roiEstimadoDisponivel)}`}>
                       ROI: {roiEstimadoDisponivel === null ? "A definir" : formatarPercentual(roiEstimadoDisponivel)}
                     </span>
-                    <span className={`prospects-auto-badge ${investimentoTotalEstimado === null ? "is-neutral" : ""}`.trim()}>
+                    <span className={`prospects-auto-badge is-investment ${investimentoTotalEstimado === null ? "is-neutral" : ""}`.trim()}>
                       Investimento 12M: {investimentoTotalEstimado === null ? "A definir" : formatarMoeda(investimentoTotalEstimado)}
                     </span>
                     {avaliacao ? (
-                      <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
+                      <span className={`prospects-auto-badge is-score ${getScoreClasse(avaliacao.score_total)}`}>
                         Score: {avaliacao.score_total ?? "—"}/85
                       </span>
                     ) : null}
