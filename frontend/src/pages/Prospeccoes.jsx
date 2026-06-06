@@ -400,14 +400,39 @@ function DetalhesTexto({ texto, className = "" }) {
 }
 
 const renderTextoInline = (texto) => {
-  const partes = `${texto || ""}`.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+  const partes = `${texto || ""}`.split(/(\[[^\]]+\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*)/g).filter(Boolean);
   return partes.map((parte, index) => {
+    const markdownLinkMatch = parte.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+    if (markdownLinkMatch) {
+      return (
+        <a key={`${parte}-${index}`} href={markdownLinkMatch[2]} target="_blank" rel="noreferrer">
+          {markdownLinkMatch[1]}
+        </a>
+      );
+    }
+    if (parte.startsWith("`") && parte.endsWith("`")) {
+      return <code key={`${parte}-${index}`}>{parte.slice(1, -1)}</code>;
+    }
     if (parte.startsWith("**") && parte.endsWith("**")) {
       return <strong key={`${parte}-${index}`}>{parte.slice(2, -2)}</strong>;
     }
     return <React.Fragment key={`${parte}-${index}`}>{parte}</React.Fragment>;
   });
 };
+
+const isMarkdownTableBlock = (linhas) => {
+  if (!Array.isArray(linhas) || linhas.length < 2) return false;
+  const [header, separator] = linhas;
+  if (!header.includes("|")) return false;
+  return /^\|?[\s:-|]+\|?$/.test(separator);
+};
+
+const parseMarkdownTableRow = (linha) => linha
+  .trim()
+  .replace(/^\|/, "")
+  .replace(/\|$/, "")
+  .split("|")
+  .map((coluna) => coluna.trim());
 
 function TextoEstruturado({ texto, className = "" }) {
   const bruto = `${texto || ""}`.trim();
@@ -441,6 +466,39 @@ function TextoEstruturado({ texto, className = "" }) {
 
         if (linhas.length === 1 && /^#{1,3}\s+/.test(linhas[0])) {
           return <h5 key={`h-${blocoIndex}`}>{renderTextoInline(linhas[0].replace(/^#{1,3}\s+/, ""))}</h5>;
+        }
+
+        if (isMarkdownTableBlock(linhas)) {
+          const [header, , ...rows] = linhas;
+          const headers = parseMarkdownTableRow(header);
+          const bodyRows = rows
+            .map(parseMarkdownTableRow)
+            .filter((row) => row.some(Boolean));
+
+          return (
+            <div key={`t-${blocoIndex}`} className="prospects-rich-text__table-wrap">
+              <table className="prospects-rich-text__table">
+                <thead>
+                  <tr>
+                    {headers.map((cell, index) => (
+                      <th key={`th-${blocoIndex}-${index}`}>{renderTextoInline(cell || "—")}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {bodyRows.map((row, rowIndex) => (
+                    <tr key={`tr-${blocoIndex}-${rowIndex}`}>
+                      {headers.map((_, cellIndex) => (
+                        <td key={`td-${blocoIndex}-${rowIndex}-${cellIndex}`}>
+                          {renderTextoInline(row[cellIndex] || "—")}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
         }
 
         return (
