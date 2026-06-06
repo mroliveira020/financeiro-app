@@ -124,6 +124,21 @@ const hasAiUsefulContent = (data) => Boolean(
   || data?.matricula_texto
 );
 
+const getUiMessageTone = (message = "") => {
+  const normalized = `${message}`.trim().toLowerCase();
+  if (!normalized) return "info";
+  if (
+    normalized.startsWith("erro")
+    || normalized.includes("falha")
+    || normalized.includes("inválid")
+    || normalized.includes("invalid")
+    || normalized.includes("não foi possível")
+  ) {
+    return "error";
+  }
+  return "success";
+};
+
 const formatarMoeda = (valor) => {
   if (valor === null || valor === undefined) return "—";
   return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -3681,12 +3696,22 @@ export default function Prospeccoes() {
   const deferredSelectedSearch = useDeferredValue(selectedSearch);
   const canAccessFinance = user?.finance_access ?? hasRole("admin");
   const includeInactiveSelecionados = user?.role === "admin";
+  const mensagemTone = useMemo(() => getUiMessageTone(mensagem), [mensagem]);
 
   const setAvaliacaoDetalhadaStatusState = useCallback(({ message = "", tone = "info", action = null } = {}) => {
     setAvaliacaoDetalhadaStatus(message);
     setAvaliacaoDetalhadaStatusTone(tone);
     setAvaliacaoDetalhadaStatusActionKind(action?.kind || null);
   }, []);
+
+  useEffect(() => {
+    if (!mensagem) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setMensagem("");
+    }, 5000);
+    return () => window.clearTimeout(timeoutId);
+  }, [mensagem]);
+
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const handleViewportChange = () => {
@@ -4876,7 +4901,15 @@ export default function Prospeccoes() {
 
   return (
     <div className="prospects-page">
-      {mensagem && <div className="prospects-message">{mensagem}</div>}
+      {mensagem ? (
+        <div
+          className={`prospects-message is-${mensagemTone}`.trim()}
+          role="alert"
+          aria-live="polite"
+        >
+          {mensagem}
+        </div>
+      ) : null}
 
       {mobileAccess ? (
         <>
@@ -4909,7 +4942,7 @@ export default function Prospeccoes() {
               <div className="prospects-mobile-hub__grid">
                 <MobileHubCard
                   eyebrow="Financeiro"
-                  title="Controle financeiro"
+                  title="Financeiro"
                   description={descricaoFinanceiroMobile}
                   count={financeiroCount ?? 0}
                   icon={<FinanceIcon />}
@@ -4918,7 +4951,7 @@ export default function Prospeccoes() {
                 />
                 <MobileHubCard
                   eyebrow="Prospecção"
-                  title="Selecionar imóveis"
+                  title="Base capturada"
                   description="Consulte a base capturada e inclua rapidamente novos imóveis na fila de prospecção."
                   count={capturadosTotal}
                   icon={<ProspectIcon />}
@@ -4926,7 +4959,7 @@ export default function Prospeccoes() {
                 />
                 <MobileHubCard
                   eyebrow="Prospecção"
-                  title="Selecionados para prospecção"
+                  title="Fila de prospecção"
                   description="Abra a fila operacional para registrar notas e ajustar a viabilidade dos imóveis."
                   count={selectedMetrics.ativos}
                   icon={<QueueIcon />}

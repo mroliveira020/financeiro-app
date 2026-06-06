@@ -288,7 +288,9 @@ function LancamentosTable({
                   className={rowDirty ? "table-warning" : undefined}
                 >
                   <td>{lancamento.data}</td>
-                  <td title={lancamento.descricao}>{lancamento.descricao}</td>
+                  <td className="transacoes-table__cell transacoes-table__cell--description" title={lancamento.descricao}>
+                    {lancamento.descricao}
+                  </td>
                   <td>{renderCategoriaSelect(lancamento)}</td>
                   <td>{renderImovelSelect(lancamento)}</td>
                   <td className="text-center">

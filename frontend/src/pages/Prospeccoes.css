@@ -2469,6 +2469,18 @@
   font-weight: 600;
 }
 
+.prospects-message.is-success {
+  background: linear-gradient(180deg, #ecfdf5 0%, #f6fffb 100%);
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.prospects-message.is-error {
+  background: linear-gradient(180deg, #fef2f2 0%, #fff7f7 100%);
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
 .prospects-expandable {
   cursor: pointer;
 }

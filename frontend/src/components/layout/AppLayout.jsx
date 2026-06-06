@@ -61,7 +61,7 @@ export default function AppLayout() {
   const pageTitle = isUsuariosPage
     ? "Usuários"
     : isProspeccoesPage
-      ? "Gestão de imóveis"
+      ? "Prospecção"
       : "Financeiro";
   const pageSubtitle = isUsuariosPage
     ? "Gestão de acessos, permissões e composição societária do portal."
@@ -72,7 +72,7 @@ export default function AppLayout() {
   const navItems = useMemo(() => {
     const items = [];
     if (canAccessFinance) items.push({ to: "/", icon: icons.home, label: "Financeiro" });
-    if (canAccessProspeccoes) items.push({ to: "/prospeccoes", icon: icons.prospects, label: "Prospecções" });
+    if (canAccessProspeccoes) items.push({ to: "/prospeccoes", icon: icons.prospects, label: "Prospecção" });
     if (isAdmin) items.push({ to: "/usuarios", icon: icons.users, label: "Usuários" });
     return items;
   }, [canAccessFinance, canAccessProspeccoes, isAdmin]);

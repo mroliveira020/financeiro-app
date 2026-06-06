@@ -8,6 +8,9 @@ const ModalLote = ({
   paidByUserId = "",
   setPaidByUserId,
   carregandoSocios = false,
+  erro = "",
+  linhasComErro = [],
+  preview = [],
 }) => {
   return (
     <div
@@ -62,6 +65,51 @@ const ModalLote = ({
               value={textoLote}
               onChange={(e) => setTextoLote(e.target.value)}
             ></textarea>
+
+            {erro ? (
+              <div className="alert alert-danger mt-3 mb-0" role="alert">
+                <strong>Importação com pendências.</strong>
+                <div>{erro}</div>
+              </div>
+            ) : null}
+
+            {preview.length ? (
+              <div className="mt-3">
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="form-label mb-0">Pré-visualização do lote</span>
+                  <small className="text-muted">
+                    {linhasComErro.length ? `${linhasComErro.length} linha(s) com erro` : "Sem erros detectados"}
+                  </small>
+                </div>
+                <div className="table-responsive">
+                  <table className="table table-sm align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th>Linha</th>
+                        <th>Data</th>
+                        <th>Descrição</th>
+                        <th>Valor</th>
+                        <th>Validação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.map((linha) => (
+                        <tr
+                          key={`${linha.numero}-${linha.raw}`}
+                          className={linha.erro ? "table-danger" : undefined}
+                        >
+                          <td>{linha.numero}</td>
+                          <td>{linha.data || "—"}</td>
+                          <td title={linha.descricao || linha.raw}>{linha.descricao || "—"}</td>
+                          <td>{linha.valor || "—"}</td>
+                          <td>{linha.erro || "OK"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="modal-footer small">

@@ -57,6 +57,44 @@ const snapshotFromLancamento = (lancamento) => ({
       : String(lancamento.id_situacao),
 });
 
+const buildLotePreview = (textoLote) => {
+  const linhas = `${textoLote || ""}`
+    .split("\n")
+    .map((linha) => linha.trim())
+    .filter(Boolean);
+
+  return linhas.map((linha, index) => {
+    const partes = linha.includes("\t") ? linha.split("\t") : linha.split(";");
+    const [data = "", descricao = "", valorBruto = ""] = partes;
+    const preview = {
+      numero: index + 1,
+      raw: linha,
+      data: data.trim(),
+      descricao: descricao.trim(),
+      valor: valorBruto.trim(),
+      erro: "",
+    };
+
+    if (partes.length < 3) {
+      preview.erro = "Formato inválido. Use Data, Descrição e Valor.";
+      return preview;
+    }
+
+    if (!preview.data || !preview.descricao || !preview.valor) {
+      preview.erro = "Preencha data, descrição e valor.";
+      return preview;
+    }
+
+    try {
+      normalizarValor(preview.valor, preview.numero);
+    } catch (error) {
+      preview.erro = error.message;
+    }
+
+    return preview;
+  });
+};
+
 function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const { id } = useParams();
   const [lancamentos, setLancamentos] = useState([]);
@@ -68,6 +106,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const [formEdicao, setFormEdicao] = useState({});
   const [textoLote, setTextoLote] = useState('');
   const [paidByUserIdLote, setPaidByUserIdLote] = useState("");
+  const [loteErro, setLoteErro] = useState("");
   const [novaTransacao, setNovaTransacao] = useState(null);
   const [sociosImovel, setSociosImovel] = useState([]);
   const [carregandoSociosImovel, setCarregandoSociosImovel] = useState(false);
@@ -96,6 +135,11 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   const imoveisOrdenados = useMemo(() => (
     [...(isAdmin ? imoveis : imoveisAcessiveis)].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
   ), [isAdmin, imoveis, imoveisAcessiveis]);
+  const lotePreview = useMemo(() => buildLotePreview(textoLote), [textoLote]);
+  const loteLinhasComErro = useMemo(
+    () => lotePreview.filter((linha) => linha.erro).map((linha) => linha.numero),
+    [lotePreview]
+  );
 
   const formatarMoeda = (valor) =>
     Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -412,6 +456,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
   };
 
   const abrirModalLote = () => {
+    setLoteErro("");
     const modal = new bootstrap.Modal(document.getElementById('modalLote'));
     modal.show();
   };
@@ -431,30 +476,31 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
 
   const enviarLote = async () => {
     try {
+      setLoteErro("");
       if (!paidByUserIdLote) {
-        alert("Selecione quem pagou antes de importar o lote.");
+        setLoteErro("Selecione quem pagou antes de importar o lote.");
         return;
       }
       if (!textoLote.trim()) {
-        alert("Cole os dados do Excel antes de enviar.");
+        setLoteErro("Cole os dados do Excel antes de enviar.");
         return;
       }
 
-      const linhas = textoLote.trim().split("\n");
+      const linhasInvalidas = lotePreview.filter((linha) => linha.erro);
+      if (linhasInvalidas.length) {
+        const resumo = linhasInvalidas
+          .slice(0, 3)
+          .map((linha) => `Linha ${linha.numero}: ${linha.erro}`)
+          .join(" | ");
+        setLoteErro(`Corrija as linhas destacadas antes de enviar. ${resumo}`);
+        return;
+      }
 
-      const novosLancamentos = linhas.map((linha, index) => {
-        const partes = linha.includes("\t") ? linha.split("\t") : linha.split(";");
-
-        if (partes.length < 3) {
-          throw new Error(`Linha ${index + 1} inválida: "${linha}".`);
-        }
-
-        const [data, descricao, valor] = partes;
-        const valorNormalizado = normalizarValor(valor, index + 1);
-
+      const novosLancamentos = lotePreview.map((linha) => {
+        const valorNormalizado = normalizarValor(linha.valor, linha.numero);
         return {
-          data: data.trim(),
-          descricao: descricao.trim(),
+          data: linha.data,
+          descricao: linha.descricao,
           valor: valorNormalizado,
           id_imovel: parseInt(id, 10),
           id_categoria: 0,
@@ -473,12 +519,13 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       const modal = bootstrap.Modal.getInstance(document.getElementById('modalLote'));
       modal.hide();
       setTextoLote('');
+      setLoteErro("");
       if (sociosImovel.length !== 1) {
         setPaidByUserIdLote("");
       }
     } catch (error) {
       console.error('Erro ao adicionar lançamentos em lote:', error);
-      alert(`Erro: ${error.message}`);
+      setLoteErro(error?.message || "Erro ao adicionar lançamentos em lote.");
     }
   };
 
@@ -611,6 +658,9 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
         paidByUserId={paidByUserIdLote}
         setPaidByUserId={setPaidByUserIdLote}
         carregandoSocios={carregandoSociosImovel}
+        erro={loteErro}
+        linhasComErro={loteLinhasComErro}
+        preview={lotePreview}
       />
 
       <ModalNovaTransacao
