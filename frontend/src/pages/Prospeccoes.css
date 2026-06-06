@@ -848,6 +848,50 @@
   justify-content: flex-start;
 }
 
+.prospects-selected-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prospects-selected-toolbar__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e0e8f4;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fbfdff 0%, #f6f9fe 100%);
+}
+
+.prospects-selected-toolbar__stats {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  color: #5f6f8e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.prospects-selected-toolbar__stats strong {
+  color: #1f4fb0;
+  font-size: 13px;
+}
+
+.prospects-selected-toolbar__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.prospects-toolbar--selected {
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
 .prospects-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -2262,6 +2306,11 @@
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
 
+  .prospects-selected-toolbar__summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .prospects-captured-toolbar__quick {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2294,6 +2343,11 @@
 
   .prospects-captured-toolbar__quick {
     grid-template-columns: 1fr;
+  }
+
+  .prospects-selected-toolbar__stats,
+  .prospects-selected-toolbar__actions {
+    width: 100%;
   }
 
   .prospects-captured-toolbar__actions {

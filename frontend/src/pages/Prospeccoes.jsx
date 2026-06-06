@@ -3435,6 +3435,10 @@ export default function Prospeccoes() {
   const [selectedActivityFilter, setSelectedActivityFilter] = useState("ativos");
   const [selectedResponsavelFilter, setSelectedResponsavelFilter] = useState("todos");
   const [selectedUserFilter, setSelectedUserFilter] = useState("todos");
+  const [selectedFiltersExpanded, setSelectedFiltersExpanded] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("prospeccoes_selecionados_filters_expanded") === "1";
+  });
   const [selecionadosCollapsed, setSelecionadosCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("prospeccoes_selecionados_collapsed") === "1";
@@ -3622,6 +3626,14 @@ export default function Prospeccoes() {
       selecionadosCollapsed ? "1" : "0"
     );
   }, [selecionadosCollapsed]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      "prospeccoes_selecionados_filters_expanded",
+      selectedFiltersExpanded ? "1" : "0"
+    );
+  }, [selectedFiltersExpanded]);
 
   const ufOptions = useMemo(() => meta.ufs || [], [meta]);
   const modalidadeOptions = useMemo(() => meta.modalidades || [], [meta]);
@@ -4579,6 +4591,26 @@ export default function Prospeccoes() {
     return "Na fila";
   }, [selectedActivityFilter]);
 
+  const selectedHasFilters = useMemo(() => (
+    selectedSearch.trim() !== "" ||
+    selectedUfFilter !== "todos" ||
+    selectedPrioridadeFilter !== "todas" ||
+    selectedActivityFilter !== "ativos" ||
+    selectedResponsavelFilter !== "todos" ||
+    selectedUserFilter !== "todos" ||
+    selectedSortBy !== "dataLeilao" ||
+    selectedSortDir !== "asc"
+  ), [
+    selectedSearch,
+    selectedUfFilter,
+    selectedPrioridadeFilter,
+    selectedActivityFilter,
+    selectedResponsavelFilter,
+    selectedUserFilter,
+    selectedSortBy,
+    selectedSortDir,
+  ]);
+
   useEffect(() => {
     if (!setTopbarContent) return undefined;
     if (mobileAccess) {
@@ -4808,99 +4840,120 @@ export default function Prospeccoes() {
                 ) : null}
               </div>
             </div>
-            <div className="prospects-toolbar">
-              <label className="prospects-toolbar-field prospects-toolbar-field--search">
-                <span>Buscar</span>
-                <input
-                  type="search"
-                  value={selectedSearch}
-                  onChange={(e) => setSelectedSearch(e.target.value)}
-                  placeholder="Código, cidade, autor, responsável ou descrição"
-                />
-              </label>
-              <label className="prospects-toolbar-field">
-                <span>UF</span>
-                <select value={selectedUfFilter} onChange={(e) => setSelectedUfFilter(e.target.value)}>
-                  <option value="todos">Todas</option>
-                  {selectedUfOptions.map((uf) => (
-                    <option key={uf} value={uf}>{uf}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="prospects-toolbar-field">
-                <span>Prioridade</span>
-                <select value={selectedPrioridadeFilter} onChange={(e) => setSelectedPrioridadeFilter(e.target.value)}>
-                  <option value="todas">Todas</option>
-                  {PRIORIDADE_OPTIONS.map((option) => (
-                    <option key={option.value} value={String(option.value)}>{option.label}</option>
-                  ))}
-                </select>
-              </label>
-              {user?.role === "admin" ? (
-                <label className="prospects-toolbar-field">
-                  <span>Estado</span>
-                  <select value={selectedActivityFilter} onChange={(e) => setSelectedActivityFilter(e.target.value)}>
-                    <option value="ativos">Ativos</option>
-                    <option value="inativos">Inativos</option>
-                    <option value="todos">Todos</option>
-                  </select>
-                </label>
-              ) : null}
-              <label className="prospects-toolbar-field">
-                <span>Responsáveis</span>
-                <select value={selectedResponsavelFilter} onChange={(e) => setSelectedResponsavelFilter(e.target.value)}>
-                  <option value="todos">Todos</option>
-                  <option value="com">Com responsáveis</option>
-                  <option value="sem">Sem responsáveis</option>
-                  <option value="meus">Atribuídos a mim</option>
-                </select>
-              </label>
-              {user?.role === "admin" ? (
-                <label className="prospects-toolbar-field">
-                  <span>Usuário</span>
-                  <select value={selectedUserFilter} onChange={(e) => setSelectedUserFilter(e.target.value)}>
-                    <option value="todos">Todos</option>
-                    {selectedUserOptions.map((option) => (
-                      <option key={option.id} value={option.id}>{option.label}</option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-              <label className="prospects-toolbar-field">
-                <span>Ordenar por</span>
-                <select value={selectedSortBy} onChange={(e) => setSelectedSortBy(e.target.value)}>
-                  <option value="dataLeilao">Data do leilão</option>
-                  <option value="prioridade">Prioridade</option>
-                  <option value="cidade">Cidade</option>
-                  <option value="valorMaximo">Valor máximo</option>
-                  <option value="roi">ROI</option>
-                </select>
-              </label>
-              <label className="prospects-toolbar-field">
-                <span>Direção</span>
-                <select value={selectedSortDir} onChange={(e) => setSelectedSortDir(e.target.value)}>
-                  <option value="asc">Crescente</option>
-                  <option value="desc">Decrescente</option>
-                </select>
-              </label>
-              <div className="prospects-toolbar-actions">
-                <button
-                  type="button"
-                  className="prospects-btn tertiary prospects-btn--toolbar"
-                  onClick={() => {
-                    setSelectedSearch("");
-                    setSelectedUfFilter("todos");
-                    setSelectedPrioridadeFilter("todas");
-                    setSelectedActivityFilter("ativos");
-                    setSelectedResponsavelFilter("todos");
-                    setSelectedUserFilter("todos");
-                    setSelectedSortBy("dataLeilao");
-                    setSelectedSortDir("asc");
-                  }}
-                >
-                  Limpar visão
-                </button>
+            <div className="prospects-selected-toolbar">
+              <div className="prospects-selected-toolbar__summary">
+                <div className="prospects-selected-toolbar__stats">
+                  <span><strong>{selecionadosFiltradosOrdenados.length}</strong> na visão</span>
+                  <span><strong>{selectedMetrics.comAnalise}</strong> com análise</span>
+                  {user?.role === "admin" ? <span><strong>{selectedMetrics.inativos}</strong> inativos</span> : null}
+                </div>
+                <div className="prospects-selected-toolbar__actions">
+                  <button
+                    type="button"
+                    className={`prospects-btn secondary ${selectedFiltersExpanded ? "is-active" : ""}`.trim()}
+                    onClick={() => setSelectedFiltersExpanded((prev) => !prev)}
+                  >
+                    {selectedFiltersExpanded ? "Ocultar filtros" : "Mostrar filtros"}
+                    {selectedHasFilters ? " ativos" : ""}
+                  </button>
+                  <button
+                    type="button"
+                    className="prospects-btn tertiary prospects-btn--toolbar"
+                    onClick={() => {
+                      setSelectedSearch("");
+                      setSelectedUfFilter("todos");
+                      setSelectedPrioridadeFilter("todas");
+                      setSelectedActivityFilter("ativos");
+                      setSelectedResponsavelFilter("todos");
+                      setSelectedUserFilter("todos");
+                      setSelectedSortBy("dataLeilao");
+                      setSelectedSortDir("asc");
+                    }}
+                    disabled={!selectedHasFilters}
+                  >
+                    Limpar visão
+                  </button>
+                </div>
               </div>
+
+              {selectedFiltersExpanded ? (
+                <div className="prospects-toolbar prospects-toolbar--selected">
+                  <label className="prospects-toolbar-field prospects-toolbar-field--search">
+                    <span>Buscar</span>
+                    <input
+                      type="search"
+                      value={selectedSearch}
+                      onChange={(e) => setSelectedSearch(e.target.value)}
+                      placeholder="Código, cidade, autor, responsável ou descrição"
+                    />
+                  </label>
+                  <label className="prospects-toolbar-field">
+                    <span>UF</span>
+                    <select value={selectedUfFilter} onChange={(e) => setSelectedUfFilter(e.target.value)}>
+                      <option value="todos">Todas</option>
+                      {selectedUfOptions.map((uf) => (
+                        <option key={uf} value={uf}>{uf}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="prospects-toolbar-field">
+                    <span>Prioridade</span>
+                    <select value={selectedPrioridadeFilter} onChange={(e) => setSelectedPrioridadeFilter(e.target.value)}>
+                      <option value="todas">Todas</option>
+                      {PRIORIDADE_OPTIONS.map((option) => (
+                        <option key={option.value} value={String(option.value)}>{option.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {user?.role === "admin" ? (
+                    <label className="prospects-toolbar-field">
+                      <span>Estado</span>
+                      <select value={selectedActivityFilter} onChange={(e) => setSelectedActivityFilter(e.target.value)}>
+                        <option value="ativos">Ativos</option>
+                        <option value="inativos">Inativos</option>
+                        <option value="todos">Todos</option>
+                      </select>
+                    </label>
+                  ) : null}
+                  <label className="prospects-toolbar-field">
+                    <span>Responsáveis</span>
+                    <select value={selectedResponsavelFilter} onChange={(e) => setSelectedResponsavelFilter(e.target.value)}>
+                      <option value="todos">Todos</option>
+                      <option value="com">Com responsáveis</option>
+                      <option value="sem">Sem responsáveis</option>
+                      <option value="meus">Atribuídos a mim</option>
+                    </select>
+                  </label>
+                  {user?.role === "admin" ? (
+                    <label className="prospects-toolbar-field">
+                      <span>Usuário</span>
+                      <select value={selectedUserFilter} onChange={(e) => setSelectedUserFilter(e.target.value)}>
+                        <option value="todos">Todos</option>
+                        {selectedUserOptions.map((option) => (
+                          <option key={option.id} value={option.id}>{option.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
+                  <label className="prospects-toolbar-field">
+                    <span>Ordenar por</span>
+                    <select value={selectedSortBy} onChange={(e) => setSelectedSortBy(e.target.value)}>
+                      <option value="dataLeilao">Data do leilão</option>
+                      <option value="prioridade">Prioridade</option>
+                      <option value="cidade">Cidade</option>
+                      <option value="valorMaximo">Valor máximo</option>
+                      <option value="roi">ROI</option>
+                    </select>
+                  </label>
+                  <label className="prospects-toolbar-field">
+                    <span>Direção</span>
+                    <select value={selectedSortDir} onChange={(e) => setSelectedSortDir(e.target.value)}>
+                      <option value="asc">Crescente</option>
+                      <option value="desc">Decrescente</option>
+                    </select>
+                  </label>
+                </div>
+              ) : null}
             </div>
           </section>
 
