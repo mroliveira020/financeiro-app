@@ -15,6 +15,22 @@ import {
   SparklesIcon,
 } from "./ProspeccoesShared";
 
+const toFiniteNumber = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const getInvestimentoTotalEstimado = (avaliacao) => {
+  if (!avaliacao) return null;
+  const valores = [
+    toFiniteNumber(avaliacao.custo_aquisicao_est),
+    toFiniteNumber(avaliacao.custo_reforma_est),
+    toFiniteNumber(avaliacao.custo_desocupacao_est),
+  ].filter((value) => value !== null);
+  if (!valores.length) return null;
+  return valores.reduce((total, value) => total + value, 0);
+};
+
 export function TabelaSelecionados({
   dados,
   loading,
@@ -450,11 +466,18 @@ export function TabelaCapturados({
           const resumoLeilao = getLeilaoResumo(item);
           const descontoExibicao = calcularDescontoExibicao(item);
           const avaliacao = item.avaliacaoAutomatica;
+          const investimentoTotalEstimado = getInvestimentoTotalEstimado(avaliacao);
+          const roiEstimadoDisponivel = toFiniteNumber(avaliacao?.retorno_pct);
           const mapsUrl = getMapsUrl(item);
           const comparaveis = getComparaveisLinks(item);
           const editalUrl = extrairEditalUrl(item.descricao);
           const fonteLabel = getFonteLabel(item.fonte);
           const processoNumero = extrairProcessoNumero(item.descricao);
+          const situacaoNormalizada = `${item.situacao || ""}`.trim().toLowerCase();
+          const mostrarSituacao = Boolean(
+            situacaoNormalizada
+            && !["disponivel", "disponível"].includes(situacaoNormalizada)
+          );
           return (
             <article key={item.codigo} className="prospects-capture-card">
               <div className="prospects-capture-card__media">
@@ -485,10 +508,11 @@ export function TabelaCapturados({
                   {enderecoCompacto || "Endereço não informado"}
                 </p>
 
-                <div className="prospects-capture-card__facts">
-                  <span>{item.financia === undefined || item.financia === null ? "Financiamento n/d" : item.financia ? "Aceita FGTS/financiamento" : "Sem financiamento"}</span>
-                  <span>{item.situacao || "Sem status"}</span>
-                </div>
+                {mostrarSituacao ? (
+                  <div className="prospects-capture-card__facts">
+                    <span>{item.situacao}</span>
+                  </div>
+                ) : null}
 
                 <div className="prospects-capture-card__meta-grid">
                   <div className="prospects-capture-card__meta-item">
@@ -549,14 +573,14 @@ export function TabelaCapturados({
 
                 {avaliacao ? (
                   <div className="prospects-capture-card__auto">
+                    <span className={`prospects-auto-badge ${roiEstimadoDisponivel === null ? "is-neutral" : getRoiClasse(avaliacao.retorno_pct)}`}>
+                      ROI: {roiEstimadoDisponivel === null ? "A definir" : formatarPercentual(avaliacao.retorno_pct)}
+                    </span>
+                    <span className={`prospects-auto-badge ${investimentoTotalEstimado === null ? "is-neutral" : ""}`.trim()}>
+                      Invest. est.: {investimentoTotalEstimado === null ? "A definir" : formatarMoeda(investimentoTotalEstimado)}
+                    </span>
                     <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
                       Score: {avaliacao.score_total ?? "—"}/85
-                    </span>
-                    <span className={`prospects-auto-badge ${getRoiClasse(avaliacao.retorno_pct)}`}>
-                      ROI: {formatarPercentual(avaliacao.retorno_pct)}
-                    </span>
-                    <span className="prospects-auto-badge">
-                      Venda est.: {formatarMoeda(avaliacao.valor_estimado_venda)}
                     </span>
                   </div>
                 ) : null}
