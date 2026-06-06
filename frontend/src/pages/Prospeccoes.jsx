@@ -140,6 +140,11 @@ const resumirObservacao = (texto, limite = 96) => {
   return `${normalizado.slice(0, limite - 1).trimEnd()}…`;
 };
 
+const normalizeComparableText = (texto) => `${texto || ""}`
+  .replace(/\s+/g, " ")
+  .trim()
+  .toLowerCase();
+
 const isSelecionadoAtivo = (item) => item?.ativo !== false;
 
 const createManualSelecionadoDraft = () => ({
@@ -2360,7 +2365,12 @@ function AvaliacaoDetalhadaModal({
   const mapsUrl = getMapsUrl(item);
   const comparaveis = getComparaveisLinks(item);
   const historico = aiAnalise?.historico_chat || [];
-  const historicoExpandido = aiAnalise?.matricula_texto
+  const ultimaMensagem = historico.length ? historico[historico.length - 1] : null;
+  const matriculaJaRepresentada = Boolean(
+    ultimaMensagem
+    && normalizeComparableText(ultimaMensagem.content) === normalizeComparableText(aiAnalise?.matricula_texto)
+  );
+  const historicoExpandido = aiAnalise?.matricula_texto && !matriculaJaRepresentada
     ? [...historico, { role: "assistant", content: aiAnalise.matricula_texto, kind: "matricula" }]
     : historico;
   const descontoExibicao = calcularDescontoExibicao(item);
@@ -2620,9 +2630,6 @@ function AvaliacaoDetalhadaModal({
                       <SparklesIcon />
                       <span>{quantidadeMensagens} interações</span>
                     </span>
-                    <span className={`prospects-indicator-chip ${canChat ? "is-financeira" : "is-ia"}`}>
-                      <span>{canChat ? "Chat liberado" : "Somente leitura"}</span>
-                    </span>
                     {aiAnalise?.updated_at ? (
                       <span className="prospects-indicator-chip is-ia">
                         <span>Atualizado em {formatarDataHoraCompacta(aiAnalise.updated_at)}</span>
@@ -2689,7 +2696,6 @@ function AvaliacaoDetalhadaModal({
                   <section className="prospects-ai-section">
                     <div className="prospects-ai-section__header">
                       <span className="prospects-ai-section__label">Leitura principal da análise</span>
-                      <p>Tudo o que a IA respondeu fica concentrado aqui, incluindo a matrícula quando ela existir.</p>
                     </div>
                     <div className="prospects-ai-chat">
                       {historicoExpandido.length ? historicoExpandido.map((mensagem, index) => (
@@ -2706,7 +2712,6 @@ function AvaliacaoDetalhadaModal({
                   <section className="prospects-ai-summary">
                     <div className="prospects-ai-section__header">
                       <span className="prospects-ai-section__label">Síntese editável</span>
-                      <p>Condense aqui a decisão final, sem abrir uma segunda janela com o mesmo conteúdo.</p>
                     </div>
                     <label className="prospects-form-field">
                       <span>Síntese da análise</span>
