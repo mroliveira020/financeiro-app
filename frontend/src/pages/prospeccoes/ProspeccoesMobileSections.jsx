@@ -542,8 +542,12 @@ export function MobileCapturadosList({
         {dados.map((item) => {
           const jaSelecionado = selectedCodes.has(item.codigo);
           const avaliacao = item.avaliacaoAutomatica;
-          const investimentoTotalEstimado = getInvestimentoTotalEstimado(avaliacao);
-          const roiEstimadoDisponivel = toFiniteNumber(avaliacao?.retorno_pct);
+          const investimentoEstimadoAutomatico = getInvestimentoTotalEstimado(avaliacao);
+          const investimentoEstimadoManual = toFiniteNumber(item.capitalInvestidoEstimado);
+          const investimentoTotalEstimado = investimentoEstimadoManual ?? investimentoEstimadoAutomatico;
+          const roiEstimadoManual = toFiniteNumber(item.roiEsperadoPercentual);
+          const roiEstimadoAutomatico = toFiniteNumber(avaliacao?.retorno_pct);
+          const roiEstimadoDisponivel = roiEstimadoManual ?? roiEstimadoAutomatico;
           const resumoLeilao = getLeilaoResumo(item);
           const mapsUrl = getMapsUrl(item);
           const comparaveis = getComparaveisLinks(item);
@@ -606,17 +610,19 @@ export function MobileCapturadosList({
                 ) : null}
               </div>
 
-              {avaliacao ? (
+              {(avaliacao || item.analiseSalva) ? (
                 <div className="prospects-mobile-item-card__auto">
-                  <span className={`prospects-auto-badge ${roiEstimadoDisponivel === null ? "is-neutral" : getRoiClasse(avaliacao.retorno_pct)}`}>
-                    ROI: {roiEstimadoDisponivel === null ? "A definir" : formatarPercentual(avaliacao.retorno_pct)}
+                  <span className={`prospects-auto-badge ${roiEstimadoDisponivel === null ? "is-neutral" : getRoiClasse(roiEstimadoDisponivel)}`}>
+                    ROI: {roiEstimadoDisponivel === null ? "A definir" : formatarPercentual(roiEstimadoDisponivel)}
                   </span>
                   <span className={`prospects-auto-badge ${investimentoTotalEstimado === null ? "is-neutral" : ""}`.trim()}>
                     Invest. est.: {investimentoTotalEstimado === null ? "A definir" : formatarMoeda(investimentoTotalEstimado)}
                   </span>
-                  <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
-                    Score: {avaliacao.score_total ?? "—"}/85
-                  </span>
+                  {avaliacao ? (
+                    <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
+                      Score: {avaliacao.score_total ?? "—"}/85
+                    </span>
+                  ) : null}
                 </div>
               ) : null}
 

@@ -19,7 +19,6 @@ import { invalidateCatalogo } from "../hooks/useCatalogos";
 import ModalEditarImovel from "../components/dadosCadastrais/ModalEditarImovel";
 
 const GastosMensaisChart = lazy(() => import("../components/GastosMensaisChart"));
-const ImovelGrupoPieChart = lazy(() => import("../components/ImovelGrupoPieChart"));
 const GastosMensaisDetalhesModal = lazy(() => import("../components/GastosMensaisDetalhesModal"));
 
 const GRAFICO_PREF_KEY = "financeiro:gastos-pref";
@@ -80,6 +79,21 @@ const formatarPercentual = (valorFracionario) =>
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}%`;
+
+const getRoiCardState = (roiProjetado, investimentoTotal) => {
+  const roiValido = Number.isFinite(roiProjetado);
+  const incalculavel = !roiValido || investimentoTotal <= 0 || roiProjetado <= -1;
+  if (incalculavel) {
+    return { texto: "A definir", className: "property-card__metric-value--neutral" };
+  }
+  if (roiProjetado > 0) {
+    return { texto: formatarPercentual(roiProjetado), className: "property-card__metric-value--positive" };
+  }
+  if (roiProjetado < 0) {
+    return { texto: formatarPercentual(roiProjetado), className: "property-card__metric-value--negative" };
+  }
+  return { texto: formatarPercentual(roiProjetado), className: "" };
+};
 
 const formatarMesExtenso = (mesISO) => {
   if (!mesISO) return "";
@@ -975,52 +989,25 @@ function Home() {
               toNumber(imovel.totalInvestido),
             );
             const valorAInvestirCard = toNumber(imovel.valorAInvestir);
-            const ativoEsperadoCard = toNumber(
-              imovel.ativoEsperado,
-              valorEfetivadoCard + valorAInvestirCard + toNumber(imovel.lucroProjetado),
-            );
             const roiProjetadoCard = toNumber(imovel.roiProjetado);
             const periodo = formatarPeriodo(imovel.periodoInicio, imovel.periodoFim);
-            const metrics = [
-              {
-                label: "Valor a investir",
-                value: formatarMoeda(valorAInvestirCard),
-                valueClass:
-                  valorAInvestirCard > 0
-                    ? "property-card__metrics-value--pending"
-                    : valorAInvestirCard < 0
-                      ? "property-card__metrics-value--negative"
-                      : "",
-              },
-              {
-                label: "Ativo esperado",
-                value: formatarMoeda(ativoEsperadoCard),
-                valueClass: "property-card__metrics-value--accent",
-              },
-              {
-                label: "ROI esperado",
-                value: formatarPercentual(roiProjetadoCard),
-                valueClass:
-                  roiProjetadoCard > 0
-                    ? "property-card__metrics-value--positive"
-                    : roiProjetadoCard < 0
-                      ? "property-card__metrics-value--negative"
-                      : "",
-              },
-            ];
+            const roiCard = getRoiCardState(roiProjetadoCard, valorEfetivadoCard);
             return (
               <div key={imovel.id} className="col-12 col-md-6 col-lg-4 d-flex">
                 <div className="card border-0 shadow-sm w-100 property-card">
                   <div className="property-card__header">
-                    <div className="d-flex align-items-center text-body">
-                      <img
-                        src="/img/dashboard.png"
-                        alt="Dashboard"
-                        className="property-card__icon"
-                      />
-                      <Link to={`/dashboard/${imovel.id}`} className="property-card__title text-decoration-none">
-                        {imovel.nome}
-                      </Link>
+                    <div className="property-card__header-main">
+                      <div className="d-flex align-items-center text-body">
+                        <img
+                          src="/img/dashboard.png"
+                          alt="Dashboard"
+                          className="property-card__icon"
+                        />
+                        <Link to={`/dashboard/${imovel.id}`} className="property-card__title text-decoration-none">
+                          {imovel.nome}
+                        </Link>
+                      </div>
+                      <p className="property-card__periodo">{periodo || "Sem período disponível"}</p>
                     </div>
                     <span
                       className={`property-card__status ${imovel.vendido ? "property-card__status--sold" : "property-card__status--available"}`}
@@ -1030,34 +1017,30 @@ function Home() {
                   </div>
 
                   <div className="property-card__body">
-                    <div className="property-card__summary">
-                      <div className="property-card__summary-info">
-                        <p
-                          className={`property-card__amount ${valorEfetivadoCard >= 0 ? "property-card__amount--positive" : "property-card__amount--negative"}`}
+                    <div className="property-card__headline-metric">
+                      <span className="property-card__headline-label">Capital investido</span>
+                      <strong
+                        className={`property-card__headline-value ${valorEfetivadoCard >= 0 ? "property-card__headline-value--positive" : "property-card__headline-value--negative"}`}
+                      >
+                        {formatarMoeda(valorEfetivadoCard)}
+                      </strong>
+                    </div>
+
+                    <div className="property-card__metrics">
+                      <article className="property-card__metric">
+                        <span className="property-card__metric-label">Saldo a investir</span>
+                        <strong
+                          className={`property-card__metric-value ${valorAInvestirCard > 0 ? "property-card__metric-value--pending" : valorAInvestirCard < 0 ? "property-card__metric-value--negative" : ""}`.trim()}
                         >
-                          {formatarMoeda(valorEfetivadoCard)}
-                        </p>
-                        <p className="property-card__label">Valor efetivado</p>
-                        <p className="property-card__periodo">{periodo || "Sem período disponível"}</p>
-                        <div className="property-card__metrics">
-                          {metrics.map(({ label, value, valueClass }) => {
-                            const metricValueClass = valueClass
-                              ? `property-card__metrics-value ${valueClass}`
-                              : "property-card__metrics-value";
-                            return (
-                              <div key={label} className="property-card__metrics-item">
-                                <span className="property-card__metrics-label">{label}</span>
-                                <span className={metricValueClass}>{value}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      <div className="property-card__summary-aside">
-                        <Suspense fallback={<div className="text-center text-muted py-3 small">Carregando gráfico...</div>}>
-                          <ImovelGrupoPieChart grupos={imovel.grupos} />
-                        </Suspense>
-                      </div>
+                          {formatarMoeda(valorAInvestirCard)}
+                        </strong>
+                      </article>
+                      <article className="property-card__metric">
+                        <span className="property-card__metric-label">ROI projetado</span>
+                        <strong className={`property-card__metric-value ${roiCard.className}`.trim()}>
+                          {roiCard.texto}
+                        </strong>
+                      </article>
                     </div>
 
                     <div className="property-card__footer">

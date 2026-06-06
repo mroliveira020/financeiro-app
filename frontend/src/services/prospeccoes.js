@@ -126,6 +126,9 @@ export async function fetchCapturados({
       desconto: row.desconto,
       analiseSalva: Boolean(row.analise_salva),
       analiseIaSalva: Boolean(row.analise_ia_salva),
+      roiEsperadoPercentual: row.roi_esperado_percentual,
+      lucroEsperadoValor: row.lucro_esperado_valor,
+      capitalInvestidoEstimado: row.capital_investido_estimado,
       avaliacaoAutomatica: row.avaliacao || null,
     };
   });

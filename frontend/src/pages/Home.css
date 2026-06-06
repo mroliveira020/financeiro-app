@@ -19,6 +19,12 @@
   justify-content: space-between;
 }
 
+.property-card__header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
 
 .property-card__body {
   padding: 16px;
@@ -73,41 +79,39 @@
   color: #b02a37;
 }
 
-.property-card__summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
-  gap: 16px;
-  align-items: stretch;
-}
-
-.property-card__summary-info {
+.property-card__headline-metric {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%);
+  border: 1px solid #d7e4fb;
 }
 
-.property-card__amount {
-  font-size: 0.95rem;
+.property-card__headline-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #60708d;
   font-weight: 700;
-  margin-bottom: 4px;
-  color: #1f2933;
 }
 
-.property-card__amount--negative {
+.property-card__headline-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: #1f2f4a;
+}
+
+.property-card__headline-value--negative {
   color: #c53939;
 }
 
-.property-card__amount--positive {
+.property-card__headline-value--positive {
   color: #146c43;
-}
-
-.property-card__label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #6c757d;
-  margin-bottom: 4px;
 }
 
 .property-card__periodo {
@@ -118,61 +122,50 @@
 
 .property-card__metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px 12px;
-  margin-top: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.property-card__metrics-item {
+.property-card__metric {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #e5edf8;
+  background: #fbfdff;
 }
 
-.property-card__metrics-label {
-  font-size: 0.7rem;
+.property-card__metric-label {
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #9aa0ab;
+  letter-spacing: 0.06em;
+  color: #60708d;
+  font-weight: 700;
 }
 
-.property-card__metrics-value {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #1f2933;
-  line-height: 1.25;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: initial;
-  word-break: break-word;
+.property-card__metric-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1f2f4a;
+  line-height: 1.2;
 }
 
-.property-card__metrics-value--accent {
-  color: #0d6efd;
-}
-
-.property-card__metrics-value--pending {
+.property-card__metric-value--pending {
   color: #b26a00;
 }
 
-.property-card__metrics-value--positive {
+.property-card__metric-value--positive {
   color: #146c43;
 }
 
-.property-card__metrics-value--negative {
+.property-card__metric-value--negative {
   color: #c53939;
 }
 
-.property-card__summary-aside {
-  min-height: 160px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.property-card__summary-aside > * {
-  width: 100%;
+.property-card__metric-value--neutral {
+  color: #6b7280;
 }
 
 .property-card__actions {
@@ -228,47 +221,9 @@
     gap: 8px;
   }
 
-  .property-card__amount {
-    font-size: 0.9rem;
-  }
-
-  .property-card__summary {
-    grid-template-columns: 1fr;
-  }
-
-  .property-card__summary-aside {
-    width: 100%;
-    min-height: 200px;
-  }
-
-  .property-card__metrics {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  }
-}
-
-@media (max-width: 575px) {
   .property-card__metrics {
     grid-template-columns: 1fr;
   }
-}
-
-.mini-pie-chart__wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-
-.mini-pie-chart__canvas {
-  width: 100%;
-  max-width: 180px;
-  min-height: 120px;
-}
-
-.mini-pie-chart__empty {
-  font-size: 0.75rem;
-  margin: 0;
-  text-align: center;
 }
 
 .gastos-detalhes-modal .modal-title {
