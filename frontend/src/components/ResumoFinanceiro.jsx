@@ -161,15 +161,32 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
 
   const kpis = useMemo(
     () => [
-      { titulo: usandoMinhaParticipacao ? "Meu investimento" : "Investimento total", valor: formatarMoeda(scaleMoney(investimentoTotal || 0)) },
-      { titulo: usandoMinhaParticipacao ? "Meu saldo a investir" : "Saldo a investir", valor: formatarMoeda(scaleMoney(totaisPrimeira.saldo_a_investir_total || 0)) },
-      { titulo: usandoMinhaParticipacao ? "Meu resultado líquido" : "Resultado líquido", valor: formatarMoeda(scaleMoney(resultadoLiquido || 0)) },
+      {
+        titulo: usandoMinhaParticipacao ? "Meu investimento" : "Investimento total",
+        valor: formatarMoeda(scaleMoney(investimentoTotal || 0)),
+        destaque: "base",
+        apoio: usandoMinhaParticipacao ? "Capital proporcional da sua participação" : "Capital comprometido no imóvel",
+      },
+      {
+        titulo: usandoMinhaParticipacao ? "Meu saldo a investir" : "Saldo a investir",
+        valor: formatarMoeda(scaleMoney(totaisPrimeira.saldo_a_investir_total || 0)),
+        destaque: "warn",
+        apoio: "Valor ainda necessário para concluir a operação",
+      },
+      {
+        titulo: usandoMinhaParticipacao ? "Meu resultado líquido" : "Resultado líquido",
+        valor: formatarMoeda(scaleMoney(resultadoLiquido || 0)),
+        destaque: "strong",
+        apoio: "Projeção após custo do imóvel, corretor e imposto",
+      },
       {
         titulo: "ROI projetado",
         valor: `${(roi * 100).toLocaleString("pt-BR", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })}%`,
+        destaque: "strong",
+        apoio: "Retorno estimado sobre o capital investido",
       },
     ],
     [investimentoTotal, totaisPrimeira.saldo_a_investir_total, resultadoLiquido, roi, scaleMoney, usandoMinhaParticipacao]
@@ -491,11 +508,12 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
           </div>
         </header>
 
-        <div className="resumo-card__metrics">
+        <div className="resumo-card__metrics" aria-label="KPIs principais do resumo financeiro">
           {kpis.map((kpi) => (
-            <div key={kpi.titulo} className="resumo-card__metric">
+            <div key={kpi.titulo} className={`resumo-card__metric resumo-card__metric--${kpi.destaque || "base"}`.trim()}>
               <span>{kpi.titulo}</span>
               <strong>{kpi.valor}</strong>
+              {kpi.apoio ? <small>{kpi.apoio}</small> : null}
             </div>
           ))}
         </div>
