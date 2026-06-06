@@ -180,6 +180,7 @@ export function AvaliacaoAutomaticaModal({
 export function AvaliacaoDetalhadaModal({
   item,
   tab,
+  origem,
   aiAnalise,
   analiseDetalhada,
   analiseDetalhadaLoading,
@@ -202,7 +203,10 @@ export function AvaliacaoDetalhadaModal({
   onSalvarSintese,
   onSolicitarMatricula,
   onSolicitarEnriquecimento,
+  onSelecionarNoFunil,
   onAbrirAnalise,
+  selecionandoNoFunil,
+  jaSelecionadoNoFunil,
   canChat,
   getLeilaoResumo,
   getLeiloesInfo,
@@ -261,6 +265,7 @@ export function AvaliacaoDetalhadaModal({
   const enriquecimentoDisponivel = Boolean(avaliacaoAuto);
   const matriculaDisponivel = Boolean(`${aiAnalise?.matricula_texto || ""}`.trim());
   const viabilidadeDisponivel = Boolean(analiseDetalhada?.calculos);
+  const podeSelecionarNoHub = origem === "capturados";
   const investimentoEstimadoEnriquecimento = avaliacaoAuto
     ? (avaliacaoAuto.custo_aquisicao_est || 0)
       + (avaliacaoAuto.custo_reforma_est || 0)
@@ -383,6 +388,22 @@ export function AvaliacaoDetalhadaModal({
                     </a>
                   ) : null}
                 </div>
+                {podeSelecionarNoHub ? (
+                  <div className="prospects-auto-hero__cta">
+                    <div className="prospects-auto-hero__cta-copy">
+                      <span className="prospects-ai-section__label">Decisão</span>
+                      <p>Leve este imóvel para a fila só depois de revisar os dados que já existem no hub.</p>
+                    </div>
+                    <button
+                      type="button"
+                      className={`prospects-btn ${jaSelecionadoNoFunil ? "secondary" : "primary"} prospects-btn--subtle`}
+                      onClick={onSelecionarNoFunil}
+                      disabled={selecionandoNoFunil || jaSelecionadoNoFunil}
+                    >
+                      {selecionandoNoFunil ? "Selecionando..." : jaSelecionadoNoFunil ? "Já na fila" : "Selecionar"}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>

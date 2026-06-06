@@ -1343,7 +1343,7 @@ export default function Prospeccoes() {
     setPage(1);
   };
 
-  const handleIncluir = async (item) => {
+  const handleIncluir = async (item, { openAnalise = true } = {}) => {
     setMensagem("");
     setIncludeLoadingIds((prev) => {
       const next = new Set(prev);
@@ -1362,12 +1362,14 @@ export default function Prospeccoes() {
       const sel = await refreshSelecionados();
       setSelecionados(sel || []);
       const itemSelecionado = (sel || []).find((candidate) => candidate.codigo === item.codigo);
-      if (itemSelecionado) {
+      if (openAnalise && itemSelecionado) {
         openAnaliseModal(itemSelecionado);
       }
+      return { ok: true, itemSelecionado };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erro ao incluir";
       setMensagem(message);
+      return { ok: false, error: message };
     } finally {
       setIncludeLoadingIds((prev) => {
         const next = new Set(prev);
@@ -1858,6 +1860,22 @@ export default function Prospeccoes() {
     setAiSinteseDraft("");
     setAvaliacaoDetalhadaStatusState();
     aiDeferredActionRef.current = null;
+  };
+
+  const handleSelecionarNoHub = async () => {
+    if (!avaliacaoDetalhadaItem) return;
+    const result = await handleIncluir(avaliacaoDetalhadaItem, { openAnalise: false });
+    if (result?.ok) {
+      setAvaliacaoDetalhadaStatusState({
+        message: `Imóvel ${avaliacaoDetalhadaItem.codigo} incluído na fila de prospecção.`,
+        tone: "success",
+      });
+    } else if (result?.error) {
+      setAvaliacaoDetalhadaStatusState({
+        message: result.error,
+        tone: "error",
+      });
+    }
   };
 
   const handleEnviarMensagemAi = async () => {
@@ -3053,6 +3071,7 @@ export default function Prospeccoes() {
       <AvaliacaoDetalhadaModal
         item={avaliacaoDetalhadaItem}
         tab={avaliacaoDetalhadaTab}
+        origem={avaliacaoDetalhadaOrigem}
         aiAnalise={aiAnalise}
         analiseDetalhada={analiseDetalhada}
         analiseDetalhadaLoading={analiseDetalhadaLoading}
@@ -3075,7 +3094,10 @@ export default function Prospeccoes() {
         onSalvarSintese={handleSalvarAiSintese}
         onSolicitarMatricula={handleSolicitarMatricula}
         onSolicitarEnriquecimento={handleSolicitarEnriquecimento}
+        onSelecionarNoFunil={handleSelecionarNoHub}
         onAbrirAnalise={openAnaliseModal}
+        selecionandoNoFunil={Boolean(avaliacaoDetalhadaItem && includeLoadingIds.has(avaliacaoDetalhadaItem.codigo))}
+        jaSelecionadoNoFunil={Boolean(avaliacaoDetalhadaItem && selectedCodes.has(avaliacaoDetalhadaItem.codigo))}
         canChat={Boolean(user?.ai_access || user?.role === "admin")}
         getLeilaoResumo={getLeilaoResumo}
         getLeiloesInfo={getLeiloesInfo}

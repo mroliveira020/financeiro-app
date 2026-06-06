@@ -23,6 +23,11 @@ const getInvestimentoTotalEstimado = (avaliacao) => {
   return valores.reduce((total, value) => total + value, 0);
 };
 
+const isNestedInteractiveTarget = (target) => {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest("a, button, input, textarea, select, label"));
+};
+
 export function MobileSelecionadosList({
   dados,
   loading,
@@ -314,8 +319,6 @@ export function MobileCapturadosList({
   loading,
   erro,
   onBack,
-  onIncluir,
-  includeLoadingIds,
   selectedCodes,
   filtroFonteCap,
   setFiltroFonteCap,
@@ -540,6 +543,7 @@ export function MobileCapturadosList({
         {dados.map((item) => {
           const jaSelecionado = selectedCodes.has(item.codigo);
           const avaliacao = item.avaliacaoAutomatica;
+          const enriquecimentoDisponivel = Boolean(avaliacao);
           const investimentoEstimadoAutomatico = getInvestimentoTotalEstimado(avaliacao);
           const investimentoEstimadoManual = toFiniteNumber(item.capitalInvestidoEstimado);
           const investimentoTotalEstimado = investimentoEstimadoManual ?? investimentoEstimadoAutomatico;
@@ -552,10 +556,24 @@ export function MobileCapturadosList({
           const editalUrl = extrairEditalUrl(item.descricao);
           const fonteLabel = getFonteLabel(item.fonte);
           const processoNumero = extrairProcessoNumero(item.descricao);
+          const openHubDados = () => onAbrirAvaliacaoDetalhada(item, "dados", "capturados");
           return (
             <article
               key={item.codigo}
               className="prospects-mobile-item-card"
+              role="button"
+              tabIndex={0}
+              aria-label={`Abrir detalhes do imóvel ${item.codigo}`}
+              onClick={(event) => {
+                if (isNestedInteractiveTarget(event.target)) return;
+                openHubDados();
+              }}
+              onKeyDown={(event) => {
+                if (isNestedInteractiveTarget(event.target)) return;
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                openHubDados();
+              }}
             >
               <div className="prospects-mobile-item-card__media">
                 <ProspectGallery item={item} className="prospects-mobile-item-card__photo" compact />
@@ -675,17 +693,17 @@ export function MobileCapturadosList({
               <div className="prospects-mobile-item-card__actions">
                 <button
                   type="button"
-                  className="prospects-btn secondary prospects-btn--mobile-action prospects-btn--card-action prospects-btn--card-details"
-                  onClick={() => onAbrirAvaliacaoDetalhada(item, "dados", "capturados")}
+                  className={`prospects-btn ghost prospects-btn--mobile-action prospects-btn--card-action ${enriquecimentoDisponivel ? "is-active" : ""}`.trim()}
+                  onClick={() => onAbrirAvaliacaoDetalhada(item, "enriquecimento", "capturados")}
                 >
-                  <span>Detalhes</span>
+                  <span>{enriquecimentoDisponivel ? "Enriquecido" : "Enriquecimento"}</span>
                 </button>
                 <button
                   type="button"
                   className={`prospects-btn ghost prospects-btn--mobile-action prospects-btn--card-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
                   onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
                 >
-                  <span>{item.analiseIaSalva ? "IA salva" : "Avaliação IA"}</span>
+                  <span>{item.analiseIaSalva ? "IA salva" : "IA"}</span>
                 </button>
                 <button
                   type="button"
@@ -696,11 +714,10 @@ export function MobileCapturadosList({
                 </button>
                 <button
                   type="button"
-                  className={`prospects-btn ${jaSelecionado ? "secondary" : "primary"} prospects-btn--mobile-action prospects-btn--card-action prospects-btn--card-select`}
-                  onClick={() => onIncluir(item)}
-                  disabled={includeLoadingIds.has(item.codigo)}
+                  className="prospects-btn ghost prospects-btn--mobile-action prospects-btn--card-action"
+                  onClick={() => onAbrirAvaliacaoDetalhada(item, "matricula", "capturados")}
                 >
-                  <span>{includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Reenviar ao funil" : "Selecionar"}</span>
+                  <span>Matrícula</span>
                 </button>
               </div>
             </article>

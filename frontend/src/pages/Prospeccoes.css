@@ -965,6 +965,12 @@
   box-shadow: 0 24px 40px rgba(15, 23, 42, 0.1);
 }
 
+.prospects-capture-card:focus-visible,
+.prospects-mobile-item-card:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+}
+
 .prospects-capture-card__media {
   position: relative;
 }
@@ -1994,6 +2000,31 @@
   font-size: 12px;
   color: #60708d;
   line-height: 1.4;
+}
+
+.prospects-auto-hero__cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 1px solid #dbe5f3;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.prospects-auto-hero__cta-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.prospects-auto-hero__cta-copy p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #60708d;
 }
 
 .prospects-ai-panel {

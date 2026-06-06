@@ -31,6 +31,11 @@ const getInvestimentoTotalEstimado = (avaliacao) => {
   return valores.reduce((total, value) => total + value, 0);
 };
 
+const isNestedInteractiveTarget = (target) => {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest("a, button, input, textarea, select, label"));
+};
+
 export function TabelaSelecionados({
   dados,
   loading,
@@ -381,8 +386,6 @@ export function TabelaCapturados({
   pageSize,
   loading,
   erro,
-  onIncluir,
-  includeLoadingIds,
   onPageChange,
   sortBy,
   sortDir,
@@ -464,6 +467,7 @@ export function TabelaCapturados({
           const resumoLeilao = getLeilaoResumo(item);
           const descontoExibicao = calcularDescontoExibicao(item);
           const avaliacao = item.avaliacaoAutomatica;
+          const enriquecimentoDisponivel = Boolean(avaliacao);
           const investimentoEstimadoAutomatico = getInvestimentoTotalEstimado(avaliacao);
           const investimentoEstimadoManual = toFiniteNumber(item.capitalInvestidoEstimado);
           const investimentoTotalEstimado = investimentoEstimadoManual ?? investimentoEstimadoAutomatico;
@@ -480,8 +484,25 @@ export function TabelaCapturados({
             situacaoNormalizada
             && !["disponivel", "disponível"].includes(situacaoNormalizada)
           );
+          const openHubDados = () => onAbrirAvaliacaoDetalhada(item, "dados", "capturados");
           return (
-            <article key={item.codigo} className="prospects-capture-card">
+            <article
+              key={item.codigo}
+              className="prospects-capture-card"
+              role="button"
+              tabIndex={0}
+              aria-label={`Abrir detalhes do imóvel ${item.codigo}`}
+              onClick={(event) => {
+                if (isNestedInteractiveTarget(event.target)) return;
+                openHubDados();
+              }}
+              onKeyDown={(event) => {
+                if (isNestedInteractiveTarget(event.target)) return;
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                openHubDados();
+              }}
+            >
               <div className="prospects-capture-card__media">
                 <ProspectGallery item={item} className="prospects-capture-card__photo" />
                 <div className="prospects-capture-card__badges">
@@ -592,17 +613,17 @@ export function TabelaCapturados({
                 <div className="prospects-capture-card__actions">
                   <button
                     type="button"
-                    className="prospects-btn secondary prospects-btn--subtle prospects-btn--card-action prospects-btn--card-details"
-                    onClick={() => onAbrirAvaliacaoDetalhada(item, "dados", "capturados")}
+                    className={`prospects-btn ghost prospects-btn--subtle prospects-btn--card-action ${enriquecimentoDisponivel ? "is-active" : ""}`.trim()}
+                    onClick={() => onAbrirAvaliacaoDetalhada(item, "enriquecimento", "capturados")}
                   >
-                    Detalhes
+                    {enriquecimentoDisponivel ? "Enriquecido" : "Enriquecimento"}
                   </button>
                   <button
                     type="button"
                     className={`prospects-btn ghost prospects-btn--subtle prospects-btn--card-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
                     onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}
                   >
-                    {item.analiseIaSalva ? "IA salva" : "Avaliação IA"}
+                    {item.analiseIaSalva ? "IA salva" : "IA"}
                   </button>
                   <button
                     type="button"
@@ -613,11 +634,10 @@ export function TabelaCapturados({
                   </button>
                   <button
                     type="button"
-                    className={`prospects-btn ${jaSelecionado ? "secondary" : "primary"} prospects-btn--subtle prospects-btn--card-action prospects-btn--card-select`}
-                    disabled={includeLoadingIds.has(item.codigo)}
-                    onClick={() => onIncluir(item)}
+                    className="prospects-btn ghost prospects-btn--subtle prospects-btn--card-action"
+                    onClick={() => onAbrirAvaliacaoDetalhada(item, "matricula", "capturados")}
                   >
-                    {includeLoadingIds.has(item.codigo) ? "Incluindo..." : jaSelecionado ? "Reenviar ao funil" : "Selecionar"}
+                    Matrícula
                   </button>
                 </div>
               </div>
