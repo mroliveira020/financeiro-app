@@ -556,6 +556,43 @@ def _post_matricula_prospeccao(numero_bem, origem):
     return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
 
 
+def _post_enriquecimento_prospeccao(numero_bem, origem):
+    current_user = get_current_user() or {}
+    contexto = _buscar_contexto_ai_prospeccao(numero_bem, origem)
+    if not contexto:
+        return jsonify({"error": _resposta_erro_origem_ai(origem)}), 404
+    if not _usuario_pode_ver_ai_prospeccao(contexto, current_user, origem):
+        return jsonify({"error": "Você não tem permissão para solicitar enriquecimento deste imóvel."}), 403
+    if not _usuario_tem_ai_access(current_user):
+        return jsonify({"error": "Seu usuário não possui acesso ao enriquecimento automático."}), 403
+
+    job = criar_job_ai_prospeccao(
+        numero_bem,
+        "enriquecimento",
+        {
+            "requested_by": {
+                "id": current_user.get("id"),
+                "name": current_user.get("name") or current_user.get("email"),
+                "role": current_user.get("role"),
+            },
+            "origem": origem,
+        },
+    )
+    sinalizado = _sinalizar_mac_mini()
+    app.logger.info(
+        "ai_enriquecimento_job_requested",
+        extra={
+            "numero_bem": numero_bem,
+            "origem": origem,
+            "job_id": job["job_id"],
+            "job_status": job["status"],
+            "requested_by": current_user.get("id"),
+            "signal_sent": sinalizado,
+        },
+    )
+    return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
+
+
 @app.route("/prospeccoes/selecionados", methods=["POST"])
 @requires_prospeccao_write
 @limiter.limit(RATE_LIMIT_EDIT)
@@ -769,6 +806,13 @@ def post_prospeccao_selecionado_matricula(numero_bem):
     return _post_matricula_prospeccao(numero_bem, "selecionados")
 
 
+@app.route("/prospeccoes/selecionados/<numero_bem>/enriquecimento", methods=["POST"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def post_prospeccao_selecionado_enriquecimento(numero_bem):
+    return _post_enriquecimento_prospeccao(numero_bem, "selecionados")
+
+
 @app.route("/prospeccoes/capturados/<numero_bem>/ai-analise", methods=["GET"])
 @requires_auth
 def get_prospeccao_capturado_ai_analise(numero_bem):
@@ -800,6 +844,13 @@ def get_prospeccao_capturado_ai_analise_job(numero_bem, job_id):
 @limiter.limit(RATE_LIMIT_EDIT)
 def post_prospeccao_capturado_matricula(numero_bem):
     return _post_matricula_prospeccao(numero_bem, "capturados")
+
+
+@app.route("/prospeccoes/capturados/<numero_bem>/enriquecimento", methods=["POST"])
+@requires_auth
+@limiter.limit(RATE_LIMIT_EDIT)
+def post_prospeccao_capturado_enriquecimento(numero_bem):
+    return _post_enriquecimento_prospeccao(numero_bem, "capturados")
 
 
 @app.route("/prospeccoes/selecionados/<numero_bem>/responsaveis", methods=["PUT"])

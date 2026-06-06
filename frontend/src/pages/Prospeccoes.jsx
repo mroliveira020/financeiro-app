@@ -18,6 +18,7 @@ import {
   salvarAiAnalise,
   enviarMensagemAiChat,
   solicitarMatricula,
+  solicitarEnriquecimento,
   pollAiJob,
 } from "../services/prospeccoes";
 import { fetchImoveisFinanceiroAcessiveis } from "../services/api";
@@ -54,7 +55,11 @@ const getAiJobStatusTone = (status) => {
 const isAiJobExpiredByInactivity = (erro = "") => `${erro}`.toLowerCase().includes("expirado por inatividade");
 
 const buildAiJobStatusState = (job, { fallbackPrefix = "IA", retryAction = null } = {}) => {
-  const prefix = job?.tipo === "matricula" ? "Matrícula" : fallbackPrefix;
+  const prefix = job?.tipo === "matricula"
+    ? "Matrícula"
+    : job?.tipo === "enriquecimento"
+      ? "Enriquecimento"
+      : fallbackPrefix;
   const status = job?.status;
   const erro = (job?.erro || "").trim();
 
@@ -1064,7 +1069,7 @@ function TabelaSelecionados({
               const podeOperar = itemAtivo && canOperateItem(item);
               const podeExcluir = itemAtivo && canDeleteItem(item);
               const podeReativar = !itemAtivo && canReactivateItem(item);
-              const podeGerenciarResponsaveis = itemAtivo && canManageResponsaveis(item);
+              const podeGerenciarResponsaveis = itemAtivo && canManageResponsaveis;
               const actionMenuAberto = openActionMenuCodigo === item.codigo;
               const responsaveisResumo = (() => {
                 const pessoas = [];
@@ -2275,6 +2280,7 @@ function AvaliacaoDetalhadaModal({
   sending,
   saving,
   matriculaLoading,
+  enriquecimentoLoading,
   sinteseDraft,
   onSinteseDraftChange,
   mensagemDraft,
@@ -2285,6 +2291,7 @@ function AvaliacaoDetalhadaModal({
   onGerarAnaliseInicial,
   onSalvarSintese,
   onSolicitarMatricula,
+  onSolicitarEnriquecimento,
   onAbrirAnalise,
   canChat,
 }) {
@@ -2568,17 +2575,25 @@ function AvaliacaoDetalhadaModal({
                       type="button"
                       className="prospects-btn primary prospects-btn--subtle"
                       onClick={onGerarAnaliseInicial}
-                      disabled={loading || sending || matriculaLoading}
+                      disabled={loading || sending || matriculaLoading || enriquecimentoLoading}
                     >
                       {loading || sending ? "Processando IA..." : getAnaliseIaActionLabel(item)}
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    className={`prospects-btn secondary prospects-btn--subtle ${avaliacaoAuto ? "is-active" : ""}`.trim()}
+                    onClick={onSolicitarEnriquecimento}
+                    disabled={!canChat || loading || sending || matriculaLoading || enriquecimentoLoading}
+                  >
+                    {enriquecimentoLoading ? "Processando enriquecimento..." : avaliacaoAuto ? "Reenriquecer" : "Enriquecer"}
+                  </button>
                   {podeAnalisarMatricula(item) ? (
                     <button
                       type="button"
                       className="prospects-btn secondary prospects-btn--subtle"
                       onClick={onSolicitarMatricula}
-                      disabled={!canChat || loading || sending || matriculaLoading}
+                      disabled={!canChat || loading || sending || matriculaLoading || enriquecimentoLoading}
                     >
                       {matriculaLoading ? "Processando matrícula..." : "Analisar matrícula"}
                     </button>
@@ -3533,6 +3548,7 @@ export default function Prospeccoes() {
   const [aiSending, setAiSending] = useState(false);
   const [aiSaving, setAiSaving] = useState(false);
   const [matriculaLoading, setMatriculaLoading] = useState(false);
+  const [enriquecimentoLoading, setEnriquecimentoLoading] = useState(false);
   const aiAutoInitAttemptRef = useRef(new Set());
   const aiDeferredActionRef = useRef(null);
   const [aiMensagemDraft, setAiMensagemDraft] = useState("");
@@ -4303,6 +4319,7 @@ export default function Prospeccoes() {
     setAiSending(false);
     setAiSaving(false);
     setMatriculaLoading(false);
+    setEnriquecimentoLoading(false);
     setAiMensagemDraft("");
     setAiSinteseDraft("");
     setAvaliacaoDetalhadaStatusState();
@@ -4437,6 +4454,48 @@ export default function Prospeccoes() {
     }
   };
 
+  const handleSolicitarEnriquecimento = async () => {
+    if (!avaliacaoDetalhadaItem) return;
+    setEnriquecimentoLoading(true);
+    setAvaliacaoDetalhadaStatusState({ message: "Enriquecimento: aguardando processamento...", tone: "info" });
+    try {
+      const job = await solicitarEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+        timeoutMs: 180000,
+        origem: avaliacaoDetalhadaOrigem,
+        onProgress: (progressJob) => {
+          setAvaliacaoDetalhadaStatusState(
+            buildAiJobStatusState(progressJob, { fallbackPrefix: "Enriquecimento", retryAction: "enriquecimento" })
+          );
+        },
+      });
+      if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
+        throw new Error(finalJob?.erro || "Erro ao processar enriquecimento.");
+      }
+      const avaliacaoAtualizada = await fetchAvaliacaoAutomatica(avaliacaoDetalhadaItem.codigo);
+      setAvaliacaoDetalhadaItem((prev) => (prev ? { ...prev, avaliacaoAutomatica: avaliacaoAtualizada } : prev));
+      setCapturados((prev) => prev.map((item) => (
+        item.codigo === avaliacaoDetalhadaItem.codigo
+          ? { ...item, avaliacaoAutomatica: avaliacaoAtualizada }
+          : item
+      )));
+      setSelecionados((prev) => prev.map((item) => (
+        item.codigo === avaliacaoDetalhadaItem.codigo
+          ? { ...item, avaliacaoAutomatica: avaliacaoAtualizada }
+          : item
+      )));
+      setAvaliacaoDetalhadaStatusState({ message: "Enriquecimento: resultado disponível.", tone: "success" });
+    } catch (err) {
+      const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao solicitar enriquecimento");
+      setMensagem(message);
+      setAvaliacaoDetalhadaStatusState(
+        buildAiErrorStatusState(message, { fallbackPrefix: "Enriquecimento", retryAction: "enriquecimento" })
+      );
+    } finally {
+      setEnriquecimentoLoading(false);
+    }
+  };
+
   const handleStatusAction = () => {
     if (avaliacaoDetalhadaStatusActionKind === "analise_inicial") {
       handleGerarAnaliseInicialAi();
@@ -4444,6 +4503,10 @@ export default function Prospeccoes() {
     }
     if (avaliacaoDetalhadaStatusActionKind === "matricula") {
       handleSolicitarMatricula();
+      return;
+    }
+    if (avaliacaoDetalhadaStatusActionKind === "enriquecimento") {
+      handleSolicitarEnriquecimento();
     }
   };
 
@@ -4452,7 +4515,7 @@ export default function Prospeccoes() {
     return {
       label: "Tentar novamente",
       onClick: handleStatusAction,
-      disabled: aiLoading || aiSending || matriculaLoading,
+      disabled: aiLoading || aiSending || matriculaLoading || enriquecimentoLoading,
     };
   })();
 
@@ -4479,10 +4542,10 @@ export default function Prospeccoes() {
     if (!pendingAction || pendingAction.tipo !== "analise_inicial") return;
     if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "ia") return;
     if (pendingAction.numeroBem !== avaliacaoDetalhadaItem.codigo || pendingAction.origem !== avaliacaoDetalhadaOrigem) return;
-    if (aiLoading || aiSending || matriculaLoading) return;
+    if (aiLoading || aiSending || matriculaLoading || enriquecimentoLoading) return;
     aiDeferredActionRef.current = null;
     handleGerarAnaliseInicialAi();
-  }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaOrigem, avaliacaoDetalhadaTab, aiLoading, aiSending, matriculaLoading, handleGerarAnaliseInicialAi]);
+  }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaOrigem, avaliacaoDetalhadaTab, aiLoading, aiSending, matriculaLoading, enriquecimentoLoading, handleGerarAnaliseInicialAi]);
 
   const openResponsaveisModal = (item) => {
     setResponsaveisItem(item);
@@ -5368,6 +5431,7 @@ export default function Prospeccoes() {
         sending={aiSending}
         saving={aiSaving}
         matriculaLoading={matriculaLoading}
+        enriquecimentoLoading={enriquecimentoLoading}
         sinteseDraft={aiSinteseDraft}
         onSinteseDraftChange={setAiSinteseDraft}
         mensagemDraft={aiMensagemDraft}
@@ -5378,6 +5442,7 @@ export default function Prospeccoes() {
         onGerarAnaliseInicial={handleGerarAnaliseInicialAi}
         onSalvarSintese={handleSalvarAiSintese}
         onSolicitarMatricula={handleSolicitarMatricula}
+        onSolicitarEnriquecimento={handleSolicitarEnriquecimento}
         onAbrirAnalise={openAnaliseModal}
         canChat={Boolean(user?.ai_access || user?.role === "admin")}
       />

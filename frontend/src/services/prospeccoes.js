@@ -290,6 +290,11 @@ export async function solicitarMatricula(numeroBem, origem = "selecionados") {
   return data;
 }
 
+export async function solicitarEnriquecimento(numeroBem, origem = "selecionados") {
+  const { data } = await api.post(`${getAiBasePath(origem, numeroBem)}/enriquecimento`);
+  return data;
+}
+
 export async function fetchAiJob(numeroBem, jobId, origem = "selecionados") {
   const { data } = await api.get(`${getAiBasePath(origem, numeroBem)}/ai-analise/job/${jobId}`);
   return data;
