@@ -388,9 +388,7 @@ export function TabelaCapturados({
   sortDir,
   onSortChange,
   selectedCodes,
-  onAbrirAvaliacao,
   onAbrirAvaliacaoDetalhada,
-  onAbrirAnalise,
   getLeilaoResumo,
   calcularDescontoExibicao,
   getMapsUrl,
@@ -543,7 +541,7 @@ export function TabelaCapturados({
                       ROI: {roiEstimadoDisponivel === null ? "A definir" : formatarPercentual(roiEstimadoDisponivel)}
                     </span>
                     <span className={`prospects-auto-badge ${investimentoTotalEstimado === null ? "is-neutral" : ""}`.trim()}>
-                      Invest. est.: {investimentoTotalEstimado === null ? "A definir" : formatarMoeda(investimentoTotalEstimado)}
+                      Investimento 12M: {investimentoTotalEstimado === null ? "A definir" : formatarMoeda(investimentoTotalEstimado)}
                     </span>
                     {avaliacao ? (
                       <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
@@ -592,15 +590,13 @@ export function TabelaCapturados({
                 </div>
 
                 <div className="prospects-capture-card__actions">
-                  {avaliacao ? (
-                    <button
-                      type="button"
-                      className="prospects-btn ghost prospects-btn--subtle"
-                      onClick={() => onAbrirAvaliacao(item)}
-                    >
-                      Pré-análise
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className="prospects-btn ghost prospects-btn--subtle"
+                    onClick={() => onAbrirAvaliacaoDetalhada(item, "dados", "capturados")}
+                  >
+                    Detalhes
+                  </button>
                   <button
                     type="button"
                     className={`prospects-btn ghost prospects-btn--subtle ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
@@ -611,7 +607,7 @@ export function TabelaCapturados({
                   <button
                     type="button"
                     className={`prospects-btn ghost prospects-btn--subtle ${item.analiseSalva ? "is-active" : ""}`.trim()}
-                    onClick={() => onAbrirAnalise(item, "capturados")}
+                    onClick={() => onAbrirAvaliacaoDetalhada(item, "viabilidade", "capturados")}
                   >
                     {item.analiseSalva ? "Viabilidade salva" : "Viabilidade"}
                   </button>

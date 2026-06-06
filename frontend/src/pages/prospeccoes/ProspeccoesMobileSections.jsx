@@ -335,9 +335,7 @@ export function MobileCapturadosList({
   setPageSize,
   onPageChange,
   onResetFilters,
-  onAbrirAvaliacao,
   onAbrirAvaliacaoDetalhada,
-  onAbrirAnalise,
   sourceOptions,
   getLeilaoResumo,
   getMapsUrl,
@@ -616,7 +614,7 @@ export function MobileCapturadosList({
                     ROI: {roiEstimadoDisponivel === null ? "A definir" : formatarPercentual(roiEstimadoDisponivel)}
                   </span>
                   <span className={`prospects-auto-badge ${investimentoTotalEstimado === null ? "is-neutral" : ""}`.trim()}>
-                    Invest. est.: {investimentoTotalEstimado === null ? "A definir" : formatarMoeda(investimentoTotalEstimado)}
+                    Investimento 12M: {investimentoTotalEstimado === null ? "A definir" : formatarMoeda(investimentoTotalEstimado)}
                   </span>
                   {avaliacao ? (
                     <span className={`prospects-auto-badge ${getScoreClasse(avaliacao.score_total)}`}>
@@ -675,15 +673,13 @@ export function MobileCapturadosList({
               </div>
 
               <div className="prospects-mobile-item-card__actions">
-                {avaliacao ? (
-                  <button
-                    type="button"
-                    className="prospects-btn ghost prospects-btn--mobile-action"
-                    onClick={() => onAbrirAvaliacao(item)}
-                  >
-                    <span>Pré-análise</span>
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  className="prospects-btn ghost prospects-btn--mobile-action"
+                  onClick={() => onAbrirAvaliacaoDetalhada(item, "dados", "capturados")}
+                >
+                  <span>Detalhes</span>
+                </button>
                 <button
                   type="button"
                   className={`prospects-btn ghost prospects-btn--mobile-action ${item.analiseIaSalva ? "is-active" : ""}`.trim()}
@@ -694,7 +690,7 @@ export function MobileCapturadosList({
                 <button
                   type="button"
                   className={`prospects-btn ghost prospects-btn--mobile-action ${item.analiseSalva ? "is-active" : ""}`.trim()}
-                  onClick={() => onAbrirAnalise(item, "capturados")}
+                  onClick={() => onAbrirAvaliacaoDetalhada(item, "viabilidade", "capturados")}
                 >
                   <span>{item.analiseSalva ? "Viabilidade salva" : "Viabilidade"}</span>
                 </button>
