@@ -2083,6 +2083,11 @@ export default function Prospeccoes() {
     }
   };
 
+  const handleAvaliacaoDetalhadaTabChange = useCallback((nextTab) => {
+    setAvaliacaoDetalhadaTab(nextTab);
+    setAvaliacaoDetalhadaStatusState();
+  }, [setAvaliacaoDetalhadaStatusState]);
+
   const avaliacaoDetalhadaStatusAction = (() => {
     if (!avaliacaoDetalhadaStatusActionKind) return null;
     return {
@@ -2114,15 +2119,16 @@ export default function Prospeccoes() {
     if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "enriquecimento") return;
     if (enriquecimentoDetalhadoLoading || enriquecimentoDetalhado) return;
     setEnriquecimentoDetalhadoLoading(true);
+    setAvaliacaoDetalhadaStatusState();
     fetchEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem)
-      .then((data) => setEnriquecimentoDetalhado(data || null))
+      .then((data) => {
+        setEnriquecimentoDetalhado(data || null);
+        setAvaliacaoDetalhadaStatusState();
+      })
       .catch((err) => {
         const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar enriquecimento");
         setMensagem(message);
-        setAvaliacaoDetalhadaStatusState({
-          message,
-          tone: "error",
-        });
+        setEnriquecimentoDetalhado(null);
       })
       .finally(() => setEnriquecimentoDetalhadoLoading(false));
   }, [
@@ -3134,7 +3140,7 @@ export default function Prospeccoes() {
         onSinteseDraftChange={setAiSinteseDraft}
         mensagemDraft={aiMensagemDraft}
         onMensagemDraftChange={setAiMensagemDraft}
-        onTabChange={setAvaliacaoDetalhadaTab}
+        onTabChange={handleAvaliacaoDetalhadaTabChange}
         onClose={closeAvaliacaoDetalhadaModal}
         onEnviarMensagem={handleEnviarMensagemAi}
         onGerarAnaliseInicial={handleGerarAnaliseInicialAi}
