@@ -1059,6 +1059,7 @@ export default function Prospeccoes() {
   const [enriquecimentoLoading, setEnriquecimentoLoading] = useState(false);
   const aiAutoInitAttemptRef = useRef(new Set());
   const aiDeferredActionRef = useRef(null);
+  const enriquecimentoFetchAttemptRef = useRef(new Set());
   const [aiMensagemDraft, setAiMensagemDraft] = useState("");
   const [aiSinteseDraft, setAiSinteseDraft] = useState("");
   const [avaliacaoDetalhadaStatus, setAvaliacaoDetalhadaStatus] = useState("");
@@ -1801,9 +1802,11 @@ export default function Prospeccoes() {
 
   const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados", origem = "selecionados") => {
     const aiAttemptKey = `${origem}:${item.codigo}`;
+    const enriquecimentoAttemptKey = `${origem}:${item.codigo}`;
     const needsAiData = initialTab === "ia" || initialTab === "matricula";
     const needsEnriquecimentoData = initialTab === "enriquecimento";
     aiAutoInitAttemptRef.current.delete(aiAttemptKey);
+    enriquecimentoFetchAttemptRef.current.delete(enriquecimentoAttemptKey);
     setAvaliacaoDetalhadaItem(item);
     setAvaliacaoDetalhadaOrigem(origem);
     setAvaliacaoDetalhadaTab(initialTab);
@@ -1860,6 +1863,9 @@ export default function Prospeccoes() {
   };
 
   const closeAvaliacaoDetalhadaModal = () => {
+    if (avaliacaoDetalhadaItem?.codigo) {
+      enriquecimentoFetchAttemptRef.current.delete(`${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem.codigo}`);
+    }
     setAvaliacaoDetalhadaItem(null);
     setAvaliacaoDetalhadaOrigem("selecionados");
     setAvaliacaoDetalhadaTab("dados");
@@ -2025,6 +2031,7 @@ export default function Prospeccoes() {
 
   const handleSolicitarEnriquecimento = async () => {
     if (!avaliacaoDetalhadaItem) return;
+    enriquecimentoFetchAttemptRef.current.delete(`${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem.codigo}`);
     setEnriquecimentoLoading(true);
     setAvaliacaoDetalhadaStatusState({ message: "Enriquecimento: aguardando processamento...", tone: "info" });
     try {
@@ -2117,7 +2124,10 @@ export default function Prospeccoes() {
 
   useEffect(() => {
     if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "enriquecimento") return;
-    if (enriquecimentoDetalhadoLoading || enriquecimentoDetalhado) return;
+    if (enriquecimentoLoading || enriquecimentoDetalhadoLoading || enriquecimentoDetalhado) return;
+    const attemptKey = `${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem.codigo}`;
+    if (enriquecimentoFetchAttemptRef.current.has(attemptKey)) return;
+    enriquecimentoFetchAttemptRef.current.add(attemptKey);
     setEnriquecimentoDetalhadoLoading(true);
     setAvaliacaoDetalhadaStatusState();
     fetchEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem)
@@ -2136,6 +2146,7 @@ export default function Prospeccoes() {
     avaliacaoDetalhadaTab,
     avaliacaoDetalhadaOrigem,
     enriquecimentoDetalhado,
+    enriquecimentoLoading,
     enriquecimentoDetalhadoLoading,
     setAvaliacaoDetalhadaStatusState,
   ]);
