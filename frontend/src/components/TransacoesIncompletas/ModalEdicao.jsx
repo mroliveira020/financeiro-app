@@ -174,10 +174,7 @@ const ModalEdicao = ({ formEdicao, setFormEdicao, salvarEdicao, categorias, imov
 
             <button
               className="btn btn-success btn-sm"
-              onClick={() => {
-                console.log("🔧 Salvando lançamento...", formEdicao);
-                salvarEdicao();
-              }}
+              onClick={salvarEdicao}
               type="button"
             >
               Salvar

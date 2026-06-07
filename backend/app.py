@@ -1206,9 +1206,6 @@ def get_openapi_spec():
 
 app.register_blueprint(dashboard_bp)
 
-if DEBUG:
-    print(app.url_map)
-
 # =====================================================
 # 🔹 INICIAR A API
 # =====================================================
