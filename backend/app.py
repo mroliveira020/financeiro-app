@@ -30,6 +30,7 @@ from models import (
     obter_analise_prospeccao_capturado,
     obter_analise_prospeccao_selecionado,
     obter_avaliacao_automatica_prospeccao,
+    obter_enriquecimento_prospeccao,
     salvar_analise_prospeccao_capturado,
     salvar_analise_prospeccao_selecionado,
     salvar_score_regiao_avaliacao,
@@ -593,6 +594,16 @@ def _post_enriquecimento_prospeccao(numero_bem, origem):
     return jsonify({"job_id": job["job_id"], "status": job["status"]}), 202
 
 
+def _get_enriquecimento_prospeccao(numero_bem, origem):
+    current_user = get_current_user() or {}
+    contexto = _buscar_contexto_ai_prospeccao(numero_bem, origem)
+    if not contexto:
+        return jsonify({"error": _resposta_erro_origem_ai(origem)}), 404
+    if not _usuario_pode_ver_ai_prospeccao(contexto, current_user, origem):
+        return jsonify({"error": "Você não tem permissão para visualizar o enriquecimento deste imóvel."}), 403
+    return jsonify(obter_enriquecimento_prospeccao(numero_bem)), 200
+
+
 @app.route("/prospeccoes/selecionados", methods=["POST"])
 @requires_prospeccao_write
 @limiter.limit(RATE_LIMIT_EDIT)
@@ -813,6 +824,12 @@ def post_prospeccao_selecionado_enriquecimento(numero_bem):
     return _post_enriquecimento_prospeccao(numero_bem, "selecionados")
 
 
+@app.route("/prospeccoes/selecionados/<numero_bem>/enriquecimento", methods=["GET"])
+@requires_auth
+def get_prospeccao_selecionado_enriquecimento(numero_bem):
+    return _get_enriquecimento_prospeccao(numero_bem, "selecionados")
+
+
 @app.route("/prospeccoes/capturados/<numero_bem>/ai-analise", methods=["GET"])
 @requires_auth
 def get_prospeccao_capturado_ai_analise(numero_bem):
@@ -851,6 +868,12 @@ def post_prospeccao_capturado_matricula(numero_bem):
 @limiter.limit(RATE_LIMIT_EDIT)
 def post_prospeccao_capturado_enriquecimento(numero_bem):
     return _post_enriquecimento_prospeccao(numero_bem, "capturados")
+
+
+@app.route("/prospeccoes/capturados/<numero_bem>/enriquecimento", methods=["GET"])
+@requires_auth
+def get_prospeccao_capturado_enriquecimento(numero_bem):
+    return _get_enriquecimento_prospeccao(numero_bem, "capturados")
 
 
 @app.route("/prospeccoes/selecionados/<numero_bem>/responsaveis", methods=["PUT"])

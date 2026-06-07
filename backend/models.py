@@ -3816,6 +3816,245 @@ def obter_avaliacao_automatica_prospeccao(numero_bem):
         conn.close()
 
 
+def obter_enriquecimento_prospeccao(numero_bem):
+    conn, cur = conectar()
+    try:
+        cur.execute(
+            """
+            SELECT
+                av.numero_bem AS avaliacao_numero_bem,
+                av.preco_m2_regiao,
+                av.fonte_pesquisa,
+                av.valor_estimado_venda AS avaliacao_valor_estimado_venda,
+                av.custo_aquisicao_est,
+                av.custo_reforma_est,
+                av.custo_desocupacao_est,
+                av.lucro_estimado,
+                av.retorno_pct,
+                av.score_total,
+                av.score_desconto,
+                av.score_liquidez,
+                av.score_risco,
+                av.score_regiao,
+                av.resumo_ia,
+                av.pesquisado_em
+            FROM vw_imoveis_prospeccao_latest v
+            LEFT JOIN avaliacoes av
+                ON av.numero_bem = v.numero_bem
+            WHERE v.numero_bem = %s
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        avaliacao_row = cur.fetchone()
+
+        cur.execute(
+            """
+            SELECT
+                id,
+                numero_bem,
+                titulo,
+                preco,
+                area_m2,
+                quartos,
+                bairro,
+                fonte,
+                url,
+                coletado_em
+            FROM comparaveis
+            WHERE numero_bem = %s
+            ORDER BY preco ASC NULLS LAST, id ASC
+            """,
+            (numero_bem,),
+        )
+        comparaveis = []
+        for item in cur.fetchall():
+            preco = _float_or_none(item["preco"])
+            area_m2 = _float_or_none(item["area_m2"])
+            comparaveis.append({
+                "id": str(item["id"]),
+                "numero_bem": item["numero_bem"],
+                "titulo": item["titulo"],
+                "preco": preco,
+                "area_m2": area_m2,
+                "preco_m2": round(preco / area_m2, 2) if preco and area_m2 else None,
+                "quartos": item["quartos"],
+                "bairro": item["bairro"],
+                "fonte": item["fonte"],
+                "url": item["url"],
+                "coletado_em": _iso_or_none(item["coletado_em"]),
+            })
+
+        cur.execute(
+            """
+            SELECT
+                id,
+                numero_bem,
+                titulo,
+                aluguel_mensal,
+                area_m2,
+                quartos,
+                vagas,
+                bairro,
+                fonte,
+                url,
+                pesquisado_em
+            FROM alugueis_comparaveis
+            WHERE numero_bem = %s
+            ORDER BY aluguel_mensal ASC NULLS LAST, id ASC
+            """,
+            (numero_bem,),
+        )
+        alugueis = []
+        for item in cur.fetchall():
+            aluguel_mensal = _float_or_none(item["aluguel_mensal"])
+            area_m2 = _float_or_none(item["area_m2"])
+            alugueis.append({
+                "id": str(item["id"]),
+                "numero_bem": item["numero_bem"],
+                "titulo": item["titulo"],
+                "aluguel_mensal": aluguel_mensal,
+                "area_m2": area_m2,
+                "quartos": item["quartos"],
+                "vagas": item["vagas"],
+                "bairro": item["bairro"],
+                "fonte": item["fonte"],
+                "url": item["url"],
+                "aluguel_m2": _float_or_none(item["aluguel_m2"]) or (round(aluguel_mensal / area_m2, 2) if aluguel_mensal and area_m2 else None),
+                "pesquisado_em": _iso_or_none(item["pesquisado_em"]),
+            })
+
+        cur.execute(
+            """
+            SELECT
+                numero_bem,
+                meses_em_leilao,
+                vezes_relistado,
+                primeira_aparicao_em,
+                imoveis_irmaos_em_leilao,
+                condominio_tipo,
+                classificacao_origem,
+                regra_iptu_atrasado,
+                regra_condominio_atrasado,
+                regra_outros_debitos,
+                aceita_financiamento,
+                aceita_fgts,
+                praca_atual,
+                enriquecido_em
+            FROM contexto_leilao
+            WHERE numero_bem = %s
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        contexto_row = cur.fetchone()
+        contexto_leilao = None
+        if contexto_row:
+            contexto_leilao = {
+                "numero_bem": contexto_row["numero_bem"],
+                "meses_em_leilao": contexto_row["meses_em_leilao"],
+                "vezes_relistado": contexto_row["vezes_relistado"],
+                "primeira_aparicao_em": _iso_or_none(contexto_row["primeira_aparicao_em"]),
+                "imoveis_irmaos_em_leilao": contexto_row["imoveis_irmaos_em_leilao"],
+                "condominio_tipo": contexto_row["condominio_tipo"],
+                "classificacao_origem": contexto_row["classificacao_origem"],
+                "regra_iptu_atrasado": contexto_row["regra_iptu_atrasado"],
+                "regra_condominio_atrasado": contexto_row["regra_condominio_atrasado"],
+                "regra_outros_debitos": contexto_row["regra_outros_debitos"],
+                "aceita_financiamento": contexto_row["aceita_financiamento"],
+                "aceita_fgts": contexto_row["aceita_fgts"],
+                "praca_atual": contexto_row["praca_atual"],
+                "enriquecido_em": _iso_or_none(contexto_row["enriquecido_em"]),
+            }
+
+        cur.execute(
+            """
+            SELECT
+                numero_bem,
+                lat_usado,
+                lon_usado,
+                geocoding_precisao,
+                poi_supermercado,
+                poi_farmacia,
+                poi_escola,
+                poi_banco,
+                poi_hospital,
+                poi_transporte,
+                poi_total,
+                ideb_nota,
+                ideb_ano,
+                risco_alagamento,
+                score_poi,
+                score_ideb,
+                score_alagamento,
+                score_bairro,
+                enriquecido_em
+            FROM bairros_enriquecidos
+            WHERE numero_bem = %s
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        bairro_row = cur.fetchone()
+        bairro = None
+        if bairro_row:
+            bairro = {
+                "numero_bem": bairro_row["numero_bem"],
+                "lat_usado": _float_or_none(bairro_row["lat_usado"]),
+                "lon_usado": _float_or_none(bairro_row["lon_usado"]),
+                "geocoding_precisao": bairro_row["geocoding_precisao"],
+                "poi_supermercado": bairro_row["poi_supermercado"],
+                "poi_farmacia": bairro_row["poi_farmacia"],
+                "poi_escola": bairro_row["poi_escola"],
+                "poi_banco": bairro_row["poi_banco"],
+                "poi_hospital": bairro_row["poi_hospital"],
+                "poi_transporte": bairro_row["poi_transporte"],
+                "poi_total": bairro_row["poi_total"],
+                "ideb_nota": _float_or_none(bairro_row["ideb_nota"]),
+                "ideb_ano": bairro_row["ideb_ano"],
+                "risco_alagamento": bairro_row["risco_alagamento"],
+                "score_poi": bairro_row["score_poi"],
+                "score_ideb": bairro_row["score_ideb"],
+                "score_alagamento": bairro_row["score_alagamento"],
+                "score_bairro": bairro_row["score_bairro"],
+                "enriquecido_em": _iso_or_none(bairro_row["enriquecido_em"]),
+            }
+
+        cur.execute(
+            """
+            SELECT id, status, resultado, erro, created_at, updated_at
+            FROM ia_jobs
+            WHERE numero_bem = %s
+              AND tipo = 'enriquecimento'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (numero_bem,),
+        )
+        job_row = cur.fetchone()
+        job = None
+        if job_row:
+            job = {
+                "job_id": str(job_row["id"]),
+                "status": job_row["status"],
+                "resultado": job_row["resultado"],
+                "erro": job_row["erro"],
+                "created_at": _iso_or_none(job_row["created_at"]),
+                "updated_at": _iso_or_none(job_row["updated_at"]),
+            }
+
+        return {
+            "avaliacao": _build_avaliacao_dict(avaliacao_row),
+            "comparaveis": comparaveis,
+            "alugueis_comparaveis": alugueis,
+            "contexto_leilao": contexto_leilao,
+            "bairro": bairro,
+            "job": job,
+        }
+    finally:
+        conn.close()
+
+
 def salvar_score_regiao_avaliacao(numero_bem, score_regiao):
     score_regiao_int = max(0, min(20, int(score_regiao)))
     conn, cur = conectar()

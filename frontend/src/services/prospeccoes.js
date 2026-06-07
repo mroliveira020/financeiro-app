@@ -262,6 +262,11 @@ export async function fetchAvaliacaoAutomatica(numeroBem) {
   return data;
 }
 
+export async function fetchEnriquecimento(numeroBem, origem = "selecionados") {
+  const { data } = await api.get(`${getAiBasePath(origem, numeroBem)}/enriquecimento`);
+  return data;
+}
+
 export async function salvarScoreRegiao(numeroBem, scoreRegiao) {
   const { data } = await api.patch(`/prospeccoes/capturados/${numeroBem}/score-regiao`, {
     score_regiao: scoreRegiao,

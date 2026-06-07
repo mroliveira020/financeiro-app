@@ -183,6 +183,8 @@ export function AvaliacaoDetalhadaModal({
   origem,
   aiAnalise,
   analiseDetalhada,
+  enriquecimentoDetalhado,
+  enriquecimentoDetalhadoLoading,
   analiseDetalhadaLoading,
   statusMessage,
   statusTone,
@@ -235,7 +237,7 @@ export function AvaliacaoDetalhadaModal({
   const resumoLeilao = getLeilaoResumo(item);
   const leiloes = getLeiloesInfo(item);
   const mapsUrl = getMapsUrl(item);
-  const comparaveis = getComparaveisLinks(item);
+  const comparaveisLinks = getComparaveisLinks(item);
   const historico = aiAnalise?.historico_chat || [];
   const ultimaMensagem = historico.length ? historico[historico.length - 1] : null;
   const matriculaJaRepresentada = Boolean(
@@ -252,7 +254,12 @@ export function AvaliacaoDetalhadaModal({
   const editalUrl = extrairEditalUrl(item.descricao);
   const processoNumero = extrairProcessoNumero(item.descricao);
   const fonteLabel = getFonteLabel(item.fonte);
-  const avaliacaoAuto = item.avaliacaoAutomatica;
+  const avaliacaoAuto = enriquecimentoDetalhado?.avaliacao || item.avaliacaoAutomatica;
+  const enriquecimentoComparaveis = enriquecimentoDetalhado?.comparaveis || [];
+  const enriquecimentoAlugueis = enriquecimentoDetalhado?.alugueis_comparaveis || [];
+  const contextoLeilao = enriquecimentoDetalhado?.contexto_leilao || null;
+  const bairroEnriquecido = enriquecimentoDetalhado?.bairro || null;
+  const resumoJobEnriquecimento = enriquecimentoDetalhado?.job?.resultado || null;
   const sinteseDisponivel = Boolean(`${sinteseDraft || ""}`.trim());
   const mostrarEditorSintese = sinteseEditando || !sinteseDisponivel;
   const tabs = [
@@ -262,7 +269,13 @@ export function AvaliacaoDetalhadaModal({
     { key: "matricula", label: "Matrícula" },
     { key: "ia", label: "IA" },
   ];
-  const enriquecimentoDisponivel = Boolean(avaliacaoAuto);
+  const enriquecimentoDisponivel = Boolean(
+    avaliacaoAuto
+    || enriquecimentoComparaveis.length
+    || enriquecimentoAlugueis.length
+    || contextoLeilao
+    || resumoJobEnriquecimento
+  );
   const matriculaDisponivel = Boolean(`${aiAnalise?.matricula_texto || ""}`.trim());
   const viabilidadeDisponivel = Boolean(analiseDetalhada?.calculos);
   const podeSelecionarNoHub = origem === "capturados";
@@ -270,6 +283,18 @@ export function AvaliacaoDetalhadaModal({
     ? (avaliacaoAuto.custo_aquisicao_est || 0)
       + (avaliacaoAuto.custo_reforma_est || 0)
       + (avaliacaoAuto.custo_desocupacao_est || 0)
+    : null;
+  const alugueisValores = enriquecimentoAlugueis
+    .map((itemAluguel) => Number(itemAluguel.aluguel_mensal))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+  const aluguelMediano = alugueisValores.length
+    ? (alugueisValores.length % 2
+      ? alugueisValores[(alugueisValores.length - 1) / 2]
+      : (alugueisValores[alugueisValores.length / 2 - 1] + alugueisValores[alugueisValores.length / 2]) / 2)
+    : null;
+  const yieldAnualEstimado = aluguelMediano && valorReferencia
+    ? ((aluguelMediano * 12) / valorReferencia) * 100
     : null;
 
   return (
@@ -375,7 +400,7 @@ export function AvaliacaoDetalhadaModal({
                       <span>Google Maps</span>
                     </a>
                   ) : null}
-                  {comparaveis.map((link) => (
+                  {comparaveisLinks.map((link) => (
                     <a key={`${item.codigo}-hero-${link.label}`} className="prospects-inline-link" href={link.url} target="_blank" rel="noreferrer">
                       <span>{link.label}</span>
                       <ArrowUpRightIcon />
@@ -568,48 +593,197 @@ export function AvaliacaoDetalhadaModal({
                   </div>
                 </div>
 
-                {enriquecimentoDisponivel ? (
+                {enriquecimentoDetalhadoLoading ? (
+                  <div className="prospects-ai-loading-card">
+                    <strong>Carregando enriquecimento</strong>
+                    <p>Estamos reunindo comparáveis, contexto do leilão e sinais auxiliares deste imóvel.</p>
+                  </div>
+                ) : enriquecimentoDisponivel ? (
                   <>
                     <div className="prospects-auto-grid prospects-auto-grid--detail">
-                      <div className="prospects-auto-card">
-                        <span>Fonte de comparáveis</span>
-                        <strong>{avaliacaoAuto.fonte_pesquisa || "—"}</strong>
-                      </div>
-                      <div className="prospects-auto-card">
-                        <span>Preço m² da região</span>
-                        <strong>{formatarMoeda(avaliacaoAuto.preco_m2_regiao)}</strong>
-                      </div>
-                      <div className="prospects-auto-card">
-                        <span>Venda estimada</span>
-                        <strong>{formatarMoeda(avaliacaoAuto.valor_estimado_venda)}</strong>
-                      </div>
-                      <div className="prospects-auto-card">
-                        <span>Lucro estimado</span>
-                        <strong>{formatarMoeda(avaliacaoAuto.lucro_estimado)}</strong>
-                      </div>
-                      <div className="prospects-auto-card">
-                        <span>Investimento estimado</span>
-                        <strong>{formatarMoeda(investimentoEstimadoEnriquecimento)}</strong>
-                      </div>
-                      <div className="prospects-auto-card">
-                        <span>ROI estimado</span>
-                        <strong>{formatarPercentual(avaliacaoAuto.retorno_pct)}</strong>
-                      </div>
-                      <div className="prospects-auto-card">
-                        <span>Score automático</span>
-                        <strong>{avaliacaoAuto.score_total ?? "—"}/85</strong>
-                      </div>
-                      <div className="prospects-auto-card">
-                        <span>Pesquisado em</span>
-                        <strong>{avaliacaoAuto.pesquisado_em ? formatarDataHoraCompacta(avaliacaoAuto.pesquisado_em) : "—"}</strong>
-                      </div>
+                      {avaliacaoAuto ? (
+                        <>
+                          <div className="prospects-auto-card">
+                            <span>Fonte de comparáveis</span>
+                            <strong>{avaliacaoAuto.fonte_pesquisa || "—"}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Preço m² da região</span>
+                            <strong>{formatarMoeda(avaliacaoAuto.preco_m2_regiao)}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Venda estimada</span>
+                            <strong>{formatarMoeda(avaliacaoAuto.valor_estimado_venda)}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Lucro estimado</span>
+                            <strong>{formatarMoeda(avaliacaoAuto.lucro_estimado)}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Investimento estimado</span>
+                            <strong>{formatarMoeda(investimentoEstimadoEnriquecimento)}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>ROI estimado</span>
+                            <strong>{formatarPercentual(avaliacaoAuto.retorno_pct)}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Score automático</span>
+                            <strong>{avaliacaoAuto.score_total ?? "—"}/85</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Pesquisado em</span>
+                            <strong>{avaliacaoAuto.pesquisado_em ? formatarDataHoraCompacta(avaliacaoAuto.pesquisado_em) : "—"}</strong>
+                          </div>
+                        </>
+                      ) : null}
+                      {contextoLeilao ? (
+                        <>
+                          <div className="prospects-auto-card">
+                            <span>Meses em leilão</span>
+                            <strong>{contextoLeilao.meses_em_leilao ?? "—"}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Vezes relistado</span>
+                            <strong>{contextoLeilao.vezes_relistado ?? "—"}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Condomínio</span>
+                            <strong>{contextoLeilao.condominio_tipo || "—"}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>FGTS</span>
+                            <strong>{contextoLeilao.aceita_fgts == null ? "—" : contextoLeilao.aceita_fgts ? "Aceita" : "Não aceita"}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Praça atual</span>
+                            <strong>{contextoLeilao.praca_atual || "—"}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Enriquecido em</span>
+                            <strong>{contextoLeilao.enriquecido_em ? formatarDataHoraCompacta(contextoLeilao.enriquecido_em) : "—"}</strong>
+                          </div>
+                        </>
+                      ) : null}
+                      {aluguelMediano ? (
+                        <div className="prospects-auto-card">
+                          <span>Aluguel mediano</span>
+                          <strong>{formatarMoeda(aluguelMediano)}</strong>
+                        </div>
+                      ) : null}
+                      {yieldAnualEstimado ? (
+                        <div className="prospects-auto-card">
+                          <span>Yield anual est.</span>
+                          <strong>{formatarPercentual(yieldAnualEstimado)}</strong>
+                        </div>
+                      ) : null}
                     </div>
-                    {avaliacaoAuto.resumo_ia ? (
+                    {avaliacaoAuto?.resumo_ia ? (
                       <div className="prospects-auto-comparaveis">
                         <h4>Resumo automático</h4>
                         <TextoEstruturado texto={avaliacaoAuto.resumo_ia} />
                       </div>
                     ) : null}
+                    {resumoJobEnriquecimento?.resumo ? (
+                      <div className="prospects-auto-comparaveis">
+                        <h4>Resumo do processamento</h4>
+                        <p className="prospects-detail-text">{resumoJobEnriquecimento.resumo}</p>
+                      </div>
+                    ) : null}
+                    <div className="prospects-auto-comparaveis">
+                      <h4>Comparáveis de venda</h4>
+                      {enriquecimentoComparaveis.length ? (
+                        <div className="prospects-table-wrap">
+                          <table className="prospects-table prospects-table--compact">
+                            <thead>
+                              <tr>
+                                <th>Título</th>
+                                <th>Preço</th>
+                                <th>Área</th>
+                                <th>Preço/m²</th>
+                                <th>Bairro</th>
+                                <th>Fonte</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {enriquecimentoComparaveis.map((comp) => (
+                                <tr key={comp.id}>
+                                  <td>{comp.url ? <a className="prospects-link" href={comp.url} target="_blank" rel="noreferrer">{comp.titulo || "—"}</a> : (comp.titulo || "—")}</td>
+                                  <td>{formatarMoeda(comp.preco)}</td>
+                                  <td>{comp.area_m2 ? `${comp.area_m2} m²` : "—"}</td>
+                                  <td>{comp.preco_m2 ? formatarMoeda(comp.preco_m2) : "—"}</td>
+                                  <td>{comp.bairro || "—"}</td>
+                                  <td>{comp.fonte || "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="prospects-empty">Nenhum comparável de venda disponível.</p>
+                      )}
+                    </div>
+                    <div className="prospects-auto-comparaveis">
+                      <h4>Comparáveis de aluguel</h4>
+                      {enriquecimentoAlugueis.length ? (
+                        <div className="prospects-table-wrap">
+                          <table className="prospects-table prospects-table--compact">
+                            <thead>
+                              <tr>
+                                <th>Título</th>
+                                <th>Aluguel/mês</th>
+                                <th>Área</th>
+                                <th>Aluguel/m²</th>
+                                <th>Bairro</th>
+                                <th>Fonte</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {enriquecimentoAlugueis.map((comp) => (
+                                <tr key={comp.id}>
+                                  <td>{comp.url ? <a className="prospects-link" href={comp.url} target="_blank" rel="noreferrer">{comp.titulo || "—"}</a> : (comp.titulo || "—")}</td>
+                                  <td>{formatarMoeda(comp.aluguel_mensal)}</td>
+                                  <td>{comp.area_m2 ? `${comp.area_m2} m²` : "—"}</td>
+                                  <td>{comp.aluguel_m2 ? formatarMoeda(comp.aluguel_m2) : "—"}</td>
+                                  <td>{comp.bairro || "—"}</td>
+                                  <td>{comp.fonte || "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="prospects-empty">Nenhum comparável de aluguel disponível.</p>
+                      )}
+                    </div>
+                    <div className="prospects-auto-comparaveis">
+                      <h4>Dados de bairro</h4>
+                      {bairroEnriquecido ? (
+                        <div className="prospects-auto-grid prospects-auto-grid--detail">
+                          <div className="prospects-auto-card">
+                            <span>Score do bairro</span>
+                            <strong>{bairroEnriquecido.score_bairro ?? "—"}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>POIs totais</span>
+                            <strong>{bairroEnriquecido.poi_total ?? "—"}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Nota IDEB</span>
+                            <strong>{bairroEnriquecido.ideb_nota ?? "—"}</strong>
+                          </div>
+                          <div className="prospects-auto-card">
+                            <span>Risco de alagamento</span>
+                            <strong>{bairroEnriquecido.risco_alagamento || "—"}</strong>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="prospects-ai-loading-card">
+                          <strong>Dados de bairro indisponíveis</strong>
+                          <p>Coordenadas não disponíveis para enriquecer o bairro deste imóvel.</p>
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <div className="prospects-ai-loading-card">

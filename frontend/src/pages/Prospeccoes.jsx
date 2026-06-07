@@ -11,6 +11,7 @@ import {
   fetchAnaliseSelecionado,
   salvarAnaliseSelecionado,
   fetchAvaliacaoAutomatica,
+  fetchEnriquecimento,
   fetchResponsaveisDisponiveis,
   salvarScoreRegiao,
   salvarResponsaveisSelecionado,
@@ -1048,6 +1049,8 @@ export default function Prospeccoes() {
   const [avaliacaoDetalhadaTab, setAvaliacaoDetalhadaTab] = useState("dados");
   const [aiAnalise, setAiAnalise] = useState(null);
   const [analiseDetalhada, setAnaliseDetalhada] = useState(null);
+  const [enriquecimentoDetalhado, setEnriquecimentoDetalhado] = useState(null);
+  const [enriquecimentoDetalhadoLoading, setEnriquecimentoDetalhadoLoading] = useState(false);
   const [analiseDetalhadaLoading, setAnaliseDetalhadaLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSending, setAiSending] = useState(false);
@@ -1799,6 +1802,7 @@ export default function Prospeccoes() {
   const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados", origem = "selecionados") => {
     const aiAttemptKey = `${origem}:${item.codigo}`;
     const needsAiData = initialTab === "ia" || initialTab === "matricula";
+    const needsEnriquecimentoData = initialTab === "enriquecimento";
     aiAutoInitAttemptRef.current.delete(aiAttemptKey);
     setAvaliacaoDetalhadaItem(item);
     setAvaliacaoDetalhadaOrigem(origem);
@@ -1808,23 +1812,34 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaStatusState();
     setAiAnalise(null);
     setAiLoading(needsAiData);
+    setEnriquecimentoDetalhado(null);
+    setEnriquecimentoDetalhadoLoading(needsEnriquecimentoData);
     setAnaliseDetalhada(null);
     setAnaliseDetalhadaLoading(true);
     try {
-      const requests = [
-        fetchAnaliseSelecionado(item.codigo).catch(() => null),
-      ];
-      if (needsAiData) {
-        requests.push(carregarAiAnalise(item.codigo, { autoInit: false, origem }));
-      }
-      const [analiseData] = await Promise.all(requests);
+      const analisePromise = fetchAnaliseSelecionado(item.codigo).catch(() => null);
+      const aiPromise = needsAiData
+        ? carregarAiAnalise(item.codigo, { autoInit: false, origem })
+        : Promise.resolve(null);
+      const enriquecimentoPromise = needsEnriquecimentoData
+        ? fetchEnriquecimento(item.codigo, origem).catch(() => null)
+        : Promise.resolve(null);
+      const [analiseData, , enriquecimentoData] = await Promise.all([
+        analisePromise,
+        aiPromise,
+        enriquecimentoPromise,
+      ]);
       setAnaliseDetalhada(analiseData);
+      if (needsEnriquecimentoData) {
+        setEnriquecimentoDetalhado(enriquecimentoData || null);
+      }
     } catch (err) {
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar avaliação detalhada");
       setMensagem(message);
       setAvaliacaoDetalhadaStatusState(buildAiErrorStatusState(message, { fallbackPrefix: "IA" }));
     } finally {
       setAnaliseDetalhadaLoading(false);
+      setEnriquecimentoDetalhadoLoading(false);
     }
   };
 
@@ -1850,7 +1865,9 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaTab("dados");
     setAiAnalise(null);
     setAnaliseDetalhada(null);
+    setEnriquecimentoDetalhado(null);
     setAnaliseDetalhadaLoading(false);
+    setEnriquecimentoDetalhadoLoading(false);
     setAiLoading(false);
     setAiSending(false);
     setAiSaving(false);
@@ -2024,16 +2041,20 @@ export default function Prospeccoes() {
       if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao processar enriquecimento.");
       }
-      const avaliacaoAtualizada = await fetchAvaliacaoAutomatica(avaliacaoDetalhadaItem.codigo);
-      setAvaliacaoDetalhadaItem((prev) => (prev ? { ...prev, avaliacaoAutomatica: avaliacaoAtualizada } : prev));
+      const enriquecimentoAtualizado = await fetchEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+      const avaliacaoAtualizada = await fetchAvaliacaoAutomatica(avaliacaoDetalhadaItem.codigo).catch(() => null);
+      setAvaliacaoDetalhadaItem((prev) => (
+        prev ? { ...prev, avaliacaoAutomatica: avaliacaoAtualizada || prev.avaliacaoAutomatica || enriquecimentoAtualizado?.avaliacao || null } : prev
+      ));
+      setEnriquecimentoDetalhado(enriquecimentoAtualizado);
       setCapturados((prev) => prev.map((item) => (
         item.codigo === avaliacaoDetalhadaItem.codigo
-          ? { ...item, avaliacaoAutomatica: avaliacaoAtualizada }
+          ? { ...item, avaliacaoAutomatica: avaliacaoAtualizada || enriquecimentoAtualizado?.avaliacao || item.avaliacaoAutomatica }
           : item
       )));
       setSelecionados((prev) => prev.map((item) => (
         item.codigo === avaliacaoDetalhadaItem.codigo
-          ? { ...item, avaliacaoAutomatica: avaliacaoAtualizada }
+          ? { ...item, avaliacaoAutomatica: avaliacaoAtualizada || enriquecimentoAtualizado?.avaliacao || item.avaliacaoAutomatica }
           : item
       )));
       setAvaliacaoDetalhadaStatusState({ message: "Enriquecimento: resultado disponível.", tone: "success" });
@@ -2088,6 +2109,30 @@ export default function Prospeccoes() {
       );
     });
   }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise, setAvaliacaoDetalhadaStatusState]);
+
+  useEffect(() => {
+    if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "enriquecimento") return;
+    if (enriquecimentoDetalhadoLoading || enriquecimentoDetalhado) return;
+    setEnriquecimentoDetalhadoLoading(true);
+    fetchEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem)
+      .then((data) => setEnriquecimentoDetalhado(data || null))
+      .catch((err) => {
+        const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar enriquecimento");
+        setMensagem(message);
+        setAvaliacaoDetalhadaStatusState({
+          message,
+          tone: "error",
+        });
+      })
+      .finally(() => setEnriquecimentoDetalhadoLoading(false));
+  }, [
+    avaliacaoDetalhadaItem,
+    avaliacaoDetalhadaTab,
+    avaliacaoDetalhadaOrigem,
+    enriquecimentoDetalhado,
+    enriquecimentoDetalhadoLoading,
+    setAvaliacaoDetalhadaStatusState,
+  ]);
 
   useEffect(() => {
     if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "matricula") return;
@@ -3074,6 +3119,8 @@ export default function Prospeccoes() {
         origem={avaliacaoDetalhadaOrigem}
         aiAnalise={aiAnalise}
         analiseDetalhada={analiseDetalhada}
+        enriquecimentoDetalhado={enriquecimentoDetalhado}
+        enriquecimentoDetalhadoLoading={enriquecimentoDetalhadoLoading}
         analiseDetalhadaLoading={analiseDetalhadaLoading}
         statusMessage={avaliacaoDetalhadaStatus}
         statusTone={avaliacaoDetalhadaStatusTone}
