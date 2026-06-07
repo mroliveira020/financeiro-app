@@ -1,18 +1,19 @@
 .property-card {
-  border-radius: 16px;
+  border-radius: var(--radius-card-tight);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   overflow: hidden;
-  border: 1px solid #e9ecef;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-card);
 }
 
 .property-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-soft);
 }
 
 .property-card__header {
-  background: linear-gradient(135deg, #f8f9fc 0%, #eef1f6 100%);
-  color: #1f2933;
+  background: linear-gradient(135deg, var(--surface-card-soft) 0%, var(--surface-subtle) 100%);
+  color: var(--text-strong);
   padding: 12px 16px;
   display: flex;
   align-items: center;
@@ -29,7 +30,7 @@
 .property-card__body {
   padding: 16px;
   position: relative;
-  background: #ffffff;
+  background: var(--surface-card);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -66,17 +67,17 @@
   padding: 4px 10px;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.06);
-  color: #364152;
+  color: var(--text-base);
 }
 
 .property-card__status--available {
-  background: rgba(25, 135, 84, 0.12);
-  color: #146c43;
+  background: var(--surface-success-soft);
+  color: var(--text-success);
 }
 
 .property-card__status--sold {
-  background: rgba(220, 53, 69, 0.12);
-  color: #b02a37;
+  background: var(--surface-danger-soft);
+  color: var(--text-danger);
 }
 
 .property-card__headline-metric {
@@ -85,16 +86,16 @@
   gap: 4px;
   min-width: 0;
   padding: 12px 14px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%);
-  border: 1px solid #d7e4fb;
+  border-radius: var(--radius-card-tight);
+  background: linear-gradient(180deg, var(--surface-brand-soft) 0%, var(--surface-card-soft) 100%);
+  border: 1px solid var(--line-brand);
 }
 
 .property-card__headline-label {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #60708d;
+  color: var(--text-muted);
   font-weight: 700;
 }
 
@@ -103,20 +104,20 @@
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.03em;
-  color: #1f2f4a;
+  color: var(--text-strong);
 }
 
 .property-card__headline-value--negative {
-  color: #c53939;
+  color: var(--text-danger);
 }
 
 .property-card__headline-value--positive {
-  color: #146c43;
+  color: var(--text-success);
 }
 
 .property-card__periodo {
   font-size: 0.75rem;
-  color: #6c757d;
+  color: var(--text-soft);
   margin-bottom: 0;
 }
 
@@ -132,40 +133,40 @@
   gap: 4px;
   min-width: 0;
   padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid #e5edf8;
-  background: #fbfdff;
+  border-radius: var(--radius-card-tight);
+  border: 1px solid var(--line-soft);
+  background: var(--surface-card-soft);
 }
 
 .property-card__metric-label {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: #60708d;
+  color: var(--text-muted);
   font-weight: 700;
 }
 
 .property-card__metric-value {
   font-size: 1rem;
   font-weight: 700;
-  color: #1f2f4a;
+  color: var(--text-strong);
   line-height: 1.2;
 }
 
 .property-card__metric-value--pending {
-  color: #b26a00;
+  color: var(--text-warn);
 }
 
 .property-card__metric-value--positive {
-  color: #146c43;
+  color: var(--text-success);
 }
 
 .property-card__metric-value--negative {
-  color: #c53939;
+  color: var(--text-danger);
 }
 
 .property-card__metric-value--neutral {
-  color: #6b7280;
+  color: var(--text-soft);
 }
 
 .property-card__actions {
@@ -199,11 +200,11 @@
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  border: 1px solid rgba(13, 110, 253, 0.3);
+  border: 1px solid var(--line-brand);
   display: grid;
   place-items: center;
-  color: #0d6efd;
-  background: rgba(13, 110, 253, 0.08);
+  color: var(--text-brand);
+  background: var(--surface-brand-soft);
   text-decoration: none;
   font-size: 1rem;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -211,7 +212,7 @@
 
 .property-card__cta-icon:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(13, 110, 253, 0.2);
+  box-shadow: var(--shadow-brand);
 }
 
 @media (max-width: 767px) {

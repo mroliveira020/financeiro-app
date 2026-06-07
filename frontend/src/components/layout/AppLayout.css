@@ -10,7 +10,7 @@
 .app-shell__sidebar {
   grid-row: 1 / span 2;
   background: var(--surface-sidebar);
-  color: #9cabcb;
+  color: var(--text-inverse-muted);
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -40,14 +40,14 @@
 }
 
 .app-shell__brand-title {
-  color: #ffffff;
+  color: var(--text-on-brand);
   font-size: 16px;
   font-weight: 700;
   line-height: 1.1;
 }
 
 .app-shell__brand-subtitle {
-  color: #8a97b2;
+  color: var(--text-inverse-soft);
   font-size: 12px;
   line-height: 1.25;
 }
@@ -65,8 +65,8 @@
   gap: 10px;
   padding: 11px 16px;
   margin: 0;
-  border-radius: 6px;
-  color: #9cabcb;
+  border-radius: var(--radius-control-tight);
+  color: var(--text-inverse-muted);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
@@ -82,7 +82,7 @@
 
 .app-shell__nav-item:hover {
   background: var(--surface-sidebar-hover);
-  color: #eff4ff;
+  color: var(--text-inverse-strong);
 }
 
 .app-shell__nav-item.active {
@@ -147,9 +147,9 @@
   width: 100%;
   padding: 9px 10px;
   border: 1px solid rgba(156, 171, 203, 0.18);
-  border-radius: 6px;
+  border-radius: var(--radius-control-tight);
   background: transparent;
-  color: #9cabcb;
+  color: var(--text-inverse-muted);
   font-size: 13px;
   font-weight: 500;
   text-align: left;
@@ -164,7 +164,7 @@
 
 .app-shell__sidebar-logout:hover {
   background: var(--surface-sidebar-hover);
-  color: #eff4ff;
+  color: var(--text-inverse-strong);
   border-color: rgba(156, 171, 203, 0.28);
 }
 
