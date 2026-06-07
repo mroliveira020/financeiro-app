@@ -9,6 +9,14 @@
 - Captura, scraping, enriquecimento e escrita inicial de imoveis no Supabase nao sao mais responsabilidade deste agente.
 - Quando a necessidade envolver interface, filtros, leitura, selecao, analise, permissao ou manipulacao no site, a tarefa pertence ao `agente_site`.
 
+## Estado operacional atual do portal
+- Na tela `Prospecções`, os cards de `capturados` funcionam como ponto de entrada para o hub do imóvel.
+- Clicar no card abre o hub na aba `Dados`.
+- Os atalhos `Enriquecimento`, `IA`, `Viabilidade` e `Matrícula` abrem diretamente a aba correspondente do hub.
+- A ação `Selecionar` saiu do card e hoje vive apenas dentro do hub, no topo do modal detalhado.
+- A aba `Enriquecimento` não depende mais só de `avaliacoes`; ela lê um endpoint agregado que reúne avaliação automática, comparáveis, aluguel, contexto de leilão, bairro e último resultado de job.
+- Se o enriquecimento falhar no pipeline externo, o agente do site deve primeiro validar leitura, exibição e estado da UI antes de encaminhar tarefa ao agente externo.
+
 ## Backlog oficial
 - O backlog de ambos os agentes vive exclusivamente na tabela `agent_tasks` do Supabase.
 - Não manter listas paralelas de pendências fora desta tabela.

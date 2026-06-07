@@ -25,7 +25,11 @@
   - Rotas: `frontend/src/App.jsx` com `/login`, `/` (Home), `/dashboard/:id` e `/prospeccoes`; `RequireAuth` garante login antes de renderizar layout.
   - Home: `frontend/src/pages/Home.jsx` — lista/adiciona imóveis; usa `frontend/src/services/api.js`.
   - Dashboard: `frontend/src/pages/Dashboard.jsx` — compõe Dados Cadastrais, Resumo Financeiro, Transações Incompletas e Completas.
-  - Prospecções: `frontend/src/pages/Prospeccoes.jsx` — nova tela na barra lateral com duas tabelas (Selecionados e Capturados) consumindo as rotas do backend.
+  - Prospecções: `frontend/src/pages/Prospeccoes.jsx` — tela com base capturada, fila de selecionados e hub detalhado do imóvel.
+    - Cards de `capturados`: clicar no card abre a aba `Dados` do hub.
+    - Atalhos do card: `Enriquecimento`, `IA`, `Viabilidade` e `Matrícula` abrem a aba correspondente do hub.
+    - Ação `Selecionar`: fica apenas dentro do hub, não mais no card.
+    - Hub do imóvel: consolida `Dados`, `Enriquecimento`, `Viabilidade`, `Matrícula` e `IA` em abas.
   - Dados cadastrais: `frontend/src/components/dadosCadastrais/DadosCadastrais.jsx` — GET `/imoveis/:id`, exibe mapa, edição via modal.
   - Resumo financeiro: `frontend/src/components/ResumoFinanceiro.jsx` — GET `/dashboard/resumo-financeiro/:id`, calcula totais e ROI; edição de orçamentos via `ModalEditarOrcamento`.
   - Transações Incompletas: `frontend/src/components/TransacoesIncompletas/TransacoesIncompletas.jsx` — GET incompletos, atualização inline de categoria/imóvel/situação (com destaque de linhas alteradas e botões 💾/“Aplicar todos”), PATCH individual, POST lote.
@@ -273,7 +277,29 @@ Com base nas páginas Home e Dashboard, as rotas efetivamente utilizadas pelo fr
 - Resumo/Orçamentos: `GET /dashboard/resumo-financeiro/:id_imovel`, `GET /orcamentos/:id_imovel`, `POST /orcamentos/:id_imovel`.
 - Rodapé/Home: `GET /dashboard/ultima_atualizacao`, `GET /dashboard/ultimos_lancamentos`.
 - Indicadores/Home: `GET /dashboard/gastos-mensais?meses=6&excluir=8,15,18`.
-- Prospecções: `GET /prospeccoes/selecionados`, `GET /prospeccoes/capturados`.
+- Prospecções:
+  - `GET /prospeccoes/selecionados`, `GET /prospeccoes/capturados`
+  - `GET/PUT /prospeccoes/:origem/:numero_bem/analise`
+  - `GET /prospeccoes/:origem/:numero_bem/ai-analise`
+  - `POST /prospeccoes/:origem/:numero_bem/ai-analise/chat`
+  - `GET /prospeccoes/:origem/:numero_bem/ai-analise/job/:job_id`
+  - `POST /prospeccoes/:origem/:numero_bem/matricula`
+  - `POST /prospeccoes/:origem/:numero_bem/enriquecimento`
+  - `GET /prospeccoes/:origem/:numero_bem/enriquecimento`
+
+## Fluxo atual de Prospecções
+
+- `Capturados` é a base de leitura inicial; `Selecionados` é a fila operacional.
+- O hub do imóvel é o ponto único de consulta e decisão.
+- O enriquecimento automático pode ser disparado sem abrir a aba de IA.
+- A aba `Enriquecimento` usa endpoint agregado do backend e exibe:
+  - avaliação automática, quando existir;
+  - comparáveis de venda;
+  - comparáveis de aluguel;
+  - contexto do leilão;
+  - dados de bairro, quando disponíveis;
+  - resumo do último job de enriquecimento.
+- O enriquecimento depende de job em `ia_jobs` com `tipo = 'enriquecimento'`. O ajuste de schema correspondente está documentado em [docs/sql_ia_jobs_enriquecimento_fix.sql](/Users/matheusoliveira/Documents/Leiloes/Aplicacoes/Financeiro/docs/sql_ia_jobs_enriquecimento_fix.sql).
 
 ## Rotas Não Utilizadas pela UI (atual)
 
