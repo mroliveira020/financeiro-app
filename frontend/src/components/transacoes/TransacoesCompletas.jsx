@@ -47,6 +47,12 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
   const formatarMoeda = (valor) =>
     Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  const formatarValorEdicao = (valor) =>
+    Number(valor ?? 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+
   const carregarLancamentos = useCallback(
     async (paginaSolicitada = 1) => {
       setLoading(true);
@@ -140,10 +146,7 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
     setFormEdicao({
       data: lancamento.data,
       descricao: lancamento.descricao,
-      valor: lancamento.valor.toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
+      valor: formatarValorEdicao(lancamento.valor),
       id_categoria: lancamento.id_categoria,
       id_imovel: lancamento.id_imovel,
       id_situacao: lancamento.id_situacao,
