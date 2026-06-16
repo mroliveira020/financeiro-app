@@ -107,6 +107,20 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
     carregarLancamentos(page);
   }, [carregarLancamentos, page, refreshKey]);
 
+  useEffect(() => {
+    if (!editandoLancamento || !formEdicao) {
+      return;
+    }
+
+    const elementoModal = document.getElementById("modalEdicaoCompleto");
+    if (!elementoModal) {
+      return;
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(elementoModal);
+    modal.show();
+  }, [editandoLancamento, formEdicao]);
+
   const handleExcluir = async (id_lancamento) => {
     if (!window.confirm("Tem certeza que deseja excluir este lançamento?")) return;
 
@@ -136,9 +150,6 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
       paid_by_user_id: lancamento.paid_by_user_id ?? "",
       tipo_movimentacao: lancamento.tipo_movimentacao || "despesa_imovel",
     });
-
-    const modal = new bootstrap.Modal(document.getElementById("modalEdicaoCompleto"));
-    modal.show();
   };
 
   const salvarEdicao = async () => {

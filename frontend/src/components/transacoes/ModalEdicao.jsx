@@ -62,8 +62,15 @@ function ModalEdicao({
   }, [formEdicao, setFormEdicao, socios]);
 
   const deveMostrarPagador = socios.length > 0;
-
-  if (!formEdicao) return null;
+  const valoresFormulario = formEdicao ?? {
+    data: "",
+    descricao: "",
+    valor: "",
+    id_categoria: "",
+    id_imovel: "",
+    id_situacao: 0,
+    paid_by_user_id: "",
+  };
 
   return (
     <div
@@ -93,10 +100,11 @@ function ModalEdicao({
               <input
                 type="text"
                 className="form-control form-control-sm"
-                value={formEdicao.data}
+                value={valoresFormulario.data}
                 onChange={(e) =>
-                  setFormEdicao({ ...formEdicao, data: e.target.value })
+                  setFormEdicao({ ...valoresFormulario, data: e.target.value })
                 }
+                disabled={!formEdicao}
               />
             </div>
 
@@ -105,10 +113,11 @@ function ModalEdicao({
               <input
                 type="text"
                 className="form-control form-control-sm"
-                value={formEdicao.descricao}
+                value={valoresFormulario.descricao}
                 onChange={(e) =>
-                  setFormEdicao({ ...formEdicao, descricao: e.target.value })
+                  setFormEdicao({ ...valoresFormulario, descricao: e.target.value })
                 }
+                disabled={!formEdicao}
               />
             </div>
 
@@ -117,9 +126,9 @@ function ModalEdicao({
               <input
                 type="text"
                 className="form-control form-control-sm text-end"
-                value={formEdicao.valor}
+                value={valoresFormulario.valor}
                 onChange={(e) =>
-                  setFormEdicao({ ...formEdicao, valor: e.target.value })
+                  setFormEdicao({ ...valoresFormulario, valor: e.target.value })
                 }
                 onBlur={(e) => {
                   const numero = parseFloat(
@@ -131,8 +140,9 @@ function ModalEdicao({
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       });
-                  setFormEdicao({ ...formEdicao, valor: valorFormatado });
+                  setFormEdicao({ ...valoresFormulario, valor: valorFormatado });
                 }}
+                disabled={!formEdicao}
               />
             </div>
 
@@ -140,13 +150,14 @@ function ModalEdicao({
               <label className="form-label">Categoria</label>
               <select
                 className="form-select form-select-sm"
-                value={formEdicao.id_categoria}
+                value={valoresFormulario.id_categoria}
                 onChange={(e) =>
                   setFormEdicao({
-                    ...formEdicao,
+                    ...valoresFormulario,
                     id_categoria: e.target.value,
                   })
                 }
+                disabled={!formEdicao}
               >
                 {categorias.map((categoria) => (
                   <option key={categoria.id} value={categoria.id}>
@@ -160,10 +171,11 @@ function ModalEdicao({
               <label className="form-label">Imóvel</label>
               <select
                 className="form-select form-select-sm"
-                value={formEdicao.id_imovel}
+                value={valoresFormulario.id_imovel}
                 onChange={(e) =>
-                  setFormEdicao({ ...formEdicao, id_imovel: e.target.value })
+                  setFormEdicao({ ...valoresFormulario, id_imovel: e.target.value })
                 }
+                disabled={!formEdicao}
               >
                 {imoveis.map((imovel) => (
                   <option key={imovel.id} value={imovel.id}>
@@ -177,13 +189,14 @@ function ModalEdicao({
               <label className="form-label">Situação</label>
               <select
                 className="form-select form-select-sm"
-                value={formEdicao.id_situacao}
+                value={valoresFormulario.id_situacao}
                 onChange={(e) =>
                   setFormEdicao({
-                    ...formEdicao,
+                    ...valoresFormulario,
                     id_situacao: e.target.value,
                   })
                 }
+                disabled={!formEdicao}
               >
                 <option value={0}>Pendente</option>
                 <option value={1}>Confirmado</option>
@@ -195,14 +208,14 @@ function ModalEdicao({
                 <label className="form-label">Quem pagou</label>
                 <select
                   className="form-select form-select-sm"
-                  value={formEdicao.paid_by_user_id ?? ""}
+                  value={valoresFormulario.paid_by_user_id ?? ""}
                   onChange={(e) =>
                     setFormEdicao({
-                      ...formEdicao,
+                      ...valoresFormulario,
                       paid_by_user_id: e.target.value,
                     })
                   }
-                  disabled={carregandoSocios || socios.length === 1}
+                  disabled={!formEdicao || carregandoSocios || socios.length === 1}
                 >
                   <option value="">Selecione um sócio</option>
                   {socios.map((socio) => (
@@ -223,10 +236,11 @@ function ModalEdicao({
             <button
               className="btn btn-secondary btn-sm"
               data-bs-dismiss="modal"
+              type="button"
             >
               Cancelar
             </button>
-            <button className="btn btn-success btn-sm" onClick={salvarEdicao}>
+            <button className="btn btn-success btn-sm" onClick={salvarEdicao} type="button" disabled={!formEdicao}>
               Salvar
             </button>
           </div>
