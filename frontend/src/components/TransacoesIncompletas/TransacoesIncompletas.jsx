@@ -1,6 +1,5 @@
-/* global bootstrap */
-// TransacoesIncompletas.jsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Modal from "bootstrap/js/dist/modal";
 import { useParams } from "react-router-dom";
 import api from "../../services/http";
 import {
@@ -415,7 +414,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       paid_by_user_id: lancamento.paid_by_user_id ?? "",
       tipo_movimentacao: lancamento.tipo_movimentacao || "despesa_imovel",
     });
-    const modal = new bootstrap.Modal(document.getElementById('modalEdicao'));
+    const modal = Modal.getOrCreateInstance(document.getElementById('modalEdicao'));
     modal.show();
   };
 
@@ -445,8 +444,8 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       await api.patch(`/dashboard/lancamentos/${editandoLancamento}`, payload);
       await carregarLancamentos(page);
       onChanged?.();
-      const modal = bootstrap.Modal.getInstance(document.getElementById('modalEdicao'));
-      modal.hide();
+      const modal = Modal.getInstance(document.getElementById('modalEdicao'));
+      modal?.hide();
       setEditandoLancamento(null);
     } catch (error) {
       console.error("Erro ao atualizar lançamento", error);
@@ -457,7 +456,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
 
   const abrirModalLote = () => {
     setLoteErro("");
-    const modal = new bootstrap.Modal(document.getElementById('modalLote'));
+    const modal = Modal.getOrCreateInstance(document.getElementById('modalLote'));
     modal.show();
   };
 
@@ -470,7 +469,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       id_imovel: String(id || ""),
       paid_by_user_id: sociosImovel.length === 1 ? String(sociosImovel[0].user_id) : "",
     });
-    const modal = new bootstrap.Modal(document.getElementById("modalNovaTransacao"));
+    const modal = Modal.getOrCreateInstance(document.getElementById("modalNovaTransacao"));
     modal.show();
   };
 
@@ -516,8 +515,8 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       alert('Lançamentos adicionados com sucesso!');
       await carregarLancamentos(page);
       onChanged?.();
-      const modal = bootstrap.Modal.getInstance(document.getElementById('modalLote'));
-      modal.hide();
+      const modal = Modal.getInstance(document.getElementById('modalLote'));
+      modal?.hide();
       setTextoLote('');
       setLoteErro("");
       if (sociosImovel.length !== 1) {
@@ -558,8 +557,8 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
 
       await carregarLancamentos(page);
       onChanged?.();
-      const modal = bootstrap.Modal.getInstance(document.getElementById("modalNovaTransacao"));
-      modal.hide();
+      const modal = Modal.getInstance(document.getElementById("modalNovaTransacao"));
+      modal?.hide();
       setNovaTransacao(null);
     } catch (error) {
       console.error("Erro ao incluir transação", error);

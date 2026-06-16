@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-/* global bootstrap */
+import Modal from "bootstrap/js/dist/modal";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../services/http";
 import ModalSelecionarImovel from "./ModalSelecionarImovel";
@@ -218,7 +218,7 @@ function DadosCadastrais({ refreshKey = 0, onChanged }) {
       id_imovel: String(id || ""),
       paid_by_user_id: "",
     });
-    const modal = new bootstrap.Modal(document.getElementById("modalNovaTransacaoDashboard"));
+    const modal = Modal.getOrCreateInstance(document.getElementById("modalNovaTransacaoDashboard"));
     modal.show();
   }, [id]);
 
@@ -258,7 +258,7 @@ function DadosCadastrais({ refreshKey = 0, onChanged }) {
         },
       ]);
 
-      const modal = bootstrap.Modal.getInstance(document.getElementById("modalNovaTransacaoDashboard"));
+      const modal = Modal.getInstance(document.getElementById("modalNovaTransacaoDashboard"));
       modal?.hide();
       setNovaTransacao(null);
       onChanged?.();

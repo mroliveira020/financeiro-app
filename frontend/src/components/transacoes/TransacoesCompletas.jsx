@@ -1,5 +1,5 @@
-/* global bootstrap */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Modal from "bootstrap/js/dist/modal";
 import { useParams } from "react-router-dom";
 import api from "../../services/http";
 import LancamentosTable from "./LancamentosTable";
@@ -123,7 +123,7 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
       return;
     }
 
-    const modal = bootstrap.Modal.getOrCreateInstance(elementoModal);
+    const modal = Modal.getOrCreateInstance(elementoModal);
     modal.show();
   }, [editandoLancamento, formEdicao]);
 
@@ -174,8 +174,8 @@ function TransacoesCompletas({ refreshKey = 0, onChanged }) {
 
       carregarLancamentos(page);
       onChanged?.();
-      const modal = bootstrap.Modal.getInstance(document.getElementById("modalEdicaoCompleto"));
-      modal.hide();
+      const modal = Modal.getInstance(document.getElementById("modalEdicaoCompleto"));
+      modal?.hide();
       setEditandoLancamento(null);
       alert("Lançamento atualizado com sucesso!");
     } catch (error) {
