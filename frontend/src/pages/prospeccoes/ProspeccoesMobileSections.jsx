@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  OfertaAvisos, CapturaFilters, CapturaReferencias,
   ProspectGallery,
   DetalhesTexto,
   ArrowLeftIcon,
@@ -25,7 +26,7 @@ const getInvestimentoTotalEstimado = (avaliacao) => {
 
 const isNestedInteractiveTarget = (target) => {
   if (!(target instanceof HTMLElement)) return false;
-  return Boolean(target.closest("a, button, input, textarea, select, label"));
+  return Boolean(target.closest("a, button, input, textarea, select, label, details, summary"));
 };
 
 export function MobileSelecionadosList({
@@ -68,6 +69,8 @@ export function MobileSelecionadosList({
   selectedVisibleActiveFilters,
   canFilterByUser,
   canManageResponsaveis,
+  formatarMoeda,
+  formatarDataHoraCompacta,
 }) {
   if (loading) return <div className="prospects-card"><p className="prospects-empty">Carregando fila de prospecção...</p></div>;
   if (erro) return <div className="prospects-card"><p className="prospects-empty">Erro ao carregar selecionados: {erro}</p></div>;
@@ -242,7 +245,16 @@ export function MobileSelecionadosList({
                 </div>
               </div>
 
+              <OfertaAvisos item={item} />
               <div className="prospects-mobile-item-card__meta">
+                <div>
+                  <span>{item.etapaRecomendada || "Etapa da oportunidade"}</span>
+                  <strong>{item.dataRecomendada ? formatarDataHoraCompacta(item.dataRecomendada) : "Data não informada"}</strong>
+                </div>
+                <div>
+                  <span>Lance mínimo da etapa</span>
+                  <strong>{formatarMoeda(item.lanceRecomendado)}</strong>
+                </div>
                 <div>
                   <span>Valor máximo</span>
                   <strong>{item.valorMaximo ? item.valorMaximo.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</strong>
@@ -312,6 +324,7 @@ export function MobileSelecionadosList({
 }
 
 export function MobileCapturadosList({
+  presenca, onPresencaChange, somenteRevisao, onRevisaoChange, referencias,
   dados,
   total,
   page,
@@ -384,6 +397,8 @@ export function MobileCapturadosList({
       </div>
 
       <div className="prospects-card prospects-mobile-filters">
+        <CapturaFilters presenca={presenca} onPresencaChange={onPresencaChange} somenteRevisao={somenteRevisao} onRevisaoChange={onRevisaoChange} />
+        <CapturaReferencias referencias={referencias} />
         <div className="prospects-mobile-filters__grid">
           <label className="prospects-toolbar-field">
             <span>Origem</span>
@@ -434,7 +449,7 @@ export function MobileCapturadosList({
                 onPageChange(1);
               }}
             >
-              <option value="ultima_disputa">Última disputa</option>
+              <option value="ultima_disputa">Data da oportunidade</option>
               <option value="codigo">Código</option>
               <option value="cidade">Cidade</option>
               <option value="uf">UF</option>
@@ -597,6 +612,7 @@ export function MobileCapturadosList({
                 </div>
               </div>
 
+              <OfertaAvisos item={item} />
               <div className="prospects-mobile-item-card__meta">
                 <div>
                   <span>{resumoLeilao?.label || "Valor mínimo"}</span>
@@ -607,8 +623,8 @@ export function MobileCapturadosList({
                   <strong>{formatarMoeda(item.valorAvaliacao)}</strong>
                 </div>
                 <div>
-                  <span>{resumoLeilao?.data ? "Data do evento" : "Última disputa"}</span>
-                  <strong>{formatarDataHoraCompacta(resumoLeilao?.data || item.ultima_disputa)}</strong>
+                  <span>Data da oportunidade</span>
+                  <strong>{resumoLeilao?.data ? formatarDataHoraCompacta(resumoLeilao.data) : "Data não informada"}</strong>
                 </div>
                 <div>
                   <span>Financia</span>

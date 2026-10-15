@@ -55,6 +55,16 @@ const serializeParams = (params) => {
   return search.toString();
 };
 
+export const mapContextoOferta = (row) => ({
+  etapaRecomendada: row.etapa_recomendada,
+  lanceRecomendado: row.lance_recomendado,
+  dataRecomendada: row.data_recomendada,
+  presenteUltimaCaptura: row.presente_ultima_captura,
+  capturaConcluidaEm: row.captura_concluida_em,
+  precisaRevisao: Boolean(row.precisa_revisao),
+  motivosRevisao: row.motivos_revisao || [],
+});
+
 export async function fetchCapturados({
   page = 1,
   pageSize = 50,
@@ -63,7 +73,9 @@ export async function fetchCapturados({
   cidade,
   modalidade,
   financia,
-  status = ["disponivel"],
+  status,
+  presenca = "presentes",
+  somenteRevisao = false,
   orderBy = "ultima_disputa",
   orderDir = "desc",
   scoreMin,
@@ -80,6 +92,8 @@ export async function fetchCapturados({
       modalidade,
       financia,
       status,
+      presenca,
+      somente_revisao: somenteRevisao,
       order_by: orderBy,
       order_dir: orderDir,
       score_min: scoreMin,
@@ -95,13 +109,15 @@ export async function fetchCapturados({
   const formatted = rows.map((row) => {
     const fotos = normalizeFotos(row);
     return {
+      ...mapContextoOferta(row),
+      disponivel: row.disponivel,
       origem: "capturados",
       fotos,
       fotoUrl: fotos[0] || null,
       codigo: row.numero_bem,
       cidade: row.cidade,
       uf: row.uf,
-      situacao: row.disponivel ? "Disponível" : "Indisponível",
+      situacao: row.disponivel == null ? "Disponibilidade não informada" : row.disponivel ? "Disponível" : "Indisponível",
       modalidade: row.tipo_venda,
       valor: row.valor_minimo,
       valorMinimo: row.valor_minimo,
@@ -143,6 +159,7 @@ export async function fetchSelecionados({ status, uf, userId, incluirInativos } 
   return (data?.data || []).map((item) => {
     const fotos = normalizeFotos(item);
     return {
+      ...mapContextoOferta(item),
       origem: "selecionados",
       fotos,
       fotoUrl: fotos[0] || null,
@@ -166,7 +183,7 @@ export async function fetchSelecionados({ status, uf, userId, incluirInativos } 
       uf: item.uf,
       bairro: item.bairro,
       endereco: item.endereco,
-      valor: item.valor_venda ?? item.valor_avaliacao,
+      valor: item.lance_recomendado,
       valorVenda: item.valor_venda,
       valorAvaliacao: item.valor_avaliacao,
       valorLeilao1: item.valor_leilao_1,

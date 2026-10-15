@@ -63,3 +63,6 @@ PERF_WARN_THRESHOLD_MS = int(os.getenv("PERF_WARN_THRESHOLD_MS", "700"))
 
 # URL pública do frontend (usada para geração de links de convite)
 FRONTEND_APP_URL = os.getenv("FRONTEND_APP_URL", "http://localhost:5173")
+
+# Prazo de revisão da pesquisa de mercado (dias).
+PROSPECCAO_AVALIACAO_VALIDADE_DIAS = max(1, int(os.getenv("PROSPECCAO_AVALIACAO_VALIDADE_DIAS", "90")))

@@ -41,6 +41,12 @@ describe("services/prospeccoes", () => {
             disponivel: true,
             tipo_venda: "Leilão",
             valor_minimo: 100000,
+            etapa_recomendada: "2º Leilão",
+            lance_recomendado: 100000,
+            data_recomendada: null,
+            presente_ultima_captura: false,
+            precisa_revisao: true,
+            motivos_revisao: ["Preço mudou"],
             valor_venda: 110000,
             valor_avaliacao: 150000,
             detalhes: "Apartamento",
@@ -62,12 +68,12 @@ describe("services/prospeccoes", () => {
       },
     });
 
-    const result = await fetchCapturados({ page: 3, pageSize: 20 });
+    const result = await fetchCapturados({ page: 3, pageSize: 20, presenca: "ausentes", somenteRevisao: true });
 
     expect(api.get).toHaveBeenCalledWith(
       "/prospeccoes/capturados",
       expect.objectContaining({
-        params: expect.objectContaining({ page: 3, page_size: 20 }),
+        params: expect.objectContaining({ page: 3, page_size: 20, presenca: "ausentes", somente_revisao: true }),
       }),
     );
     expect(result.total).toBe(1);
@@ -77,11 +83,24 @@ describe("services/prospeccoes", () => {
       expect.objectContaining({
         origem: "capturados",
         codigo: "123",
+        etapaRecomendada: "2º Leilão",
+        lanceRecomendado: 100000,
+        dataRecomendada: null,
+        presenteUltimaCaptura: false,
+        precisaRevisao: true,
+        motivosRevisao: ["Preço mudou"],
         fotoUrl: "https://venda-imoveis.caixa.gov.br/foto.jpg",
         analiseSalva: true,
         analiseIaSalva: false,
       }),
     );
+  });
+
+  it("não transforma disponibilidade desconhecida em indisponível", async () => {
+    api.get.mockResolvedValueOnce({ data: { data: [{ numero_bem: "456", disponivel: null, presente_ultima_captura: true }] } });
+    const result = await fetchCapturados();
+    expect(result.data[0].situacao).toBe("Disponibilidade não informada");
+    expect(result.data[0].presenteUltimaCaptura).toBe(true);
   });
 
   it("busca análise pelo endpoint de capturados quando a origem for capturados", async () => {

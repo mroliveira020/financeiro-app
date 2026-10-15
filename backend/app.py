@@ -290,6 +290,10 @@ def get_prospeccoes_capturados():
         ufs = request.args.getlist("uf")
         fontes = request.args.getlist("fonte")
         modalidades = request.args.getlist("modalidade")
+        presenca = request.args.get("presenca", "presentes")
+        if presenca not in {"presentes", "ausentes", "todos"}:
+            return jsonify({"error": "Filtro de presença inválido"}), 400
+        somente_revisao = request.args.get("somente_revisao", "").lower() in {"1", "true", "sim"}
         status_list = request.args.getlist("status")
         financia_list = request.args.getlist("financia")
         cidades = request.args.getlist("cidade")
@@ -311,7 +315,9 @@ def get_prospeccoes_capturados():
         ufs=ufs or None,
         fontes=fontes or None,
         modalidades=modalidades or None,
-        status=status_list or ["disponivel"],
+        status=status_list or None,
+        presenca=presenca,
+        somente_revisao=somente_revisao,
         financia=financia_list or None,
         cidades=cidades or None,
         order_by=order_by,

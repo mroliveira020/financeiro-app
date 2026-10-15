@@ -4,6 +4,7 @@ import "./Prospeccoes.css";
 
 import {
   fetchCapturados,
+  mapContextoOferta,
   fetchSelecionados,
   adicionarSelecionado,
   excluirSelecionado,
@@ -45,6 +46,8 @@ import {
   SparklesIcon,
   CloseIcon,
   MobileHubCard,
+  CapturaFilters,
+  CapturaReferencias,
 } from "./prospeccoes/ProspeccoesShared";
 import {
   ResponsaveisModal,
@@ -262,18 +265,10 @@ const formatarDataHoraCompacta = (valor) => {
   if (!valor) return "—";
   const data = new Date(valor);
   if (Number.isNaN(data.getTime())) return "—";
-  const dia = String(data.getDate()).padStart(2, "0");
-  const mes = String(data.getMonth() + 1).padStart(2, "0");
-  const ano = String(data.getFullYear()).slice(-2);
-  const hora = String(data.getHours()).padStart(2, "0");
-  const minuto = String(data.getMinutes()).padStart(2, "0");
-  return `${dia}/${mes}/${ano} ${hora}:${minuto}`;
-};
-
-const parseDateSafe = (valor) => {
-  if (!valor) return null;
-  const data = new Date(valor);
-  return Number.isNaN(data.getTime()) ? null : data;
+  return data.toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+  }).replace(",", "");
 };
 
 const slugifyTexto = (valor) => `${valor || ""}`
@@ -289,21 +284,13 @@ const getLeiloesInfo = (item) => ([
   { label: "2º Leilão", data: item?.data_leilao_2, valor: item?.valorLeilao2 },
   { label: "Licitação", data: item?.data_licitacao_aberta, valor: item?.valorVenda ?? item?.valorMinimo ?? item?.valor },
   { label: "Encerramento", data: item?.data_hora_encerramento, valor: null },
-]).filter((entry) => Boolean(entry.data));
+]).filter((entry) => Boolean(entry.data) || Number(entry.valor) > 0);
 
-const getLeilaoResumo = (item) => {
-  const pares = getLeiloesInfo(item)
-    .map((entry, index) => ({ ...entry, parsedDate: parseDateSafe(entry.data), orderIndex: index }))
-    .filter((entry) => entry.parsedDate);
-
-  if (!pares.length) return null;
-
-  return pares.sort((a, b) => {
-    const byDate = b.parsedDate.getTime() - a.parsedDate.getTime();
-    if (byDate !== 0) return byDate;
-    return b.orderIndex - a.orderIndex;
-  })[0];
-};
+const getLeilaoResumo = (item) => item?.etapaRecomendada ? {
+  label: item.etapaRecomendada,
+  valor: item.lanceRecomendado,
+  data: item.dataRecomendada,
+} : null;
 
 const getMapsUrl = (item) => {
   if (item?.linkGoogleMaps) return item.linkGoogleMaps;
@@ -416,6 +403,8 @@ export default function Prospeccoes() {
   const [scoreMinCap, setScoreMinCap] = useState("");
   const [roiMinCap, setRoiMinCap] = useState("");
   const [somenteComAvaliacaoCap, setSomenteComAvaliacaoCap] = useState(false);
+  const [presencaCap, setPresencaCap] = useState("presentes");
+  const [somenteRevisaoCap, setSomenteRevisaoCap] = useState(false);
   const [pageSize, setPageSize] = useState(20);
   const [page, setPage] = useState(1);
   const [includeLoadingIds, setIncludeLoadingIds] = useState(new Set());
@@ -558,6 +547,8 @@ export default function Prospeccoes() {
           scoreMin: scoreMinCap === "" ? undefined : Number(scoreMinCap),
           roiMin: roiMinCap === "" ? undefined : Number(roiMinCap),
           somenteComAvaliacao: somenteComAvaliacaoCap,
+          presenca: presencaCap,
+          somenteRevisao: somenteRevisaoCap,
         });
         setCapturados(resp.data || []);
         setCapturadosTotal(resp.total || 0);
@@ -574,7 +565,7 @@ export default function Prospeccoes() {
       }
     };
     carregarCapturados();
-  }, [page, pageSize, filtroFonteCap, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap]);
+  }, [page, pageSize, filtroFonteCap, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap, presencaCap, somenteRevisaoCap]);
 
   useEffect(() => {
     fetchProspecMeta()
@@ -650,6 +641,10 @@ export default function Prospeccoes() {
     );
   }, [selectedFiltersExpanded]);
 
+  const capturasReferenciaVisiveis = useMemo(() => (meta.capturas_referencia || []).filter((r) =>
+    (!filtroUfCap.length || filtroUfCap.includes(r.uf))
+    && (filtroFonteCap === "todas" || getFonteFilterValues(filtroFonteCap)?.includes(r.fonte))
+  ), [meta, filtroUfCap, filtroFonteCap]);
   const ufOptions = useMemo(() => meta.ufs || [], [meta]);
   const modalidadeOptions = useMemo(() => meta.modalidades || [], [meta]);
   const cidadesOptions = useMemo(() => {
@@ -678,6 +673,8 @@ export default function Prospeccoes() {
     scoreMinCap !== "" ? 1 : 0,
     roiMinCap !== "" ? 1 : 0,
     somenteComAvaliacaoCap ? 1 : 0,
+    presencaCap !== "presentes" ? 1 : 0,
+    somenteRevisaoCap ? 1 : 0,
     pageSize !== 20 ? 1 : 0,
   ].reduce((acc, value) => acc + value, 0);
   const capturadosHasFilters = capturadosQuickFiltersCount + capturadosAdvancedFiltersCount > 0;
@@ -687,8 +684,8 @@ export default function Prospeccoes() {
     filtroCidadesCap.length ? `${filtroCidadesCap.length} cidade${filtroCidadesCap.length > 1 ? "s" : ""}` : null,
     filtroModalidadeCap.length ? `${filtroModalidadeCap.length} modalidade${filtroModalidadeCap.length > 1 ? "s" : ""}` : null,
     filtroFinanciaCap.length ? `Financia: ${filtroFinanciaCap.join(", ")}` : null,
-    scoreMinCap !== "" ? `Score >= ${scoreMinCap}` : null,
-    roiMinCap !== "" ? `ROI >= ${roiMinCap}%` : null,
+    !somenteRevisaoCap && scoreMinCap !== "" ? `Score >= ${scoreMinCap}` : null,
+    !somenteRevisaoCap && roiMinCap !== "" ? `ROI >= ${roiMinCap}%` : null,
     somenteComAvaliacaoCap ? "Só com pré-análise" : null,
   ].filter(Boolean);
 
@@ -765,6 +762,8 @@ export default function Prospeccoes() {
     setScoreMinCap("");
     setRoiMinCap("");
     setSomenteComAvaliacaoCap(false);
+    setPresencaCap("presentes");
+    setSomenteRevisaoCap(false);
     setCapturadosCitySearch("");
     setCapturadosFiltersExpanded(false);
     setPageSize(20);
@@ -1066,6 +1065,17 @@ export default function Prospeccoes() {
     }));
   };
 
+  const handleSimularOfertaAtual = () => {
+    const valor = analiseItem?.lanceRecomendado;
+    if (!(valor > 0)) return;
+    setAnaliseDraft((prev) => ({
+      ...prev,
+      valor_base_operacao: formatDraftValue("valor_base_operacao", valor),
+      valor_maximo_lance: formatDraftValue("valor_maximo_lance", valor),
+    }));
+    setAnaliseMeta((prev) => ({ ...prev, simulacao_oferta_atual: true }));
+  };
+
   const handleSalvarAnalise = async () => {
     if (!analiseItem || !analiseDraft) return;
     setAnaliseSaving(true);
@@ -1076,18 +1086,22 @@ export default function Prospeccoes() {
       const cacheKey = `${origem}:${analiseItem.codigo}`;
       const data = await salvarAnaliseSelecionado(analiseItem.codigo, payload, origem);
       const inputs = data?.inputs || payload;
+      const contextoAtual = mapContextoOferta(data?.meta?.contexto_oferta || {});
+      setAnaliseItem((prev) => ({ ...prev, ...contextoAtual, analiseSalva: true }));
       setAnaliseCache((prev) => ({ ...prev, [cacheKey]: data }));
       setAnaliseDraft(createAnaliseDraft(inputs));
       setAnalisePairModes(createAnalisePairModes(inputs));
       setAnaliseMeta(data?.meta || null);
       if (avaliacaoDetalhadaItem?.codigo === analiseItem.codigo) {
         setAnaliseDetalhada(data);
+        setAvaliacaoDetalhadaItem((prev) => ({ ...prev, ...contextoAtual, analiseSalva: true }));
       }
       if (origem === "selecionados") {
         setSelecionados((prev) => prev.map((item) => (
           item.codigo === analiseItem.codigo
             ? {
                 ...item,
+                ...contextoAtual,
                 analiseSalva: true,
                 roiEsperadoPercentual: data?.calculos?.roi_esperado_percentual ?? item.roiEsperadoPercentual,
                 lucroEsperadoValor: data?.calculos?.lucro_esperado_valor ?? item.lucroEsperadoValor,
@@ -1099,6 +1113,7 @@ export default function Prospeccoes() {
           item.codigo === analiseItem.codigo
             ? {
                 ...item,
+                ...contextoAtual,
                 analiseSalva: true,
               }
             : item
@@ -1473,19 +1488,23 @@ export default function Prospeccoes() {
         throw new Error(finalJob?.erro || "Erro ao processar enriquecimento.");
       }
       const enriquecimentoAtualizado = await fetchEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
-      const avaliacaoAtualizada = await fetchAvaliacaoAutomatica(avaliacaoDetalhadaItem.codigo).catch(() => null);
+      const detalheAvaliacao = await fetchAvaliacaoAutomatica(avaliacaoDetalhadaItem.codigo).catch(() => null);
+      const avaliacaoAtualizada = detalheAvaliacao?.avaliacao || enriquecimentoAtualizado?.avaliacao || null;
+      const analiseAtualizada = await fetchAnaliseSelecionado(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem).catch(() => null);
+      const contextoAtual = analiseAtualizada?.meta?.contexto_oferta ? mapContextoOferta(analiseAtualizada.meta.contexto_oferta) : {};
+      if (analiseAtualizada) setAnaliseDetalhada(analiseAtualizada);
       setAvaliacaoDetalhadaItem((prev) => (
-        prev ? { ...prev, avaliacaoAutomatica: avaliacaoAtualizada || prev.avaliacaoAutomatica || enriquecimentoAtualizado?.avaliacao || null } : prev
+        prev ? { ...prev, ...contextoAtual, avaliacaoAutomatica: avaliacaoAtualizada || prev.avaliacaoAutomatica || enriquecimentoAtualizado?.avaliacao || null } : prev
       ));
       setEnriquecimentoDetalhado(enriquecimentoAtualizado);
       setCapturados((prev) => prev.map((item) => (
         item.codigo === avaliacaoDetalhadaItem.codigo
-          ? { ...item, avaliacaoAutomatica: avaliacaoAtualizada || enriquecimentoAtualizado?.avaliacao || item.avaliacaoAutomatica }
+          ? { ...item, ...contextoAtual, avaliacaoAutomatica: avaliacaoAtualizada || enriquecimentoAtualizado?.avaliacao || item.avaliacaoAutomatica }
           : item
       )));
       setSelecionados((prev) => prev.map((item) => (
         item.codigo === avaliacaoDetalhadaItem.codigo
-          ? { ...item, avaliacaoAutomatica: avaliacaoAtualizada || enriquecimentoAtualizado?.avaliacao || item.avaliacaoAutomatica }
+          ? { ...item, ...contextoAtual, avaliacaoAutomatica: avaliacaoAtualizada || enriquecimentoAtualizado?.avaliacao || item.avaliacaoAutomatica }
           : item
       )));
       setAvaliacaoDetalhadaStatusState({ message: "Enriquecimento: resultado disponível.", tone: "success" });
@@ -1913,6 +1932,8 @@ export default function Prospeccoes() {
             </section>
           ) : mobileSection === "selecionados" ? (
             <MobileSelecionadosList
+              formatarMoeda={formatarMoeda}
+              formatarDataHoraCompacta={formatarDataHoraCompacta}
               dados={selecionadosFiltradosOrdenados}
               loading={loadingSel}
               erro={erroSel}
@@ -1964,6 +1985,11 @@ export default function Prospeccoes() {
             />
           ) : (
             <MobileCapturadosList
+              presenca={presencaCap}
+              onPresencaChange={(value) => { setPresencaCap(value); setPage(1); }}
+              somenteRevisao={somenteRevisaoCap}
+              onRevisaoChange={(value) => { setSomenteRevisaoCap(value); setPage(1); }}
+              referencias={capturasReferenciaVisiveis}
               dados={capturados}
               total={capturadosTotal}
               page={page}
@@ -2328,6 +2354,13 @@ export default function Prospeccoes() {
                 </div>
               </div>
 
+              <CapturaFilters
+                presenca={presencaCap}
+                onPresencaChange={(value) => { setPresencaCap(value); setPage(1); }}
+                somenteRevisao={somenteRevisaoCap}
+                onRevisaoChange={(value) => { setSomenteRevisaoCap(value); setPage(1); }}
+              />
+              <CapturaReferencias referencias={capturasReferenciaVisiveis} />
               {capturadosVisibleActiveFilters.length ? (
                 <div className="prospects-captured-toolbar__active">
                   {capturadosVisibleActiveFilters.map((label) => (
@@ -2534,6 +2567,7 @@ export default function Prospeccoes() {
         onFieldBlur={handleAnaliseFieldBlur}
         onPairModeChange={handleAnalisePairModeChange}
         onSave={handleSalvarAnalise}
+        onSimularOfertaAtual={handleSimularOfertaAtual}
       />
 
       <AvaliacaoAutomaticaModal

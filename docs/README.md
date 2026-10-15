@@ -389,3 +389,7 @@ Checklist pós-deploy:
 - Novo endpoint `/dashboard/gastos-mensais/detalhes` agrega valores por grupo e categoria para o mês selecionado (filtros respeitam categorias ocultas).
 - Endpoint `/dashboard/gastos-mensais/transacoes` retorna o nível de transação (data, descrição, valor) por imóvel/mês e categoria.
 - No front, o gráfico de desembolsos mensais passou a ser clicável: cada barra abre um modal com totals e permite expandir categorias para ver as transações confirmadas daquele mês.
+
+## Capturas e revisão de prospecções
+
+Consulte [Presença nas capturas e revisão de avaliações](PROSPECCOES_CAPTURAS_REVISAO.md) para filtros, etapa de menor lance, prazo de pesquisa, migração e contrato do capturador externo.

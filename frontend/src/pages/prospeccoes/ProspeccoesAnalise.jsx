@@ -1,3 +1,4 @@
+import { OfertaAvisos } from "./ProspeccoesShared";
 /* eslint-disable react-refresh/only-export-components */
 import React from "react";
 
@@ -179,8 +180,8 @@ export const createAnalisePairModes = (inputs = {}) => ({
 });
 
 export const createAnaliseFallbackInputs = (item = {}) => {
-  const valorReferencia = item.valorMaximo || item.valorLeilao1 || item.valorAvaliacao || item.valorVenda || "";
-  const valorVendaSugerido = item.valorVenda || item.valorAvaliacao || item.valorMaximo || "";
+  const valorReferencia = item.lanceRecomendado ?? "";
+  const valorVendaSugerido = item.avaliacaoAutomatica?.valor_estimado_venda ?? "";
   return {
     link_google_maps: item.linkGoogleMaps || "",
     valor_base_operacao: valorReferencia,
@@ -370,6 +371,7 @@ export function AnaliseModal({
   onFieldBlur,
   onPairModeChange,
   onSave,
+  onSimularOfertaAtual,
 }) {
   if (!item) return null;
 
@@ -396,6 +398,12 @@ export function AnaliseModal({
           </div>
         </div>
         <div className="prospects-modal__body">
+          <OfertaAvisos item={item} />
+          {item.lanceRecomendado > 0 ? <button type="button" className="prospects-btn secondary"
+            disabled={loading || saving} onClick={onSimularOfertaAtual}>
+            Simular com lance atual de {formatarMoeda(item.lanceRecomendado)}
+          </button> : <p>Sem etapa aberta com lance mínimo informado.</p>}
+          {meta?.simulacao_oferta_atual ? <p>Simulação local com o lance atual e as demais premissas da ficha. Revise os custos fixos e salve para confirmar.</p> : null}
           {loading ? (
             <p className="prospects-empty">Carregando ficha de análise...</p>
           ) : (

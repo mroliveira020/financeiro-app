@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  OfertaAvisos,
   ProspectGallery,
   DetalhesTexto,
   NoteIcon,
@@ -33,7 +34,7 @@ const getInvestimentoTotalEstimado = (avaliacao) => {
 
 const isNestedInteractiveTarget = (target) => {
   if (!(target instanceof HTMLElement)) return false;
-  return Boolean(target.closest("a, button, input, textarea, select, label"));
+  return Boolean(target.closest("a, button, input, textarea, select, label, details, summary"));
 };
 
 export function TabelaSelecionados({
@@ -161,6 +162,7 @@ export function TabelaSelecionados({
                       <a className="prospects-link" href={item.link} target="_blank" rel="noreferrer">
                         {item.codigo}
                       </a>
+                      <OfertaAvisos item={item} />
                     </td>
                     <td className="prospects-col-city">
                       <div className="prospects-city-cell">
@@ -194,8 +196,8 @@ export function TabelaSelecionados({
                     </td>
                     <td>
                       <div className="prospects-date-cell">
-                        <strong>{formatarDataHoraCompacta(resumoLeilao?.data || item.dataLeilao)}</strong>
-                        <span>{resumoLeilao?.label || "Data principal"}</span>
+                        <strong>{resumoLeilao?.data ? formatarDataHoraCompacta(resumoLeilao.data) : "Data não informada"}</strong>
+                        <span>{resumoLeilao?.label || "Sem etapa aberta"}</span>
                         {resumoLeilao?.valor !== null && resumoLeilao?.valor !== undefined ? (
                           <span>{formatarMoeda(resumoLeilao.valor)}</span>
                         ) : null}
@@ -456,7 +458,7 @@ export function TabelaCapturados({
           {renderSort("uf", "UF")}
           {renderSort("modalidade", "Modalidade")}
           {renderSort("valor_minimo", "Valor")}
-          {renderSort("ultima_disputa", "Última disputa")}
+          {renderSort("ultima_disputa", "Data da oportunidade")}
         </div>
 
         {isEmpty ? (
@@ -537,6 +539,7 @@ export function TabelaCapturados({
                   </div>
                 ) : null}
 
+                <OfertaAvisos item={item} />
                 <div className="prospects-capture-card__meta-grid">
                   <div className="prospects-capture-card__meta-item">
                     <span>Valor avaliação</span>

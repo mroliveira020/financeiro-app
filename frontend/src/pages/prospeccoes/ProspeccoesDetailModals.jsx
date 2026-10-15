@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  OfertaAvisos,
   ProspectGallery,
   TextoEstruturado,
   DetalhesTexto,
@@ -250,7 +251,7 @@ export function AvaliacaoDetalhadaModal({
   const descontoExibicao = calcularDescontoExibicao(item);
   const quantidadeMensagens = historicoExpandido.length;
   const enderecoCompleto = [item.endereco, item.bairro].filter(Boolean).join(" - ");
-  const valorReferencia = resumoLeilao?.valor ?? item.valor;
+  const valorReferencia = resumoLeilao?.valor ?? null;
   const editalUrl = extrairEditalUrl(item.descricao);
   const processoNumero = extrairProcessoNumero(item.descricao);
   const fonteLabel = getFonteLabel(item.fonte);
@@ -340,6 +341,7 @@ export function AvaliacaoDetalhadaModal({
                   <span className={`prospects-auto-badge ${item.fonte === "tjdft_judicial" ? "is-judicial" : "is-source"}`.trim()}>{fonteLabel}</span>
                 ) : null}
               </div>
+              <OfertaAvisos item={item} />
               <div className="prospects-auto-hero__status-row">
                 <span className="prospects-detail-status-chip">
                   <strong>Status</strong>

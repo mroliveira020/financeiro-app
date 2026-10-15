@@ -74,6 +74,7 @@ class ProspeccoesFinanceiroRegrasTestCase(unittest.TestCase):
             "created_at": now,
             "updated_at": now,
             "valor_venda": 130000.0,
+            "lance_recomendado": 90000.0,
             "valor_avaliacao": 150000.0,
             "financia": True,
             "avaliacao_numero_bem": None,

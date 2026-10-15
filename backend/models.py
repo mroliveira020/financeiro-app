@@ -9,6 +9,7 @@ from collections import defaultdict
 from functools import lru_cache
 from datetime import datetime, timedelta, timezone
 from db_connection import conectar
+from config import PROSPECCAO_AVALIACAO_VALIDADE_DIAS
 import json
 from werkzeug.security import generate_password_hash
 
@@ -2923,6 +2924,20 @@ def _build_prefill_analise_motor2(imovel, avaliacao):
     return inputs
 
 
+def _contexto_oferta_resposta(row):
+    contexto = row.get("contexto_oferta") or {}
+    motivos = row.get("motivos_revisao") or []
+    return {
+        "etapa_recomendada": contexto.get("etapa_recomendada"),
+        "lance_recomendado": contexto.get("lance_recomendado"),
+        "data_recomendada": contexto.get("data_recomendada"),
+        "presente_ultima_captura": contexto.get("presente_ultima_captura"),
+        "captura_concluida_em": contexto.get("captura_concluida_em"),
+        "precisa_revisao": bool(motivos),
+        "motivos_revisao": motivos,
+    }
+
+
 def listar_prospeccoes_capturados(
     limit=50,
     offset=0,
@@ -2937,13 +2952,20 @@ def listar_prospeccoes_capturados(
     score_min=None,
     roi_min=None,
     somente_com_avaliacao=False,
+    presenca="presentes",
+    somente_revisao=False,
 ):
+    if presenca not in {"presentes", "ausentes", "todos"}:
+        raise ValueError("Filtro de presença inválido")
     _garantir_tabela_ai_analise()
     conn, cur = conectar()
-    base_cte = """
+    base_cte = f"""
         WITH base AS (
             SELECT
                 p.numero_bem,
+                p.presente_ultima_captura,
+                to_jsonb(ctx) AS contexto_oferta,
+                prospeccao_motivos_revisao(to_jsonb(ctx), {PROSPECCAO_AVALIACAO_VALIDADE_DIAS}) AS motivos_revisao,
                 p.coletado_em,
                 p.tipo_venda,
                 p.tipo_imovel,
@@ -3010,23 +3032,10 @@ def listar_prospeccoes_capturados(
                 a.ganho_capital_valor,
                 ai_a.numero_bem AS ai_analise_numero_bem,
                 to_jsonb(p) AS raw_payload,
-                (
-                    SELECT MIN(v)
-                    FROM (VALUES (p.valor_leilao_1), (p.valor_leilao_2), (p.valor_venda)) AS vals(v)
-                    WHERE v IS NOT NULL
-                ) AS valor_minimo,
-                (
-                    SELECT MAX(d)
-                    FROM (
-                        VALUES (p.data_leilao_1),
-                               (p.data_leilao_2),
-                               (p.data_licitacao_aberta),
-                               (p.data_hora_encerramento),
-                               (p.coletado_em)
-                    ) AS datas(d)
-                    WHERE d IS NOT NULL
-                ) AS ultima_disputa
-            FROM vw_imoveis_prospeccao_latest p
+                ctx.lance_recomendado AS valor_minimo,
+                ctx.data_recomendada AS ultima_disputa
+            FROM vw_prospeccoes_contexto p
+            CROSS JOIN LATERAL (SELECT p.*) ctx
             LEFT JOIN LATERAL (
                 SELECT
                     (array_agg(f.url ORDER BY COALESCE(f.ordem, 999999), f.url))[1] AS foto_url,
@@ -3045,6 +3054,14 @@ def listar_prospeccoes_capturados(
     conditions = []
     params = []
 
+    if presenca == "presentes":
+        # Sem captura completa: preservar resultados legados e sinalizar desconhecido.
+        conditions.append("presente_ultima_captura IS DISTINCT FROM FALSE")
+    elif presenca == "ausentes":
+        conditions.append("presente_ultima_captura = FALSE")
+    if somente_revisao:
+        conditions.append("cardinality(motivos_revisao) > 0")
+
     if ufs:
         placeholders = ",".join(["LOWER(%s)"] * len(ufs))
         conditions.append(f"LOWER(uf) IN ({placeholders})")
@@ -3057,7 +3074,7 @@ def listar_prospeccoes_capturados(
         placeholders = ",".join(["LOWER(%s)"] * len(modalidades))
         conditions.append(f"LOWER(tipo_venda) IN ({placeholders})")
         params.extend([item.lower() for item in modalidades])
-    status_list = status or ["disponivel"]
+    status_list = status
     if status_list:
         values = []
         for s in status_list:
@@ -3084,10 +3101,10 @@ def listar_prospeccoes_capturados(
         placeholders = ",".join(["LOWER(%s)"] * len(cidades))
         conditions.append(f"LOWER(cidade) IN ({placeholders})")
         params.extend([item.lower() for item in cidades])
-    if score_min is not None:
+    if score_min is not None and not somente_revisao:
         conditions.append("COALESCE(score_total, 0) >= %s")
         params.append(score_min)
-    if roi_min is not None:
+    if roi_min is not None and not somente_revisao:
         conditions.append("COALESCE(retorno_pct, 0) >= %s")
         params.append(roi_min)
     if somente_com_avaliacao:
@@ -3118,7 +3135,7 @@ def listar_prospeccoes_capturados(
 
     data_query = (
         f"""{base_cte} SELECT * FROM base{where_clause} """
-        f"""ORDER BY {order_col} {direction} LIMIT %s OFFSET %s"""
+        f"""ORDER BY {order_col} {direction} NULLS LAST, numero_bem LIMIT %s OFFSET %s"""
     )
     query_params = params + [limit, offset]
 
@@ -3165,6 +3182,7 @@ def listar_prospeccoes_capturados(
         calculos_analise = calcular_analise_prospeccao(analise_inputs) if tem_analise else None
         result.append({
             "numero_bem": row["numero_bem"],
+            **_contexto_oferta_resposta(row),
             "coletado_em": row["coletado_em"].isoformat() if row["coletado_em"] else None,
             "tipo_venda": row["tipo_venda"],
             "tipo_imovel": row["tipo_imovel"],
@@ -3215,9 +3233,11 @@ def listar_prospeccoes_selecionados(
     _garantir_tabela_prospeccao_responsaveis()
     _garantir_tabela_ai_analise()
     conn, cur = conectar()
-    base_query = """
+    base_query = f"""
         SELECT
             s.numero_bem,
+            to_jsonb(ctx) AS contexto_oferta,
+            prospeccao_motivos_revisao(to_jsonb(ctx), {PROSPECCAO_AVALIACAO_VALIDADE_DIAS}) AS motivos_revisao,
             s.status,
             s.valor_maximo,
             s.prioridade,
@@ -3291,16 +3311,9 @@ def listar_prospeccoes_selecionados(
             a.comissao_corretor_valor,
             a.ganho_capital_percentual,
             a.ganho_capital_valor,
-            (
-                SELECT MAX(d)
-                FROM (
-                    VALUES (v.data_leilao_1),
-                           (v.data_leilao_2),
-                           (v.data_hora_encerramento)
-                ) AS datas(d)
-                WHERE d IS NOT NULL
-            ) AS data_leilao
+            ctx.data_recomendada AS data_leilao
         FROM imoveis_selecionados s
+        LEFT JOIN vw_prospeccoes_contexto ctx ON ctx.numero_bem = s.numero_bem
         LEFT JOIN users u
             ON u.id = s.created_by
         LEFT JOIN users u_inativador
@@ -3311,8 +3324,7 @@ def listar_prospeccoes_selecionados(
             ON ai_a.numero_bem = s.numero_bem
         LEFT JOIN avaliacoes av
             ON av.numero_bem = s.numero_bem
-        LEFT JOIN vw_imoveis_prospeccao_latest v
-            ON v.numero_bem = s.numero_bem
+        LEFT JOIN LATERAL (SELECT ctx.*) v ON TRUE
         LEFT JOIN LATERAL (
             SELECT
                 (array_agg(f.url ORDER BY COALESCE(f.ordem, 999999), f.url))[1] AS foto_url,
@@ -3461,6 +3473,7 @@ def listar_prospeccoes_selecionados(
         avaliacao = _build_avaliacao_dict(row)
 
         result.append({
+            **_contexto_oferta_resposta(row),
             "foto_url": row["foto_url"],
             "fotos": _normalizar_lista_fotos_valores(row["foto_url"], row["fotos"]),
             "numero_bem": row["numero_bem"],
@@ -4342,8 +4355,8 @@ def _montar_resposta_analise_prospeccao(row, numero_bem):
     else:
         calculada = _build_prefill_analise_motor2(
             {
-                "valor_venda": row.get("valor_venda"),
-                "valor_avaliacao": row.get("valor_avaliacao"),
+                "valor_venda": row.get("lance_recomendado"),
+                "valor_avaliacao": None,
                 "financia": row.get("financia"),
             },
             avaliacao,
@@ -4369,6 +4382,7 @@ def _montar_resposta_analise_prospeccao(row, numero_bem):
         },
         "meta": {
             "prefill_source": prefill_source,
+            "contexto_oferta": _contexto_oferta_resposta(row),
             "avaliacao_automatica": avaliacao,
             "created_by": row["created_by"],
             "created_by_name": row["created_by_name"],
@@ -4424,6 +4438,9 @@ def obter_analise_prospeccao_selecionado(numero_bem):
                 v.valor_avaliacao,
                 COALESCE(s.valor_maximo, v.valor_venda, v.valor_avaliacao) AS valor_minimo,
                 v.financia,
+                ctx.lance_recomendado,
+                to_jsonb(ctx) AS contexto_oferta,
+                prospeccao_motivos_revisao(to_jsonb(ctx), %s) AS motivos_revisao,
                 av.numero_bem AS avaliacao_numero_bem,
                 av.preco_m2_regiao,
                 av.fonte_pesquisa,
@@ -4441,6 +4458,7 @@ def obter_analise_prospeccao_selecionado(numero_bem):
                 av.resumo_ia,
                 av.pesquisado_em
             FROM imoveis_selecionados s
+            LEFT JOIN vw_prospeccoes_contexto ctx ON ctx.numero_bem = s.numero_bem
             LEFT JOIN imoveis_selecionados_analise a
                 ON a.numero_bem = s.numero_bem
             LEFT JOIN vw_imoveis_prospeccao_latest v
@@ -4454,7 +4472,7 @@ def obter_analise_prospeccao_selecionado(numero_bem):
             WHERE s.numero_bem = %s
             LIMIT 1
             """,
-            (numero_bem,),
+            (PROSPECCAO_AVALIACAO_VALIDADE_DIAS, numero_bem),
         )
         row = cur.fetchone()
         if not row:
@@ -4506,6 +4524,9 @@ def obter_analise_prospeccao_capturado(numero_bem):
                 v.valor_venda,
                 v.valor_avaliacao,
                 v.financia,
+                ctx.lance_recomendado,
+                to_jsonb(ctx) AS contexto_oferta,
+                prospeccao_motivos_revisao(to_jsonb(ctx), %s) AS motivos_revisao,
                 av.numero_bem AS avaliacao_numero_bem,
                 av.preco_m2_regiao,
                 av.fonte_pesquisa,
@@ -4523,6 +4544,7 @@ def obter_analise_prospeccao_capturado(numero_bem):
                 av.resumo_ia,
                 av.pesquisado_em
             FROM vw_imoveis_prospeccao_latest v
+            LEFT JOIN vw_prospeccoes_contexto ctx ON ctx.numero_bem = v.numero_bem
             LEFT JOIN imoveis_selecionados_analise a
                 ON a.numero_bem = v.numero_bem
             LEFT JOIN avaliacoes av
@@ -4534,7 +4556,7 @@ def obter_analise_prospeccao_capturado(numero_bem):
             WHERE v.numero_bem = %s
             LIMIT 1
             """,
-            (numero_bem,),
+            (PROSPECCAO_AVALIACAO_VALIDADE_DIAS, numero_bem),
         )
         row = cur.fetchone()
         if not row:
@@ -4576,13 +4598,17 @@ def _upsert_analise_prospeccao(cur, numero_bem, calculada, current_user_id=None,
             created_by,
             created_by_name,
             updated_by,
-            updated_by_name
+            updated_by_name,
+            oferta_referencia
         )
         VALUES (
-            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+            (SELECT prospeccao_oferta_referencia(to_jsonb(p))
+             FROM vw_imoveis_prospeccao_latest p WHERE p.numero_bem = %s)
         )
         ON CONFLICT (numero_bem) DO UPDATE
         SET
+            oferta_referencia = EXCLUDED.oferta_referencia,
             link_google_maps = EXCLUDED.link_google_maps,
             valor_base_operacao = EXCLUDED.valor_base_operacao,
             tempo_operacao_meses = EXCLUDED.tempo_operacao_meses,
@@ -4641,6 +4667,7 @@ def _upsert_analise_prospeccao(cur, numero_bem, calculada, current_user_id=None,
             current_user_name,
             current_user_id,
             current_user_name,
+            numero_bem,
         ),
     )
 
@@ -5023,8 +5050,12 @@ def listar_prospeccoes_meta():
         cidades_por_uf.setdefault(uf_key, set()).add(cidade.strip())
     cidades_por_uf = {uf: sorted(list(cidades)) for uf, cidades in cidades_por_uf.items()}
 
+    cur.execute("""SELECT DISTINCT ON (fonte, uf) fonte, uf, concluida_em
+                   FROM prospeccao_capturas WHERE completa AND status = 'concluida'
+                   ORDER BY fonte, uf, concluida_em DESC, iniciada_em DESC, id DESC""")
+    capturas = [{"fonte": r[0], "uf": r[1], "concluida_em": _iso_or_none(r[2])} for r in cur.fetchall()]
     conn.close()
-    return {"ufs": ufs, "fontes": fontes, "modalidades": modalidades, "financia": financia, "cidades_por_uf": cidades_por_uf}
+    return {"capturas_referencia": capturas, "ufs": ufs, "fontes": fontes, "modalidades": modalidades, "financia": financia, "cidades_por_uf": cidades_por_uf}
 
 def atualizar_inserir_orcamentos(id_imovel, orcamentos):
     conn, cur = conectar()

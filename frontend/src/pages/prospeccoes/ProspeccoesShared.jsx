@@ -456,3 +456,43 @@ export function MobileHubCard({
     </button>
   );
 }
+
+
+export function CapturaFilters({ presenca, onPresencaChange, somenteRevisao, onRevisaoChange }) {
+  return <div className="prospects-captura-filters">
+    <label className="prospects-toolbar-field">
+      <span>Presença na captura</span>
+      <select value={presenca} onChange={(e) => onPresencaChange(e.target.value)}>
+        <option value="presentes">Presentes na última captura</option>
+        <option value="ausentes">Ausentes na última captura</option>
+        <option value="todos">Todos, incluindo histórico</option>
+      </select>
+    </label>
+    <label className="prospects-check-label">
+      <input type="checkbox" checked={somenteRevisao} onChange={(e) => onRevisaoChange(e.target.checked)} />
+      Precisam de revisão
+    </label>
+    {somenteRevisao ? <span>ROI e score mínimos ficam suspensos durante a revisão.</span> : null}
+  </div>;
+}
+
+export function CapturaReferencias({ referencias }) {
+  return <div className="prospects-captura-referencias">
+    {referencias.length ? referencias.map((r) => <span key={`${r.fonte}:${r.uf}`}>
+      {r.uf} · {r.fonte} · captura concluída em {new Date(r.concluida_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+    </span>) : <span>Sem captura completa de referência. Exibindo registros existentes, com presença ainda não confirmada.</span>}
+    <span>UFs e fontes sem captura completa mantêm os registros existentes.</span>
+  </div>;
+}
+
+export function OfertaAvisos({ item }) {
+  return <div className="prospects-oferta-avisos">
+    {item.presenteUltimaCaptura === false ? <p>Ausente na última captura completa. Isso não confirma venda do imóvel.</p>
+      : item.presenteUltimaCaptura == null ? <p>Presença sem captura completa de referência.</p> : null}
+    {item.precisaRevisao ? <details>
+      <summary>Avaliação precisa de revisão</summary>
+      <ul>{item.motivosRevisao.map((motivo) => <li key={motivo}>{motivo}</li>)}</ul>
+      <p>ROI e score salvos podem refletir condições anteriores. Revise a viabilidade ou solicite novo enriquecimento.</p>
+    </details> : null}
+  </div>;
+}
