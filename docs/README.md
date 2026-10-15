@@ -393,3 +393,14 @@ Checklist pós-deploy:
 ## Capturas e revisão de prospecções
 
 Consulte [Presença nas capturas e revisão de avaliações](PROSPECCOES_CAPTURAS_REVISAO.md) para filtros, etapa de menor lance, prazo de pesquisa, migração e contrato do capturador externo.
+
+
+## Isolamento das consultas de IA por imóvel
+
+- Cada abertura do hub possui uma sessão própria, identificada por origem (`capturados`/`selecionados`) e número do bem. Reabrir o mesmo imóvel cria outra sessão.
+- Trocar de imóvel, fechar o hub ou sair da página aborta as leituras HTTP e o polling da sessão anterior. Respostas, erros, progresso e finalizações atrasadas são descartados, inclusive para matrícula, enriquecimento e viabilidade do hub.
+- O polling valida o número do bem e o ID do job retornados antes de informar progresso ou exibir resultado. Cancelamento local é silencioso.
+- Jobs já aceitos pelo servidor continuam no worker e seus resultados ficam disponíveis no banco para uma nova consulta. O cancelamento se aplica ao acompanhamento daquele painel.
+- A abertura de capturados consulta sua própria rota de viabilidade. A síntese de IA já salva conta como conteúdo existente mesmo sem histórico de chat.
+- Implementação: `frontend/src/hooks/useProspeccaoSession.js`, `frontend/src/pages/Prospeccoes.jsx` e `frontend/src/services/prospeccoes.js`.
+- Regressões: `frontend/src/pages/ProspeccoesIa.test.jsx` simula respostas fora de ordem, erros antigos, troca de origem, reabertura, término de jobs e saída da página; os testes do serviço verificam cancelamento da espera e rejeição de identidades incorretas. Todas as integrações são mockadas.

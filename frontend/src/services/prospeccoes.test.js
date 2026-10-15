@@ -27,6 +27,7 @@ describe("services/prospeccoes", () => {
     vi.clearAllMocks();
     globalThis.window = {
       setTimeout,
+      clearTimeout,
     };
   });
 
@@ -249,5 +250,60 @@ describe("services/prospeccoes", () => {
       job_id: "job-1",
       resultado: { resumo: "ok" },
     });
+  });
+});
+
+
+describe("Cancelamento e identidade do polling de IA", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.setTimeout = setTimeout;
+    window.clearTimeout = clearTimeout;
+  });
+
+  it("não consulta jobs de uma sessão já cancelada", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(pollAiJob("123", "job-1", { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(api.get).not.toHaveBeenCalled();
+  });
+
+  it("descarta resposta em trânsito após cancelamento", async () => {
+    let responder;
+    api.get.mockReturnValue(new Promise((resolve) => { responder = resolve; }));
+    const controller = new AbortController();
+    const onProgress = vi.fn();
+    const promise = pollAiJob("123", "job-1", { signal: controller.signal, onProgress });
+    const rejected = expect(promise).rejects.toMatchObject({ name: "AbortError" });
+    controller.abort();
+    responder({ data: { numero_bem: "123", status: "done" } });
+    await rejected;
+    expect(onProgress).not.toHaveBeenCalled();
+    expect(api.get).toHaveBeenCalledWith("/prospeccoes/selecionados/123/ai-analise/job/job-1", { signal: controller.signal });
+  });
+
+  it("cancela a espera sem consultar novamente nem deixar timer ativo", async () => {
+    const clear = vi.spyOn(window, "clearTimeout");
+    api.get.mockResolvedValue({ data: { numero_bem: "123", status: "pending" } });
+    const controller = new AbortController();
+    const onProgress = vi.fn();
+    const promise = pollAiJob("123", "job-1", { signal: controller.signal, intervalMs: 10000, onProgress });
+    const rejected = expect(promise).rejects.toMatchObject({ name: "AbortError" });
+    await vi.waitFor(() => expect(onProgress).toHaveBeenCalledTimes(1));
+    controller.abort();
+    await rejected;
+    expect(api.get).toHaveBeenCalledTimes(1);
+    expect(clear).toHaveBeenCalled();
+    clear.mockRestore();
+  });
+
+  it.each([
+    { numero_bem: "999", job_id: "job-1" },
+    { numero_bem: "123", job_id: "job-errado" },
+  ])("rejeita resultado de outro imóvel ou solicitação: %j", async (identidade) => {
+    api.get.mockResolvedValue({ data: { ...identidade, status: "done" } });
+    const onProgress = vi.fn();
+    await expect(pollAiJob("123", "job-1", { onProgress })).rejects.toThrow("não corresponde");
+    expect(onProgress).not.toHaveBeenCalled();
   });
 });

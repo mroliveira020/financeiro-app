@@ -24,6 +24,7 @@ import {
   pollAiJob,
 } from "../services/prospeccoes";
 import { fetchImoveisFinanceiroAcessiveis } from "../services/api";
+import useProspeccaoSession from "../hooks/useProspeccaoSession";
 import { useAuth } from "../context/AuthContext";
 import {
   ProspectPhoto,
@@ -470,6 +471,7 @@ export default function Prospeccoes() {
   const [aiSaving, setAiSaving] = useState(false);
   const [matriculaLoading, setMatriculaLoading] = useState(false);
   const [enriquecimentoLoading, setEnriquecimentoLoading] = useState(false);
+  const hubSession = useProspeccaoSession();
   const aiAutoInitAttemptRef = useRef(new Set());
   const aiDeferredActionRef = useRef(null);
   const enriquecimentoFetchAttemptRef = useRef(new Set());
@@ -1078,6 +1080,7 @@ export default function Prospeccoes() {
 
   const handleSalvarAnalise = async () => {
     if (!analiseItem || !analiseDraft) return;
+    const hubOnSave = hubSession.get(analiseItem.codigo, analiseItem.origem || "selecionados");
     setAnaliseSaving(true);
     setMensagem("");
     try {
@@ -1092,7 +1095,7 @@ export default function Prospeccoes() {
       setAnaliseDraft(createAnaliseDraft(inputs));
       setAnalisePairModes(createAnalisePairModes(inputs));
       setAnaliseMeta(data?.meta || null);
-      if (avaliacaoDetalhadaItem?.codigo === analiseItem.codigo) {
+      if (hubOnSave?.isCurrent()) {
         setAnaliseDetalhada(data);
         setAvaliacaoDetalhadaItem((prev) => ({ ...prev, ...contextoAtual, analiseSalva: true }));
       }
@@ -1201,9 +1204,11 @@ export default function Prospeccoes() {
   }, []);
 
   const carregarAiAnalise = useCallback(async (numeroBem, { autoInit = false, origem = "selecionados" } = {}) => {
+    const session = hubSession.get(numeroBem, origem);
+    if (!session) return;
     setAiLoading(true);
     try {
-      const data = await fetchAiAnalise(numeroBem, origem);
+      const data = await session.wait(fetchAiAnalise(numeroBem, origem, { signal: session.signal }));
       setAiAnalise(data);
       setAiSinteseDraft(data?.analise_texto || "");
       sincronizarIndicadorAnaliseIaCapturada(numeroBem, data);
@@ -1211,41 +1216,46 @@ export default function Prospeccoes() {
         setAvaliacaoDetalhadaStatusState();
       }
 
-      const historico = data?.historico_chat || [];
-      if (autoInit && !historico.length && (user?.ai_access || user?.role === "admin")) {
-        const job = await enviarMensagemAiChat(numeroBem, "__init__", origem);
-        const finalJob = await pollAiJob(numeroBem, job.job_id, {
+      if (autoInit && !hasAiUsefulContent(data) && (user?.ai_access || user?.role === "admin")) {
+        const job = await session.wait(enviarMensagemAiChat(numeroBem, "__init__", origem));
+        const finalJob = await session.wait(pollAiJob(numeroBem, job.job_id, {
+          signal: session.signal,
           origem,
           onProgress: (progressJob) => {
+            if (!session.isCurrent()) return;
             setAvaliacaoDetalhadaStatusState(
               buildAiJobStatusState(progressJob, { fallbackPrefix: "IA", retryAction: "analise_inicial" })
             );
           },
-        });
+        }));
         if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
           throw new Error(finalJob?.erro || "Falha ao gerar avaliação inicial.");
         }
-        const refreshed = await fetchAiAnalise(numeroBem, origem);
+        const refreshed = await session.wait(fetchAiAnalise(numeroBem, origem, { signal: session.signal }));
         setAiAnalise(refreshed);
         setAiSinteseDraft(refreshed?.analise_texto || "");
         sincronizarIndicadorAnaliseIaCapturada(numeroBem, refreshed);
         if (hasAiUsefulContent(refreshed)) {
           setAvaliacaoDetalhadaStatusState();
         }
-        await refreshSelecionados();
+        await session.wait(refreshSelecionados());
       }
     } finally {
-      setAiLoading(false);
+      if (session.isCurrent()) setAiLoading(false);
     }
-  }, [user, refreshSelecionados, sincronizarIndicadorAnaliseIaCapturada, setAvaliacaoDetalhadaStatusState]);
+  }, [hubSession, user, refreshSelecionados, sincronizarIndicadorAnaliseIaCapturada, setAvaliacaoDetalhadaStatusState]);
 
-  const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados", origem = "selecionados") => {
+  const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados", origem = "selecionados", { gerarAnaliseInicial = false } = {}) => {
+    const session = hubSession.begin(item.codigo, origem);
     const aiAttemptKey = `${origem}:${item.codigo}`;
     const enriquecimentoAttemptKey = `${origem}:${item.codigo}`;
     const needsAiData = initialTab === "ia" || initialTab === "matricula";
     const needsEnriquecimentoData = initialTab === "enriquecimento";
-    aiAutoInitAttemptRef.current.delete(aiAttemptKey);
-    enriquecimentoFetchAttemptRef.current.delete(enriquecimentoAttemptKey);
+    aiAutoInitAttemptRef.current.clear();
+    enriquecimentoFetchAttemptRef.current.clear();
+    aiDeferredActionRef.current = gerarAnaliseInicial ? { numeroBem: item.codigo, origem, tipo: "analise_inicial" } : null;
+    if (gerarAnaliseInicial) aiAutoInitAttemptRef.current.add(aiAttemptKey);
+    if (needsEnriquecimentoData) enriquecimentoFetchAttemptRef.current.add(enriquecimentoAttemptKey);
     setAvaliacaoDetalhadaItem(item);
     setAvaliacaoDetalhadaOrigem(origem);
     setAvaliacaoDetalhadaTab(initialTab);
@@ -1254,54 +1264,49 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaStatusState();
     setAiAnalise(null);
     setAiLoading(needsAiData);
+    setAiSending(false);
+    setAiSaving(false);
+    setMatriculaLoading(false);
+    setEnriquecimentoLoading(false);
     setEnriquecimentoDetalhado(null);
     setEnriquecimentoDetalhadoLoading(needsEnriquecimentoData);
     setAnaliseDetalhada(null);
     setAnaliseDetalhadaLoading(true);
     try {
-      const analisePromise = fetchAnaliseSelecionado(item.codigo).catch(() => null);
+      const analisePromise = session.wait(fetchAnaliseSelecionado(item.codigo, origem, { signal: session.signal })).catch(() => null);
       const aiPromise = needsAiData
         ? carregarAiAnalise(item.codigo, { autoInit: false, origem })
         : Promise.resolve(null);
       const enriquecimentoPromise = needsEnriquecimentoData
-        ? fetchEnriquecimento(item.codigo, origem).catch(() => null)
+        ? session.wait(fetchEnriquecimento(item.codigo, origem, { signal: session.signal })).catch(() => null)
         : Promise.resolve(null);
-      const [analiseData, , enriquecimentoData] = await Promise.all([
+      const [analiseData, , enriquecimentoData] = await session.wait(Promise.all([
         analisePromise,
         aiPromise,
         enriquecimentoPromise,
-      ]);
+      ]));
       setAnaliseDetalhada(analiseData);
       if (needsEnriquecimentoData) {
         setEnriquecimentoDetalhado(enriquecimentoData || null);
       }
     } catch (err) {
+      if (!session.isCurrent()) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar avaliação detalhada");
       setMensagem(message);
       setAvaliacaoDetalhadaStatusState(buildAiErrorStatusState(message, { fallbackPrefix: "IA" }));
     } finally {
-      setAnaliseDetalhadaLoading(false);
-      setEnriquecimentoDetalhadoLoading(false);
+      if (session.isCurrent()) setAnaliseDetalhadaLoading(false);
+      if (session.isCurrent()) setEnriquecimentoDetalhadoLoading(false);
     }
   };
 
   const handleAcionarAnaliseIa = (item, origem = "selecionados") => {
     if (!item?.codigo) return;
-    if (item.analiseIaSalva) {
-      openAvaliacaoDetalhadaModal(item, "ia", origem);
-      return;
-    }
-    const aiAttemptKey = `${origem}:${item.codigo}`;
-    aiAutoInitAttemptRef.current.add(aiAttemptKey);
-    aiDeferredActionRef.current = {
-      numeroBem: item.codigo,
-      origem,
-      tipo: "analise_inicial",
-    };
-    openAvaliacaoDetalhadaModal(item, "ia", origem);
+    openAvaliacaoDetalhadaModal(item, "ia", origem, { gerarAnaliseInicial: !item.analiseIaSalva });
   };
 
   const closeAvaliacaoDetalhadaModal = () => {
+    hubSession.cancel();
     if (avaliacaoDetalhadaItem?.codigo) {
       enriquecimentoFetchAttemptRef.current.delete(`${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem.codigo}`);
     }
@@ -1326,7 +1331,10 @@ export default function Prospeccoes() {
 
   const handleSelecionarNoHub = async () => {
     if (!avaliacaoDetalhadaItem) return;
-    const result = await handleIncluir(avaliacaoDetalhadaItem, { openAnalise: false });
+    const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+    if (!session) return;
+    const result = await session.wait(handleIncluir(avaliacaoDetalhadaItem, { openAnalise: false })).catch(() => null);
+    if (!session.isCurrent()) return;
     if (result?.ok) {
       setAvaliacaoDetalhadaStatusState({
         message: `Imóvel ${avaliacaoDetalhadaItem.codigo} incluído na fila de prospecção.`,
@@ -1342,68 +1350,79 @@ export default function Prospeccoes() {
 
   const handleEnviarMensagemAi = async () => {
     if (!avaliacaoDetalhadaItem || !aiMensagemDraft.trim()) return;
+    const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+    if (!session) return;
     setAiSending(true);
     setAvaliacaoDetalhadaStatusState({ message: "IA: enviando pergunta...", tone: "info" });
     try {
-      const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, aiMensagemDraft.trim(), avaliacaoDetalhadaOrigem);
+      const job = await session.wait(enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, aiMensagemDraft.trim(), avaliacaoDetalhadaOrigem));
       setAiMensagemDraft("");
-      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+      const finalJob = await session.wait(pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+        signal: session.signal,
         origem: avaliacaoDetalhadaOrigem,
         onProgress: (progressJob) => {
+          if (!session.isCurrent()) return;
           setAvaliacaoDetalhadaStatusState(buildAiJobStatusState(progressJob, { fallbackPrefix: "IA" }));
         },
-      });
+      }));
       if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao processar mensagem da IA.");
       }
-      const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+      const refreshed = await session.wait(fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem, { signal: session.signal }));
       setAiAnalise(refreshed);
       setAiSinteseDraft(refreshed?.analise_texto || "");
       sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, refreshed);
-      await refreshSelecionados();
+      await session.wait(refreshSelecionados());
       setAvaliacaoDetalhadaStatusState({ message: "IA: resultado disponível.", tone: "success" });
     } catch (err) {
+      if (!session.isCurrent()) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao enviar mensagem para IA");
       setMensagem(message);
       setAvaliacaoDetalhadaStatusState(buildAiErrorStatusState(message, { fallbackPrefix: "IA" }));
     } finally {
-      setAiSending(false);
+      if (session.isCurrent()) setAiSending(false);
     }
   };
 
   const handleGerarAnaliseInicialAi = useCallback(async () => {
     if (!avaliacaoDetalhadaItem) return;
+    const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+    if (!session) return;
     setAiSending(true);
     setAvaliacaoDetalhadaStatusState({ message: "IA: aguardando processamento...", tone: "info" });
     try {
-      const job = await enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, "__init__", avaliacaoDetalhadaOrigem);
-      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+      const job = await session.wait(enviarMensagemAiChat(avaliacaoDetalhadaItem.codigo, "__init__", avaliacaoDetalhadaOrigem));
+      const finalJob = await session.wait(pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+        signal: session.signal,
         origem: avaliacaoDetalhadaOrigem,
         onProgress: (progressJob) => {
+          if (!session.isCurrent()) return;
           setAvaliacaoDetalhadaStatusState(
             buildAiJobStatusState(progressJob, { fallbackPrefix: "IA", retryAction: "analise_inicial" })
           );
         },
-      });
+      }));
       if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao gerar análise inicial da IA.");
       }
-      const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+      const refreshed = await session.wait(fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem, { signal: session.signal }));
       setAiAnalise(refreshed);
       setAiSinteseDraft(refreshed?.analise_texto || "");
       sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, refreshed);
-      await refreshSelecionados();
+      await session.wait(refreshSelecionados());
       setAvaliacaoDetalhadaStatusState({ message: "IA: resultado disponível.", tone: "success" });
     } catch (err) {
+      if (!session.isCurrent()) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao gerar análise inicial da IA");
       setMensagem(message);
       setAvaliacaoDetalhadaStatusState(
         buildAiErrorStatusState(message, { fallbackPrefix: "IA", retryAction: "analise_inicial" })
       );
     } finally {
-      setAiSending(false);
+      if (session.isCurrent()) setAiSending(false);
     }
   }, [
+    hubSession,
     avaliacaoDetalhadaItem,
     avaliacaoDetalhadaOrigem,
     refreshSelecionados,
@@ -1413,84 +1432,97 @@ export default function Prospeccoes() {
 
   const handleSalvarAiSintese = async () => {
     if (!avaliacaoDetalhadaItem) return;
+    const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+    if (!session) return;
     setAiSaving(true);
     setAvaliacaoDetalhadaStatusState({ message: "IA: salvando síntese...", tone: "info" });
     try {
-      const data = await salvarAiAnalise(avaliacaoDetalhadaItem.codigo, {
+      const data = await session.wait(salvarAiAnalise(avaliacaoDetalhadaItem.codigo, {
         analise_texto: aiSinteseDraft.trim(),
-      }, avaliacaoDetalhadaOrigem);
+      }, avaliacaoDetalhadaOrigem));
       setAiAnalise(data);
       sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, data);
       setMensagem(`Síntese da avaliação IA do imóvel ${avaliacaoDetalhadaItem.codigo} salva.`);
-      await refreshSelecionados();
+      await session.wait(refreshSelecionados());
       setAvaliacaoDetalhadaStatusState({ message: "Síntese salva com sucesso.", tone: "success" });
     } catch (err) {
+      if (!session.isCurrent()) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao salvar síntese da IA");
       setMensagem(message);
       setAvaliacaoDetalhadaStatusState(buildAiErrorStatusState(message, { fallbackPrefix: "IA" }));
     } finally {
-      setAiSaving(false);
+      if (session.isCurrent()) setAiSaving(false);
     }
   };
 
   const handleSolicitarMatricula = async () => {
     if (!avaliacaoDetalhadaItem) return;
+    const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+    if (!session) return;
     setMatriculaLoading(true);
     setAvaliacaoDetalhadaStatusState({ message: "Matrícula: aguardando processamento...", tone: "info" });
     try {
-      const job = await solicitarMatricula(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
-      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+      const job = await session.wait(solicitarMatricula(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem));
+      const finalJob = await session.wait(pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+        signal: session.signal,
         timeoutMs: 180000,
         origem: avaliacaoDetalhadaOrigem,
         onProgress: (progressJob) => {
+          if (!session.isCurrent()) return;
           setAvaliacaoDetalhadaStatusState(
             buildAiJobStatusState(progressJob, { fallbackPrefix: "Matrícula", retryAction: "matricula" })
           );
         },
-      });
+      }));
       if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao processar matrícula.");
       }
-      const refreshed = await fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+      const refreshed = await session.wait(fetchAiAnalise(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem, { signal: session.signal }));
       setAiAnalise(refreshed);
       setAiSinteseDraft(refreshed?.analise_texto || "");
       sincronizarIndicadorAnaliseIaCapturada(avaliacaoDetalhadaItem.codigo, refreshed);
-      await refreshSelecionados();
+      await session.wait(refreshSelecionados());
       setAvaliacaoDetalhadaStatusState({ message: "Matrícula: resultado disponível.", tone: "success" });
     } catch (err) {
+      if (!session.isCurrent()) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao solicitar matrícula");
       setMensagem(message);
       setAvaliacaoDetalhadaStatusState(
         buildAiErrorStatusState(message, { fallbackPrefix: "Matrícula", retryAction: "matricula" })
       );
     } finally {
-      setMatriculaLoading(false);
+      if (session.isCurrent()) setMatriculaLoading(false);
     }
   };
 
   const handleSolicitarEnriquecimento = async () => {
     if (!avaliacaoDetalhadaItem) return;
+    const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+    if (!session) return;
     enriquecimentoFetchAttemptRef.current.delete(`${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem.codigo}`);
     setEnriquecimentoLoading(true);
     setAvaliacaoDetalhadaStatusState({ message: "Enriquecimento: aguardando processamento...", tone: "info" });
     try {
-      const job = await solicitarEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
-      const finalJob = await pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+      const job = await session.wait(solicitarEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem));
+      const finalJob = await session.wait(pollAiJob(avaliacaoDetalhadaItem.codigo, job.job_id, {
+        signal: session.signal,
         timeoutMs: 180000,
         origem: avaliacaoDetalhadaOrigem,
         onProgress: (progressJob) => {
+          if (!session.isCurrent()) return;
           setAvaliacaoDetalhadaStatusState(
             buildAiJobStatusState(progressJob, { fallbackPrefix: "Enriquecimento", retryAction: "enriquecimento" })
           );
         },
-      });
+      }));
       if (AI_JOB_ERROR_STATUSES.has(finalJob?.status)) {
         throw new Error(finalJob?.erro || "Erro ao processar enriquecimento.");
       }
-      const enriquecimentoAtualizado = await fetchEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
-      const detalheAvaliacao = await fetchAvaliacaoAutomatica(avaliacaoDetalhadaItem.codigo).catch(() => null);
+      const enriquecimentoAtualizado = await session.wait(fetchEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem, { signal: session.signal }));
+      const detalheAvaliacao = await session.wait(fetchAvaliacaoAutomatica(avaliacaoDetalhadaItem.codigo, { signal: session.signal })).catch(() => null);
       const avaliacaoAtualizada = detalheAvaliacao?.avaliacao || enriquecimentoAtualizado?.avaliacao || null;
-      const analiseAtualizada = await fetchAnaliseSelecionado(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem).catch(() => null);
+      const analiseAtualizada = await session.wait(fetchAnaliseSelecionado(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem, { signal: session.signal })).catch(() => null);
+      if (!session.isCurrent()) return;
       const contextoAtual = analiseAtualizada?.meta?.contexto_oferta ? mapContextoOferta(analiseAtualizada.meta.contexto_oferta) : {};
       if (analiseAtualizada) setAnaliseDetalhada(analiseAtualizada);
       setAvaliacaoDetalhadaItem((prev) => (
@@ -1509,13 +1541,14 @@ export default function Prospeccoes() {
       )));
       setAvaliacaoDetalhadaStatusState({ message: "Enriquecimento: resultado disponível.", tone: "success" });
     } catch (err) {
+      if (!session.isCurrent()) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao solicitar enriquecimento");
       setMensagem(message);
       setAvaliacaoDetalhadaStatusState(
         buildAiErrorStatusState(message, { fallbackPrefix: "Enriquecimento", retryAction: "enriquecimento" })
       );
     } finally {
-      setEnriquecimentoLoading(false);
+      if (session.isCurrent()) setEnriquecimentoLoading(false);
     }
   };
 
@@ -1549,6 +1582,8 @@ export default function Prospeccoes() {
 
   useEffect(() => {
     if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "ia") return;
+    const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+    if (!session) return;
     if (aiLoading || aiSending) return;
     if (aiAnalise?.historico_chat?.length || aiAnalise?.matricula_texto) return;
     if (!(user?.ai_access || user?.role === "admin")) return;
@@ -1557,34 +1592,39 @@ export default function Prospeccoes() {
     aiAutoInitAttemptRef.current.add(aiAttemptKey);
 
     carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: true, origem: avaliacaoDetalhadaOrigem }).catch((err) => {
+      if (!session.isCurrent()) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao iniciar avaliação IA");
       setMensagem(message);
       setAvaliacaoDetalhadaStatusState(
         buildAiErrorStatusState(message, { fallbackPrefix: "IA", retryAction: "analise_inicial" })
       );
     });
-  }, [avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise, setAvaliacaoDetalhadaStatusState]);
+  }, [hubSession, avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise, setAvaliacaoDetalhadaStatusState]);
 
   useEffect(() => {
     if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "enriquecimento") return;
+    const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+    if (!session) return;
     if (enriquecimentoLoading || enriquecimentoDetalhadoLoading || enriquecimentoDetalhado) return;
     const attemptKey = `${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem.codigo}`;
     if (enriquecimentoFetchAttemptRef.current.has(attemptKey)) return;
     enriquecimentoFetchAttemptRef.current.add(attemptKey);
     setEnriquecimentoDetalhadoLoading(true);
     setAvaliacaoDetalhadaStatusState();
-    fetchEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem)
+    session.wait(fetchEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem, { signal: session.signal }))
       .then((data) => {
         setEnriquecimentoDetalhado(data || null);
         setAvaliacaoDetalhadaStatusState();
       })
       .catch((err) => {
+        if (!session.isCurrent()) return;
         const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar enriquecimento");
         setMensagem(message);
         setEnriquecimentoDetalhado(null);
       })
-      .finally(() => setEnriquecimentoDetalhadoLoading(false));
+      .finally(() => { if (session.isCurrent()) setEnriquecimentoDetalhadoLoading(false); });
   }, [
+    hubSession,
     avaliacaoDetalhadaItem,
     avaliacaoDetalhadaTab,
     avaliacaoDetalhadaOrigem,
@@ -1596,9 +1636,12 @@ export default function Prospeccoes() {
 
   useEffect(() => {
     if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "matricula") return;
+    const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
+    if (!session) return;
     if (aiLoading || aiSending || matriculaLoading) return;
     if (aiAnalise) return;
     carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: false, origem: avaliacaoDetalhadaOrigem }).catch((err) => {
+      if (!session.isCurrent()) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar matrícula");
       setMensagem(message);
       setAvaliacaoDetalhadaStatusState(
@@ -1606,6 +1649,7 @@ export default function Prospeccoes() {
       );
     });
   }, [
+    hubSession,
     avaliacaoDetalhadaItem,
     avaliacaoDetalhadaTab,
     avaliacaoDetalhadaOrigem,
@@ -2589,6 +2633,7 @@ export default function Prospeccoes() {
       />
 
       <AvaliacaoDetalhadaModal
+        key={`${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem?.codigo || "fechado"}`}
         item={avaliacaoDetalhadaItem}
         tab={avaliacaoDetalhadaTab}
         origem={avaliacaoDetalhadaOrigem}

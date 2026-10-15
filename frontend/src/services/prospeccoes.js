@@ -264,8 +264,8 @@ function getAnaliseBasePath(origem = "selecionados", numeroBem) {
   return `/prospeccoes/${origem}/${numeroBem}/analise`;
 }
 
-export async function fetchAnaliseSelecionado(numeroBem, origem = "selecionados") {
-  const { data } = await api.get(getAnaliseBasePath(origem, numeroBem));
+export async function fetchAnaliseSelecionado(numeroBem, origem = "selecionados", options) {
+  const { data } = await api.get(getAnaliseBasePath(origem, numeroBem), ...(options ? [options] : []));
   return data;
 }
 
@@ -274,13 +274,13 @@ export async function salvarAnaliseSelecionado(numeroBem, payload, origem = "sel
   return data;
 }
 
-export async function fetchAvaliacaoAutomatica(numeroBem) {
-  const { data } = await api.get(`/prospeccoes/capturados/${numeroBem}/avaliacao`);
+export async function fetchAvaliacaoAutomatica(numeroBem, options) {
+  const { data } = await api.get(`/prospeccoes/capturados/${numeroBem}/avaliacao`, ...(options ? [options] : []));
   return data;
 }
 
-export async function fetchEnriquecimento(numeroBem, origem = "selecionados") {
-  const { data } = await api.get(`${getAiBasePath(origem, numeroBem)}/enriquecimento`);
+export async function fetchEnriquecimento(numeroBem, origem = "selecionados", options) {
+  const { data } = await api.get(`${getAiBasePath(origem, numeroBem)}/enriquecimento`, ...(options ? [options] : []));
   return data;
 }
 
@@ -295,8 +295,8 @@ function getAiBasePath(origem = "selecionados", numeroBem) {
   return `/prospeccoes/${origem}/${numeroBem}`;
 }
 
-export async function fetchAiAnalise(numeroBem, origem = "selecionados") {
-  const { data } = await api.get(`${getAiBasePath(origem, numeroBem)}/ai-analise`);
+export async function fetchAiAnalise(numeroBem, origem = "selecionados", options) {
+  const { data } = await api.get(`${getAiBasePath(origem, numeroBem)}/ai-analise`, ...(options ? [options] : []));
   return data;
 }
 
@@ -320,8 +320,8 @@ export async function solicitarEnriquecimento(numeroBem, origem = "selecionados"
   return data;
 }
 
-export async function fetchAiJob(numeroBem, jobId, origem = "selecionados") {
-  const { data } = await api.get(`${getAiBasePath(origem, numeroBem)}/ai-analise/job/${jobId}`);
+export async function fetchAiJob(numeroBem, jobId, origem = "selecionados", options) {
+  const { data } = await api.get(`${getAiBasePath(origem, numeroBem)}/ai-analise/job/${jobId}`, ...(options ? [options] : []));
   return data;
 }
 
@@ -333,18 +333,43 @@ export async function pollAiJob(
     timeoutMs = 120000,
     origem = "selecionados",
     onProgress,
+    signal,
   } = {}
 ) {
+  const checkAborted = () => {
+    if (signal?.aborted) throw new DOMException("Consulta cancelada", "AbortError");
+  };
+  checkAborted();
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
-    const job = await fetchAiJob(numeroBem, jobId, origem);
+    checkAborted();
+    const job = await fetchAiJob(numeroBem, jobId, origem, signal ? { signal } : undefined);
+    checkAborted();
+    if ((job?.numero_bem != null && String(job.numero_bem) !== String(numeroBem))
+      || (job?.job_id != null && String(job.job_id) !== String(jobId))) {
+      throw new Error("O processamento recebido não corresponde ao imóvel e à solicitação atuais.");
+    }
     if (typeof onProgress === "function") {
       onProgress(job);
     }
+    checkAborted();
     if (job?.status === "done" || job?.status === "error" || job?.status === "failed") {
       return job;
     }
-    await new Promise((resolve) => window.setTimeout(resolve, intervalMs));
+    checkAborted();
+    await new Promise((resolve, reject) => {
+      const onAbort = () => {
+        window.clearTimeout(timer);
+        signal?.removeEventListener("abort", onAbort);
+        reject(new DOMException("Consulta cancelada", "AbortError"));
+      };
+      const timer = window.setTimeout(() => {
+        signal?.removeEventListener("abort", onAbort);
+        resolve();
+      }, intervalMs);
+      signal?.addEventListener("abort", onAbort, { once: true });
+      if (signal?.aborted) onAbort();
+    });
   }
   throw new Error("Tempo limite excedido ao aguardar processamento da IA.");
 }
