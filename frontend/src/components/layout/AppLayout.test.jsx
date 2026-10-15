@@ -54,7 +54,7 @@ describe("AppLayout", () => {
     expect(screen.queryByRole("link", { name: /financeiro/i })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /prospec/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /usuários/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Gestão de imóveis" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Prospecção" })).toBeInTheDocument();
   });
 
   it("mostra somente financeiro para perfil com acesso financeiro restrito", () => {
