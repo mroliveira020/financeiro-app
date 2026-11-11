@@ -1,0 +1,22 @@
+.equalizacao-consolidada__trigger { display: inline-flex; align-items: center; gap: .45rem; min-height: 40px; }
+.equalizacao-consolidada__backdrop { position: fixed; inset: 0; z-index: 1080; background: #0f172a80; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.equalizacao-consolidada__dialog { background: var(--surface-card, #fff); color: var(--text-primary, #172033); border-radius: 1rem; width: min(100%, 680px); max-height: calc(100dvh - 2rem); overflow: auto; box-shadow: 0 20px 70px #0003; }
+.equalizacao-consolidada__dialog header, .equalizacao-consolidada__dialog footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; }
+.equalizacao-consolidada__dialog header { border-bottom: 1px solid #e2e8f0; }
+.equalizacao-consolidada__dialog h3 { margin: .2rem 0 0; font-size: 1.3rem; }
+.equalizacao-consolidada__body { padding: 1.25rem; }
+.equalizacao-consolidada__item { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: .75rem; padding: .85rem 0; border-bottom: 1px solid #e2e8f0; cursor: pointer; }
+.equalizacao-consolidada__item small, .equalizacao-consolidada__item strong { display: block; }
+.equalizacao-consolidada__item small { color: #64748b; }
+.equalizacao-consolidada__item > span:last-child { text-align: right; font-size: .85rem; }
+.equalizacao-consolidada__resumo { background: var(--surface-brand-soft, #eff6ff); padding: 1rem; margin: 1rem 0; border-radius: .75rem; }
+.equalizacao-consolidada__resumo > span { display: flex; justify-content: space-between; }
+.equalizacao-consolidada__resumo h4 { margin: 1rem 0 .5rem; font-size: 1.2rem; }
+.equalizacao-consolidada__resumo p { margin: 0; font-size: .9rem; }
+.equalizacao-consolidada__campos { display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; }
+@media (max-width: 600px) {
+ .equalizacao-consolidada__campos { grid-template-columns: 1fr; gap: 0; }
+ .equalizacao-consolidada__dialog footer { flex-direction: column-reverse; align-items: stretch; }
+ .equalizacao-consolidada__backdrop { padding: .5rem; }
+ .equalizacao-consolidada__dialog { max-height: calc(100dvh - 1rem); }
+}

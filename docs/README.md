@@ -413,3 +413,7 @@ Consulte [Presença nas capturas e revisão de avaliações](PROSPECCOES_CAPTURA
 - A abertura de capturados consulta sua própria rota de viabilidade. A síntese de IA já salva conta como conteúdo existente mesmo sem histórico de chat.
 - Implementação: `frontend/src/hooks/useProspeccaoSession.js`, `frontend/src/pages/Prospeccoes.jsx` e `frontend/src/services/prospeccoes.js`.
 - Regressões: `frontend/src/pages/ProspeccoesIa.test.jsx` simula respostas fora de ordem, erros antigos, troca de origem, reabertura, término de jobs e saída da página; os testes do serviço verificam cancelamento da espera e rejeição de identidades incorretas. Todas as integrações são mockadas.
+
+## Equalização entre imóveis
+
+Consulte [Equalização consolidada](EQUALIZACAO_CONSOLIDADA.md) para uso, elegibilidade, histórico, API, implantação e validação.

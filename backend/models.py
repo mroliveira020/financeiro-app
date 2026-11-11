@@ -7,7 +7,8 @@ import secrets
 import uuid
 from collections import defaultdict
 from functools import lru_cache
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation, ROUND_FLOOR
 from psycopg2.errors import UniqueViolation
 from db_connection import conectar
 from config import PROSPECCAO_AVALIACAO_VALIDADE_DIAS
@@ -980,18 +981,6 @@ def obter_posicao_financeira_compartilhada(id_imovel):
             "equalizacoes": [],
         }
 
-    socios_por_id = {}
-    for socio in socios:
-        user_id = socio["user_id"]
-        socios_por_id[user_id] = {
-            **socio,
-            "total_pago_operacional": 0.0,
-            "valor_devido_participacao": 0.0,
-            "equalizacao_enviada": 0.0,
-            "equalizacao_recebida": 0.0,
-            "saldo_liquido": 0.0,
-        }
-
     conn, cur = conectar()
     try:
         cur.execute(
@@ -1003,6 +992,7 @@ def obter_posicao_financeira_compartilhada(id_imovel):
                 valor,
                 paid_by_user_id,
                 beneficiary_user_id,
+                equalizacao_operacao_id,
                 COALESCE(tipo_movimentacao, 'despesa_imovel') AS tipo_movimentacao,
                 id_situacao,
                 ativo
@@ -1017,6 +1007,22 @@ def obter_posicao_financeira_compartilhada(id_imovel):
         lancamentos = [dict(row) for row in cur.fetchall()]
     finally:
         conn.close()
+
+    return _calcular_posicao_financeira_compartilhada(id_imovel, socios, lancamentos)
+
+
+def _calcular_posicao_financeira_compartilhada(id_imovel, socios, lancamentos):
+    socios_por_id = {}
+    for socio in socios:
+        user_id = socio["user_id"]
+        socios_por_id[user_id] = {
+            **socio,
+            "total_pago_operacional": 0.0,
+            "valor_devido_participacao": 0.0,
+            "equalizacao_enviada": 0.0,
+            "equalizacao_recebida": 0.0,
+            "saldo_liquido": 0.0,
+        }
 
     total_despesas_operacionais = 0.0
     total_equalizacoes = 0.0
@@ -1045,6 +1051,7 @@ def obter_posicao_financeira_compartilhada(id_imovel):
                     "valor": valor,
                     "paid_by_user_id": paid_by_user_id,
                     "beneficiary_user_id": beneficiary_user_id,
+                    "equalizacao_operacao_id": str(lancamento["equalizacao_operacao_id"]) if lancamento.get("equalizacao_operacao_id") else None,
                 }
             )
             continue
@@ -1058,9 +1065,25 @@ def obter_posicao_financeira_compartilhada(id_imovel):
         else:
             total_nao_atribuido += valor
 
+    # Ratear centavos pelo maior resto; o desempate usa o ID do sócio.
+    # Assim duas participações de 50% sobre um total ímpar não criam dívida fictícia.
+    participacoes = {uid: Decimal(str(s['percentual_participacao'])) for uid, s in socios_por_id.items()}
+    devidos_centavos = {}
+    if sum(participacoes.values()) == 100:
+        total_centavos = _centavos_equalizacao(round(total_despesas_operacionais, 2))
+        exatos = {uid: Decimal(total_centavos) * percentual / 100 for uid, percentual in participacoes.items()}
+        devidos_centavos = {uid: int(v.to_integral_value(rounding=ROUND_FLOOR)) for uid, v in exatos.items()}
+        residuo = total_centavos - sum(devidos_centavos.values())
+        ordem = sorted(exatos, key=lambda uid: (-(exatos[uid] - devidos_centavos[uid]), uid))
+        for uid in ordem[:residuo]:
+            devidos_centavos[uid] += 1
+
     for socio in socios_por_id.values():
         percentual = _to_float(socio.get("percentual_participacao"))
-        socio["valor_devido_participacao"] = round(total_despesas_operacionais * (percentual / 100.0), 2)
+        socio["valor_devido_participacao"] = (
+            devidos_centavos[socio['user_id']] / 100 if socio['user_id'] in devidos_centavos
+            else round(total_despesas_operacionais * (percentual / 100.0), 2)
+        )
         saldo_liquido = round(
             socio["total_pago_operacional"]
             - socio["valor_devido_participacao"]
@@ -1083,6 +1106,214 @@ def obter_posicao_financeira_compartilhada(id_imovel):
         },
         "equalizacoes": equalizacoes,
     }
+
+
+class SaldoEqualizacaoAlterado(ValueError):
+    pass
+
+
+def _centavos_equalizacao(valor):
+    try:
+        if isinstance(valor, bool):
+            raise ValueError
+        numero = Decimal(str(valor))
+        if not numero.is_finite() or numero != numero.quantize(Decimal('0.01')):
+            raise ValueError
+        return int(numero * 100)
+    except (InvalidOperation, ValueError, TypeError, OverflowError):
+        raise ValueError('Valor monetário inválido; informe até duas casas decimais.') from None
+
+
+def _contexto_equalizacao_consolidada(cur, id_imovel, usuario_id):
+    cur.execute('''SELECT 1 FROM imovel_socios WHERE id_imovel=%s AND user_id=%s
+                   AND ativo=TRUE AND percentual_participacao>0''', (id_imovel, usuario_id))
+    if not cur.fetchone():
+        raise PermissionError('É preciso ser sócio ativo deste imóvel para consultar seus acertos.')
+    cur.execute('''
+        SELECT s.id_imovel, i.nome AS imovel_nome, s.user_id, s.percentual_participacao,
+               u.name AS user_name, u.email AS user_email
+        FROM imovel_socios s
+        JOIN imoveis i ON i.id=s.id_imovel
+        JOIN users u ON u.id=s.user_id
+        WHERE s.ativo=TRUE AND s.percentual_participacao>0
+          AND EXISTS (SELECT 1 FROM imovel_socios m WHERE m.id_imovel=s.id_imovel
+                      AND m.user_id=%s AND m.ativo=TRUE AND m.percentual_participacao>0)
+          AND EXISTS (
+              SELECT 1 FROM imovel_socios parceiro
+              WHERE parceiro.id_imovel=s.id_imovel AND parceiro.user_id<>%s
+                AND parceiro.ativo=TRUE AND parceiro.percentual_participacao>0
+                AND parceiro.user_id IN (
+                    SELECT user_id FROM imovel_socios WHERE id_imovel=%s
+                      AND user_id<>%s AND ativo=TRUE AND percentual_participacao>0))
+        ORDER BY s.id_imovel,s.user_id
+    ''', (usuario_id, usuario_id, id_imovel, usuario_id))
+    socios_por_imovel = defaultdict(list)
+    for row in cur.fetchall():
+        socios_por_imovel[row['id_imovel']].append(dict(row))
+    if not socios_por_imovel:
+        return {'socios': [], 'avisos': []}
+    cur.execute('''
+        SELECT id,id_imovel,data,descricao,valor,paid_by_user_id,beneficiary_user_id,
+               COALESCE(tipo_movimentacao,'despesa_imovel') AS tipo_movimentacao,
+               id_situacao,ativo,equalizacao_operacao_id
+        FROM lancamentos WHERE id_imovel=ANY(%s) AND id_situacao=1
+          AND ativo IS DISTINCT FROM FALSE ORDER BY id
+    ''', (list(socios_por_imovel),))
+    lancamentos_por_imovel = defaultdict(list)
+    for row in cur.fetchall():
+        lancamentos_por_imovel[row['id_imovel']].append(dict(row))
+    return _resumir_equalizacoes_consolidadas(
+        socios_por_imovel, lancamentos_por_imovel, usuario_id, id_imovel,
+    )
+
+
+def _resumir_equalizacoes_consolidadas(socios_por_imovel, lancamentos_por_imovel, usuario_id, id_imovel):
+    grupos = {}
+    avisos = []
+    for imovel_id, socios in socios_por_imovel.items():
+        nome = socios[0]['imovel_nome']
+        motivo = None
+        if len(socios) != 2:
+            motivo = 'O acerto consolidado requer exatamente dois sócios ativos por imóvel.'
+        elif sum(Decimal(str(s['percentual_participacao'])) for s in socios) != 100:
+            motivo = 'Os percentuais de participação precisam totalizar 100%.'
+        lancamentos = lancamentos_por_imovel.get(imovel_id, [])
+        posicao = _calcular_posicao_financeira_compartilhada(imovel_id, socios, lancamentos)
+        participantes = {s['user_id'] for s in socios}
+        sem_pagador = any(
+            l.get('tipo_movimentacao') not in {'receita_imovel', 'equalizacao_socios'}
+            and l.get('paid_by_user_id') not in participantes for l in lancamentos
+        )
+        if posicao['totais']['total_nao_atribuido'] != 0 or sem_pagador:
+            motivo = 'Existem despesas sem pagador atribuído a um sócio ativo.'
+        if sum(_centavos_equalizacao(s['saldo_liquido']) for s in posicao['socios']) != 0:
+            motivo = 'Os saldos dos sócios não fecham; revise os lançamentos e percentuais.'
+        if motivo:
+            avisos.append({'id_imovel': imovel_id, 'nome': nome, 'motivo': motivo})
+            continue
+        saldo = next(s['saldo_liquido'] for s in posicao['socios'] if s['user_id'] == usuario_id)
+        centavos = _centavos_equalizacao(saldo)
+        if centavos == 0:
+            continue
+        parceiro = next(s for s in socios if s['user_id'] != usuario_id)
+        grupo = grupos.setdefault(parceiro['user_id'], {
+            'socio_id': parceiro['user_id'], 'socio_nome': parceiro['user_name'] or parceiro['user_email'],
+            'imoveis': [],
+        })
+        versao = hashlib.sha256(json.dumps(
+            {'socios': socios, 'lancamentos': lancamentos}, sort_keys=True, default=str,
+        ).encode()).hexdigest()
+        grupo['imoveis'].append({
+            'id_imovel': imovel_id, 'nome': nome, 'atual': imovel_id == id_imovel,
+            'saldo_centavos': centavos, 'versao': versao,
+        })
+    for grupo in grupos.values():
+        grupo['saldo_centavos'] = sum(i['saldo_centavos'] for i in grupo['imoveis'])
+    return {'socios': list(grupos.values()), 'avisos': avisos}
+
+
+def obter_equalizacoes_consolidadas(id_imovel, usuario_id):
+    conn, cur = conectar()
+    try:
+        return _contexto_equalizacao_consolidada(cur, id_imovel, usuario_id)
+    finally:
+        conn.close()
+
+
+def _preparar_pedido_equalizacao(payload, usuario_id, id_imovel):
+    if not isinstance(payload, dict):
+        raise ValueError('Informe os dados do acerto consolidado.')
+    try:
+        operacao_id = str(uuid.UUID(str(payload.get('operacao_id'))))
+        socio_id = int(payload.get('socio_id'))
+        data_operacao = date.fromisoformat(payload.get('data', ''))
+    except (ValueError, TypeError, AttributeError):
+        raise ValueError('Informe uma identificação, um sócio e uma data válidos.') from None
+    if socio_id <= 0 or socio_id == usuario_id:
+        raise ValueError('Selecione outro sócio para o acerto.')
+    itens = payload.get('imoveis')
+    if not isinstance(itens, list) or not 2 <= len(itens) <= 100:
+        raise ValueError('Selecione entre dois e cem imóveis para consolidar.')
+    selecionados = []
+    for item in itens:
+        if not isinstance(item, dict) or type(item.get('id_imovel')) is not int or item['id_imovel'] <= 0:
+            raise ValueError('A seleção de imóveis é inválida.')
+        versao = item.get('versao')
+        if not isinstance(versao, str) or len(versao) != 64:
+            raise ValueError('Atualize os saldos antes de confirmar o acerto.')
+        selecionados.append({'id_imovel': item['id_imovel'], 'versao': versao})
+    selecionados.sort(key=lambda i: i['id_imovel'])
+    if len({i['id_imovel'] for i in selecionados}) != len(selecionados):
+        raise ValueError('Um imóvel não pode aparecer duas vezes no mesmo acerto.')
+    descricao = payload.get('descricao') or ''
+    if not isinstance(descricao, str) or len(descricao) > 500:
+        raise ValueError('A observação deve ter até 500 caracteres.')
+    pedido = {'usuario_id': usuario_id, 'socio_id': socio_id, 'origem_imovel_id': id_imovel,
+              'data': data_operacao.isoformat(), 'descricao': descricao.strip(), 'imoveis': selecionados}
+    pedido_hash = hashlib.sha256(json.dumps(pedido, sort_keys=True).encode()).hexdigest()
+    return operacao_id, pedido, pedido_hash
+
+
+def _resposta_equalizacao_operacao(row, repetida=False):
+    return {'operacao_id': str(row['id']), 'valor_transferido': float(row['valor_transferido']),
+            'paid_by_user_id': row['paid_by_user_id'], 'beneficiary_user_id': row['beneficiary_user_id'],
+            'imoveis': row['itens'], 'repetida': repetida}
+
+
+def registrar_equalizacao_consolidada(id_imovel, usuario_id, payload):
+    operacao_id, pedido, pedido_hash = _preparar_pedido_equalizacao(payload, usuario_id, id_imovel)
+
+    def gravar(cur):
+        cur.execute("SET LOCAL lock_timeout = '5s'")
+        # Uma repetição simultânea do mesmo pedido aguarda a primeira operação.
+        cur.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))", ('equalizacao:' + operacao_id,))
+        cur.execute('SELECT * FROM equalizacao_operacoes WHERE id=%s', (operacao_id,))
+        anterior = cur.fetchone()
+        if anterior:
+            if anterior['usuario_id'] != usuario_id:
+                raise PermissionError('Este acerto pertence a outro usuário.')
+            if anterior['pedido_hash'] != pedido_hash:
+                raise ValueError('A identificação do acerto já foi usada com outros dados.')
+            return _resposta_equalizacao_operacao(anterior, repetida=True)
+        # Os triggers dos lançamentos e participações usam o mesmo bloqueio.
+        ids_bloqueados = sorted({id_imovel, *(i['id_imovel'] for i in pedido['imoveis'])})
+        for imovel_id in ids_bloqueados:
+            cur.execute('SELECT bloquear_financeiro_imovel(%s)', (imovel_id,))
+        contexto = _contexto_equalizacao_consolidada(cur, id_imovel, usuario_id)
+        grupo = next((g for g in contexto['socios'] if g['socio_id'] == pedido['socio_id']), None)
+        disponiveis = {i['id_imovel']: i for i in grupo['imoveis']} if grupo else {}
+        parcelas = []
+        for item in pedido['imoveis']:
+            atual = disponiveis.get(item['id_imovel'])
+            if not atual:
+                raise SaldoEqualizacaoAlterado('Um imóvel deixou de estar disponível para este acerto. Atualize os saldos.')
+            if atual['versao'] != item['versao']:
+                raise SaldoEqualizacaoAlterado('Os saldos mudaram desde a consulta. Atualize e confira o acerto novamente.')
+            parcelas.append({'id_imovel': item['id_imovel'], 'saldo_centavos': atual['saldo_centavos']})
+        saldo = sum(p['saldo_centavos'] for p in parcelas)
+        pagador = pedido['socio_id'] if saldo > 0 else usuario_id if saldo < 0 else None
+        recebedor = usuario_id if saldo > 0 else pedido['socio_id'] if saldo < 0 else None
+        cur.execute('''INSERT INTO equalizacao_operacoes
+            (id,usuario_id,socio_id,origem_imovel_id,data,descricao,valor_transferido,
+             paid_by_user_id,beneficiary_user_id,itens,pedido_hash)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s) RETURNING *''',
+            (operacao_id, usuario_id, pedido['socio_id'], id_imovel, pedido['data'], pedido['descricao'],
+             Decimal(abs(saldo)) / 100, pagador, recebedor, json.dumps(parcelas), pedido_hash))
+        operacao = dict(cur.fetchone())
+        for parcela in parcelas:
+            saldo_imovel = parcela['saldo_centavos']
+            paga = pedido['socio_id'] if saldo_imovel > 0 else usuario_id
+            recebe = usuario_id if saldo_imovel > 0 else pedido['socio_id']
+            cur.execute('''INSERT INTO lancamentos
+                (data,id_imovel,id_categoria,id_situacao,descricao,valor,ativo,
+                 paid_by_user_id,beneficiary_user_id,tipo_movimentacao,created_by_user_id,equalizacao_operacao_id)
+                VALUES (%s,%s,0,1,%s,%s,TRUE,%s,%s,'equalizacao_socios',%s,%s)''',
+                (pedido['data'], parcela['id_imovel'], 'Rateio de acerto consolidado ' + operacao_id[:8]
+                 + (': ' + pedido['descricao'] if pedido['descricao'] else ''),
+                 Decimal(abs(saldo_imovel)) / 100, paga, recebe, usuario_id, operacao_id))
+        return _resposta_equalizacao_operacao(operacao)
+
+    return _executar_gravacao_lancamentos(gravar)
 
 
 @lru_cache(maxsize=1)
@@ -1936,6 +2167,26 @@ def _executar_gravacao_lancamentos(gravar):
         conn.close()
 
 
+def _validar_equalizacao_individual(cur, id_imovel, pagador, recebedor, valor):
+    cur.execute('SELECT bloquear_financeiro_imovel(%s)', (id_imovel,))
+    cur.execute("""SELECT user_id,percentual_participacao FROM imovel_socios
+                   WHERE id_imovel=%s AND ativo=TRUE AND percentual_participacao>0""", (id_imovel,))
+    socios = [dict(r) for r in cur.fetchall()]
+    ids = {s['user_id'] for s in socios}
+    pagador, recebedor = _to_int_or_none(pagador), _to_int_or_none(recebedor)
+    if pagador == recebedor or pagador not in ids or recebedor not in ids:
+        raise ValueError('Pagador e recebedor devem ser sócios ativos diferentes.')
+    cur.execute("""SELECT id,data,descricao,valor,paid_by_user_id,beneficiary_user_id,
+                          COALESCE(tipo_movimentacao,'despesa_imovel') AS tipo_movimentacao
+                   FROM lancamentos WHERE id_imovel=%s AND id_situacao=1
+                     AND ativo IS DISTINCT FROM FALSE""", (id_imovel,))
+    posicao = _calcular_posicao_financeira_compartilhada(id_imovel, socios, [dict(r) for r in cur.fetchall()])
+    saldos = {s['user_id']: _centavos_equalizacao(s['saldo_liquido']) for s in posicao['socios']}
+    centavos = _centavos_equalizacao(valor)
+    if centavos <= 0 or centavos > min(-saldos[pagador], saldos[recebedor]):
+        raise ValueError('O valor excede o saldo atual entre esses sócios. Atualize os saldos antes de registrar.')
+
+
 def adicionar_lancamento(
     data,
     id_imovel,
@@ -1956,6 +2207,8 @@ def adicionar_lancamento(
         paid_by_resolvido = _resolver_pagador_lancamento(
             cur, id_imovel, paid_by_user_id, tipo_norm
         )
+        if tipo_norm == "equalizacao_socios":
+            _validar_equalizacao_individual(cur, id_imovel, paid_by_resolvido, beneficiary_user_id, valor)
         cur.execute("""
             INSERT INTO lancamentos (
                 data,
@@ -2021,6 +2274,9 @@ def adicionar_lancamentos_em_lote(lista_lancamentos):
                 cur, id_imovel, lancamento.get("paid_by_user_id"), tipo_norm
             )
 
+            if tipo_norm == "equalizacao_socios":
+                _validar_equalizacao_individual(cur, id_imovel, paid_by_resolvido,
+                                               lancamento.get("beneficiary_user_id"), lancamento["valor"])
             cur.execute(query, (
                 data_formatada,
                 id_imovel,
@@ -2396,6 +2652,7 @@ def listar_totais_mensais_por_imovel(meses=6, categorias_excluidas=None, incluir
             "JOIN imoveis i ON i.id = l.id_imovel",
             "WHERE l.id_situacao = 1",
             "  AND (l.ativo IS DISTINCT FROM FALSE)",
+            "  AND COALESCE(l.tipo_movimentacao, 'despesa_imovel') <> 'equalizacao_socios'",
         ]
 
         if not incluir_vendidos:
@@ -2508,6 +2765,7 @@ def listar_detalhes_gastos_mensais(id_imovel, mes, categorias_excluidas=None):
             WHERE l.id_imovel = %s
               AND l.id_situacao = 1
               AND (l.ativo IS DISTINCT FROM FALSE)
+              AND COALESCE(l.tipo_movimentacao, 'despesa_imovel') <> 'equalizacao_socios'
               AND l.data >= %s AND l.data < %s
               {filtros_categoria}
             GROUP BY g.id, nome_grupo, c.id, nome_categoria
@@ -2611,6 +2869,7 @@ def listar_transacoes_mensais(id_imovel, mes, categoria_id=None):
             WHERE l.id_imovel = %s
               AND l.id_situacao = 1
               AND (l.ativo IS DISTINCT FROM FALSE)
+              AND COALESCE(l.tipo_movimentacao, 'despesa_imovel') <> 'equalizacao_socios'
               AND l.data >= %s AND l.data < %s
               {filtro_categoria}
             ORDER BY l.data DESC, l.id DESC

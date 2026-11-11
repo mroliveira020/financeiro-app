@@ -259,3 +259,13 @@ export async function fetchTransacoesMensais({ imovelId, mes, categoriaId } = {}
   const { data } = await api.get(`/dashboard/gastos-mensais/transacoes?${params.toString()}`);
   return data;
 }
+
+export async function fetchEqualizacoesConsolidadas(imovelId, options) {
+  const { data } = await api.get(`/imoveis/${imovelId}/equalizacoes/consolidado`, options);
+  return data;
+}
+
+export async function registrarEqualizacaoConsolidada(imovelId, payload) {
+  const { data } = await api.post(`/imoveis/${imovelId}/equalizacoes/consolidado`, payload);
+  return data;
+}

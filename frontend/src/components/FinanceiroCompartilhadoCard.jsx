@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { fetchFinanceiroCompartilhado, registrarEqualizacao } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import EqualizacaoConsolidada from "./EqualizacaoConsolidada";
 import { useCompactLayout } from "../hooks/useCompactLayout";
 
 const formatarMoeda = (valor) =>
@@ -50,6 +51,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
   const [erroEqualizacao, setErroEqualizacao] = useState("");
   const [modalEqualizacaoAberto, setModalEqualizacaoAberto] = useState(false);
   const [socioExpandido, setSocioExpandido] = useState(null);
+  const [versaoLocal, setVersaoLocal] = useState(0);
   const compactLayout = useCompactLayout();
 
   const carregar = useCallback(() => {
@@ -77,7 +79,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
 
   useEffect(() => {
     return carregar();
-  }, [carregar, refreshKey]);
+  }, [carregar, refreshKey, versaoLocal]);
 
   const socios = useMemo(() => estado.dados?.socios || [], [estado.dados]);
   const equalizacoes = useMemo(() => estado.dados?.equalizacoes || [], [estado.dados]);
@@ -238,7 +240,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
       });
       setModalEqualizacaoAberto(false);
       onChanged?.();
-      carregar();
+      setVersaoLocal((versao) => versao + 1);
     } catch (error) {
       setErroEqualizacao(
         error?.response?.data?.error ||
@@ -263,6 +265,9 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
 
   const descreverImpactoEqualizacao = useCallback((item) => {
     if (!user?.id) return null;
+    if (item.equalizacao_operacao_id) {
+      return { classe: "is-neutral", texto: "Parcela contábil de um acerto consolidado" };
+    }
     if (Number(item?.paid_by_user_id) === Number(user.id)) {
       return { classe: "is-negative", texto: "Você pagou" };
     }
@@ -464,7 +469,11 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
           </div>
 
           <div className="financeiro-compartilhado-card__section">
-            <h3>{usandoMinhaParticipacao ? "Equalizações que impactam minha posição" : "Equalizações registradas"}</h3>
+            <div className="financeiro-compartilhado-card__section-head">
+              <h3>{usandoMinhaParticipacao ? "Equalizações que impactam minha posição" : "Equalizações registradas"}</h3>
+              {socioAtual ? <EqualizacaoConsolidada key={id} imovelId={id} refreshKey={refreshKey}
+                onChanged={() => { setVersaoLocal((versao) => versao + 1); onChanged?.(); }} /> : null}
+            </div>
             {equalizacoesExibidas.length ? (
               compactLayout ? (
                 <div className="financeiro-compartilhado-card__mobile-list">
@@ -490,7 +499,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
                         </div>
                         <div>
                           <dt>Descrição</dt>
-                          <dd>{item.descricao || "Equalização entre sócios"}</dd>
+                          <dd>{item.descricao || "Equalização entre sócios"}{item.equalizacao_operacao_id ? " · Parcela do acerto consolidado" : ""}</dd>
                         </div>
                         <div>
                           <dt>Valor</dt>
@@ -520,7 +529,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
                           <td>{formatarNomeSocio(item.beneficiary_user_id)}</td>
                           <td>
                             <div className="financeiro-compartilhado-card__equalizacao-desc">
-                              <span>{item.descricao || "Equalização entre sócios"}</span>
+                              <span>{item.descricao || "Equalização entre sócios"}{item.equalizacao_operacao_id ? " · Parcela do acerto consolidado" : ""}</span>
                               {usandoMinhaParticipacao && descreverImpactoEqualizacao(item) ? (
                                 <small className={`financeiro-compartilhado-card__impact-note ${descreverImpactoEqualizacao(item).classe}`}>
                                   {descreverImpactoEqualizacao(item).texto}
