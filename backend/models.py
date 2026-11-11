@@ -8,6 +8,7 @@ import uuid
 from collections import defaultdict
 from functools import lru_cache
 from datetime import datetime, timedelta, timezone
+from psycopg2.errors import UniqueViolation
 from db_connection import conectar
 from config import PROSPECCAO_AVALIACAO_VALIDADE_DIAS
 import json
@@ -1880,6 +1881,61 @@ def listar_lancamentos():
     conn.close()
     return [dict(row) for row in resultados]
 
+
+def _sincronizar_sequencia_lancamentos(cur):
+    # O bloqueio impede INSERTs concorrentes durante a recuperação e o retry.
+    cur.execute("SET LOCAL lock_timeout = '5s'")
+    cur.execute("LOCK TABLE public.lancamentos IN SHARE ROW EXCLUSIVE MODE")
+    cur.execute("""
+        DO $$
+        DECLARE
+            sequencia REGCLASS;
+            maior_id BIGINT;
+            ultimo_id BIGINT;
+        BEGIN
+            sequencia := pg_get_serial_sequence('public.lancamentos', 'id')::REGCLASS;
+            IF sequencia IS NULL THEN
+                RAISE EXCEPTION 'A coluna lancamentos.id não possui sequência associada';
+            END IF;
+            SELECT MAX(id) INTO maior_id FROM public.lancamentos;
+            EXECUTE format('SELECT last_value FROM %s', sequencia) INTO ultimo_id;
+            IF maior_id IS NOT NULL AND ultimo_id <= maior_id THEN
+                PERFORM setval(sequencia, maior_id, TRUE);
+            END IF;
+        END;
+        $$;
+    """)
+
+
+def _executar_gravacao_lancamentos(gravar):
+    """Recupera uma colisão do ID automático, repetindo a transação inteira."""
+    conn, cur = conectar()
+    try:
+        for tentativa in range(2):
+            try:
+                if tentativa:
+                    _sincronizar_sequencia_lancamentos(cur)
+                resultado = gravar(cur)
+                conn.commit()
+                return resultado
+            except UniqueViolation as exc:
+                conflito_id = (
+                    exc.diag.table_name == 'lancamentos'
+                    and exc.diag.constraint_name in {
+                        'lançamentos_pkey', 'lançamentos_id_key',
+                        'lancamentos_pkey', 'lancamentos_id_key',
+                    }
+                )
+                if tentativa or not conflito_id:
+                    raise
+                conn.rollback()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def adicionar_lancamento(
     data,
     id_imovel,
@@ -1895,10 +1951,28 @@ def adicionar_lancamento(
 ):
     _garantir_colunas_lancamentos_compartilhado()
     tipo_norm = _normalizar_tipo_movimentacao(tipo_movimentacao)
-    conn, cur = conectar()
-    paid_by_resolvido = _resolver_pagador_lancamento(cur, id_imovel, paid_by_user_id, tipo_norm)
-    cur.execute("""
-        INSERT INTO lancamentos (
+
+    def gravar(cur):
+        paid_by_resolvido = _resolver_pagador_lancamento(
+            cur, id_imovel, paid_by_user_id, tipo_norm
+        )
+        cur.execute("""
+            INSERT INTO lancamentos (
+                data,
+                id_imovel,
+                id_categoria,
+                id_situacao,
+                descricao,
+                valor,
+                ativo,
+                paid_by_user_id,
+                beneficiary_user_id,
+                tipo_movimentacao,
+                created_by_user_id
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """, (
             data,
             id_imovel,
             id_categoria,
@@ -1906,37 +1980,20 @@ def adicionar_lancamento(
             descricao,
             valor,
             ativo,
-            paid_by_user_id,
-            beneficiary_user_id,
-            tipo_movimentacao,
-            created_by_user_id
-        )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id
-    """, (
-        data,
-        id_imovel,
-        id_categoria,
-        id_situacao,
-        descricao,
-        valor,
-        ativo,
-        paid_by_resolvido,
-        _to_int_or_none(beneficiary_user_id),
-        tipo_norm,
-        _to_int_or_none(created_by_user_id),
-    ))
-    lancamento_id = cur.fetchone()[0]
-    conn.commit()
-    conn.close()
-    return {"id": lancamento_id, "descricao": descricao, "valor": valor}
+            paid_by_resolvido,
+            _to_int_or_none(beneficiary_user_id),
+            tipo_norm,
+            _to_int_or_none(created_by_user_id),
+        ))
+        return {"id": cur.fetchone()[0], "descricao": descricao, "valor": valor}
+
+    return _executar_gravacao_lancamentos(gravar)
+
 
 def adicionar_lancamentos_em_lote(lista_lancamentos):
     """Adiciona uma lista de lançamentos em lote, aceitando datas em
     DD/MM/YYYY ou YYYY-MM-DD, persistindo sempre em ISO (YYYY-MM-DD)."""
     _garantir_colunas_lancamentos_compartilhado()
-    conn, cur = conectar()
-
     query = """
         INSERT INTO lancamentos (
             data,
@@ -1954,32 +2011,34 @@ def adicionar_lancamentos_em_lote(lista_lancamentos):
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
 
-    for lancamento in lista_lancamentos:
-        # Normaliza a data para ISO usando o conversor padrão
-        data_str = lancamento.get('data', '').strip()
-        data_formatada = converter_data(data_str)
-        tipo_norm = _normalizar_tipo_movimentacao(lancamento.get("tipo_movimentacao"))
-        id_imovel = lancamento['id_imovel']
-        paid_by_resolvido = _resolver_pagador_lancamento(cur, id_imovel, lancamento.get("paid_by_user_id"), tipo_norm)
+    def gravar(cur):
+        for lancamento in lista_lancamentos:
+            data_str = lancamento.get('data', '').strip()
+            data_formatada = converter_data(data_str)
+            tipo_norm = _normalizar_tipo_movimentacao(lancamento.get("tipo_movimentacao"))
+            id_imovel = lancamento['id_imovel']
+            paid_by_resolvido = _resolver_pagador_lancamento(
+                cur, id_imovel, lancamento.get("paid_by_user_id"), tipo_norm
+            )
 
-        cur.execute(query, (
-            data_formatada,
-            id_imovel,
-            lancamento.get('id_categoria', 0),
-            lancamento.get('id_situacao', 1),
-            lancamento['descricao'],
-            lancamento['valor'],
-            True,  # ativo
-            paid_by_resolvido,
-            _to_int_or_none(lancamento.get("beneficiary_user_id")),
-            tipo_norm,
-            _to_int_or_none(lancamento.get("created_by_user_id")),
-        ))
+            cur.execute(query, (
+                data_formatada,
+                id_imovel,
+                lancamento.get('id_categoria', 0),
+                lancamento.get('id_situacao', 1),
+                lancamento['descricao'],
+                lancamento['valor'],
+                True,
+                paid_by_resolvido,
+                _to_int_or_none(lancamento.get("beneficiary_user_id")),
+                tipo_norm,
+                _to_int_or_none(lancamento.get("created_by_user_id")),
+            ))
 
-    conn.commit()
-    conn.close()
+        return len(lista_lancamentos)
 
-    return len(lista_lancamentos)
+    return _executar_gravacao_lancamentos(gravar)
+
 
 def excluir_lancamento(id_lancamento):
     conn, cur = conectar()
@@ -5150,7 +5209,7 @@ def converter_data(data_str):
         raise ValueError(f"Formato de data inválido: {data_str}")
     except Exception:
         print(f"Erro ao converter data: {data_str}")
-        raise
+        raise ValueError("Data inválida. Use DD/MM/AAAA ou YYYY-MM-DD.") from None
 
 
 def atualizar_lancamentos_em_lote(ids, updates):

@@ -989,6 +989,11 @@
   gap: 0.85rem;
 }
 
+.resumo-card__chart-columns,
+.resumo-card__chart-balance {
+  display: none;
+}
+
 .resumo-card__chart-item {
   display: grid;
   gap: 0.7rem;
@@ -1099,6 +1104,106 @@
 .resumo-card__chart-tooltip strong {
   color: #1f2d47;
   font-size: 0.88rem;
+}
+
+@media (min-width: 901px) {
+  .resumo-card__chart-list {
+    gap: 0;
+    border: 1px solid rgba(35, 50, 74, 0.08);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .resumo-card__chart-columns,
+  .resumo-card__chart-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr));
+    align-items: center;
+    column-gap: clamp(0.75rem, 2vw, 1.75rem);
+    padding: 1rem;
+  }
+
+  .resumo-card__chart-columns {
+    background: #f5f7fc;
+    color: #5b6b8d;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  .resumo-card__chart-columns span:first-child {
+    text-align: left;
+  }
+
+  .resumo-card__chart-item {
+    border: 0;
+    border-top: 1px solid rgba(35, 50, 74, 0.08);
+    border-radius: 0;
+    transition: background-color 0.2s ease;
+  }
+
+  .resumo-card__chart-item.is-active {
+    background: #f8faff;
+    box-shadow: none;
+  }
+
+  .resumo-card__chart-item:focus-visible {
+    outline: 2px solid #3859ff;
+    outline-offset: -2px;
+  }
+
+  .resumo-card__chart-item-head {
+    min-width: 0;
+  }
+
+  .resumo-card__chart-item-head strong {
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+  }
+
+  .resumo-card__chart-item-head > span,
+  .resumo-card__chart-tooltip {
+    display: none;
+  }
+
+  .resumo-card__chart-bars {
+    display: contents;
+  }
+
+  .resumo-card__chart-bar-row {
+    min-width: 0;
+    gap: 0.5rem;
+  }
+
+  .resumo-card__chart-bar-row-head {
+    justify-content: flex-end;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .resumo-card__chart-bar-row-head span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .resumo-card__chart-bar-track {
+    height: 5px;
+  }
+
+  .resumo-card__chart-balance {
+    display: block;
+    color: #23324a;
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
 }
 
 .resumo-card__toggle--mobile {

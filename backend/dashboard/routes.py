@@ -109,9 +109,8 @@ def adicionar_lote_lancamentos():
             "total": resultado
         }), 201
     except ValueError as e:
-        # Erros de validação (ex.: data inválida)
         return jsonify({
-            "error": "Dados inválidos no lote. Verifique as datas (use DD/MM/AAAA ou YYYY-MM-DD).",
+            "error": str(e),
             "details": str(e)
         }), 400
     except Exception as e:

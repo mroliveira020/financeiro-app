@@ -524,7 +524,7 @@ function TransacoesIncompletas({ refreshKey = 0, onChanged }) {
       }
     } catch (error) {
       console.error('Erro ao adicionar lançamentos em lote:', error);
-      setLoteErro(error?.message || "Erro ao adicionar lançamentos em lote.");
+      setLoteErro(error?.response?.data?.error || error?.message || "Erro ao adicionar lançamentos em lote.");
     }
   };
 

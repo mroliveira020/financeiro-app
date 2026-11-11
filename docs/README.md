@@ -77,6 +77,15 @@
   - os arquivos ficam somente na máquina local
   - `.local_backups/` está ignorado no Git e não deve ser publicado
 
+## Falha ao incluir lançamentos após importação
+
+- Importar registros com `id` explícito pode deixar o contador automático atrás do maior ID existente, causando conflito de chave nas próximas inclusões.
+- Ferramentas externas devem omitir `id` e usar `RETURNING id`. Veja o [contrato de integração e a recuperação automática](integracao_lancamentos_externos.md).
+- Inclusões individuais e em lote pela API recuperam uma colisão de ID com rollback completo, sincronização do contador sob bloqueio e uma única nova tentativa. A proteção exige publicar o backend atualizado.
+- Execute [corrigir_sequencia_lancamentos.sql](consultas/corrigir_sequencia_lancamentos.sql) com uma conexão administrativa após essas importações/restaurações. O script bloqueia inserções brevemente, avança o contador quando necessário e preserva os registros existentes.
+- Se a API já esgotou o pool de conexões após erros de gravação, reinicie os workers após publicar a correção que garante rollback e devolução da conexão em `adicionar_lancamentos_em_lote`.
+- Em `POST /dashboard/lancamentos/lote`, respostas 400 passam a informar em `error` a validação que falhou (por exemplo, pagador ausente), mantendo o campo `details`. A importação em lote exibe essa mensagem da API.
+
 ## Hardening do Supabase
 
 - Alerta já identificado no projeto: havia tabelas do schema `public` sem `RLS` ativo.

@@ -527,6 +527,13 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
             </div>
           </header>
           <div className="resumo-card__chart-list">
+            <div className="resumo-card__chart-columns" aria-hidden="true">
+              <span>Grupo</span>
+              <span>Orçamento</span>
+              <span>Comprometido</span>
+              <span>Total estimado</span>
+              <span>Saldo a investir</span>
+            </div>
             {graficoOrcamento.map((item) => (
               <article
                 key={item.id}
@@ -568,7 +575,11 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
                       className: "resumo-card__chart-bar--estimate",
                     },
                   ].map((bar) => (
-                    <div key={bar.key} className="resumo-card__chart-bar-row">
+                    <div
+                      key={bar.key}
+                      className="resumo-card__chart-bar-row"
+                      title={`${bar.label}: ${bar.percent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do total estimado`}
+                    >
                       <div className="resumo-card__chart-bar-row-head">
                         <span>{bar.label}</span>
                         <strong>{formatarMoeda(bar.value)}</strong>
@@ -581,6 +592,10 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
                       </div>
                     </div>
                   ))}
+                </div>
+                <div className="resumo-card__chart-balance">
+                  <span className="visually-hidden">Saldo a investir</span>
+                  <strong>{formatarMoeda(item.saldoAInvestir)}</strong>
                 </div>
                 {activeChartItemId === item.id ? (
                   <div className="resumo-card__chart-tooltip" role="status" aria-live="polite">
