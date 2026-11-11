@@ -1,0 +1,150 @@
+/* Escopo próprio para preservar a hierarquia visual do financeiro compartilhado. */
+.financeiro-compartilhado-card.dashboard-card {
+  gap: 1.5rem;
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__header h2 {
+  font-size: 1.15rem;
+  letter-spacing: -.025em;
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__content {
+  gap: 1.5rem;
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__metrics {
+  gap: 0;
+  padding: .25rem 0 1.25rem;
+  border-bottom: 1px solid var(--line-soft, #e2e8f0);
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__metric {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: .25rem 1.5rem;
+  border-left: 1px solid var(--line-soft, #e2e8f0);
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__metric:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__metric span {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: .8rem;
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__metric strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.025em;
+}
+.financeiro-compartilhado-card__settlement {
+  padding: 1.25rem 1.5rem;
+  background: var(--surface-card-soft, #f8fafc);
+  border: 1px solid var(--line-soft, #e2e8f0);
+  border-radius: 14px;
+}
+.financeiro-compartilhado-card__settlement-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.financeiro-compartilhado-card__eyebrow {
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--text-muted, #64748b);
+}
+.financeiro-compartilhado-card__settlement h3 {
+  font-size: 1rem;
+  margin: .25rem 0 0;
+  color: var(--text-strong, #1f2a3f);
+}
+.financeiro-compartilhado-card__settlement .financeiro-compartilhado-card__section-head {
+  margin-bottom: 1rem;
+  font-size: .8rem;
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__cta-copy strong {
+  font-size: clamp(1.6rem, 2.5vw, 2.1rem);
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.035em;
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__cta-copy span {
+  overflow-wrap: anywhere;
+  color: var(--text-muted, #64748b);
+}
+.financeiro-compartilhado-card__balance-label {
+  font-size: .75rem;
+}
+.financeiro-compartilhado-card button.financeiro-compartilhado-card__register {
+  width: auto;
+  flex: 0 0 auto;
+  padding: .65rem 1rem;
+  border-radius: 8px;
+  font-size: .82rem;
+  box-shadow: none;
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__section {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__section + .financeiro-compartilhado-card__section {
+  border-top: 1px solid var(--line-soft, #e2e8f0);
+  padding-top: 1.5rem;
+}
+.financeiro-compartilhado-card .table {
+  font-size: .84rem;
+  font-variant-numeric: tabular-nums;
+}
+.financeiro-compartilhado-card .table th {
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  font-size: .75rem;
+  padding: .6rem .75rem;
+  white-space: nowrap;
+}
+.financeiro-compartilhado-card .table td {
+  padding: 1rem .75rem;
+  white-space: nowrap;
+  background: transparent;
+}
+.financeiro-compartilhado-card .table th:first-child,
+.financeiro-compartilhado-card .table td:first-child { padding-left: 0; }
+.financeiro-compartilhado-card .table th:last-child,
+.financeiro-compartilhado-card .table td:last-child { padding-right: 0; }
+.financeiro-compartilhado-card .table td:last-child { font-weight: 700; }
+.financeiro-compartilhado-card .table small,
+.financeiro-compartilhado-card__transfers small {
+  display: block;
+  font-size: .7rem;
+  font-weight: 400;
+  color: var(--text-muted, #64748b);
+}
+.financeiro-compartilhado-card .financeiro-compartilhado-card__person { gap: .35rem; }
+.financeiro-compartilhado-card__contact { font-size: .72rem; white-space: normal; max-width: 260px; }
+.financeiro-compartilhado-card__contact summary { color: var(--text-muted, #64748b); cursor: pointer; }
+.financeiro-compartilhado-card__contact[open] summary { margin-bottom: .4rem; }
+.financeiro-compartilhado-card__contact span { display: block; overflow-wrap: anywhere; }
+.financeiro-compartilhado-card .financeiro-compartilhado-card__section > p { font-size: .82rem; }
+@media (max-width: 700px) {
+  .financeiro-compartilhado-card .financeiro-compartilhado-card__metrics { grid-template-columns: 1fr; gap: .85rem; }
+  .financeiro-compartilhado-card .financeiro-compartilhado-card__metric {
+    padding: 0;
+    border: 0;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: .75rem;
+  }
+  .financeiro-compartilhado-card .financeiro-compartilhado-card__metric strong { font-size: 1rem; white-space: nowrap; }
+  .financeiro-compartilhado-card__settlement { padding: 1rem; }
+  .financeiro-compartilhado-card__settlement-heading { align-items: flex-start; }
+  .financeiro-compartilhado-card .financeiro-compartilhado-card__cta { align-items: stretch; flex-direction: column; }
+  .financeiro-compartilhado-card button.financeiro-compartilhado-card__register { width: 100%; }
+}

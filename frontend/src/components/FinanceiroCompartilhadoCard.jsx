@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { fetchFinanceiroCompartilhado, registrarEqualizacao } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import EqualizacaoConsolidada from "./EqualizacaoConsolidada";
+import "./FinanceiroCompartilhadoCard.css";
 import { useCompactLayout } from "../hooks/useCompactLayout";
 
 const formatarMoeda = (valor) =>
@@ -283,7 +284,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
         <div>
           <h2>Financeiro Compartilhado</h2>
           <span className="text-muted small">
-            Acompanhe a divisão das despesas, os saldos entre sócios e os acertos de equalização deste imóvel.
+            Despesas divididas, posição dos sócios e acertos em um só lugar.
           </span>
           {usandoMinhaParticipacao ? (
             <div className="financeiro-compartilhado-card__view-note">
@@ -319,10 +320,17 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
             </article>
           </div>
 
-          {podeRegistrarMinhaEqualizacao && (
-            <div className="financeiro-compartilhado-card__section">
+          {socioAtual ? <div className="financeiro-compartilhado-card__settlement">
+            <div className="financeiro-compartilhado-card__settlement-heading">
+              <div><span className="financeiro-compartilhado-card__eyebrow">ACERTO ENTRE SÓCIOS</span>
+                <h3>{podeRegistrarMinhaEqualizacao ? "Equalização sugerida" : Number(socioAtual.saldo_liquido || 0) === 0 ? "Sua posição está equalizada" : "Sua posição entre sócios"}</h3>
+              </div>
+              <EqualizacaoConsolidada key={id} imovelId={id} refreshKey={refreshKey}
+                onChanged={() => { setVersaoLocal((versao) => versao + 1); onChanged?.(); }} />
+            </div>
+          {podeRegistrarMinhaEqualizacao ? (
+            <div>
               <div className="financeiro-compartilhado-card__section-head">
-                <h3>Equalização sugerida</h3>
                 <span className="text-muted small">
                   {direcaoEqualizacao === "pagar"
                     ? "Faça o pagamento e registre a equalização para manter o saldo entre sócios atualizado."
@@ -331,7 +339,8 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
               </div>
               <div className="financeiro-compartilhado-card__cta">
                 <div className="financeiro-compartilhado-card__cta-copy">
-                  <strong>{formatarMoeda(direcaoEqualizacao === "pagar" ? saldoAPagar : saldoAReceber)}</strong>
+                  <span className="financeiro-compartilhado-card__balance-label">{direcaoEqualizacao === "pagar" ? "Você tem a pagar" : "Você tem a receber"}</span>
+                  <strong className={direcaoEqualizacao === "pagar" ? "text-danger" : "text-success"}>{formatarMoeda(direcaoEqualizacao === "pagar" ? saldoAPagar : saldoAReceber)}</strong>
                   {direcaoEqualizacao === "pagar" && contrapartePrincipal ? (
                     <span>
                       Pagar para {contrapartePrincipal.user_name || contrapartePrincipal.user_email}
@@ -347,16 +356,19 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
                 </div>
                 <button
                   type="button"
-                  className="btn btn-primary btn-sm"
+                  className="btn btn-primary financeiro-compartilhado-card__register"
                   onClick={() => setModalEqualizacaoAberto(true)}
                 >
                   {direcaoEqualizacao === "pagar"
-                    ? `Registrar pagamento de ${formatarMoeda(saldoAPagar)}`
-                    : `Registrar recebimento de ${formatarMoeda(saldoAReceber)}`}
+                    ? "Registrar pagamento"
+                    : "Registrar recebimento"}
                 </button>
               </div>
             </div>
-          )}
+          ) : <p className="text-muted mb-0">{Number(socioAtual.saldo_liquido || 0) === 0
+            ? "Não há valores a acertar neste imóvel."
+            : `Seu saldo neste imóvel: ${formatarMoeda(socioAtual.saldo_liquido)}. Confira a posição dos sócios abaixo.`}</p>}
+          </div> : null}
 
           <div className="financeiro-compartilhado-card__section">
             <h3>{usandoMinhaParticipacao ? "Minha posição atual" : "Sócios e posição atual"}</h3>
@@ -429,8 +441,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
                         <th className="text-end">Participação</th>
                         <th className="text-end">Pago</th>
                         <th className="text-end">Devido</th>
-                        <th className="text-end">Env. equalização</th>
-                        <th className="text-end">Rec. equalização</th>
+                        <th className="text-end">Acertos <small>Enviados / recebidos</small></th>
                         <th className="text-end">Saldo líquido</th>
                       </tr>
                     </thead>
@@ -440,20 +451,21 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
                           <td>
                             <div className="financeiro-compartilhado-card__person">
                               <strong>{socio.user_name || socio.user_email || `Usuário ${socio.user_id}`}</strong>
-                              <span>{socio.user_email || "Sem e-mail"}</span>
+
                               <span className={`financeiro-compartilhado-card__flag ${statusSocio(socio.saldo_liquido).classe}`}>
                                 {statusSocio(socio.saldo_liquido).icone} {statusSocio(socio.saldo_liquido).texto}
                               </span>
-                              {socio.user_pix_key ? (
-                                <span className="financeiro-compartilhado-card__pix">Pix: {socio.user_pix_key}</span>
-                              ) : null}
+                              <details className="financeiro-compartilhado-card__contact">
+                                <summary>Contato e Pix</summary>
+                                <span>{socio.user_email || "Sem e-mail"}</span>
+                                <span className="financeiro-compartilhado-card__pix">Pix: {socio.user_pix_key || "Não informado"}</span>
+                              </details>
                             </div>
                           </td>
                           <td className="text-end">{Number(socio.percentual_participacao || 0).toLocaleString("pt-BR")} %</td>
                           <td className="text-end">{formatarMoeda(socio.total_pago_operacional)}</td>
                           <td className="text-end">{formatarMoeda(socio.valor_devido_participacao)}</td>
-                          <td className="text-end">{formatarMoeda(socio.equalizacao_enviada)}</td>
-                          <td className="text-end">{formatarMoeda(socio.equalizacao_recebida)}</td>
+                          <td className="text-end"><span className="financeiro-compartilhado-card__transfers">{formatarMoeda(socio.equalizacao_enviada)}<small>{formatarMoeda(socio.equalizacao_recebida)}</small></span></td>
                           <td className={`text-end ${Number(socio.saldo_liquido || 0) >= 0 ? "text-success" : "text-danger"}`}>
                             {formatarMoeda(socio.saldo_liquido)}
                           </td>
@@ -471,8 +483,6 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
           <div className="financeiro-compartilhado-card__section">
             <div className="financeiro-compartilhado-card__section-head">
               <h3>{usandoMinhaParticipacao ? "Equalizações que impactam minha posição" : "Equalizações registradas"}</h3>
-              {socioAtual ? <EqualizacaoConsolidada key={id} imovelId={id} refreshKey={refreshKey}
-                onChanged={() => { setVersaoLocal((versao) => versao + 1); onChanged?.(); }} /> : null}
             </div>
             {equalizacoesExibidas.length ? (
               compactLayout ? (

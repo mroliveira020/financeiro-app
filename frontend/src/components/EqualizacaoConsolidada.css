@@ -1,4 +1,18 @@
-.equalizacao-consolidada__trigger { display: inline-flex; align-items: center; gap: .45rem; min-height: 40px; }
+.financeiro-compartilhado-card .equalizacao-consolidada__trigger {
+ display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+ width: auto; flex: 0 1 auto; min-height: 38px; padding: .5rem .75rem;
+ border: 1px solid var(--line-soft, #dce3ec); border-radius: 8px;
+ background: var(--surface-card, #fff); color: var(--text-brand, #315c9b);
+ font-size: .78rem; font-weight: 600; line-height: 1.4; box-shadow: none;
+ cursor: pointer; text-align: left;
+}
+.financeiro-compartilhado-card .equalizacao-consolidada__trigger:hover {
+ background: var(--surface-brand-soft, #eff6ff); border-color: #9ab7da;
+}
+.financeiro-compartilhado-card .equalizacao-consolidada__trigger:focus-visible {
+ outline: 2px solid var(--text-brand, #315c9b); outline-offset: 3px;
+}
+.financeiro-compartilhado-card .equalizacao-consolidada__trigger svg { flex-shrink: 0; }
 .equalizacao-consolidada__backdrop { position: fixed; inset: 0; z-index: 1080; background: #0f172a80; display: flex; align-items: center; justify-content: center; padding: 1rem; }
 .equalizacao-consolidada__dialog { background: var(--surface-card, #fff); color: var(--text-primary, #172033); border-radius: 1rem; width: min(100%, 680px); max-height: calc(100dvh - 2rem); overflow: auto; box-shadow: 0 20px 70px #0003; }
 .equalizacao-consolidada__dialog header, .equalizacao-consolidada__dialog footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; }
