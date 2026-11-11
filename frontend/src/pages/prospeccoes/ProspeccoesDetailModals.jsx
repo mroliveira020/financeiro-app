@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import ProspeccaoDialog from "./ProspeccaoDialog";
+import { handleTabKeys } from "../../utils/handleTabKeys";
 import {
   OfertaAvisos,
   ProspectGallery,
@@ -299,8 +301,7 @@ export function AvaliacaoDetalhadaModal({
     : null;
 
   return (
-    <div className="prospects-modal-backdrop" role="presentation">
-      <div className="prospects-modal prospects-modal--wide prospects-modal--auto" role="dialog" aria-modal="true" aria-labelledby="avaliacao-detalhada-title">
+    <ProspeccaoDialog className="prospects-modal--auto" titleId="avaliacao-detalhada-title" onClose={onClose}>
         <div className="prospects-modal__header">
           <div className="prospects-modal__header-main">
             <div>
@@ -435,11 +436,16 @@ export function AvaliacaoDetalhadaModal({
             </div>
           </div>
 
-          <div className="prospects-detail-tabs" role="tablist" aria-label="Abas de avaliação detalhada">
+          <div className="prospects-detail-tabs" role="tablist" aria-label="Abas de avaliação detalhada" onKeyDown={handleTabKeys}>
             {tabs.map((tabItem) => (
               <button
                 key={tabItem.key}
                 type="button"
+                role="tab"
+                id={`avaliacao-tab-${tabItem.key}`}
+                aria-controls="avaliacao-tabpanel"
+                aria-selected={tab === tabItem.key}
+                tabIndex={tab === tabItem.key ? 0 : -1}
                 className={`prospects-sort-chip ${tab === tabItem.key ? "is-active" : ""}`.trim()}
                 onClick={() => onTabChange(tabItem.key)}
               >
@@ -448,6 +454,7 @@ export function AvaliacaoDetalhadaModal({
             ))}
           </div>
 
+          <div className="prospects-detail-tabpanel" id="avaliacao-tabpanel" role="tabpanel" aria-labelledby={`avaliacao-tab-${tab}`}>
           {statusMessage ? (
             <div className={`prospects-inline-status is-${statusTone || "info"}`.trim()}>
               <span className="prospects-inline-status__content">{statusMessage}</span>
@@ -1057,8 +1064,8 @@ export function AvaliacaoDetalhadaModal({
               )}
             </div>
           ) : null}
+          </div>
         </div>
-      </div>
-    </div>
+    </ProspeccaoDialog>
   );
 }

@@ -8,6 +8,7 @@ import TransacoesCompletas from "../components/transacoes/TransacoesCompletas";
 import { useCompactLayout } from "../hooks/useCompactLayout";
 
 import "./Dashboard.css";
+import { handleTabKeys } from "../utils/handleTabKeys";
 
 function DeferredSection({ children, placeholder = "Carregando seção...", rootMargin = "240px" }) {
   const [ativado, setAtivado] = useState(false);
@@ -58,16 +59,20 @@ function Dashboard() {
     <div className="dashboard-page">
       <div className="dashboard-container">
         <section className="dashboard-main">
+          <DadosCadastrais refreshKey={refreshKey} onChanged={dispararAtualizacao} />
           <section className="dashboard-card dashboard-view-toolbar">
             <div className="dashboard-view-toolbar__copy">
               <h2>Visão financeira</h2>
               <span>Alterne entre os números totais do imóvel e a leitura proporcional da sua participação.</span>
             </div>
-            <div className="dashboard-view-toggle" role="tablist" aria-label="Alternar visão financeira">
+            <div className="dashboard-view-toggle" role="tablist" aria-label="Alternar visão financeira" onKeyDown={handleTabKeys}>
               <button
                 type="button"
                 role="tab"
+                id="visao-tab-total"
+                aria-controls="visao-financeira-painel"
                 aria-selected={financeViewMode === "total"}
+                tabIndex={financeViewMode === "total" ? 0 : -1}
                 className={`dashboard-view-toggle__button ${financeViewMode === "total" ? "is-active" : ""}`.trim()}
                 onClick={() => setFinanceViewMode("total")}
               >
@@ -76,7 +81,10 @@ function Dashboard() {
               <button
                 type="button"
                 role="tab"
+                id="visao-tab-minha_participacao"
+                aria-controls="visao-financeira-painel"
                 aria-selected={financeViewMode === "minha_participacao"}
+                tabIndex={financeViewMode === "minha_participacao" ? 0 : -1}
                 className={`dashboard-view-toggle__button ${financeViewMode === "minha_participacao" ? "is-active" : ""}`.trim()}
                 onClick={() => setFinanceViewMode("minha_participacao")}
               >
@@ -84,19 +92,25 @@ function Dashboard() {
               </button>
             </div>
           </section>
-          <DadosCadastrais refreshKey={refreshKey} onChanged={dispararAtualizacao} />
-          <section id="resumo-financeiro">
-            <ResumoFinanceiro refreshKey={refreshKey} viewMode={financeViewMode} />
-          </section>
-          <section id="financeiro-compartilhado">
-            <DeferredSection placeholder="Preparando posição compartilhada...">
-              <FinanceiroCompartilhadoCard
-                refreshKey={refreshKey}
-                onChanged={dispararAtualizacao}
-                viewMode={financeViewMode}
-              />
-            </DeferredSection>
-          </section>
+          <div
+            className="dashboard-main"
+            id="visao-financeira-painel"
+            role="tabpanel"
+            aria-labelledby={`visao-tab-${financeViewMode}`}
+          >
+            <section id="resumo-financeiro">
+              <ResumoFinanceiro refreshKey={refreshKey} viewMode={financeViewMode} />
+            </section>
+            <section id="financeiro-compartilhado">
+              <DeferredSection placeholder="Preparando posição compartilhada...">
+                <FinanceiroCompartilhadoCard
+                  refreshKey={refreshKey}
+                  onChanged={dispararAtualizacao}
+                  viewMode={financeViewMode}
+                />
+              </DeferredSection>
+            </section>
+          </div>
         </section>
 
         <section className="dashboard-transactions">

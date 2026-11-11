@@ -5,7 +5,7 @@
 }
 
 .dashboard-container {
-  width: min(1200px, 92vw);
+  width: min(1200px, calc(100% - 2rem));
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -59,6 +59,7 @@
 
 .dashboard-view-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -452,6 +453,75 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  container: resumo-financeiro / inline-size;
+}
+
+.resumo-card__budget h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.resumo-card__budget-table {
+  display: none;
+}
+
+.resumo-card__budget-list details {
+  padding: 0;
+}
+
+.resumo-card__budget-list summary {
+  padding: 0.8rem 1rem;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.resumo-card__budget-list summary::marker {
+  color: var(--text-muted);
+}
+
+.resumo-card__budget-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.45rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.resumo-card__budget-values > span {
+  display: grid;
+}
+
+.resumo-card__budget-values > span > span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.resumo-card__budget-list details dl {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--line-soft);
+}
+
+.resumo-card__budget-list details dt {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.resumo-card__budget-list dd {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@container resumo-financeiro (min-width: 56rem) {
+  .resumo-card__budget-table {
+    display: block;
+  }
+
+  .resumo-card__budget .resumo-card__budget-list {
+    display: none;
+  }
 }
 
 .financeiro-compartilhado-card {
@@ -754,7 +824,6 @@
   min-width: 150px;
 }
 
-.resumo-card__mobile-item header,
 .transacoes-mobile-card__head {
   display: flex;
   align-items: flex-start;
@@ -762,7 +831,6 @@
   gap: 0.85rem;
 }
 
-.resumo-card__mobile-item header strong,
 .transacoes-mobile-card__head strong {
   color: #1f2d47;
   font-size: 0.98rem;
@@ -930,6 +998,7 @@
   color: #1b2640;
   font-size: 1.3rem;
   line-height: 1.05;
+  overflow-wrap: anywhere;
 }
 
 .resumo-card__metric small {
@@ -1106,7 +1175,7 @@
   font-size: 0.88rem;
 }
 
-@media (min-width: 901px) {
+@container resumo-financeiro (min-width: 50rem) {
   .resumo-card__chart-list {
     gap: 0;
     border: 1px solid rgba(35, 50, 74, 0.08);
@@ -1206,10 +1275,6 @@
   }
 }
 
-.resumo-card__toggle--mobile {
-  margin-top: -0.15rem;
-}
-
 .resumo-card__table table {
   border-collapse: collapse;
   width: 100%;
@@ -1221,6 +1286,10 @@
   border-radius: 18px;
   background: linear-gradient(180deg, var(--surface-card) 0%, var(--surface-card-soft) 100%);
   overflow: hidden;
+}
+
+.dashboard-page .table-responsive {
+  overflow-x: auto;
 }
 
 .resumo-card__closing {
@@ -1479,7 +1548,7 @@
   }
 
   .dashboard-container {
-    width: min(100%, calc(100vw - 1rem));
+    width: calc(100% - 1rem);
     gap: 0.85rem;
   }
 
@@ -1675,6 +1744,10 @@
     grid-column: auto;
     min-width: 0;
     padding: 0.85rem 0.9rem;
+  }
+
+  .resumo-card__metric strong {
+    font-size: clamp(0.875rem, 4vw, 1.2rem);
   }
 
   .resumo-card__toggle {

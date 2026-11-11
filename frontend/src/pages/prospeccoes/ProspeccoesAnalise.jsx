@@ -1,4 +1,5 @@
 import { OfertaAvisos } from "./ProspeccoesShared";
+import ProspeccaoDialog from "./ProspeccaoDialog";
 /* eslint-disable react-refresh/only-export-components */
 import React from "react";
 
@@ -386,8 +387,11 @@ export function AnaliseModal({
   };
 
   return (
-    <div className="prospects-modal-backdrop" role="presentation">
-      <div className="prospects-modal prospects-modal--wide prospects-modal--analise" role="dialog" aria-modal="true" aria-labelledby="analise-title">
+    <ProspeccaoDialog
+      className="prospects-modal--analise"
+      titleId="analise-title"
+      onClose={() => { if (!saving) onClose(); }}
+    >
         <div className="prospects-modal__header">
           <div>
             <p className="prospects-eyebrow">Viabilidade</p>
@@ -609,7 +613,6 @@ export function AnaliseModal({
             {saving ? "Salvando..." : "Salvar análise"}
           </button>
         </div>
-      </div>
-    </div>
+    </ProspeccaoDialog>
   );
 }

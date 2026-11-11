@@ -11,7 +11,6 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
   const [aliquotaGanhoCapital, setAliquotaGanhoCapital] = useState(0.15);
   const [mostrarModalOrcamento, setMostrarModalOrcamento] = useState(false);
   const [mostrarSegundaTabela, setMostrarSegundaTabela] = useState(false);
-  const [mostrarDetalheOrcamentoMobile, setMostrarDetalheOrcamentoMobile] = useState(false);
   const [participationRatio, setParticipationRatio] = useState(1);
   const [activeChartItemId, setActiveChartItemId] = useState(null);
   const { hasCapability, user } = useAuth();
@@ -222,7 +221,7 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
   }, [calcularSaldoAInvestir, primeiraTabela, scaleMoney]);
 
   const tabelaPrimeira = (
-    <div className="resumo-card__table table-responsive">
+    <div className="resumo-card__table resumo-card__budget-table table-responsive">
       <table className="table align-middle">
         <thead>
           <tr>
@@ -263,72 +262,64 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
     </div>
   );
 
+  const gruposOrcamento = primeiraTabela.map((item) => ({
+    id: item.id_grupo,
+    grupo: item.grupo,
+    orcamento: item.orcamento,
+    efetivado: item.valor_efetivado,
+    detalhes: [
+      ["Em contratação", item.valor_em_contratacao],
+      ["Efetivado + em contratação", calcularEfetivadoMaisContratacao(item)],
+      ["Saldo a investir", calcularSaldoAInvestir(item)],
+      ["Total estimado", calcularTotalEstimado(item)],
+    ],
+  }));
+
+  const totalOrcamento = {
+    id: "total",
+    grupo: "Total",
+    orcamento: totaisPrimeira.orcamento,
+    efetivado: totaisPrimeira.valor_efetivado,
+    detalhes: [
+      ["Em contratação", totaisPrimeira.valor_em_contratacao],
+      ["Efetivado + em contratação", totaisPrimeira.efetivado_mais_contratacao],
+      ["Saldo a investir", totaisPrimeira.saldo_a_investir_total],
+      ["Total estimado", totaisPrimeira.valor_total_estimado],
+    ],
+  };
+
   const tabelaPrimeiraCompacta = (
-    <div className="resumo-card__mobile-list">
-      {primeiraTabela.map((item) => (
-        <article key={item.id_grupo} className="resumo-card__mobile-item">
-          <header>
-            <strong>{item.grupo}</strong>
-          </header>
+    <div className="resumo-card__mobile-list resumo-card__budget-list">
+      {[...gruposOrcamento, totalOrcamento].map(({ id, grupo, orcamento, efetivado, detalhes }) => (
+        <details
+          key={id}
+          className={id === "total"
+            ? "resumo-card__mobile-item resumo-card__mobile-item--total"
+            : "resumo-card__mobile-item"}
+        >
+          <summary>
+            <strong>{grupo}</strong>
+            <span className="resumo-card__budget-values">
+              <span>
+                <span>Orçamento</span>
+                <strong>{formatarMoeda(scaleMoney(orcamento))}</strong>
+              </span>
+              <span>
+                <span>Efetivado</span>
+                <strong>{formatarMoeda(scaleMoney(efetivado))}</strong>
+              </span>
+            </span>
+          </summary>
           <dl>
-            <div>
-              <dt>Orçamento</dt>
-              <dd>{formatarMoeda(scaleMoney(item.orcamento))}</dd>
-            </div>
-            <div>
-              <dt>Efetivado</dt>
-              <dd>{formatarMoeda(scaleMoney(item.valor_efetivado))}</dd>
-            </div>
-            <div>
-              <dt>Em contratação</dt>
-              <dd>{formatarMoeda(scaleMoney(item.valor_em_contratacao))}</dd>
-            </div>
-            <div>
-              <dt>Efetivado + contratação</dt>
-              <dd>{formatarMoeda(scaleMoney(calcularEfetivadoMaisContratacao(item)))}</dd>
-            </div>
-            <div>
-              <dt>Saldo a investir</dt>
-              <dd>{formatarMoeda(scaleMoney(calcularSaldoAInvestir(item)))}</dd>
-            </div>
-            <div>
-              <dt>Total estimado</dt>
-              <dd>{formatarMoeda(scaleMoney(calcularTotalEstimado(item)))}</dd>
-            </div>
+            {detalhes.map(([rotulo, valor]) => (
+              <div key={rotulo}>
+                <dt>{rotulo}</dt>
+                <dd>{formatarMoeda(scaleMoney(valor))}</dd>
+              </div>
+            ))}
           </dl>
-        </article>
+        </details>
       ))}
-      <article className="resumo-card__mobile-item resumo-card__mobile-item--total">
-        <header>
-          <strong>Total</strong>
-        </header>
-        <dl>
-          <div>
-            <dt>Orçamento</dt>
-            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.orcamento))}</dd>
-          </div>
-          <div>
-            <dt>Efetivado</dt>
-            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.valor_efetivado))}</dd>
-          </div>
-          <div>
-            <dt>Em contratação</dt>
-            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.valor_em_contratacao))}</dd>
-          </div>
-          <div>
-            <dt>Efetivado + contratação</dt>
-            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.efetivado_mais_contratacao))}</dd>
-          </div>
-          <div>
-            <dt>Saldo a investir</dt>
-            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.saldo_a_investir_total))}</dd>
-          </div>
-          <div>
-            <dt>Total estimado</dt>
-            <dd>{formatarMoeda(scaleMoney(totaisPrimeira.valor_total_estimado))}</dd>
-          </div>
-        </dl>
-      </article>
     </div>
   );
 
@@ -519,10 +510,16 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
           ))}
         </div>
 
+        <section className="resumo-card__budget" aria-labelledby="titulo-orcamento-grupos">
+          <h3 id="titulo-orcamento-grupos">Orçamento por grupo</h3>
+          {tabelaPrimeira}
+          {tabelaPrimeiraCompacta}
+        </section>
+
         <section className="resumo-card__chart">
           <header className="resumo-card__chart-header">
             <div>
-              <h3>Visão do orçamento</h3>
+              <h3>Comparativo do orçamento</h3>
               <p>Compare orçamento, valor comprometido e total estimado por grupo.</p>
             </div>
           </header>
@@ -618,19 +615,6 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
           </div>
         </section>
 
-        {compactLayout ? (
-          <div className="resumo-card__toggle resumo-card__toggle--mobile">
-            <button
-              type="button"
-              className="resumo-card__toggle-btn"
-              onClick={() => setMostrarDetalheOrcamentoMobile((prev) => !prev)}
-            >
-              {mostrarDetalheOrcamentoMobile ? "Ocultar detalhamento do orçamento" : "Detalhar orçamento"}
-            </button>
-          </div>
-        ) : null}
-
-        {compactLayout ? (mostrarDetalheOrcamentoMobile ? tabelaPrimeiraCompacta : null) : tabelaPrimeira}
         {compactLayout ? tabelaFechamentoCompacta : tabelaFechamento}
         {compactLayout ? tabelaFechamentoDetalhadaCompacta : tabelaFechamentoDetalhada}
       </section>

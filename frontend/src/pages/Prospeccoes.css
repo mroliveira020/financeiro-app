@@ -3659,3 +3659,39 @@
 .prospects-oferta-avisos p { margin: .4rem 0; }
 .prospects-oferta-avisos details { padding: .5rem; margin: .5rem 0; background: #fffbeb; border: 1px solid #fde68a; border-radius: .5rem; }
 .prospects-oferta-avisos summary { cursor: pointer; font-weight: 600; }
+
+.prospects-tabpanel,
+.prospects-detail-tabpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.prospects-detail-tabpanel {
+  gap: 12px;
+}
+
+.prospects-modal--native {
+  width: min(calc(100% - 48px), 1120px);
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 0;
+  overscroll-behavior: contain;
+}
+
+.prospects-modal--native::backdrop {
+  background: rgba(15, 23, 42, 0.48);
+}
+
+@media (max-width: 1180px) {
+  .prospects-modal--native.prospects-modal--auto {
+    width: min(calc(100% - 48px), 980px);
+  }
+}
+
+@media (max-width: 900px) {
+  .prospects-modal--native,
+  .prospects-modal--native.prospects-modal--auto {
+    width: calc(100% - 24px);
+  }
+}

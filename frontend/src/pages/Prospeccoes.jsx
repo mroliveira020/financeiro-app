@@ -1,6 +1,8 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import "./Prospeccoes.css";
+import useProspeccaoQuery from "./prospeccoes/useProspeccaoQuery";
+import { handleTabKeys } from "../utils/handleTabKeys";
 
 import {
   fetchCapturados,
@@ -389,6 +391,60 @@ export default function Prospeccoes() {
   const outletContext = useOutletContext() || {};
   const setTopbarContent = outletContext.setTopbarContent;
   const { user, hasRole } = useAuth();
+  const [query, setQuery] = useProspeccaoQuery();
+  const {
+    fonte: filtroFonteCap,
+    uf: filtroUfCap,
+    cidade: filtroCidadesCap,
+    modalidade: filtroModalidadeCap,
+    financia: filtroFinanciaCap,
+    score: scoreMinCap,
+    roi: roiMinCap,
+    pre_analise: somenteComAvaliacaoCap,
+    presenca: presencaCap,
+    revisao: somenteRevisaoCap,
+    por_pagina: pageSize,
+    pagina: page,
+    ordenar: sortBy,
+    direcao: sortDir,
+    fila_ordenar: selectedSortBy,
+    fila_direcao: selectedSortDir,
+    fila_busca: selectedSearch,
+    fila_uf: selectedUfFilter,
+    fila_prioridade: selectedPrioridadeFilter,
+    fila_atividade: queryActivityFilter,
+    fila_responsavel: selectedResponsavelFilter,
+  } = query;
+  const {
+    fonte: setFiltroFonteCap,
+    uf: setFiltroUfCap,
+    cidade: setFiltroCidadesCap,
+    modalidade: setFiltroModalidadeCap,
+    financia: setFiltroFinanciaCap,
+    score: setScoreMinCap,
+    roi: setRoiMinCap,
+    pre_analise: setSomenteComAvaliacaoCap,
+    presenca: setPresencaCap,
+    revisao: setSomenteRevisaoCap,
+    por_pagina: setPageSize,
+    pagina: setPage,
+    ordenar: setSortBy,
+    direcao: setSortDir,
+    fila_ordenar: setSelectedSortBy,
+    fila_direcao: setSelectedSortDir,
+    fila_busca: setSelectedSearch,
+    fila_uf: setSelectedUfFilter,
+    fila_prioridade: setSelectedPrioridadeFilter,
+    fila_atividade: setSelectedActivityFilter,
+    fila_responsavel: setSelectedResponsavelFilter,
+    fila_autor: setSelectedUserFilter,
+    aba: setActiveTab,
+  } = setQuery;
+  const activeTab = query.aba || "capturados";
+  const mobileSection = query.aba || "hub";
+  const setMobileSection = (section) => setActiveTab(section === "hub" ? "" : section);
+  const selectedActivityFilter = user?.role === "admin" ? queryActivityFilter : "ativos";
+  const selectedUserFilter = user?.role === "admin" ? query.fila_autor : "todos";
   const [selecionados, setSelecionados] = useState([]);
   const [capturados, setCapturados] = useState([]);
   const [capturadosTotal, setCapturadosTotal] = useState(0);
@@ -396,36 +452,13 @@ export default function Prospeccoes() {
   const [loadingCap, setLoadingCap] = useState(false);
   const [erroSel, setErroSel] = useState("");
   const [erroCap, setErroCap] = useState("");
-  const [filtroFonteCap, setFiltroFonteCap] = useState("todas");
-  const [filtroUfCap, setFiltroUfCap] = useState([]);
-  const [filtroCidadesCap, setFiltroCidadesCap] = useState([]);
-  const [filtroModalidadeCap, setFiltroModalidadeCap] = useState([]);
-  const [filtroFinanciaCap, setFiltroFinanciaCap] = useState([]);
-  const [scoreMinCap, setScoreMinCap] = useState("");
-  const [roiMinCap, setRoiMinCap] = useState("");
-  const [somenteComAvaliacaoCap, setSomenteComAvaliacaoCap] = useState(false);
-  const [presencaCap, setPresencaCap] = useState("presentes");
-  const [somenteRevisaoCap, setSomenteRevisaoCap] = useState(false);
-  const [pageSize, setPageSize] = useState(20);
-  const [page, setPage] = useState(1);
   const [includeLoadingIds, setIncludeLoadingIds] = useState(new Set());
   const [removeLoadingIds, setRemoveLoadingIds] = useState(new Set());
   const [updateLoadingIds, setUpdateLoadingIds] = useState(new Set());
   const [mensagem, setMensagem] = useState("");
   const [meta, setMeta] = useState({ ufs: [], fontes: [], modalidades: [], financia: [] });
-  const [sortBy, setSortBy] = useState("ultima_disputa");
-  const [sortDir, setSortDir] = useState("desc");
-  const [activeTab, setActiveTab] = useState("capturados");
   const [capturadosFiltersExpanded, setCapturadosFiltersExpanded] = useState(false);
   const [capturadosCitySearch, setCapturadosCitySearch] = useState("");
-  const [selectedSortBy, setSelectedSortBy] = useState("dataLeilao");
-  const [selectedSortDir, setSelectedSortDir] = useState("asc");
-  const [selectedSearch, setSelectedSearch] = useState("");
-  const [selectedUfFilter, setSelectedUfFilter] = useState("todos");
-  const [selectedPrioridadeFilter, setSelectedPrioridadeFilter] = useState("todas");
-  const [selectedActivityFilter, setSelectedActivityFilter] = useState("ativos");
-  const [selectedResponsavelFilter, setSelectedResponsavelFilter] = useState("todos");
-  const [selectedUserFilter, setSelectedUserFilter] = useState("todos");
   const [selectedFiltersExpanded, setSelectedFiltersExpanded] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("prospeccoes_selecionados_filters_expanded") === "1";
@@ -481,7 +514,6 @@ export default function Prospeccoes() {
   const [avaliacaoDetalhadaStatusTone, setAvaliacaoDetalhadaStatusTone] = useState("info");
   const [avaliacaoDetalhadaStatusActionKind, setAvaliacaoDetalhadaStatusActionKind] = useState(null);
   const [mobileAccess, setMobileAccess] = useState(() => detectMobileAccess());
-  const [mobileSection, setMobileSection] = useState("hub");
   const [financeiroCount, setFinanceiroCount] = useState(null);
   const [financeiroImoveis, setFinanceiroImoveis] = useState([]);
   const pageSizeOptions = [20, 50, 100];
@@ -532,6 +564,7 @@ export default function Prospeccoes() {
   }, [includeInactiveSelecionados]);
 
   useEffect(() => {
+    let active = true;
     const carregarCapturados = async () => {
       setLoadingCap(true);
       setErroCap("");
@@ -552,22 +585,27 @@ export default function Prospeccoes() {
           presenca: presencaCap,
           somenteRevisao: somenteRevisaoCap,
         });
+        if (!active) return;
         setCapturados(resp.data || []);
         setCapturadosTotal(resp.total || 0);
-        if (resp.page && resp.page !== page) {
-          setPage(resp.page);
+        const ultimaPagina = Math.max(1, Math.ceil((resp.total || 0) / pageSize));
+        const paginaDisponivel = Math.min(resp.page || page, ultimaPagina);
+        if (paginaDisponivel !== page) {
+          setPage(paginaDisponivel);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erro inesperado";
+        if (!active) return;
         setErroCap(message);
         setCapturados([]);
         setCapturadosTotal(0);
       } finally {
-        setLoadingCap(false);
+        if (active) setLoadingCap(false);
       }
     };
     carregarCapturados();
-  }, [page, pageSize, filtroFonteCap, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap, presencaCap, somenteRevisaoCap]);
+    return () => { active = false; };
+  }, [setPage, page, pageSize, filtroFonteCap, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap, presencaCap, somenteRevisaoCap]);
 
   useEffect(() => {
     fetchProspecMeta()
@@ -578,7 +616,6 @@ export default function Prospeccoes() {
   useEffect(() => {
     if (user?.role !== "admin") {
       setResponsaveisDisponiveis([]);
-      setSelectedUserFilter("todos");
       return;
     }
     fetchResponsaveisDisponiveis()
@@ -838,11 +875,6 @@ export default function Prospeccoes() {
     setSelecionados(sel || []);
     return sel || [];
   }, [includeInactiveSelecionados]);
-
-  useEffect(() => {
-    if (user?.role === "admin") return;
-    setSelectedActivityFilter("ativos");
-  }, [user?.role]);
 
   const openIncluirManualModal = () => {
     setManualSelecionadoDraft(createManualSelecionadoDraft());
@@ -2093,11 +2125,14 @@ export default function Prospeccoes() {
       ) : (
         <>
 
-      <div className="prospects-tabs" role="tablist" aria-label="Navegação de prospecções">
+      <div className="prospects-tabs" role="tablist" aria-label="Navegação de prospecções" onKeyDown={handleTabKeys}>
         <button
           type="button"
           role="tab"
+          id="prospeccao-tab-capturados"
+          aria-controls="prospeccao-tabpanel"
           aria-selected={activeTab === "capturados"}
+          tabIndex={activeTab === "capturados" ? 0 : -1}
           className={`prospects-tab ${activeTab === "capturados" ? "is-active" : ""}`}
           onClick={() => setActiveTab("capturados")}
         >
@@ -2107,7 +2142,10 @@ export default function Prospeccoes() {
         <button
           type="button"
           role="tab"
+          id="prospeccao-tab-selecionados"
+          aria-controls="prospeccao-tabpanel"
           aria-selected={activeTab === "selecionados"}
+          tabIndex={activeTab === "selecionados" ? 0 : -1}
           className={`prospects-tab ${activeTab === "selecionados" ? "is-active" : ""}`}
           onClick={() => setActiveTab("selecionados")}
         >
@@ -2116,6 +2154,7 @@ export default function Prospeccoes() {
         </button>
       </div>
 
+      <div className="prospects-tabpanel" id="prospeccao-tabpanel" role="tabpanel" aria-labelledby={`prospeccao-tab-${activeTab}`}>
       {activeTab === "selecionados" ? (
         <>
           <section className="prospects-card prospects-card--command">
@@ -2552,6 +2591,7 @@ export default function Prospeccoes() {
           />
         </>
       )}
+      </div>
         </>
       )}
 
