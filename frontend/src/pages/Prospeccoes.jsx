@@ -2,7 +2,7 @@ import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useSt
 import { useOutletContext } from "react-router-dom";
 import "./Prospeccoes.css";
 import useProspeccaoQuery from "./prospeccoes/useProspeccaoQuery";
-import { handleTabKeys } from "../utils/handleTabKeys";
+import ProspeccoesDesktop from "./prospeccoes/ProspeccoesDesktop";
 
 import {
   fetchCapturados,
@@ -76,7 +76,6 @@ import {
   MobileSelecionadosList,
   MobileCapturadosList,
 } from "./prospeccoes/ProspeccoesMobileSections";
-import { TabelaCapturados, TabelaSelecionados } from "./prospeccoes/ProspeccoesTables";
 
 const PRIORIDADE_OPTIONS = [
   { value: 1, label: "Baixa", cls: "baixa" },
@@ -206,13 +205,6 @@ const formatarPercentual = (valor) => {
 const formatarNumero = (valor) => {
   if (valor === null || valor === undefined) return "—";
   return Number(valor).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-};
-
-const resumirObservacao = (texto, limite = 96) => {
-  const normalizado = `${texto || ""}`.replace(/\s+/g, " ").trim();
-  if (!normalizado) return "";
-  if (normalizado.length <= limite) return normalizado;
-  return `${normalizado.slice(0, limite - 1).trimEnd()}…`;
 };
 
 const normalizeComparableText = (texto) => `${texto || ""}`
@@ -378,20 +370,12 @@ const detectMobileAccess = () => {
   return width && (coarsePointer || touchPoints > 0 || userAgent);
 };
 
-function obterClasseRoi(roi) {
-  const valor = Number(roi);
-  if (!Number.isFinite(valor)) return "is-neutral";
-  if (valor >= 40) return "is-best";
-  if (valor >= 20) return "is-good";
-  if (valor > 0) return "is-caution";
-  return "is-risk";
-}
-
 export default function Prospeccoes() {
   const outletContext = useOutletContext() || {};
   const setTopbarContent = outletContext.setTopbarContent;
   const { user, hasRole } = useAuth();
-  const [query, setQuery] = useProspeccaoQuery();
+  const [mobileAccess, setMobileAccess] = useState(() => detectMobileAccess());
+  const [query, setQuery] = useProspeccaoQuery({ desktop: !mobileAccess });
   const {
     fonte: filtroFonteCap,
     uf: filtroUfCap,
@@ -440,7 +424,7 @@ export default function Prospeccoes() {
     fila_autor: setSelectedUserFilter,
     aba: setActiveTab,
   } = setQuery;
-  const activeTab = query.aba || "capturados";
+
   const mobileSection = query.aba || "hub";
   const setMobileSection = (section) => setActiveTab(section === "hub" ? "" : section);
   const selectedActivityFilter = user?.role === "admin" ? queryActivityFilter : "ativos";
@@ -457,13 +441,13 @@ export default function Prospeccoes() {
   const [updateLoadingIds, setUpdateLoadingIds] = useState(new Set());
   const [mensagem, setMensagem] = useState("");
   const [meta, setMeta] = useState({ ufs: [], fontes: [], modalidades: [], financia: [] });
-  const [capturadosFiltersExpanded, setCapturadosFiltersExpanded] = useState(false);
-  const [capturadosCitySearch, setCapturadosCitySearch] = useState("");
+  const [, setCapturadosFiltersExpanded] = useState(false);
+  const [, setCapturadosCitySearch] = useState("");
   const [selectedFiltersExpanded, setSelectedFiltersExpanded] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("prospeccoes_selecionados_filters_expanded") === "1";
   });
-  const [selecionadosCollapsed, setSelecionadosCollapsed] = useState(() => {
+  const [selecionadosCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("prospeccoes_selecionados_collapsed") === "1";
   });
@@ -506,6 +490,9 @@ export default function Prospeccoes() {
   const [enriquecimentoLoading, setEnriquecimentoLoading] = useState(false);
   const hubSession = useProspeccaoSession();
   const aiAutoInitAttemptRef = useRef(new Set());
+  const [desktopTabs, setDesktopTabs] = useState([]);
+  const desktopScrollRef = useRef(null);
+  const desktopDraftsRef = useRef(new Map());
   const aiDeferredActionRef = useRef(null);
   const enriquecimentoFetchAttemptRef = useRef(new Set());
   const [aiMensagemDraft, setAiMensagemDraft] = useState("");
@@ -513,7 +500,6 @@ export default function Prospeccoes() {
   const [avaliacaoDetalhadaStatus, setAvaliacaoDetalhadaStatus] = useState("");
   const [avaliacaoDetalhadaStatusTone, setAvaliacaoDetalhadaStatusTone] = useState("info");
   const [avaliacaoDetalhadaStatusActionKind, setAvaliacaoDetalhadaStatusActionKind] = useState(null);
-  const [mobileAccess, setMobileAccess] = useState(() => detectMobileAccess());
   const [financeiroCount, setFinanceiroCount] = useState(null);
   const [financeiroImoveis, setFinanceiroImoveis] = useState([]);
   const pageSizeOptions = [20, 50, 100];
@@ -584,6 +570,11 @@ export default function Prospeccoes() {
           somenteComAvaliacao: somenteComAvaliacaoCap,
           presenca: presencaCap,
           somenteRevisao: somenteRevisaoCap,
+          busca: mobileAccess ? undefined : query.busca,
+          lanceMin: mobileAccess || query.lance_min === "" ? undefined : Number(query.lance_min),
+          lanceMax: mobileAccess || query.lance_max === "" ? undefined : Number(query.lance_max),
+          avaliados: mobileAccess ? undefined : query.avaliados,
+          oportunidade: !mobileAccess,
         });
         if (!active) return;
         setCapturados(resp.data || []);
@@ -603,9 +594,9 @@ export default function Prospeccoes() {
         if (active) setLoadingCap(false);
       }
     };
-    carregarCapturados();
-    return () => { active = false; };
-  }, [setPage, page, pageSize, filtroFonteCap, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap, presencaCap, somenteRevisaoCap]);
+    const timer = window.setTimeout(carregarCapturados, mobileAccess ? 0 : 250);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [setPage, page, pageSize, filtroFonteCap, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap, presencaCap, somenteRevisaoCap, mobileAccess, query.busca, query.lance_min, query.lance_max, query.avaliados]);
 
   useEffect(() => {
     fetchProspecMeta()
@@ -685,7 +676,7 @@ export default function Prospeccoes() {
     && (filtroFonteCap === "todas" || getFonteFilterValues(filtroFonteCap)?.includes(r.fonte))
   ), [meta, filtroUfCap, filtroFonteCap]);
   const ufOptions = useMemo(() => meta.ufs || [], [meta]);
-  const modalidadeOptions = useMemo(() => meta.modalidades || [], [meta]);
+
   const cidadesOptions = useMemo(() => {
     if (!meta.cidades_por_uf) return [];
     const selectedUfs = filtroUfCap.length ? filtroUfCap : Object.keys(meta.cidades_por_uf);
@@ -695,38 +686,6 @@ export default function Prospeccoes() {
     });
     return Array.from(set).sort();
   }, [meta, filtroUfCap]);
-  const normalizedCapturadosCitySearch = capturadosCitySearch.trim().toLowerCase();
-  const cidadesCapturadasVisiveis = useMemo(() => (
-    normalizedCapturadosCitySearch
-      ? cidadesOptions.filter((cidade) => cidade.toLowerCase().includes(normalizedCapturadosCitySearch))
-      : cidadesOptions
-  ), [cidadesOptions, normalizedCapturadosCitySearch]);
-  const capturadosAdvancedFiltersCount = [
-    filtroUfCap.length,
-    filtroCidadesCap.length,
-    filtroModalidadeCap.length,
-    filtroFinanciaCap.length,
-  ].reduce((acc, value) => acc + value, 0);
-  const capturadosQuickFiltersCount = [
-    filtroFonteCap !== "todas" ? 1 : 0,
-    scoreMinCap !== "" ? 1 : 0,
-    roiMinCap !== "" ? 1 : 0,
-    somenteComAvaliacaoCap ? 1 : 0,
-    presencaCap !== "presentes" ? 1 : 0,
-    somenteRevisaoCap ? 1 : 0,
-    pageSize !== 20 ? 1 : 0,
-  ].reduce((acc, value) => acc + value, 0);
-  const capturadosHasFilters = capturadosQuickFiltersCount + capturadosAdvancedFiltersCount > 0;
-  const capturadosVisibleActiveFilters = [
-    filtroFonteCap !== "todas" ? `Origem: ${FONTE_OPTIONS.find((option) => option.value === filtroFonteCap)?.label || filtroFonteCap}` : null,
-    filtroUfCap.length ? `UF: ${filtroUfCap.join(", ")}` : null,
-    filtroCidadesCap.length ? `${filtroCidadesCap.length} cidade${filtroCidadesCap.length > 1 ? "s" : ""}` : null,
-    filtroModalidadeCap.length ? `${filtroModalidadeCap.length} modalidade${filtroModalidadeCap.length > 1 ? "s" : ""}` : null,
-    filtroFinanciaCap.length ? `Financia: ${filtroFinanciaCap.join(", ")}` : null,
-    !somenteRevisaoCap && scoreMinCap !== "" ? `Score >= ${scoreMinCap}` : null,
-    !somenteRevisaoCap && roiMinCap !== "" ? `ROI >= ${roiMinCap}%` : null,
-    somenteComAvaliacaoCap ? "Só com pré-análise" : null,
-  ].filter(Boolean);
 
   const selectedBaseDados = useMemo(() => {
     if (selectedActivityFilter === "inativos") {
@@ -1164,13 +1123,6 @@ export default function Prospeccoes() {
     }
   };
 
-  const canOperateItem = (item) => {
-    if (!user) return false;
-    if (user.role === "admin") return true;
-    if (item?.createdBy && String(item.createdBy) === String(user.id)) return true;
-    return Boolean(item?.responsaveis?.some((responsavel) => String(responsavel.id) === String(user.id)));
-  };
-
   const canManageResponsaveis = user?.role === "admin";
 
   const openAvaliacaoAutomaticaModal = async (item) => {
@@ -1230,7 +1182,7 @@ export default function Prospeccoes() {
     if (!possuiHistorico) return;
     setCapturados((prev) => prev.map((item) => (
       item.codigo === numeroBem
-        ? { ...item, analiseIaSalva: true }
+        ? { ...item, analiseIaSalva: true, avaliado: true, analiseSolicitada: false }
         : item
     )));
   }, []);
@@ -1278,6 +1230,10 @@ export default function Prospeccoes() {
   }, [hubSession, user, refreshSelecionados, sincronizarIndicadorAnaliseIaCapturada, setAvaliacaoDetalhadaStatusState]);
 
   const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados", origem = "selecionados", { gerarAnaliseInicial = false } = {}) => {
+    if (!mobileAccess) {
+      if (avaliacaoDetalhadaItem) desktopDraftsRef.current.set(avaliacaoDetalhadaItem.codigo, { mensagem: aiMensagemDraft, sintese: aiSinteseDraft !== (aiAnalise?.analise_texto || "") ? aiSinteseDraft : undefined, tab: avaliacaoDetalhadaTab });
+      setDesktopTabs((current) => current.some((tab) => tab.codigo === item.codigo) ? current : [...current, item]);
+    }
     const session = hubSession.begin(item.codigo, origem);
     const aiAttemptKey = `${origem}:${item.codigo}`;
     const enriquecimentoAttemptKey = `${origem}:${item.codigo}`;
@@ -1291,8 +1247,9 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaItem(item);
     setAvaliacaoDetalhadaOrigem(origem);
     setAvaliacaoDetalhadaTab(initialTab);
-    setAiMensagemDraft("");
-    setAiSinteseDraft("");
+    const savedDraft = !mobileAccess ? desktopDraftsRef.current.get(item.codigo) : null;
+    setAiMensagemDraft(savedDraft?.mensagem || "");
+    setAiSinteseDraft(savedDraft?.sintese || "");
     setAvaliacaoDetalhadaStatusState();
     setAiAnalise(null);
     setAiLoading(needsAiData);
@@ -1318,6 +1275,7 @@ export default function Prospeccoes() {
         enriquecimentoPromise,
       ]));
       setAnaliseDetalhada(analiseData);
+      if (savedDraft?.sintese !== undefined) setAiSinteseDraft(savedDraft.sintese);
       if (needsEnriquecimentoData) {
         setEnriquecimentoDetalhado(enriquecimentoData || null);
       }
@@ -1330,11 +1288,6 @@ export default function Prospeccoes() {
       if (session.isCurrent()) setAnaliseDetalhadaLoading(false);
       if (session.isCurrent()) setEnriquecimentoDetalhadoLoading(false);
     }
-  };
-
-  const handleAcionarAnaliseIa = (item, origem = "selecionados") => {
-    if (!item?.codigo) return;
-    openAvaliacaoDetalhadaModal(item, "ia", origem, { gerarAnaliseInicial: !item.analiseIaSalva });
   };
 
   const closeAvaliacaoDetalhadaModal = () => {
@@ -1623,7 +1576,7 @@ export default function Prospeccoes() {
     if (aiAutoInitAttemptRef.current.has(aiAttemptKey)) return;
     aiAutoInitAttemptRef.current.add(aiAttemptKey);
 
-    carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: true, origem: avaliacaoDetalhadaOrigem }).catch((err) => {
+    carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: mobileAccess, origem: avaliacaoDetalhadaOrigem }).catch((err) => {
       if (!session.isCurrent()) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao iniciar avaliação IA");
       setMensagem(message);
@@ -1631,7 +1584,7 @@ export default function Prospeccoes() {
         buildAiErrorStatusState(message, { fallbackPrefix: "IA", retryAction: "analise_inicial" })
       );
     });
-  }, [hubSession, avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise, setAvaliacaoDetalhadaStatusState]);
+  }, [hubSession, avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise, setAvaliacaoDetalhadaStatusState, mobileAccess]);
 
   useEffect(() => {
     if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "enriquecimento") return;
@@ -1851,40 +1804,13 @@ export default function Prospeccoes() {
     setPage(1);
   };
 
-  const canDeleteItem = (item) => {
-    if (!user) return false;
-    if (user.role === "admin") return true;
-    if (!item?.createdBy) return false;
-    return String(item.createdBy) === String(user.id);
-  };
-
-  const canReactivateItem = (item) => Boolean(user?.role === "admin" && item && !isSelecionadoAtivo(item));
-
   const selectedPrimaryStatLabel = useMemo(() => {
     if (selectedActivityFilter === "inativos") return "Inativos";
     if (selectedActivityFilter === "todos") return "Selecionados";
     return "Na fila";
   }, [selectedActivityFilter]);
 
-  const selectedHasFilters = useMemo(() => (
-    selectedSearch.trim() !== "" ||
-    selectedUfFilter !== "todos" ||
-    selectedPrioridadeFilter !== "todas" ||
-    selectedActivityFilter !== "ativos" ||
-    selectedResponsavelFilter !== "todos" ||
-    selectedUserFilter !== "todos" ||
-    selectedSortBy !== "dataLeilao" ||
-    selectedSortDir !== "asc"
-  ), [
-    selectedSearch,
-    selectedUfFilter,
-    selectedPrioridadeFilter,
-    selectedActivityFilter,
-    selectedResponsavelFilter,
-    selectedUserFilter,
-    selectedSortBy,
-    selectedSortDir,
-  ]);
+
   const selectedVisibleActiveFilters = useMemo(() => ([
     selectedSearch.trim() !== "" ? `Busca: ${selectedSearch.trim()}` : null,
     selectedUfFilter !== "todos" ? `UF: ${selectedUfFilter}` : null,
@@ -1919,27 +1845,12 @@ export default function Prospeccoes() {
       setTopbarContent(null);
       return () => setTopbarContent(null);
     }
-    setTopbarContent(
-      <div className="prospects-header-summary prospects-header-summary--topbar">
-        <div className="prospects-stat-card">
-          <span>{selectedPrimaryStatLabel}</span>
-          <strong>{selectedBaseDados.length}</strong>
-        </div>
-        <div className="prospects-stat-card">
-          <span>Alta prioridade</span>
-          <strong>{selectedMetrics.altaPrioridade}</strong>
-        </div>
-        <div className="prospects-stat-card">
-          <span>Sem responsável</span>
-          <strong>{selectedMetrics.semResponsavel}</strong>
-        </div>
-      </div>
-    );
+    setTopbarContent(null);
     return () => setTopbarContent(null);
   }, [mobileAccess, selectedBaseDados.length, selectedMetrics.altaPrioridade, selectedMetrics.semResponsavel, selectedPrimaryStatLabel, setTopbarContent]);
 
   return (
-    <div className="prospects-page">
+    <div className={`prospects-page ${mobileAccess ? "" : "prospects-page--desktop"}`}>
       {mensagem ? (
         <div
           className={`prospects-message is-${mensagemTone}`.trim()}
@@ -2123,476 +2034,38 @@ export default function Prospeccoes() {
           )}
         </>
       ) : (
-        <>
-
-      <div className="prospects-tabs" role="tablist" aria-label="Navegação de prospecções" onKeyDown={handleTabKeys}>
-        <button
-          type="button"
-          role="tab"
-          id="prospeccao-tab-capturados"
-          aria-controls="prospeccao-tabpanel"
-          aria-selected={activeTab === "capturados"}
-          tabIndex={activeTab === "capturados" ? 0 : -1}
-          className={`prospects-tab ${activeTab === "capturados" ? "is-active" : ""}`}
-          onClick={() => setActiveTab("capturados")}
-        >
-          <span>Base completa</span>
-          <strong>{capturadosTotal}</strong>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          id="prospeccao-tab-selecionados"
-          aria-controls="prospeccao-tabpanel"
-          aria-selected={activeTab === "selecionados"}
-          tabIndex={activeTab === "selecionados" ? 0 : -1}
-          className={`prospects-tab ${activeTab === "selecionados" ? "is-active" : ""}`}
-          onClick={() => setActiveTab("selecionados")}
-        >
-          <span>Selecionados</span>
-          <strong>{selectedMetrics.ativos}</strong>
-        </button>
-      </div>
-
-      <div className="prospects-tabpanel" id="prospeccao-tabpanel" role="tabpanel" aria-labelledby={`prospeccao-tab-${activeTab}`}>
-      {activeTab === "selecionados" ? (
-        <>
-          <section className="prospects-card prospects-card--command">
-            <div className="prospects-card__header prospects-card__header--stacked">
-              <div>
-                <p className="prospects-eyebrow">Filtros da fila</p>
-                <h2 className="prospects-title">Explorar fila</h2>
-                <p className="prospects-subtitle prospects-subtitle--compact">
-                  Refine a visão operacional por busca, usuário, prioridade e ordenação.
-                </p>
-              </div>
-              <div className="prospects-card__header-actions">
-                <span className="prospects-pill">{selecionadosFiltradosOrdenados.length} na visão</span>
-                <span className="prospects-pill prospects-pill--muted">{selectedMetrics.comAnalise} com análise</span>
-                {user?.role === "admin" ? (
-                  <span className="prospects-pill prospects-pill--muted">{selectedMetrics.inativos} inativos</span>
-                ) : null}
-              </div>
-            </div>
-            <div className="prospects-selected-toolbar">
-              <div className="prospects-selected-toolbar__summary">
-                <div className="prospects-selected-toolbar__stats">
-                  <span><strong>{selecionadosFiltradosOrdenados.length}</strong> na visão</span>
-                  <span><strong>{selectedMetrics.comAnalise}</strong> com análise</span>
-                  {user?.role === "admin" ? <span><strong>{selectedMetrics.inativos}</strong> inativos</span> : null}
-                </div>
-                <div className="prospects-selected-toolbar__actions">
-                  <button
-                    type="button"
-                    className={`prospects-btn secondary ${selectedFiltersExpanded ? "is-active" : ""}`.trim()}
-                    onClick={() => setSelectedFiltersExpanded((prev) => !prev)}
-                  >
-                    {selectedFiltersExpanded ? "Ocultar filtros" : "Mostrar filtros"}
-                    {selectedHasFilters ? " ativos" : ""}
-                  </button>
-                  <button
-                    type="button"
-                    className="prospects-btn tertiary prospects-btn--toolbar"
-                    onClick={() => {
-                      setSelectedSearch("");
-                      setSelectedUfFilter("todos");
-                      setSelectedPrioridadeFilter("todas");
-                      setSelectedActivityFilter("ativos");
-                      setSelectedResponsavelFilter("todos");
-                      setSelectedUserFilter("todos");
-                      setSelectedSortBy("dataLeilao");
-                      setSelectedSortDir("asc");
-                    }}
-                    disabled={!selectedHasFilters}
-                  >
-                    Limpar visão
-                  </button>
-                </div>
-              </div>
-
-              {selectedFiltersExpanded ? (
-                <div className="prospects-toolbar prospects-toolbar--selected">
-                  <label className="prospects-toolbar-field prospects-toolbar-field--search">
-                    <span>Buscar</span>
-                    <input
-                      type="search"
-                      value={selectedSearch}
-                      onChange={(e) => setSelectedSearch(e.target.value)}
-                      placeholder="Código, cidade, autor, responsável ou descrição"
-                    />
-                  </label>
-                  <label className="prospects-toolbar-field">
-                    <span>UF</span>
-                    <select value={selectedUfFilter} onChange={(e) => setSelectedUfFilter(e.target.value)}>
-                      <option value="todos">Todas</option>
-                      {selectedUfOptions.map((uf) => (
-                        <option key={uf} value={uf}>{uf}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="prospects-toolbar-field">
-                    <span>Prioridade</span>
-                    <select value={selectedPrioridadeFilter} onChange={(e) => setSelectedPrioridadeFilter(e.target.value)}>
-                      <option value="todas">Todas</option>
-                      {PRIORIDADE_OPTIONS.map((option) => (
-                        <option key={option.value} value={String(option.value)}>{option.label}</option>
-                      ))}
-                    </select>
-                  </label>
-                  {user?.role === "admin" ? (
-                    <label className="prospects-toolbar-field">
-                      <span>Estado</span>
-                      <select value={selectedActivityFilter} onChange={(e) => setSelectedActivityFilter(e.target.value)}>
-                        <option value="ativos">Ativos</option>
-                        <option value="inativos">Inativos</option>
-                        <option value="todos">Todos</option>
-                      </select>
-                    </label>
-                  ) : null}
-                  <label className="prospects-toolbar-field">
-                    <span>Responsáveis</span>
-                    <select value={selectedResponsavelFilter} onChange={(e) => setSelectedResponsavelFilter(e.target.value)}>
-                      <option value="todos">Todos</option>
-                      <option value="com">Com responsáveis</option>
-                      <option value="sem">Sem responsáveis</option>
-                      <option value="meus">Atribuídos a mim</option>
-                    </select>
-                  </label>
-                  {user?.role === "admin" ? (
-                    <label className="prospects-toolbar-field">
-                      <span>Usuário</span>
-                      <select value={selectedUserFilter} onChange={(e) => setSelectedUserFilter(e.target.value)}>
-                        <option value="todos">Todos</option>
-                        {selectedUserOptions.map((option) => (
-                          <option key={option.id} value={option.id}>{option.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                  ) : null}
-                  <label className="prospects-toolbar-field">
-                    <span>Ordenar por</span>
-                    <select value={selectedSortBy} onChange={(e) => setSelectedSortBy(e.target.value)}>
-                      <option value="dataLeilao">Data do leilão</option>
-                      <option value="prioridade">Prioridade</option>
-                      <option value="cidade">Cidade</option>
-                      <option value="valorMaximo">Valor máximo</option>
-                      <option value="roi">ROI</option>
-                    </select>
-                  </label>
-                  <label className="prospects-toolbar-field">
-                    <span>Direção</span>
-                    <select value={selectedSortDir} onChange={(e) => setSelectedSortDir(e.target.value)}>
-                      <option value="asc">Crescente</option>
-                      <option value="desc">Decrescente</option>
-                    </select>
-                  </label>
-                </div>
-              ) : null}
-            </div>
-          </section>
-
-          <TabelaSelecionados
-            dados={selecionadosFiltradosOrdenados}
-            loading={loadingSel}
-            erro={erroSel}
-            onExcluir={setConfirmDeleteItem}
-            onReativar={handleReativarSelecionado}
-            onEditarPrioridade={openPrioridadeModal}
-            onEditarObservacoes={openObservacoesModal}
-            onAbrirAnalise={openAnaliseModal}
-            onAbrirEnriquecimentos={openAvaliacaoAutomaticaModal}
-            onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
-            onAcionarAnaliseIa={handleAcionarAnaliseIa}
-            onEditarResponsaveis={openResponsaveisModal}
-            onIncluirManual={openIncluirManualModal}
-            removeLoadingIds={removeLoadingIds}
-            updateLoadingIds={updateLoadingIds}
-            canDeleteItem={canDeleteItem}
-            canOperateItem={canOperateItem}
-            canManageResponsaveis={canManageResponsaveis}
-            canReactivateItem={canReactivateItem}
-            collapsed={selecionadosCollapsed}
-            onToggleCollapse={() => setSelecionadosCollapsed((prev) => !prev)}
-            sortLabel={selectedSortLabel}
-            getLeilaoResumo={getLeilaoResumo}
-            getMapsUrl={getMapsUrl}
-            getComparaveisLinks={getComparaveisLinks}
-            isSelecionadoAtivo={isSelecionadoAtivo}
-            formatarDataHoraCompacta={formatarDataHoraCompacta}
-            formatarMoeda={formatarMoeda}
-            resumirObservacao={resumirObservacao}
-            obterClasseRoi={obterClasseRoi}
-            formatarPercentual={formatarPercentual}
-            getAnaliseIaActionLabel={getAnaliseIaActionLabel}
-          />
-        </>
-      ) : (
-        <>
-          <section className="prospects-card prospects-card--command">
-            <div className="prospects-card__header prospects-card__header--stacked">
-              <div>
-                <p className="prospects-eyebrow">Base capturada</p>
-                <h2 className="prospects-title">Explorar oportunidades</h2>
-                <p className="prospects-subtitle prospects-subtitle--compact">
-                  Clique no imóvel para abrir o anúncio. A pré-análise serve como leitura inicial antes da análise manual.
-                </p>
-              </div>
-              <div className="prospects-card__header-actions">
-                <span className="prospects-pill">{capturadosTotal} imóveis</span>
-                <span className="prospects-pill prospects-pill--muted">{selectedCodes.size} na fila</span>
-              </div>
-            </div>
-            <div className="prospects-captured-toolbar">
-              <div className="prospects-captured-toolbar__quick">
-                <label className="prospects-toolbar-field">
-                  <span>Origem</span>
-                  <select
-                    value={filtroFonteCap}
-                    onChange={(e) => {
-                      setFiltroFonteCap(e.target.value);
-                      setPage(1);
-                    }}
-                  >
-                    {FONTE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="prospects-toolbar-field">
-                  <span>Itens por página</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      setPageSize(Number(e.target.value));
-                      setPage(1);
-                    }}
-                  >
-                    {pageSizeOptions.map((option) => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="prospects-toolbar-field">
-                  <span>Financia</span>
-                  <select
-                    value={filtroFinanciaCap[0] || ""}
-                    onChange={(e) => {
-                      setFiltroFinanciaCap(e.target.value ? [e.target.value] : []);
-                      setPage(1);
-                    }}
-                  >
-                    <option value="">Todos</option>
-                    <option value="sim">Sim</option>
-                    <option value="nao">Não</option>
-                  </select>
-                </label>
-                <label className="prospects-toolbar-field">
-                  <span>Score mínimo</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="85"
-                    value={scoreMinCap}
-                    onChange={(e) => {
-                      setScoreMinCap(e.target.value);
-                      setPage(1);
-                    }}
-                    placeholder="0 a 85"
-                  />
-                </label>
-                <label className="prospects-toolbar-field">
-                  <span>ROI mínimo (%)</span>
-                  <input
-                    type="number"
-                    value={roiMinCap}
-                    onChange={(e) => {
-                      setRoiMinCap(e.target.value);
-                      setPage(1);
-                    }}
-                    placeholder="Ex.: 8"
-                  />
-                </label>
-                <div className="prospects-captured-toolbar__actions">
-                  <div className="prospects-captured-toolbar__summary-inline">
-                    <span><strong>{capturados.length}</strong> na visão</span>
-                    <span><strong>{capturadosTotal}</strong> capturados</span>
-                    <span><strong>{selectedCodes.size}</strong> na fila</span>
-                  </div>
-                  <button
-                    type="button"
-                    className={`prospects-btn secondary ${capturadosFiltersExpanded ? "is-active" : ""}`.trim()}
-                    onClick={() => setCapturadosFiltersExpanded((prev) => !prev)}
-                  >
-                    {capturadosFiltersExpanded ? "Ocultar refinamentos" : "Refinar localização"}
-                    {capturadosAdvancedFiltersCount ? ` (${capturadosAdvancedFiltersCount})` : ""}
-                  </button>
-                  <button
-                    type="button"
-                    className="prospects-btn secondary"
-                    onClick={limparFiltros}
-                    disabled={!capturadosHasFilters}
-                  >
-                    Limpar filtros
-                  </button>
-                </div>
-              </div>
-
-              <CapturaFilters
-                presenca={presencaCap}
-                onPresencaChange={(value) => { setPresencaCap(value); setPage(1); }}
-                somenteRevisao={somenteRevisaoCap}
-                onRevisaoChange={(value) => { setSomenteRevisaoCap(value); setPage(1); }}
-              />
-              <CapturaReferencias referencias={capturasReferenciaVisiveis} />
-              {capturadosVisibleActiveFilters.length ? (
-                <div className="prospects-captured-toolbar__active">
-                  {capturadosVisibleActiveFilters.map((label) => (
-                    <span key={label} className="prospects-inline-link">{label}</span>
-                  ))}
-                </div>
-              ) : null}
-
-              {capturadosFiltersExpanded ? (
-                <div className="prospects-captured-toolbar__advanced">
-                  <div className="prospects-filter-panel prospects-filter-panel--uf">
-                    <div className="prospects-filter-panel__head">
-                      <span>UF</span>
-                      <strong>{filtroUfCap.length ? `${filtroUfCap.length} selecionadas` : "Todas"}</strong>
-                    </div>
-                    <div className="prospects-filter-chip-grid">
-                      {ufOptions.map((uf) => (
-                        <button
-                          key={uf}
-                          type="button"
-                          className={`prospects-filter-chip ${filtroUfCap.includes(uf) ? "is-active" : ""}`}
-                          onClick={() => toggleValue(uf, setFiltroUfCap)}
-                        >
-                          {uf}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="prospects-filter-panel prospects-filter-panel--cidade">
-                    <div className="prospects-filter-panel__head">
-                      <span>Cidade</span>
-                      <strong>{filtroCidadesCap.length ? `${filtroCidadesCap.length} selecionadas` : "Todas"}</strong>
-                    </div>
-                    <label className="prospects-toolbar-field prospects-toolbar-field--checklist">
-                      <input
-                        type="search"
-                        value={capturadosCitySearch}
-                        onChange={(e) => setCapturadosCitySearch(e.target.value)}
-                        placeholder="Buscar cidade"
-                      />
-                    </label>
-                    {filtroCidadesCap.length ? (
-                      <div className="prospects-mobile-city-selected">
-                        {filtroCidadesCap.map((cidade) => (
-                          <button
-                            key={cidade}
-                            type="button"
-                            className="prospects-mobile-city-chip is-selected"
-                            onClick={() => toggleValue(cidade, setFiltroCidadesCap)}
-                          >
-                            <span>{cidade}</span>
-                            <strong>x</strong>
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="prospects-mobile-city-grid">
-                      {cidadesCapturadasVisiveis.map((cidade) => (
-                        <button
-                          key={cidade}
-                          type="button"
-                          className={`prospects-mobile-city-chip ${filtroCidadesCap.includes(cidade) ? "is-selected" : ""}`}
-                          onClick={() => toggleValue(cidade, setFiltroCidadesCap)}
-                        >
-                          <span>{cidade}</span>
-                          {filtroCidadesCap.includes(cidade) ? <strong>x</strong> : null}
-                        </button>
-                      ))}
-                      {!cidadesCapturadasVisiveis.length ? (
-                        <p className="prospects-empty prospects-empty--inline">Nenhuma cidade encontrada.</p>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="prospects-filter-panel prospects-filter-panel--modalidade">
-                    <div className="prospects-filter-panel__head">
-                      <span>Modalidade</span>
-                      <strong>{filtroModalidadeCap.length ? `${filtroModalidadeCap.length} selecionadas` : "Todas"}</strong>
-                    </div>
-                    <div className="prospects-filter-chip-grid">
-                      {modalidadeOptions.map((modalidade) => (
-                        <button
-                          key={modalidade}
-                          type="button"
-                          className={`prospects-filter-chip ${filtroModalidadeCap.includes(modalidade) ? "is-active" : ""}`}
-                          onClick={() => toggleValue(modalidade, setFiltroModalidadeCap)}
-                        >
-                          {modalidade}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="prospects-filter-panel prospects-filter-panel--financia">
-                    <div className="prospects-filter-panel__head">
-                      <span>Filtros complementares</span>
-                      <strong>{somenteComAvaliacaoCap ? "Pré-análise ativa" : "Opcional"}</strong>
-                    </div>
-                    <label className="prospects-check prospects-check--panel">
-                      <input
-                        type="checkbox"
-                        checked={somenteComAvaliacaoCap}
-                        onChange={(e) => {
-                          setSomenteComAvaliacaoCap(e.target.checked);
-                          setPage(1);
-                        }}
-                      />
-                      <span>Mostrar só imóveis com pré-análise</span>
-                    </label>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          </section>
-          <TabelaCapturados
-            dados={capturados}
-            total={capturadosTotal}
-            page={page}
-            pageSize={pageSize}
-            loading={loadingCap}
-            erro={erroCap}
-            onIncluir={handleIncluir}
-            includeLoadingIds={includeLoadingIds}
-            onPageChange={handlePageChange}
-            sortBy={sortBy}
-            sortDir={sortDir}
-            onSortChange={handleSortChange}
-            selectedCodes={selectedCodes}
-            onAbrirAvaliacao={openAvaliacaoAutomaticaModal}
-            onAbrirAvaliacaoDetalhada={openAvaliacaoDetalhadaModal}
-            onAbrirAnalise={openAnaliseModal}
-            getLeilaoResumo={getLeilaoResumo}
-            calcularDescontoExibicao={calcularDescontoExibicao}
-            getMapsUrl={getMapsUrl}
-            getComparaveisLinks={getComparaveisLinks}
-            extrairEditalUrl={extrairEditalUrl}
-            getFonteLabel={getFonteLabel}
-            extrairProcessoNumero={extrairProcessoNumero}
-            formatarPercentual={formatarPercentual}
-            formatarMoeda={formatarMoeda}
-            formatarDataHoraCompacta={formatarDataHoraCompacta}
-            getScoreClasse={getScoreClasse}
-            getRoiClasse={getRoiClasse}
-          />
-        </>
-      )}
-      </div>
-        </>
+        <ProspeccoesDesktop
+          dados={capturados}
+          total={capturadosTotal}
+          loading={loadingCap}
+          erro={erroCap}
+          query={query}
+          setters={setQuery}
+          meta={meta}
+          pageSize={pageSize}
+          page={page}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          onSortChange={handleSortChange}
+          onPageChange={handlePageChange}
+          onOpen={(item, tab = "dados", origem = "capturados") => openAvaliacaoDetalhadaModal(item, tab, origem)}
+          onRequest={(item) => openAvaliacaoDetalhadaModal(item, "ia", "capturados", { gerarAnaliseInicial: true })}
+          canAnalyze={Boolean(user?.ai_access || user?.role === "admin")}
+          getMapsUrl={getMapsUrl}
+          tabs={desktopTabs}
+          activeCode={avaliacaoDetalhadaItem?.codigo}
+          scrollRef={desktopScrollRef}
+          onActivate={(item) => {
+            if (avaliacaoDetalhadaItem) desktopDraftsRef.current.set(avaliacaoDetalhadaItem.codigo, { mensagem: aiMensagemDraft, sintese: aiSinteseDraft !== (aiAnalise?.analise_texto || "") ? aiSinteseDraft : undefined, tab: avaliacaoDetalhadaTab });
+            if (item) openAvaliacaoDetalhadaModal(item, desktopDraftsRef.current.get(item.codigo)?.tab || "dados", "capturados");
+            else closeAvaliacaoDetalhadaModal();
+          }}
+          onCloseTab={(codigo) => {
+            setDesktopTabs((current) => current.filter((item) => item.codigo !== codigo));
+            desktopDraftsRef.current.delete(codigo);
+            if (avaliacaoDetalhadaItem?.codigo === codigo) closeAvaliacaoDetalhadaModal();
+          }}
+        />
       )}
 
       <ConfirmarExclusaoModal
@@ -2673,6 +2146,7 @@ export default function Prospeccoes() {
       />
 
       <AvaliacaoDetalhadaModal
+        inline={!mobileAccess}
         key={`${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem?.codigo || "fechado"}`}
         item={avaliacaoDetalhadaItem}
         tab={avaliacaoDetalhadaTab}

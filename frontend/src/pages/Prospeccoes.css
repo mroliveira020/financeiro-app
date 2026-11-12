@@ -3695,3 +3695,12 @@
     width: calc(100% - 24px);
   }
 }
+
+@media (min-width: 901px) {
+  .prospects-page--desktop { padding: 0; gap: 0; height: 100dvh; position: relative; }
+  .prospects-page--desktop > .prospects-message { position: absolute; z-index: 5; bottom: 16px; left: 18px; max-width: 560px; }
+  .prospect-detail-inline { position: absolute; inset: 44px 0 0; background: var(--surface-app); overflow-y: auto; padding: 16px 24px; }
+  .prospect-detail-inline .prospects-modal__body { max-height: none; overflow: visible; padding: 0; }
+  .prospect-detail-inline .prospects-modal__header { padding: 0 0 12px; }
+  .prospect-detail-inline .prospects-modal__close { border-radius: 5px; }
+}

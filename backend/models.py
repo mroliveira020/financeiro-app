@@ -3272,6 +3272,11 @@ def listar_prospeccoes_capturados(
     somente_com_avaliacao=False,
     presenca="presentes",
     somente_revisao=False,
+    busca=None,
+    lance_min=None,
+    lance_max=None,
+    avaliados=None,
+    oportunidade=False,
 ):
     if presenca not in {"presentes", "ausentes", "todos"}:
         raise ValueError("Filtro de presença inválido")
@@ -3325,6 +3330,7 @@ def listar_prospeccoes_capturados(
                 av.resumo_ia,
                 av.pesquisado_em,
                 a.numero_bem AS analise_numero_bem,
+                a.link_google_maps,
                 a.valor_base_operacao,
                 a.tempo_operacao_meses,
                 a.valor_maximo_lance,
@@ -3349,11 +3355,29 @@ def listar_prospeccoes_capturados(
                 a.ganho_capital_percentual,
                 a.ganho_capital_valor,
                 ai_a.numero_bem AS ai_analise_numero_bem,
+                (av.numero_bem IS NOT NULL OR NULLIF(BTRIM(ai_a.analise_texto), '') IS NOT NULL
+                    OR NULLIF(BTRIM(ai_a.matricula_texto), '') IS NOT NULL
+                    OR jsonb_path_exists(COALESCE(ai_a.historico_chat, '[]'::jsonb),
+                        '$[*] ? (@.role == "assistant" && @.content != "")')) AS avaliado,
+                EXISTS (SELECT 1 FROM ia_jobs j WHERE j.numero_bem = p.numero_bem
+                    AND j.status IN ('pending', 'processing')
+                    AND COALESCE(j.updated_at, j.created_at) >= now() - interval '20 minutes') AS analise_solicitada,
+                melhor.valor AS melhor_lance,
+                melhor.data AS melhor_data,
                 to_jsonb(p) AS raw_payload,
                 ctx.lance_recomendado AS valor_minimo,
                 ctx.data_recomendada AS ultima_disputa
             FROM vw_prospeccoes_contexto p
             CROSS JOIN LATERAL (SELECT p.*) ctx
+            LEFT JOIN LATERAL (
+                SELECT valor, data FROM (VALUES
+                    (p.valor_leilao_1, p.data_leilao_1),
+                    (p.valor_leilao_2, p.data_leilao_2),
+                    (p.valor_venda, COALESCE(p.data_licitacao_aberta, p.data_hora_encerramento))
+                ) etapas(valor, data)
+                WHERE valor > 0
+                ORDER BY valor, data NULLS LAST LIMIT 1
+            ) melhor ON TRUE
             LEFT JOIN LATERAL (
                 SELECT
                     (array_agg(f.url ORDER BY COALESCE(f.ordem, 999999), f.url))[1] AS foto_url,
@@ -3427,6 +3451,19 @@ def listar_prospeccoes_capturados(
         params.append(roi_min)
     if somente_com_avaliacao:
         conditions.append("avaliacao_numero_bem IS NOT NULL")
+    if busca:
+        conditions.append("CONCAT_WS(' ', cidade, bairro, numero_bem) ILIKE %s ESCAPE '\\'")
+        termo = busca.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        params.append(f"%{termo}%")
+    if lance_min is not None:
+        conditions.append("melhor_lance >= %s")
+        params.append(lance_min)
+    if lance_max is not None:
+        conditions.append("melhor_lance <= %s")
+        params.append(lance_max)
+    if avaliados is not None:
+        conditions.append("avaliado = %s")
+        params.append(avaliados)
 
     where_clause = ""
     if conditions:
@@ -3445,6 +3482,8 @@ def listar_prospeccoes_capturados(
         "retorno_pct": "retorno_pct",
     }
     order_col = order_map.get(order_by, "coletado_em")
+    if oportunidade and order_by in {"valor", "valor_minimo", "ultima_disputa"}:
+        order_col = "melhor_data" if order_by == "ultima_disputa" else "melhor_lance"
     direction = "ASC" if (order_dir or "").lower() == "asc" else "DESC"
 
     count_query = f"""{base_cte} SELECT COUNT(*) FROM base {where_clause}"""
@@ -3500,6 +3539,10 @@ def listar_prospeccoes_capturados(
         calculos_analise = calcular_analise_prospeccao(analise_inputs) if tem_analise else None
         result.append({
             "numero_bem": row["numero_bem"],
+            "melhor_lance": float(row["melhor_lance"]) if row.get("melhor_lance") is not None else None,
+            "melhor_data": _iso_or_none(row.get("melhor_data")),
+            "avaliado": bool(row.get("avaliado")),
+            "analise_solicitada": bool(row.get("analise_solicitada")),
             **_contexto_oferta_resposta(row),
             "coletado_em": row["coletado_em"].isoformat() if row["coletado_em"] else None,
             "tipo_venda": row["tipo_venda"],
@@ -3522,6 +3565,7 @@ def listar_prospeccoes_capturados(
             "data_hora_encerramento": row["data_hora_encerramento"].isoformat() if row["data_hora_encerramento"] else None,
             "lance_atual": float(row["lance_atual"]) if row["lance_atual"] is not None else None,
             "link_consulta": row["link_consulta"],
+            "link_google_maps": row.get("link_google_maps"),
             "fonte": row["fonte"],
             "valor_minimo": valor_minimo,
             "ultima_disputa": ultima_disputa,
@@ -5372,8 +5416,13 @@ def listar_prospeccoes_meta():
                    FROM prospeccao_capturas WHERE completa AND status = 'concluida'
                    ORDER BY fonte, uf, concluida_em DESC, iniciada_em DESC, id DESC""")
     capturas = [{"fonte": r[0], "uf": r[1], "concluida_em": _iso_or_none(r[2])} for r in cur.fetchall()]
+    cur.execute("""SELECT MAX(valor) FROM vw_imoveis_prospeccao_latest p
+                   CROSS JOIN LATERAL (VALUES (p.valor_leilao_1), (p.valor_leilao_2), (p.valor_venda)) etapas(valor)
+                   WHERE valor > 0""")
+    lance_maximo = cur.fetchone()[0]
     conn.close()
-    return {"capturas_referencia": capturas, "ufs": ufs, "fontes": fontes, "modalidades": modalidades, "financia": financia, "cidades_por_uf": cidades_por_uf}
+    return {"capturas_referencia": capturas, "ufs": ufs, "fontes": fontes, "modalidades": modalidades, "financia": financia, "cidades_por_uf": cidades_por_uf,
+            "lance_maximo": float(lance_maximo) if lance_maximo is not None else None}
 
 def atualizar_inserir_orcamentos(id_imovel, orcamentos):
     conn, cur = conectar()

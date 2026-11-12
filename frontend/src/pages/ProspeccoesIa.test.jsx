@@ -19,12 +19,11 @@ vi.mock("../services/prospeccoes", async (importOriginal) => {
     solicitarEnriquecimento: vi.fn(), pollAiJob: vi.fn(),
   };
 });
-vi.mock("./prospeccoes/ProspeccoesTables", () => ({
-  TabelaSelecionados: () => null,
-  TabelaCapturados: ({ dados, onAbrirAvaliacaoDetalhada }) => <div>
+vi.mock("./prospeccoes/ProspeccoesDesktop", () => ({
+  default: ({ dados, onOpen }) => <div>
     {dados.map((item) => <React.Fragment key={item.codigo}>
-      <button onClick={() => onAbrirAvaliacaoDetalhada(item, "ia", "capturados")}>Abrir {item.codigo}</button>
-      <button onClick={() => onAbrirAvaliacaoDetalhada(item, "dados", "selecionados")}>Selecionado {item.codigo}</button>
+      <button onClick={() => onOpen(item, "ia")}>Abrir {item.codigo}</button>
+      <button onClick={() => onOpen(item, "dados", "selecionados")}>Selecionado {item.codigo}</button>
     </React.Fragment>)}
   </div>,
 }));
