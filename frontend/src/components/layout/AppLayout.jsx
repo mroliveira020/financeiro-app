@@ -86,7 +86,7 @@ export default function AppLayout() {
   }, []);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isProspeccoesPage ? "app-shell--prospeccao" : ""}`}>
       <aside className="app-shell__sidebar">
         <div className="app-shell__brand">
           <img src={logo} alt="Financeiro Imóveis" />

@@ -2,9 +2,10 @@ import api from "./http";
 
 const CAIXA_BASE_URL = "https://venda-imoveis.caixa.gov.br";
 
-const normalizeLink = (numeroBem, linkConsulta) => {
+const normalizeLink = (numeroBem, linkConsulta, fonte) => {
   const cleaned = `${linkConsulta || ""}`.trim();
   if (cleaned) return cleaned;
+  if (fonte && fonte !== "caixa_extrajudicial") return "";
   return `https://venda-imoveis.caixa.gov.br/sistema/detalhe-imovel.asp?hdnOrigem=index&hdnimovel=${numeroBem}`;
 };
 
@@ -81,6 +82,11 @@ export async function fetchCapturados({
   scoreMin,
   roiMin,
   somenteComAvaliacao,
+  busca,
+  lanceMin,
+  lanceMax,
+  avaliados,
+  oportunidade,
 } = {}) {
   const { data } = await api.get("/prospeccoes/capturados", {
     params: {
@@ -99,6 +105,11 @@ export async function fetchCapturados({
       score_min: scoreMin,
       roi_min: roiMin,
       somente_com_avaliacao: somenteComAvaliacao,
+      busca,
+      lance_min: lanceMin,
+      lance_max: lanceMax,
+      avaliados,
+      oportunidade: oportunidade ? "1" : undefined,
     },
     paramsSerializer: { serialize: serializeParams },
   });
@@ -110,6 +121,10 @@ export async function fetchCapturados({
     const fotos = normalizeFotos(row);
     return {
       ...mapContextoOferta(row),
+      melhorLance: row.melhor_lance,
+      melhorData: row.melhor_data,
+      avaliado: row.avaliado,
+      analiseSolicitada: row.analise_solicitada,
       disponivel: row.disponivel,
       origem: "capturados",
       fotos,
@@ -126,7 +141,8 @@ export async function fetchCapturados({
       valorLeilao1: row.valor_leilao_1,
       valorLeilao2: row.valor_leilao_2,
       lanceAtual: row.lance_atual,
-      link: normalizeLink(row.numero_bem, row.link_consulta),
+      link: normalizeLink(row.numero_bem, row.link_consulta, row.fonte),
+      linkGoogleMaps: row.link_google_maps,
       coletadoEm: row.coletado_em,
       ultima_disputa: row.ultima_disputa,
       descricao: row.detalhes,
@@ -188,7 +204,7 @@ export async function fetchSelecionados({ status, uf, userId, incluirInativos } 
       valorAvaliacao: item.valor_avaliacao,
       valorLeilao1: item.valor_leilao_1,
       valorLeilao2: item.valor_leilao_2,
-      link: normalizeLink(item.numero_bem, item.link_consulta),
+      link: normalizeLink(item.numero_bem, item.link_consulta, item.fonte),
       linkGoogleMaps: item.link_google_maps || "",
       fonte: item.fonte,
       modalidade: item.tipo_venda,

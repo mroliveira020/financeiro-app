@@ -4,6 +4,10 @@ import { useSearchParams } from "react-router-dom";
 const defaults = {
   aba: "",
   fonte: "todas",
+  busca: "",
+  lance_min: "",
+  lance_max: "",
+  avaliados: "",
   uf: [],
   cidade: [],
   modalidade: [],
@@ -30,6 +34,7 @@ const defaults = {
 const options = {
   aba: ["capturados", "selecionados"],
   fonte: ["todas", "caixa", "tjdft"],
+  avaliados: ["", "sim", "nao"],
   presenca: ["presentes", "ausentes", "todos"],
   ordenar: ["ultima_disputa", "codigo", "cidade", "uf", "modalidade", "valor_minimo", "score_total", "retorno_pct"],
   direcao: ["asc", "desc"],
@@ -38,8 +43,9 @@ const options = {
   fila_atividade: ["ativos", "inativos", "todos"],
 };
 
-function readParam(params, key) {
-  const fallback = defaults[key];
+function readParam(params, key, desktop = false) {
+  const desktopDefaults = { por_pagina: 100, ordenar: "valor_minimo", direcao: "asc" };
+  const fallback = desktop && key in desktopDefaults ? desktopDefaults[key] : defaults[key];
   if (Array.isArray(fallback)) return [...new Set(params.getAll(key).filter(Boolean))];
   const value = params.get(key);
   if (value === null) return fallback;
@@ -51,10 +57,11 @@ function readParam(params, key) {
   }
   if (options[key] && !options[key].includes(value)) return fallback;
   if (["score", "roi"].includes(key) && !Number.isFinite(Number(value))) return fallback;
+  if (["lance_min", "lance_max"].includes(key) && (!Number.isFinite(Number(value)) || Number(value) < 0)) return fallback;
   return value;
 }
 
-export default function useProspeccaoQuery() {
+export default function useProspeccaoQuery({ desktop = false } = {}) {
   const [params, setParams] = useSearchParams();
   const latest = useRef({ params, setParams });
   const pending = useRef(null);
@@ -77,9 +84,9 @@ export default function useProspeccaoQuery() {
   }), [uf, cidade, modalidade, financia]);
 
   const values = useMemo(() => ({
-    ...Object.fromEntries(Object.keys(defaults).map((key) => [key, readParam(params, key)])),
+    ...Object.fromEntries(Object.keys(defaults).map((key) => [key, readParam(params, key, desktop)])),
     ...listFilters,
-  }), [params, listFilters]);
+  }), [params, listFilters, desktop]);
 
   // Vários controles atualizam filtros e paginação no mesmo evento.
   const update = useCallback((key, nextValue) => {
@@ -95,18 +102,18 @@ export default function useProspeccaoQuery() {
       });
     }
     const batch = pending.current;
-    const value = typeof nextValue === "function" ? nextValue(readParam(batch, key)) : nextValue;
+    const value = typeof nextValue === "function" ? nextValue(readParam(batch, key, desktop)) : nextValue;
     batch.delete(key);
     if (Array.isArray(value)) {
       value.forEach((item) => batch.append(key, item));
-    } else if (value !== defaults[key]) {
+    } else if (value !== readParam(new URLSearchParams(), key, desktop)) {
       batch.set(key, value === true ? "1" : String(value));
     }
     // Atualiza o input no próprio evento para preservar a posição do cursor.
     if (key === "fila_busca") {
       setSearchDraft({ source: latest.current.params, value });
     }
-  }, []);
+  }, [desktop]);
 
   const setters = useMemo(() => Object.fromEntries(
     Object.keys(defaults).map((key) => [key, (value) => update(key, value)])

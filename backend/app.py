@@ -1,3 +1,5 @@
+import math
+
 from flask import Flask, request, jsonify
 from flask import send_file, abort
 from flask_cors import CORS
@@ -302,6 +304,18 @@ def get_prospeccoes_capturados():
         score_min = request.args.get("score_min", type=int)
         roi_min = request.args.get("roi_min", type=float)
         somente_com_avaliacao = request.args.get("somente_com_avaliacao", "").lower() in {"1", "true", "sim", "yes"}
+        busca = request.args.get("busca", "").strip()[:200]
+        lance_min = float(request.args["lance_min"]) if request.args.get("lance_min") else None
+        lance_max = float(request.args["lance_max"]) if request.args.get("lance_max") else None
+        if any(valor is not None and (not math.isfinite(valor) or valor < 0) for valor in (lance_min, lance_max)):
+            raise ValueError("Faixa de lance inválida")
+        if lance_min is not None and lance_max is not None and lance_min > lance_max:
+            raise ValueError("Faixa de lance inválida")
+        avaliados_param = request.args.get("avaliados", "")
+        if avaliados_param not in {"", "sim", "nao"}:
+            raise ValueError("Filtro de avaliação inválido")
+        avaliados = {"sim": True, "nao": False}.get(avaliados_param)
+        oportunidade = request.args.get("oportunidade", "") == "1"
     except ValueError:
         return jsonify({"error": "Parâmetros inválidos"}), 400
 
@@ -325,6 +339,11 @@ def get_prospeccoes_capturados():
         score_min=score_min,
         roi_min=roi_min,
         somente_com_avaliacao=somente_com_avaliacao,
+        busca=busca,
+        lance_min=lance_min,
+        lance_max=lance_max,
+        avaliados=avaliados,
+        oportunidade=oportunidade,
     )
     return jsonify({
         "data": result["data"],

@@ -181,6 +181,7 @@ export function AvaliacaoAutomaticaModal({
 }
 
 export function AvaliacaoDetalhadaModal({
+  inline = false,
   item,
   tab,
   origem,
@@ -281,7 +282,7 @@ export function AvaliacaoDetalhadaModal({
   );
   const matriculaDisponivel = Boolean(`${aiAnalise?.matricula_texto || ""}`.trim());
   const viabilidadeDisponivel = Boolean(analiseDetalhada?.calculos);
-  const podeSelecionarNoHub = origem === "capturados";
+  const podeSelecionarNoHub = origem === "capturados" && !inline;
   const investimentoEstimadoEnriquecimento = avaliacaoAuto
     ? (avaliacaoAuto.custo_aquisicao_est || 0)
       + (avaliacaoAuto.custo_reforma_est || 0)
@@ -300,8 +301,13 @@ export function AvaliacaoDetalhadaModal({
     ? ((aluguelMediano * 12) / valorReferencia) * 100
     : null;
 
+  const Container = inline ? "section" : ProspeccaoDialog;
+  const containerProps = inline
+    ? { className: "prospect-detail-inline", id: "desktop-property-panel", role: "tabpanel", "aria-labelledby": `desktop-tab-${item.codigo}` }
+    : { className: "prospects-modal--auto", titleId: "avaliacao-detalhada-title", onClose };
+
   return (
-    <ProspeccaoDialog className="prospects-modal--auto" titleId="avaliacao-detalhada-title" onClose={onClose}>
+    <Container {...containerProps}>
         <div className="prospects-modal__header">
           <div className="prospects-modal__header-main">
             <div>
@@ -1066,6 +1072,6 @@ export function AvaliacaoDetalhadaModal({
           ) : null}
           </div>
         </div>
-    </ProspeccaoDialog>
+    </Container>
   );
 }
