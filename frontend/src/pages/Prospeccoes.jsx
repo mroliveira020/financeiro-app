@@ -571,6 +571,7 @@ export default function Prospeccoes() {
           presenca: presencaCap,
           somenteRevisao: somenteRevisaoCap,
           busca: mobileAccess ? undefined : query.busca,
+          buscaCampo: mobileAccess ? undefined : query.busca_campo,
           lanceMin: mobileAccess || query.lance_min === "" ? undefined : Number(query.lance_min),
           lanceMax: mobileAccess || query.lance_max === "" ? undefined : Number(query.lance_max),
           avaliados: mobileAccess ? undefined : query.avaliados,
@@ -596,7 +597,7 @@ export default function Prospeccoes() {
     };
     const timer = window.setTimeout(carregarCapturados, mobileAccess ? 0 : 250);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [setPage, page, pageSize, filtroFonteCap, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap, presencaCap, somenteRevisaoCap, mobileAccess, query.busca, query.lance_min, query.lance_max, query.avaliados]);
+  }, [setPage, page, pageSize, filtroFonteCap, filtroUfCap, filtroCidadesCap, filtroModalidadeCap, filtroFinanciaCap, sortBy, sortDir, scoreMinCap, roiMinCap, somenteComAvaliacaoCap, presencaCap, somenteRevisaoCap, mobileAccess, query.busca, query.busca_campo, query.lance_min, query.lance_max, query.avaliados]);
 
   useEffect(() => {
     fetchProspecMeta()

@@ -5,6 +5,7 @@ const defaults = {
   aba: "",
   fonte: "todas",
   busca: "",
+  busca_campo: "",
   lance_min: "",
   lance_max: "",
   avaliados: "",
@@ -35,6 +36,7 @@ const options = {
   aba: ["capturados", "selecionados"],
   fonte: ["todas", "caixa", "tjdft"],
   avaliados: ["", "sim", "nao"],
+  busca_campo: ["", "cidade", "bairro", "tipo"],
   presenca: ["presentes", "ausentes", "todos"],
   ordenar: ["ultima_disputa", "codigo", "cidade", "uf", "modalidade", "valor_minimo", "score_total", "retorno_pct"],
   direcao: ["asc", "desc"],
@@ -110,8 +112,8 @@ export default function useProspeccaoQuery({ desktop = false } = {}) {
       batch.set(key, value === true ? "1" : String(value));
     }
     // Atualiza o input no próprio evento para preservar a posição do cursor.
-    if (key === "fila_busca") {
-      setSearchDraft({ source: latest.current.params, value });
+    if (["fila_busca", "busca"].includes(key)) {
+      setSearchDraft({ source: latest.current.params, value, key });
     }
   }, [desktop]);
 
@@ -120,7 +122,7 @@ export default function useProspeccaoQuery({ desktop = false } = {}) {
   ), [update]);
 
   return [
-    searchDraft?.source === params ? { ...values, fila_busca: searchDraft.value } : values,
+    searchDraft?.source === params ? { ...values, [searchDraft.key]: searchDraft.value } : values,
     setters,
   ];
 }

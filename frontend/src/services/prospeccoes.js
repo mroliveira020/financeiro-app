@@ -66,6 +66,15 @@ export const mapContextoOferta = (row) => ({
   motivosRevisao: row.motivos_revisao || [],
 });
 
+export async function fetchSugestoesProspec(busca, ufs, signal, categoria) {
+  const { data } = await api.get("/prospeccoes/sugestoes", {
+    params: { busca, uf: ufs, categoria },
+    paramsSerializer: { serialize: serializeParams },
+    signal,
+  });
+  return data?.data || [];
+}
+
 export async function fetchCapturados({
   page = 1,
   pageSize = 50,
@@ -87,6 +96,7 @@ export async function fetchCapturados({
   lanceMax,
   avaliados,
   oportunidade,
+  buscaCampo,
 } = {}) {
   const { data } = await api.get("/prospeccoes/capturados", {
     params: {
@@ -106,6 +116,7 @@ export async function fetchCapturados({
       roi_min: roiMin,
       somente_com_avaliacao: somenteComAvaliacao,
       busca,
+      busca_campo: buscaCampo,
       lance_min: lanceMin,
       lance_max: lanceMax,
       avaliados,
