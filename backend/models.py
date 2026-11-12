@@ -4,6 +4,8 @@ import base64
 import hashlib
 import os
 import secrets
+import re
+import unicodedata
 import uuid
 from collections import defaultdict
 from functools import lru_cache
@@ -3256,6 +3258,61 @@ def _contexto_oferta_resposta(row):
     }
 
 
+def _normalizar_busca_prospeccao(texto):
+    texto = "".join(
+        caractere for caractere in unicodedata.normalize("NFD", texto.lower())
+        if not unicodedata.combining(caractere)
+    )
+    texto = re.sub(r"(?<!\S)sto\.?(?=\s|$)", "santo", texto)
+    return " ".join(texto.split())
+
+
+def _expressao_busca_prospeccao(campo):
+    # Os campos são expressões internas. Termos digitados usam parâmetros SQL.
+    sem_acentos = f"regexp_replace(normalize(lower({campo}), NFD), U&'[\\0300-\\036f]', '', 'g')"
+    return f"regexp_replace({sem_acentos}, '(^|[[:space:]])sto[.]?([[:space:]]|$)', '\\1santo\\2', 'g')"
+
+
+def listar_sugestoes_prospeccao(busca, ufs=None, categoria=None):
+    termo = _normalizar_busca_prospeccao(busca).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    if len(termo) < 2 and categoria != "cidade":
+        return []
+    params = []
+    where = ""
+    if ufs:
+        where = " WHERE uf = ANY(%s)"
+        params.append(ufs)
+    normalizado = _expressao_busca_prospeccao("valor")
+    filtro_categoria = " AND categoria = %s" if categoria else ""
+    query = f"""
+        WITH base AS (
+            SELECT cidade, bairro, tipo_imovel
+            FROM vw_imoveis_prospeccao_latest{where}
+        ), candidatos AS (
+            SELECT 'cidade' AS categoria, cidade AS valor FROM base
+            UNION SELECT 'bairro', bairro FROM base
+            UNION SELECT 'tipo', tipo_imovel FROM base
+        )
+        SELECT categoria, valor FROM candidatos
+        WHERE NULLIF(BTRIM(valor), '') IS NOT NULL
+          AND {normalizado} LIKE %s ESCAPE '\\'{filtro_categoria}
+        ORDER BY CASE WHEN {normalizado} = %s THEN 0
+                      WHEN {normalizado} LIKE %s ESCAPE '\\' THEN 1 ELSE 2 END,
+                 categoria, valor
+        LIMIT 8
+    """
+    params.append(f"%{termo}%")
+    if categoria:
+        params.append(categoria)
+    params.extend([_normalizar_busca_prospeccao(busca), f"{termo}%"])
+    conn, cur = conectar()
+    try:
+        cur.execute(query, params)
+        return [{"categoria": row[0], "valor": row[1]} for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
 def listar_prospeccoes_capturados(
     limit=50,
     offset=0,
@@ -3277,6 +3334,7 @@ def listar_prospeccoes_capturados(
     lance_max=None,
     avaliados=None,
     oportunidade=False,
+    busca_campo="",
 ):
     if presenca not in {"presentes", "ausentes", "todos"}:
         raise ValueError("Filtro de presença inválido")
@@ -3440,9 +3498,9 @@ def listar_prospeccoes_capturados(
             conditions.append(f"financia IN ({placeholders})")
             params.extend(values)
     if cidades:
-        placeholders = ",".join(["LOWER(%s)"] * len(cidades))
-        conditions.append(f"LOWER(cidade) IN ({placeholders})")
-        params.extend([item.lower() for item in cidades])
+        placeholders = ",".join(["%s"] * len(cidades))
+        conditions.append(f"{_expressao_busca_prospeccao('cidade')} IN ({placeholders})")
+        params.extend([_normalizar_busca_prospeccao(item) for item in cidades])
     if score_min is not None and not somente_revisao:
         conditions.append("COALESCE(score_total, 0) >= %s")
         params.append(score_min)
@@ -3452,9 +3510,16 @@ def listar_prospeccoes_capturados(
     if somente_com_avaliacao:
         conditions.append("avaliacao_numero_bem IS NOT NULL")
     if busca:
-        conditions.append("CONCAT_WS(' ', cidade, bairro, numero_bem) ILIKE %s ESCAPE '\\'")
-        termo = busca.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        params.append(f"%{termo}%")
+        campo_exato = {"cidade": "cidade", "bairro": "bairro", "tipo": "tipo_imovel"}.get(busca_campo)
+        termo = _normalizar_busca_prospeccao(busca)
+        if campo_exato:
+            conditions.append(f"{_expressao_busca_prospeccao(campo_exato)} = %s")
+            params.append(termo)
+        else:
+            campo_busca = _expressao_busca_prospeccao("CONCAT_WS(' ', cidade, bairro, numero_bem, tipo_imovel, detalhes)")
+            conditions.append(f"{campo_busca} LIKE %s ESCAPE '\\'")
+            termo = termo.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            params.append(f"%{termo}%")
     if lance_min is not None:
         conditions.append("melhor_lance >= %s")
         params.append(lance_min)

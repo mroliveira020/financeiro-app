@@ -22,6 +22,7 @@ from models import (
     listar_orcamentos_por_imovel,
     atualizar_inserir_orcamentos,
     listar_prospeccoes_capturados,
+    listar_sugestoes_prospeccao,
     listar_prospeccoes_selecionados,
     inserir_prospeccao_selecionado,
     excluir_prospeccao_selecionado,
@@ -283,6 +284,16 @@ def get_imovel_by_id(imovel_id):
 # =====================================================
 
 
+@app.route("/prospeccoes/sugestoes", methods=["GET"])
+@requires_auth
+def get_prospeccoes_sugestoes():
+    busca = request.args.get("busca", "").strip()[:200]
+    categoria = request.args.get("categoria")
+    if categoria not in {None, "cidade", "bairro", "tipo"}:
+        return jsonify({"error": "Categoria de sugestão inválida"}), 400
+    return jsonify({"data": listar_sugestoes_prospeccao(busca, request.args.getlist("uf"), categoria)})
+
+
 @app.route("/prospeccoes/capturados", methods=["GET"])
 @requires_auth
 def get_prospeccoes_capturados():
@@ -305,6 +316,9 @@ def get_prospeccoes_capturados():
         roi_min = request.args.get("roi_min", type=float)
         somente_com_avaliacao = request.args.get("somente_com_avaliacao", "").lower() in {"1", "true", "sim", "yes"}
         busca = request.args.get("busca", "").strip()[:200]
+        busca_campo = request.args.get("busca_campo", "")
+        if busca_campo not in {"", "cidade", "bairro", "tipo"}:
+            raise ValueError("Campo de busca inválido")
         lance_min = float(request.args["lance_min"]) if request.args.get("lance_min") else None
         lance_max = float(request.args["lance_max"]) if request.args.get("lance_max") else None
         if any(valor is not None and (not math.isfinite(valor) or valor < 0) for valor in (lance_min, lance_max)):
@@ -340,6 +354,7 @@ def get_prospeccoes_capturados():
         roi_min=roi_min,
         somente_com_avaliacao=somente_com_avaliacao,
         busca=busca,
+        busca_campo=busca_campo,
         lance_min=lance_min,
         lance_max=lance_max,
         avaliados=avaliados,

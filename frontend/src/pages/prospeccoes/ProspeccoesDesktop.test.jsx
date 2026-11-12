@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +17,7 @@ vi.mock("../../context/AuthContext", () => ({
 vi.mock("../../services/prospeccoes", async (load) => ({
   ...(await load()),
   fetchCapturados: vi.fn(),
+  fetchSugestoesProspec: vi.fn(),
   fetchSelecionados: vi.fn(),
   fetchProspecMeta: vi.fn(),
   fetchAnaliseSelecionado: vi.fn(),
@@ -37,6 +39,7 @@ vi.mock("./ProspeccoesDetailModals", () => ({
 import Prospeccoes from "../Prospeccoes";
 import {
   fetchCapturados,
+  fetchSugestoesProspec,
   fetchSelecionados,
   fetchProspecMeta,
   fetchAnaliseSelecionado,
@@ -82,10 +85,14 @@ function mount(query = "") {
 beforeEach(() => {
   vi.resetAllMocks();
   window.innerWidth = 1487;
-  Object.defineProperty(navigator, "maxTouchPoints", { configurable: true, value: 0 });
+  Object.defineProperty(navigator, "maxTouchPoints", {
+    configurable: true,
+    value: 0,
+  });
   HTMLElement.prototype.scrollTo = vi.fn();
   fetchCapturados.mockResolvedValue({ data: imoveis, total: 120, page: 1 });
   fetchSelecionados.mockResolvedValue([]);
+  fetchSugestoesProspec.mockResolvedValue([]);
   fetchProspecMeta.mockResolvedValue({
     ufs: ["SP", "GO"],
     modalidades: ["Leilão SFI"],
@@ -116,6 +123,11 @@ describe("Prospecção desktop integrada", () => {
         oportunidade: true,
       }),
     );
+    const card = screen.getByRole("button", { name: "Abrir imóvel A" });
+    expect(
+      within(card).getByText("São Paulo / SP", { selector: "strong" }),
+    ).toBeInTheDocument();
+    expect(card).toHaveTextContent("Barra Funda");
     expect(screen.getByText("R$ 80.000")).toBeInTheDocument();
     expect(screen.getByText(/25\/11\/2026/)).toBeInTheDocument();
     expect(
@@ -138,7 +150,7 @@ describe("Prospecção desktop integrada", () => {
   it("envia busca, faixa inclusiva e avaliados ao servidor antes da paginação", async () => {
     mount();
     await screen.findByRole("button", { name: "Abrir imóvel A" });
-    fireEvent.change(screen.getByRole("searchbox"), {
+    fireEvent.change(screen.getByRole("combobox", { name: "Buscar imóveis" }), {
       target: { value: "Barra" },
     });
     fireEvent.change(
@@ -188,7 +200,9 @@ describe("Prospecção desktop integrada", () => {
     fireEvent.click(
       screen.getByRole("tab", { name: "Prospecção", exact: true }),
     );
-    expect(screen.getByRole("searchbox")).toHaveValue("Barra");
+    expect(
+      screen.getByRole("combobox", { name: "Buscar imóveis" }),
+    ).toHaveValue("Barra");
     expect(
       screen.getByRole("slider", { name: "Valor máximo do lance" }),
     ).toHaveValue("480000");
@@ -200,7 +214,9 @@ describe("Prospecção desktop integrada", () => {
     expect(
       screen.queryByRole("tab", { name: /Barra Funda/ }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("searchbox")).toHaveValue("Barra");
+    expect(
+      screen.getByRole("combobox", { name: "Buscar imóveis" }),
+    ).toHaveValue("Barra");
   });
 
   it("consultar análise concluída só carrega os resultados existentes", async () => {
@@ -220,12 +236,83 @@ describe("Prospecção desktop integrada", () => {
 
   it("preserva a apresentação e os parâmetros do celular", async () => {
     window.innerWidth = 390;
-    Object.defineProperty(navigator, "maxTouchPoints", { configurable: true, value: 1 });
+    Object.defineProperty(navigator, "maxTouchPoints", {
+      configurable: true,
+      value: 1,
+    });
     mount();
     await waitFor(() => expect(fetchCapturados).toHaveBeenCalled());
-    expect(fetchCapturados).toHaveBeenLastCalledWith(expect.objectContaining({ pageSize: 20, orderBy: "ultima_disputa", oportunidade: false }));
-    expect(screen.queryByRole("tablist", { name: "Abas de prospecção" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("slider", { name: "Valor mínimo do lance" })).not.toBeInTheDocument();
+    expect(fetchCapturados).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        pageSize: 20,
+        orderBy: "ultima_disputa",
+        oportunidade: false,
+      }),
+    );
+    expect(
+      screen.queryByRole("tablist", { name: "Abas de prospecção" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("slider", { name: "Valor mínimo do lance" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sugere cidades, bairros e tipos e aplica a opção escolhida", async () => {
+    fetchSugestoesProspec.mockResolvedValue([
+      { categoria: "cidade", valor: "Santo Antônio" },
+      { categoria: "bairro", valor: "Santo Antônio do Norte" },
+      { categoria: "tipo", valor: "Casa" },
+    ]);
+    mount();
+    const search = screen.getByRole("combobox", { name: "Buscar imóveis" });
+    fireEvent.focus(search);
+    fireEvent.change(search, { target: { value: "sto antonio" } });
+    fireEvent.click(
+      await screen.findByRole("option", { name: "Santo Antônio Cidade" }),
+    );
+    await waitFor(() =>
+      expect(fetchCapturados).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          busca: "",
+          cidade: ["Santo Antônio"],
+        }),
+      ),
+    );
+    expect(search).toHaveValue("");
+    expect(search).toHaveAttribute("aria-expanded", "false");
+    fireEvent.change(search, { target: { value: "casa" } });
+    await waitFor(() =>
+      expect(fetchCapturados).toHaveBeenLastCalledWith(
+        expect.objectContaining({ busca: "casa", buscaCampo: "" }),
+      ),
+    );
+  });
+
+  it("seleciona várias cidades e remove uma mantendo as demais", async () => {
+    fetchSugestoesProspec.mockResolvedValue([
+      { categoria: "cidade", valor: "São Paulo" },
+      { categoria: "cidade", valor: "Santo André" },
+    ]);
+    mount();
+    const cityInput = screen.getByRole("combobox", { name: "Cidades" });
+    fireEvent.focus(cityInput);
+    fireEvent.click(
+      await screen.findByRole("option", { name: "São Paulo Cidade" }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "Santo André Cidade" }));
+    await waitFor(() =>
+      expect(fetchCapturados).toHaveBeenLastCalledWith(
+        expect.objectContaining({ cidade: ["São Paulo", "Santo André"] }),
+      ),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remover filtro São Paulo" }),
+    );
+    await waitFor(() =>
+      expect(fetchCapturados).toHaveBeenLastCalledWith(
+        expect.objectContaining({ cidade: ["Santo André"] }),
+      ),
+    );
   });
 
   it("a solicitação explícita usa a integração atual da IA", async () => {

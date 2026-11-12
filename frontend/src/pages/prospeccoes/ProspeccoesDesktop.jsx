@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ProspeccaoSearch from "./ProspeccaoSearch";
 import {
   ProspectPhoto,
   MapPinIcon,
@@ -145,10 +146,11 @@ function PropertyCard({ item, onOpen, onRequest, canAnalyze, getMapsUrl }) {
         <ProspectPhoto item={item} className={styles.photo} />
         <span className={styles.facts}>
           <strong className={styles.name}>
-            {item.bairro || item.tipoImovel || `Imóvel ${item.codigo}`}
+            {[item.cidade, item.uf].filter(Boolean).join(" / ") ||
+              "Localização não informada"}
           </strong>
           <span className={styles.location}>
-            {[item.cidade, item.uf].filter(Boolean).join(" / ")}
+            {item.bairro || item.endereco || "Bairro não informado"}
             <span className={styles.source}>
               {item.fonte ? ` · ${sourceLabel(item.fonte)}` : ""}
             </span>
@@ -260,6 +262,7 @@ export default function ProspeccoesDesktop({
   scrollRef,
 }) {
   const [advanced, setAdvanced] = useState(false);
+  const [citySearch, setCitySearch] = useState("");
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const limit = Math.max(
     1000000,
@@ -269,6 +272,7 @@ export default function ProspeccoesDesktop({
   );
   function changeFilter(key, value) {
     setters[key](value);
+    if (key === "busca") setters.busca_campo("");
     setters.pagina(1);
     scrollRef.current?.scrollTo({ top: 0 });
   }
@@ -278,7 +282,13 @@ export default function ProspeccoesDesktop({
     setters.pagina(1);
   }
   const filters = [
-    ["busca", query.busca, ""],
+    [
+      "busca",
+      query.busca_campo
+        ? `${{ cidade: "Cidade", bairro: "Bairro", tipo: "Tipo" }[query.busca_campo]} · ${query.busca}`
+        : query.busca,
+      "",
+    ],
     ["uf", query.uf.join(", "), []],
     [
       "financia",
@@ -308,7 +318,11 @@ export default function ProspeccoesDesktop({
       "todas",
     ],
     ["modalidade", query.modalidade.join(", "), []],
-    ["cidade", query.cidade.join(", "), []],
+    ...query.cidade.map((cidade) => [
+      "cidade",
+      cidade,
+      query.cidade.filter((value) => value !== cidade),
+    ]),
     [
       "presenca",
       query.presenca === "presentes"
@@ -326,6 +340,9 @@ export default function ProspeccoesDesktop({
   const hasBid = query.lance_min !== "" || query.lance_max !== "";
   function resetFilters() {
     filters.forEach(([key, , initial]) => setters[key](initial));
+    setters.busca_campo("");
+    setters.cidade([]);
+    setCitySearch("");
     changeBid("", "");
   }
   return (
@@ -384,15 +401,24 @@ export default function ProspeccoesDesktop({
       >
         <h1>Prospecção</h1>
         <div className={styles.filters}>
-          <label className={`${styles.field} ${styles.search}`}>
-            <span className={styles.srOnly}>Cidade, bairro ou código</span>
-            <input
-              type="search"
-              value={query.busca}
-              placeholder="Cidade, bairro ou código"
-              onChange={(event) => changeFilter("busca", event.target.value)}
-            />
-          </label>
+          <ProspeccaoSearch
+            value={query.busca}
+            ufs={query.uf}
+            onChange={(value) => changeFilter("busca", value)}
+            onSelect={(option) => {
+              if (option.categoria === "cidade") {
+                changeFilter("cidade", (current) =>
+                  current.includes(option.valor)
+                    ? current
+                    : [...current, option.valor],
+                );
+                changeFilter("busca", "");
+              } else {
+                changeFilter("busca", option.valor);
+                setters.busca_campo(option.categoria);
+              }
+            }}
+          />
           <Field
             label="UF"
             value={query.uf[0] || ""}
@@ -406,6 +432,28 @@ export default function ProspeccoesDesktop({
               <option key={uf}>{uf}</option>
             ))}
           </Field>
+          <ProspeccaoSearch
+            label="Cidades"
+            value={citySearch}
+            ufs={query.uf}
+            category="cidade"
+            multiple
+            selectedValues={query.cidade}
+            placeholder={
+              query.cidade.length
+                ? `${query.cidade.length} cidade(s) selecionada(s)`
+                : "Selecione cidades"
+            }
+            onChange={setCitySearch}
+            onSelect={(option) => {
+              changeFilter("cidade", (current) =>
+                current.includes(option.valor)
+                  ? current.filter((cidade) => cidade !== option.valor)
+                  : [...current, option.valor],
+              );
+              setCitySearch("");
+            }}
+          />
           <Field
             label="Financia"
             value={query.financia[0] || ""}
@@ -424,12 +472,6 @@ export default function ProspeccoesDesktop({
             <option value="sim">Avaliados</option>
             <option value="nao">Não avaliados</option>
           </Field>
-          <BidRange
-            minimum={query.lance_min}
-            maximum={query.lance_max}
-            limit={limit}
-            onChange={changeBid}
-          />
           <button
             type="button"
             className={styles.advancedToggle}
@@ -491,7 +533,7 @@ export default function ProspeccoesDesktop({
             {filters.map(([key, label, initial]) => (
               <button
                 type="button"
-                key={key}
+                key={`${key}:${label}`}
                 onClick={() => changeFilter(key, initial)}
                 aria-label={`Remover filtro ${label}`}
               >
@@ -524,6 +566,12 @@ export default function ProspeccoesDesktop({
               : "0"}{" "}
             de {total.toLocaleString("pt-BR")} imóveis
           </strong>
+          <BidRange
+            minimum={query.lance_min}
+            maximum={query.lance_max}
+            limit={limit}
+            onChange={changeBid}
+          />
           <div>
             <label className={styles.srOnly} htmlFor="desktop-page-size">
               Itens por página
