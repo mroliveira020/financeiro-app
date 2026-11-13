@@ -154,6 +154,8 @@ def enforce_read_only():
             or path.startswith("/gpt/")
             or path.startswith("/auth/")
             or path.startswith("/prospeccoes/")
+            or path == "/tarefas"
+            or path.startswith("/tarefas/")
             or path == "/imoveis"
             or path.startswith("/imoveis/")
             or path.startswith("/orcamentos/")

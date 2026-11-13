@@ -9,12 +9,14 @@ import {
   ArrowUpRightIcon,
 } from "./ProspeccoesShared";
 import styles from "./ProspeccaoDetailDesktop.module.css";
+import TarefasPainel from "../../components/tarefas/TarefasPainel";
 
 const tabs = [
   { key: "dados", label: "Visão geral" },
   { key: "ia", label: "Avaliação IA" },
   { key: "comunicacao", label: "Comunicação" },
   { key: "viabilidade", label: "Viabilidade" },
+  { key: "tarefas", label: "Participação e tarefas" },
 ];
 
 // Textos antigos continuam íntegros. Apenas títulos explícitos viram seções.
@@ -755,7 +757,8 @@ export default function ProspeccaoDetailDesktop({
             </>
           ) : null}
 
-          {activeTab === "viabilidade" ? (
+        {activeTab === "tarefas" ? <TarefasPainel key={item.codigo} context={{ numero_bem: item.codigo, nome: [item.cidade, item.bairro, item.codigo].filter(Boolean).join(' · ') }} /> : null}
+        {activeTab === "viabilidade" ? (
             <section className={styles.card}>
               {financialEditor || (
                 <>

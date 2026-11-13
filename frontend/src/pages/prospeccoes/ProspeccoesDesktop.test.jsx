@@ -11,6 +11,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const usuario = { id: 1, role: "prospector", ai_access: true };
+vi.mock("../../services/tarefas", () => ({ buscarResumoTarefas: vi.fn(async () => []) }));
 vi.mock("../../context/AuthContext", () => ({
   useAuth: () => ({ user: usuario, hasRole: () => false }),
 }));
@@ -81,6 +82,12 @@ function mount(query = "") {
     </MemoryRouter>,
   );
 }
+
+it("abre a ficha pelo vínculo direto de uma tarefa sem solicitar análise", async () => {
+  mount('?busca=A&imovel=A&presenca=todos');
+  expect(await screen.findByRole('heading', { name: 'Ficha A' })).toBeInTheDocument();
+  expect(enviarMensagemAiChat).not.toHaveBeenCalled();
+});
 
 beforeEach(() => {
   vi.resetAllMocks();

@@ -1,0 +1,340 @@
+.workspace {
+  color: var(--text-strong);
+  font-size: 14px;
+  min-width: 0;
+}
+.workspace h1 {
+  font-size: 25px;
+  margin: 0 0 5px;
+  letter-spacing: -0.5px;
+}
+.workspace h2 {
+  font-size: 17px;
+  margin: 0 0 8px;
+}
+.workspace p {
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+.workspace button,
+.workspace input,
+.workspace select,
+.workspace textarea {
+  font: inherit;
+}
+.workspace button {
+  border: 1px solid var(--line-strong);
+  background: white;
+  border-radius: 5px;
+  padding: 6px 10px;
+  color: var(--text-base);
+  cursor: pointer;
+  font-size: 13px;
+  min-height: 32px;
+}
+.workspace button:hover:not(:disabled) {
+  background: var(--surface-subtle);
+}
+.workspace button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.workspace .primary {
+  background: var(--surface-brand-strong);
+  color: white;
+  border-color: var(--surface-brand-strong);
+}
+.workspace .primary:hover:not(:disabled) {
+  background: var(--surface-brand-hover);
+}
+.workspace :is(button, input, textarea, select, summary, a):focus-visible {
+  outline: 2px solid var(--text-brand);
+  outline-offset: 3px;
+}
+.heading,
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.heading p {
+  font-size: 13px;
+}
+.filters {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.8fr) repeat(6, minmax(80px, 1fr));
+  gap: 10px;
+  align-items: end;
+  padding: 16px;
+  background: white;
+  border: 1px solid var(--line-base);
+  border-radius: 7px;
+}
+.filters label {
+  min-width: 0;
+}
+.filters[data-context="true"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.filters[data-context="true"] label:first-child {
+  grid-column: 1 / -1;
+}
+.workspace label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.workspace :is(input:not([type="checkbox"]), select, textarea) {
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  padding: 8px 10px;
+  background: white;
+  color: var(--text-strong);
+  width: 100%;
+  min-width: 0;
+  font-size: 14px;
+}
+.workspace textarea {
+  resize: vertical;
+}
+.toolbar {
+  margin: 14px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.withEditor {
+  grid-template-columns: minmax(0, 1fr) 350px;
+}
+.list {
+  min-width: 0;
+  background: white;
+  border: 1px solid var(--line-base);
+  border-radius: 7px;
+}
+.row {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  border-bottom: 1px solid var(--line-base);
+  padding: 16px;
+}
+.row input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--surface-brand-strong);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.rowMain {
+  flex: 1;
+  min-width: 0;
+}
+.workspace .taskTitle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  min-height: 25px;
+  overflow-wrap: anywhere;
+}
+.workspace .taskTitle:hover {
+  color: var(--text-brand);
+  background: transparent;
+}
+.rowMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 6px;
+}
+.rowEnd {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 12px;
+}
+.rowEnd small {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.workspace .archive {
+  background: transparent;
+  border: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.pagination {
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.form {
+  border: 1px solid var(--line-base);
+  padding: 18px;
+  background: white;
+  border-radius: 7px;
+  position: sticky;
+  top: 16px;
+  min-width: 0;
+}
+.form header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.form header button {
+  border: 0;
+  font-size: 20px;
+}
+.form fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.formColumns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.form footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.workspace .error {
+  background: var(--surface-danger-soft);
+  color: var(--text-danger);
+  padding: 12px;
+  border-radius: 5px;
+  margin: 12px 0;
+}
+.workspace .notice {
+  padding: 12px;
+  border-radius: 5px;
+  background: var(--surface-brand-soft);
+  color: var(--text-base);
+  margin: 12px 0;
+}
+.empty {
+  padding: 36px 20px;
+  text-align: center;
+}
+.intent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 16px;
+  background: white;
+  border: 1px solid var(--line-base);
+  border-radius: 7px;
+  margin-bottom: 18px;
+}
+.intent p {
+  font-size: 12px;
+  margin-top: 5px;
+}
+.confirm {
+  max-width: 360px;
+}
+.confirm p {
+  margin: 0 0 8px;
+}
+.confirm button {
+  margin-right: 8px;
+}
+.sync {
+  margin-top: 24px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.sync summary {
+  cursor: pointer;
+  padding: 8px 0;
+  color: var(--text-brand);
+}
+.sync p {
+  max-width: 80ch;
+  padding: 10px 0;
+}
+@media (max-width: 1200px) {
+  .filters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .filters label:first-child {
+    grid-column: span 2;
+  }
+  .withEditor {
+    grid-template-columns: 1fr;
+  }
+  .form {
+    position: static;
+    grid-row: 1;
+  }
+  .formColumns {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 650px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .heading {
+    align-items: flex-start;
+  }
+  .heading h1 {
+    font-size: 23px;
+  }
+  .row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .rowEnd {
+    margin-left: 30px;
+    align-items: flex-start;
+  }
+  .workspace .archive {
+    margin-left: auto;
+  }
+  .rowMain {
+    flex-basis: calc(100% - 40px);
+  }
+  .intent {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .filters {
+    padding: 12px;
+  }
+  .pagination {
+    justify-content: center;
+    gap: 10px;
+  }
+}

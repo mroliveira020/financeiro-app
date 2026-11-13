@@ -9,6 +9,7 @@ import { useCompactLayout } from "../hooks/useCompactLayout";
 
 import "./Dashboard.css";
 import { handleTabKeys } from "../utils/handleTabKeys";
+import { Link, useParams } from "react-router-dom";
 
 function DeferredSection({ children, placeholder = "Carregando seção...", rootMargin = "240px" }) {
   const [ativado, setAtivado] = useState(false);
@@ -48,6 +49,7 @@ function DeferredSection({ children, placeholder = "Carregando seção...", root
 }
 
 function Dashboard() {
+  const { id } = useParams();
   const [refreshKey, setRefreshKey] = useState(0);
   const [financeViewMode, setFinanceViewMode] = useState("total");
   const compactLayout = useCompactLayout();
@@ -59,6 +61,7 @@ function Dashboard() {
     <div className="dashboard-page">
       <div className="dashboard-container">
         <section className="dashboard-main">
+          <div><Link to={`/tarefas?imovel_id=${encodeURIComponent(id)}`}>Ver tarefas deste imóvel</Link></div>
           <DadosCadastrais refreshKey={refreshKey} onChanged={dispararAtualizacao} />
           <section className="dashboard-card dashboard-view-toolbar">
             <div className="dashboard-view-toolbar__copy">

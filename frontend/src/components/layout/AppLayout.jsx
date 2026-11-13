@@ -6,6 +6,7 @@ import logo from "../../assets/house-color.png";
 import "./AppLayout.css";
 
 const icons = {
+  tasks: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m3 6 2 2 3-4M11 6h10M3 12h4m4 0h10M3 18h4m4 0h10" /></svg>,
   home: (
     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <rect x="3.5" y="6" width="17" height="12.5" rx="2" fill="none" stroke="currentColor" strokeWidth="1.6" />
@@ -58,12 +59,13 @@ export default function AppLayout() {
   ));
   const isProspeccoesPage = location.pathname.startsWith("/prospeccoes");
   const isUsuariosPage = location.pathname.startsWith("/usuarios");
-  const pageTitle = isUsuariosPage
+  const isTarefasPage = location.pathname.startsWith("/tarefas");
+  const pageTitle = isTarefasPage ? "Tarefas" : isUsuariosPage
     ? "Usuários"
     : isProspeccoesPage
       ? "Prospecção"
       : "Financeiro";
-  const pageSubtitle = isUsuariosPage
+  const pageSubtitle = isTarefasPage ? "Acompanhamento das tarefas dos imóveis." : isUsuariosPage
     ? "Gestão de acessos, permissões e composição societária do portal."
     : isProspeccoesPage
       ? "Central operacional para seleção, prospecção e acompanhamento dos imóveis."
@@ -73,6 +75,7 @@ export default function AppLayout() {
     const items = [];
     if (canAccessFinance) items.push({ to: "/", icon: icons.home, label: "Financeiro" });
     if (canAccessProspeccoes) items.push({ to: "/prospeccoes", icon: icons.prospects, label: "Prospecção" });
+    if (canAccessFinance || canAccessProspeccoes) items.push({ to: "/tarefas", icon: icons.tasks, label: "Tarefas" });
     if (isAdmin) items.push({ to: "/usuarios", icon: icons.users, label: "Usuários" });
     return items;
   }, [canAccessFinance, canAccessProspeccoes, isAdmin]);

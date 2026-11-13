@@ -5762,3 +5762,260 @@ def atualizar_lancamentos_em_lote(ids, updates):
         placeholders = ",".join(["LOWER(%s)"] * len(cidades))
         conditions.append(f"LOWER(cidade) IN ({placeholders})")
         params.extend([item.lower() for item in cidades])
+
+
+# Tarefas do portal. A autorização usa os vínculos atuais do imóvel.
+class TarefaConflito(ValueError):
+    pass
+
+
+def _registro_tarefas_json(registro):
+    return {chave: valor.isoformat() if isinstance(valor, (date, datetime)) else valor
+            for chave, valor in dict(registro).items()}
+
+
+def _escopo_tarefas(usuario, alias='t'):
+    from security import user_has_any_capability
+    if user_has_any_capability(usuario, 'admin'):
+        return 'TRUE', []
+    prospector = user_has_any_capability(usuario, 'prospector')
+    return (
+        f"(({alias}.numero_bem IS NOT NULL AND %s) OR EXISTS ("
+        f"SELECT 1 FROM imovel_socios s WHERE s.id_imovel = {alias}.imovel_id "
+        "AND s.user_id = %s AND s.ativo = TRUE AND s.percentual_participacao > 0))",
+        [prospector, usuario['id']],
+    )
+
+
+def _validar_contexto_tarefa(cur, usuario, numero_bem, imovel_id):
+    from security import user_has_any_capability
+    if bool(numero_bem) == bool(imovel_id):
+        raise ValueError('Selecione um imóvel para a tarefa.')
+    if numero_bem:
+        if not user_has_any_capability(usuario, 'admin', 'prospector'):
+            raise PermissionError('Sem acesso à prospecção.')
+        cur.execute('SELECT 1 FROM imoveis_prospeccao WHERE numero_bem = %s LIMIT 1', (numero_bem,))
+    else:
+        scope, params = _escopo_tarefas(usuario, 't')
+        cur.execute(f'SELECT 1 FROM (SELECT id AS imovel_id, NULL::text AS numero_bem FROM imoveis WHERE id = %s) t WHERE {scope}', [imovel_id] + params)
+    if not cur.fetchone():
+        raise PermissionError('Imóvel indisponível para seu usuário.')
+
+
+def _normalizar_tarefa(dados):
+    if not isinstance(dados, dict):
+        raise ValueError('Informe os dados da tarefa.')
+    if not isinstance(dados.get('titulo'), str) or not isinstance(dados.get('descricao', ''), str):
+        raise ValueError('Título e descrição devem ser textos.')
+    if 'arquivada' in dados and not isinstance(dados['arquivada'], bool):
+        raise ValueError('Informe uma situação de arquivamento válida.')
+    titulo = str(dados.get('titulo') or '').strip()
+    descricao = str(dados.get('descricao') or '').strip()
+    numero = str(dados.get('numero_bem') or '').strip() or None
+    try:
+        imovel_id = int(dados['imovel_id']) if dados.get('imovel_id') else None
+        responsavel = int(dados['responsavel_id']) if dados.get('responsavel_id') else None
+        prazo = date.fromisoformat(dados['prazo']) if dados.get('prazo') else None
+    except (TypeError, ValueError):
+        raise ValueError('Imóvel, responsável ou prazo inválido.')
+    situacao = dados.get('situacao', 'a_fazer')
+    origem = dados.get('origem', 'manual')
+    if not 1 <= len(titulo) <= 200 or len(descricao) > 10000:
+        raise ValueError('Informe um título de até 200 caracteres e descrição de até 10.000 caracteres.')
+    if situacao not in {'a_fazer', 'concluida'} or origem not in {'manual', 'preparacao'}:
+        raise ValueError('Situação ou origem da tarefa inválida.')
+    if numero and len(numero) > 120:
+        raise ValueError('Código do imóvel inválido.')
+    return dict(titulo=titulo, descricao=descricao, numero_bem=numero, imovel_id=imovel_id,
+                responsavel_id=responsavel, prazo=prazo, situacao=situacao, origem=origem)
+
+
+def _validar_responsavel_tarefa(cur, usuario, tarefa):
+    responsavel = tarefa['responsavel_id']
+    if responsavel is None:
+        return
+    cur.execute('SELECT id, role, ARRAY(SELECT capability FROM user_capabilities uc WHERE uc.user_id=users.id) AS capabilities FROM users WHERE id = %s AND is_active = TRUE', (responsavel,))
+    pessoa = cur.fetchone()
+    if not pessoa:
+        raise ValueError('Responsável indisponível.')
+    # A mesma regra de acesso do portal vale para quem recebe a tarefa.
+    _validar_contexto_tarefa(cur, dict(pessoa), tarefa['numero_bem'], tarefa['imovel_id'])
+
+
+def listar_tarefas_portal(usuario, filtros):
+    scope, params = _escopo_tarefas(usuario)
+    clauses = [scope]
+    for campo in ('numero_bem', 'imovel_id', 'responsavel_id', 'situacao'):
+        if filtros.get(campo):
+            clauses.append(f't.{campo} = %s')
+            params.append(filtros[campo])
+    etapa = filtros.get('etapa')
+    if etapa in {'prospeccao', 'adquirido'}:
+        clauses.append('t.numero_bem IS NOT NULL' if etapa == 'prospeccao' else 't.imovel_id IS NOT NULL')
+    if filtros.get('arquivadas') != 'todas':
+        clauses.append('t.arquivada_em IS NOT NULL' if filtros.get('arquivadas') == 'sim' else 't.arquivada_em IS NULL')
+    if filtros.get('busca'):
+        clauses.append("CONCAT_WS(' ', t.titulo, t.descricao, t.numero_bem, i.nome, p.cidade, p.bairro) ILIKE %s")
+        params.append('%' + str(filtros['busca'])[:200].replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%')
+    if filtros.get('prazo') == 'atrasadas':
+        clauses.extend(["t.prazo < (now() AT TIME ZONE 'America/Sao_Paulo')::date", "t.situacao = 'a_fazer'"])
+    if filtros.get('responsavel') == 'sem':
+        clauses.append('t.responsavel_id IS NULL')
+    pagina = max(1, int(filtros.get('pagina') or 1))
+    conn, cur = conectar()
+    try:
+        source = """FROM portal_tarefas t
+          LEFT JOIN imoveis i ON i.id = t.imovel_id
+          LEFT JOIN LATERAL (SELECT cidade, bairro, uf FROM imoveis_prospeccao p
+            WHERE p.numero_bem = t.numero_bem ORDER BY coletado_em DESC LIMIT 1) p ON TRUE
+          LEFT JOIN users u ON u.id = t.responsavel_id
+          LEFT JOIN portal_intencoes_participacao ip ON ip.id = t.intencao_id"""
+        where = ' AND '.join(clauses)
+        cur.execute(f"SELECT count(*) AS total, count(*) FILTER (WHERE t.situacao='a_fazer') AS a_fazer, count(*) FILTER (WHERE t.situacao='concluida') AS concluidas {source} WHERE {where}", params)
+        resumo = dict(cur.fetchone())
+        cur.execute(f"""SELECT t.*, COALESCE(i.nome, NULLIF(CONCAT_WS(' · ', p.cidade, p.uf, p.bairro), ''), t.numero_bem) AS imovel_nome,
+          COALESCE(u.name, u.email) AS responsavel_nome, ip.retirada_em AS intencao_retirada_em
+          {source} WHERE {where}
+          ORDER BY t.arquivada_em NULLS FIRST, t.situacao, t.prazo NULLS LAST, t.created_at DESC, t.id
+          LIMIT 50 OFFSET %s""", params + [(pagina - 1) * 50])
+        return dict(data=[_registro_tarefas_json(row) for row in cur.fetchall()], pagina=pagina, **resumo)
+    finally:
+        conn.close()
+
+
+def opcoes_tarefas_portal(usuario, busca='', numero_bem=None, imovel_id=None):
+    from security import user_has_any_capability
+    conn, cur = conectar()
+    try:
+        scope, params = _escopo_tarefas(usuario, 't')
+        cur.execute(f"SELECT id, nome FROM (SELECT id, nome, id AS imovel_id, NULL::text AS numero_bem FROM imoveis) t WHERE {scope} ORDER BY nome", params)
+        adquiridos = [dict(row) for row in cur.fetchall()]
+        capturados = []
+        if user_has_any_capability(usuario, 'admin', 'prospector'):
+            termo = '%' + str(busca)[:120].replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
+            cur.execute("""SELECT numero_bem, cidade, uf, bairro FROM (
+              SELECT DISTINCT ON (numero_bem) numero_bem,cidade,uf,bairro FROM imoveis_prospeccao ORDER BY numero_bem,coletado_em DESC
+              ) p WHERE CONCAT_WS(' ',numero_bem,cidade,bairro) ILIKE %s ORDER BY cidade,numero_bem LIMIT 30""", (termo,))
+            capturados = [dict(row) for row in cur.fetchall()]
+        pessoas = []
+        if numero_bem or imovel_id:
+            _validar_contexto_tarefa(cur, usuario, numero_bem, imovel_id)
+            if numero_bem:
+                cur.execute("SELECT id, COALESCE(name,email) AS nome FROM users WHERE is_active = TRUE AND (role IN ('admin','prospector') OR EXISTS (SELECT 1 FROM user_capabilities uc WHERE uc.user_id=users.id AND uc.capability IN ('admin','prospector'))) ORDER BY name,email")
+            else:
+                cur.execute("""SELECT u.id, COALESCE(u.name,u.email) AS nome FROM users u WHERE u.is_active = TRUE
+                  AND (u.role='admin' OR EXISTS (SELECT 1 FROM user_capabilities uc WHERE uc.user_id=u.id AND uc.capability='admin') OR EXISTS (SELECT 1 FROM imovel_socios s WHERE s.user_id=u.id AND s.id_imovel=%s
+                    AND s.ativo=TRUE AND s.percentual_participacao>0)) ORDER BY u.name,u.email""", (imovel_id,))
+            pessoas = [dict(row) for row in cur.fetchall()]
+        cur.execute(f"""SELECT DISTINCT t.numero_bem,t.imovel_id,COALESCE(i.nome,NULLIF(CONCAT_WS(' · ',p.cidade,p.uf,p.bairro),''),t.numero_bem) AS nome
+          FROM portal_tarefas t LEFT JOIN imoveis i ON i.id=t.imovel_id
+          LEFT JOIN LATERAL (SELECT cidade,uf,bairro FROM imoveis_prospeccao p WHERE p.numero_bem=t.numero_bem ORDER BY coletado_em DESC LIMIT 1) p ON TRUE WHERE {scope}
+          ORDER BY nome""", params)
+        contextos = [dict(row) for row in cur.fetchall()]
+        cur.execute(f"SELECT DISTINCT u.id, COALESCE(u.name,u.email) AS nome FROM portal_tarefas t JOIN users u ON u.id=t.responsavel_id WHERE {scope} ORDER BY nome", params)
+        pessoas_filtro = [dict(row) for row in cur.fetchall()]
+        return dict(adquiridos=adquiridos, capturados=capturados, responsaveis=pessoas,
+                    imoveis_com_tarefas=contextos, responsaveis_filtro=pessoas_filtro)
+    finally:
+        conn.close()
+
+
+def salvar_tarefa_portal(usuario, dados, tarefa_id=None):
+    normal = _normalizar_tarefa(dados)
+    try:
+        tarefa_id = str(uuid.UUID(str(tarefa_id or dados.get('id'))))
+        versao = int(dados.get('versao') or 0)
+    except (ValueError, TypeError):
+        raise ValueError('Identificador da tarefa inválido.')
+    conn, cur = conectar()
+    try:
+        intencao_id = None
+        if normal['origem'] == 'preparacao':
+            try:
+                intencao_id = str(uuid.UUID(str(dados.get('intencao_id'))))
+            except (TypeError, ValueError):
+                raise ValueError('Selecione uma intenção de participação ativa.')
+            # Retirada e edição seguem a mesma ordem de bloqueio.
+            cur.execute('SELECT * FROM portal_intencoes_participacao WHERE id = %s AND numero_bem = %s FOR UPDATE', (intencao_id, normal['numero_bem']))
+            intencao = cur.fetchone()
+            if not intencao or intencao['retirada_em']:
+                raise TarefaConflito('Registre uma intenção ativa para criar ou alterar tarefas de preparação.')
+        scope, params = _escopo_tarefas(usuario)
+        cur.execute(f'SELECT t.* FROM portal_tarefas t WHERE t.id = %s AND {scope} FOR UPDATE', [tarefa_id] + params)
+        anterior = cur.fetchone()
+        if anterior and not versao:
+            # Reenvio da criação usa o mesmo identificador e os mesmos dados.
+            if anterior['created_by'] == int(usuario['id']) and all(anterior[k] == v for k, v in normal.items()):
+                return _registro_tarefas_json(anterior)
+            raise TarefaConflito('Identificador já utilizado. Atualize a lista de tarefas.')
+        if versao and not anterior:
+            raise PermissionError('Tarefa indisponível para seu usuário.')
+        if anterior and anterior['versao'] != versao:
+            raise TarefaConflito('A tarefa foi alterada em outra sessão. Atualize a lista antes de salvar.')
+        if anterior and normal['origem'] != anterior['origem']:
+            raise ValueError('A origem da tarefa permanece vinculada ao seu registro inicial.')
+        _validar_contexto_tarefa(cur, usuario, normal['numero_bem'], normal['imovel_id'])
+        if not anterior or any(normal[k] != anterior[k] for k in ('responsavel_id', 'numero_bem', 'imovel_id')):
+            _validar_responsavel_tarefa(cur, usuario, normal)
+        if anterior and normal['origem'] == 'preparacao' and str(anterior['intencao_id']) != intencao_id:
+            raise ValueError('A tarefa de preparação permanece vinculada à intenção original.')
+        arquivada = bool(dados.get('arquivada', False))
+        values = [normal[k] for k in ('titulo','descricao','numero_bem','imovel_id','responsavel_id','prazo','situacao','origem')]
+        if anterior:
+            cur.execute("""UPDATE portal_tarefas SET titulo=%s, descricao=%s, numero_bem=%s, imovel_id=%s,
+              responsavel_id=%s, prazo=%s, situacao=%s, origem=%s, intencao_id=%s,
+              arquivada_em=CASE WHEN %s THEN COALESCE(arquivada_em, now()) ELSE NULL END,
+              concluida_em=CASE WHEN %s='concluida' THEN COALESCE(concluida_em, now()) ELSE NULL END,
+              updated_at=now(), versao=versao+1 WHERE id=%s RETURNING *""",
+              values + [intencao_id, arquivada, normal['situacao'], tarefa_id])
+        else:
+            cur.execute("""INSERT INTO portal_tarefas (titulo,descricao,numero_bem,imovel_id,responsavel_id,prazo,situacao,origem,intencao_id,id,created_by,concluida_em)
+              VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,CASE WHEN %s='concluida' THEN now() END)
+              ON CONFLICT (id) DO NOTHING RETURNING *""", values + [intencao_id,tarefa_id,usuario['id'],normal['situacao']])
+        salvo = cur.fetchone()
+        if not salvo:
+            raise TarefaConflito('A tarefa já foi recebida. Atualize a lista para consultar o resultado.')
+        conn.commit()
+        return _registro_tarefas_json(salvo)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def resumo_tarefas_portal(usuario, numeros):
+    scope, params = _escopo_tarefas(usuario)
+    conn, cur = conectar()
+    try:
+        cur.execute(f"""SELECT t.numero_bem, count(*) AS total,
+          count(*) FILTER (WHERE t.situacao='a_fazer') AS a_fazer
+          FROM portal_tarefas t WHERE {scope} AND t.numero_bem = ANY(%s) AND t.arquivada_em IS NULL GROUP BY t.numero_bem""", params + [numeros])
+        return [dict(row) for row in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def intencao_participacao_portal(usuario, numero_bem, acao='consultar', intencao_id=None):
+    conn, cur = conectar()
+    try:
+        _validar_contexto_tarefa(cur, usuario, numero_bem, None)
+        if acao == 'registrar':
+            cur.execute("""INSERT INTO portal_intencoes_participacao (numero_bem,usuario_id) VALUES (%s,%s)
+              ON CONFLICT (numero_bem,usuario_id) WHERE retirada_em IS NULL DO NOTHING""", (numero_bem,usuario['id']))
+        if acao == 'retirar':
+            cur.execute('SELECT id FROM portal_intencoes_participacao WHERE id=%s AND numero_bem=%s AND usuario_id=%s FOR UPDATE', (intencao_id,numero_bem,usuario['id']))
+            if not cur.fetchone():
+                raise PermissionError('Intenção indisponível para seu usuário.')
+            cur.execute('UPDATE portal_intencoes_participacao SET retirada_em=COALESCE(retirada_em,now()) WHERE id=%s', (intencao_id,))
+            cur.execute("UPDATE portal_tarefas SET arquivada_em=COALESCE(arquivada_em,now()),updated_at=now(),versao=versao+1 WHERE intencao_id=%s AND situacao='a_fazer' AND arquivada_em IS NULL", (intencao_id,))
+        cur.execute('SELECT * FROM portal_intencoes_participacao WHERE numero_bem=%s AND usuario_id=%s AND retirada_em IS NULL', (numero_bem,usuario['id']))
+        registro = cur.fetchone()
+        if acao != 'consultar':
+            conn.commit()
+        return _registro_tarefas_json(registro) if registro else None
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
