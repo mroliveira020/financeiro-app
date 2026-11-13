@@ -662,11 +662,17 @@ function Home({ desktop = false, onOpenImovel, refreshKey = 0 }) {
     [detalhesMensaisModal.aberto, detalhesMensaisModal.dados, detalhesMensaisModal.imovelId, detalhesMensaisModal.mesISO]
   );
 
+  const abrirCadastroImovel = () => {
+    setShowAddImovelModal(true);
+    setNewImovel({ nome: "", vendido: false });
+  };
+  const mostrarCabecalho = !desktop || loadingImoveis || erroImoveis;
+
   return (
     <div className={desktop ? "carteira-desktop" : "container py-4"}>
       <header
         className={
-          desktop && !canEdit
+          !mostrarCabecalho
             ? "visually-hidden"
             : "d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 gap-3"
         }
@@ -675,14 +681,11 @@ function Home({ desktop = false, onOpenImovel, refreshKey = 0 }) {
           <h1 className="fs-3 fw-bold mb-1">{desktop ? "Carteira" : "Painel de Imóveis"}</h1>
           {!desktop && <p className="text-muted mb-0">Acompanhe os resultados e acesse os dashboards de cada operação.</p>}
         </div>
-        {canEdit && (
+        {canEdit && mostrarCabecalho && (
           <button
             type="button"
             className="btn btn-primary add-imovel-trigger align-self-start align-self-md-center"
-            onClick={() => {
-              setShowAddImovelModal(true);
-              setNewImovel({ nome: "", vendido: false });
-            }}
+            onClick={abrirCadastroImovel}
             title="Cadastrar novo imóvel"
           >
             <span aria-hidden="true">＋</span>{desktop && " Imóvel"}
@@ -794,7 +797,17 @@ function Home({ desktop = false, onOpenImovel, refreshKey = 0 }) {
         </div>
       </div>
 
-      {desktop && <div hidden={loadingImoveis || erroImoveis}><CarteiraTabela refreshKey={refreshKey} imoveis={imoveis} onOpen={onOpenImovel} onIncluirVendidos={setMostrarVendidos} /></div>}
+      {desktop && (
+        <div hidden={loadingImoveis || erroImoveis}>
+          <CarteiraTabela
+            refreshKey={refreshKey}
+            imoveis={imoveis}
+            onOpen={onOpenImovel}
+            onIncluirVendidos={setMostrarVendidos}
+            onAddImovel={canEdit ? abrirCadastroImovel : undefined}
+          />
+        </div>
+      )}
       {/* Gráfico de desembolsos mensais */}
       <section className="card border-0 shadow-sm mb-4">
         <div className="card-body">

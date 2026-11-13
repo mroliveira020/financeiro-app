@@ -75,13 +75,6 @@
 .research[hidden] {
   display: none;
 }
-.research h1 {
-  font-size: 25px;
-  letter-spacing: -0.6px;
-  line-height: 32px;
-  margin: 0 0 8px;
-  font-weight: 700;
-}
 .filters {
   display: grid;
   grid-template-columns:
