@@ -189,6 +189,20 @@ export default function CarteiraTabela({
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">
+                Total dos imóveis listados
+                <small>
+                  {lista.length} {lista.length === 1 ? "imóvel" : "imóveis"}
+                </small>
+              </th>
+              <td>{moeda(totais.previsto)}</td>
+              <td>{moeda(totais.efetivado)}</td>
+              <td>{moeda(totais.aInvestir)}</td>
+              <td>{moeda(totais.resultado)}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
       {!lista.length && <p role="status">Nenhum imóvel atende aos filtros.</p>}
