@@ -1,5 +1,6 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useLocation, useOutletContext } from "react-router-dom";
+import useResumoTarefas from "../hooks/useResumoTarefas";
 import "./Prospeccoes.css";
 import useProspeccaoQuery from "./prospeccoes/useProspeccaoQuery";
 import ProspeccoesDesktop from "./prospeccoes/ProspeccoesDesktop";
@@ -371,6 +372,9 @@ const detectMobileAccess = () => {
 };
 
 export default function Prospeccoes() {
+  const location = useLocation();
+  const requestedProperty = new URLSearchParams(location.search).get('imovel');
+  const openedFromLink = useRef(null);
   const outletContext = useOutletContext() || {};
   const setTopbarContent = outletContext.setTopbarContent;
   const { user, hasRole } = useAuth();
@@ -431,6 +435,7 @@ export default function Prospeccoes() {
   const selectedUserFilter = user?.role === "admin" ? query.fila_autor : "todos";
   const [selecionados, setSelecionados] = useState([]);
   const [capturados, setCapturados] = useState([]);
+  const resumosTarefas = useResumoTarefas(capturados.map((item) => item.codigo));
   const [capturadosTotal, setCapturadosTotal] = useState(0);
   const [loadingSel, setLoadingSel] = useState(false);
   const [loadingCap, setLoadingCap] = useState(false);
@@ -1236,7 +1241,7 @@ export default function Prospeccoes() {
     }
   }, [hubSession, user, refreshSelecionados, sincronizarIndicadorAnaliseIaCapturada, setAvaliacaoDetalhadaStatusState]);
 
-  const openAvaliacaoDetalhadaModal = async (item, initialTab = "dados", origem = "selecionados", { gerarAnaliseInicial = false } = {}) => {
+  const openAvaliacaoDetalhadaModal = useCallback(async (item, initialTab = "dados", origem = "selecionados", { gerarAnaliseInicial = false } = {}) => {
     if (!mobileAccess) {
       if (avaliacaoDetalhadaItem) desktopDraftsRef.current.set(avaliacaoDetalhadaItem.codigo, { mensagem: aiMensagemDraft, sintese: aiSinteseDraft !== (aiAnalise?.analise_texto || "") ? aiSinteseDraft : undefined, tab: avaliacaoDetalhadaTab });
       setDesktopTabs((current) => current.some((tab) => tab.codigo === item.codigo) ? current : [...current, item]);
@@ -1295,7 +1300,7 @@ export default function Prospeccoes() {
       if (session.isCurrent()) setAnaliseDetalhadaLoading(false);
       if (session.isCurrent()) setEnriquecimentoDetalhadoLoading(false);
     }
-  };
+  }, [mobileAccess, avaliacaoDetalhadaItem, aiMensagemDraft, aiSinteseDraft, aiAnalise, avaliacaoDetalhadaTab, hubSession, carregarAiAnalise, setAvaliacaoDetalhadaStatusState]);
 
   const closeAvaliacaoDetalhadaModal = () => {
     if (!mobileAccess && avaliacaoDetalhadaItem) {
@@ -1327,6 +1332,14 @@ export default function Prospeccoes() {
     setAvaliacaoDetalhadaStatusState();
     aiDeferredActionRef.current = null;
   };
+
+  useEffect(() => {
+    if (!requestedProperty || openedFromLink.current === requestedProperty) return;
+    const item = capturados.find((entry) => entry.codigo === requestedProperty);
+    if (!item) return;
+    openedFromLink.current = requestedProperty;
+    openAvaliacaoDetalhadaModal(item, mobileAccess ? 'dados' : 'tarefas', 'capturados');
+  }, [requestedProperty, capturados, mobileAccess, openAvaliacaoDetalhadaModal]);
 
   const handleSelecionarNoHub = async () => {
     if (!avaliacaoDetalhadaItem) return;
@@ -2067,6 +2080,7 @@ export default function Prospeccoes() {
         </>
       ) : (
         <ProspeccoesDesktop
+          taskCounts={resumosTarefas}
           dados={capturados}
           total={capturadosTotal}
           loading={loadingCap}

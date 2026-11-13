@@ -10,6 +10,7 @@ import Prospeccoes from "./pages/Prospeccoes";
 import { useAuth } from "./context/AuthContext";
 import Usuarios from "./pages/Usuarios";
 import PrimeiroAcesso from "./pages/PrimeiroAcesso";
+import Tarefas from "./pages/Tarefas";
 
 const MOBILE_BREAKPOINT = 900;
 const APP_TITLE_BASE = "Financeiro Imóveis";
@@ -18,6 +19,7 @@ function getRouteTitle(pathname) {
   if (!pathname || pathname === "/") return `Financeiro — ${APP_TITLE_BASE}`;
   if (pathname === "/financeiro") return `Financeiro — ${APP_TITLE_BASE}`;
   if (pathname === "/prospeccoes") return `Prospecção — ${APP_TITLE_BASE}`;
+  if (pathname === "/tarefas") return `Tarefas — ${APP_TITLE_BASE}`;
   if (pathname === "/usuarios") return `Usuários — ${APP_TITLE_BASE}`;
   if (pathname === "/login") return `Entrar — ${APP_TITLE_BASE}`;
   if (pathname === "/primeiro-acesso") return `Primeiro acesso — ${APP_TITLE_BASE}`;
@@ -97,6 +99,7 @@ function App() {
             <Route path="/" element={<HomeEntry />} />
             <Route path="/financeiro" element={<FinanceiroEntry />} />
             <Route path="/prospeccoes" element={<Prospeccoes />} />
+            <Route path="/tarefas" element={<Tarefas />} />
             <Route path="/dashboard/:id" element={<DashboardEntry />} />
             <Route path="/usuarios" element={<UsuariosEntry />} />
           </Route>

@@ -7,6 +7,7 @@ vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({ user: usuario, hasRole: () => false }),
 }));
 const usuario = { id: 6, role: "prospector", ai_access: true, finance_access: false };
+vi.mock("../services/tarefas", () => ({ buscarResumoTarefas: vi.fn(async () => []) }));
 
 vi.mock("../services/prospeccoes", async (importOriginal) => {
   const actual = await importOriginal();

@@ -1,0 +1,1 @@
+CREATE INDEX portal_intencoes_usuario ON public.portal_intencoes_participacao(usuario_id);

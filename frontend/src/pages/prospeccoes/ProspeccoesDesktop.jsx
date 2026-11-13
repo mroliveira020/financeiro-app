@@ -129,7 +129,7 @@ function BidRange({ minimum, maximum, limit, onChange }) {
   );
 }
 
-function PropertyCard({ item, onOpen, onRequest, canAnalyze, getMapsUrl }) {
+function PropertyCard({ item, onOpen, onRequest, canAnalyze, getMapsUrl, taskCount }) {
   const mapsUrl = getMapsUrl(item);
   const originalUrl = /^https?:\/\//i.test(item.link || "") ? item.link : null;
   const hasAnalysis =
@@ -170,6 +170,7 @@ function PropertyCard({ item, onOpen, onRequest, canAnalyze, getMapsUrl }) {
                 ? "Financia"
                 : "Não financia"}
           </span>
+          {taskCount ? <span className={styles.taskCount}>{taskCount.total ? `${taskCount.a_fazer} de ${taskCount.total} tarefas a fazer` : 'Sem tarefas'}</span> : null}
         </span>
       </button>
       <div className={styles.cardFooter}>
@@ -260,6 +261,7 @@ export default function ProspeccoesDesktop({
   onActivate,
   onCloseTab,
   scrollRef,
+  taskCounts = {},
 }) {
   const [advanced, setAdvanced] = useState(false);
   const [citySearch, setCitySearch] = useState("");
@@ -637,6 +639,7 @@ export default function ProspeccoesDesktop({
                   onRequest={onRequest}
                   canAnalyze={canAnalyze}
                   getMapsUrl={getMapsUrl}
+                  taskCount={taskCounts[item.codigo]}
                 />
               ))}
             </div>

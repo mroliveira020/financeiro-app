@@ -187,6 +187,8 @@ def _ensure_module_access(user: Dict[str, Any]) -> Optional[tuple]:
     capabilities = get_user_capabilities(user)
     if "admin" in capabilities:
         return None
+    if (request.path == '/tarefas' or request.path.startswith('/tarefas/')) and capabilities & {'prospector', 'socio'}:
+        return None
     if "prospector" in capabilities and _is_allowed_path_for_prospector(request.path):
         return None
     if (
