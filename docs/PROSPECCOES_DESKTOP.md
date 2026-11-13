@@ -46,6 +46,12 @@ Comunicação consulta o histórico e permite enviar perguntas e pedidos de ajus
 
 A edição financeira dos capturados abre dentro de Viabilidade. A consulta e o salvamento recebem a origem do imóvel. Pedidos de leitura antigos do editor são descartados ao abrir outro imóvel. O formulário mantém as premissas, simulação e cálculos existentes.
 
+### Venda estimada pendente
+
+As respostas de análise em capturados e selecionados incluem `calculos.venda_estimada_pendente`. Venda estimada ausente, vazia ou menor ou igual a zero resulta em `inputs.valor_estimado_venda = null`. Nesse estado, lucro esperado, ROI e base do ganho de capital retornam `null`, enquanto os custos de aquisição permanecem disponíveis.
+
+A ficha e o editor indicam Viabilidade pendente e apresentam A definir nos resultados dependentes da venda. O formulário conserva a venda em aberto ao carregar fichas antigas com zero. A leitura também reconhece respostas antigas pelo valor de venda dos inputs, permitindo a publicação independente de frontend e backend. Uma venda positiva habilita os cálculos, incluindo resultados legitimamente negativos e resultado zero. A correção é aplicada nas consultas e cálculos, com os registros existentes preservados.
+
 A apresentação móvel usa o componente anterior. Esta entrega inclui 67 testes de interface, incluindo leitura de textos antigos, navegação, comunicação, edição financeira e respostas atrasadas. A conferência visual e as interações da prévia local usam dados ilustrativos. A conferência autenticada em produção depende do acesso do usuário.
 
 As decisões de participação e sincronismo foram atualizadas no backlog oficial. Retirar a intenção arquiva tarefas de preparação A fazer, preservando o histórico. A integração com Lembretes deve oferecer conexão, envio das tarefas, sincronizar agora, última sincronização, nova tentativa e desconexão, com vínculo estável para evitar duplicações. A geração automática de tarefas, anexos, exportação PDF e integração com o iPhone seguem nas tarefas próprias, vinculadas ao fluxo externo que será informado pelo usuário.

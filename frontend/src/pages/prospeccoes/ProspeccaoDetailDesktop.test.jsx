@@ -9,6 +9,10 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AvaliacaoDetalhadaModal } from "./ProspeccoesDetailModals";
 
+vi.mock("./ProspeccaoDialog", () => ({
+  default: ({ children }) => <div role="dialog">{children}</div>,
+}));
+
 const fixture = (extra = {}) => ({
   inline: true,
   item: {
@@ -64,6 +68,26 @@ const fixture = (extra = {}) => ({
 afterEach(cleanup);
 
 describe("Ficha desktop do imóvel", () => {
+  it.each([true, false])("sinaliza venda pendente na ficha inline=%s mesmo com cálculo legado negativo", (inline) => {
+    render(<AvaliacaoDetalhadaModal {...fixture({
+      inline,
+      tab: "viabilidade",
+      analiseDetalhada: {
+        inputs: { valor_estimado_venda: 0 },
+        calculos: {
+          capital_investido_estimado: 100000,
+          custo_total_imovel: 100000,
+          lucro_esperado_valor: -100000,
+          roi_esperado_percentual: -100,
+        },
+      },
+    })} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Viabilidade pendente");
+    expect(screen.getAllByText("A definir")).toHaveLength(2);
+    expect(screen.queryByText("R$ -100000")).not.toBeInTheDocument();
+    expect(screen.queryByText("-100%")).not.toBeInTheDocument();
+  });
+
   it("abre na página com a cidade em destaque e o menor lance junto à data correspondente", () => {
     const props = fixture();
     render(<AvaliacaoDetalhadaModal {...props} />);

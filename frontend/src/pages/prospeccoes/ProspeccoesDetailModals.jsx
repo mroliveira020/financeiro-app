@@ -3,6 +3,10 @@ import ProspeccaoDialog from "./ProspeccaoDialog";
 import ProspeccaoDetailDesktop from "./ProspeccaoDetailDesktop";
 import { handleTabKeys } from "../../utils/handleTabKeys";
 import {
+  MENSAGEM_VIABILIDADE_PENDENTE,
+  temVendaEstimadaPendente,
+} from "../../utils/viabilidade";
+import {
   OfertaAvisos,
   ProspectGallery,
   TextoEstruturado,
@@ -290,6 +294,7 @@ function AvaliacaoDetalhadaMobile({
   );
   const matriculaDisponivel = Boolean(`${aiAnalise?.matricula_texto || ""}`.trim());
   const viabilidadeDisponivel = Boolean(analiseDetalhada?.calculos);
+  const vendaPendente = temVendaEstimadaPendente(analiseDetalhada);
   const podeSelecionarNoHub = origem === "capturados" && !inline;
   const investimentoEstimadoEnriquecimento = avaliacaoAuto
     ? (avaliacaoAuto.custo_aquisicao_est || 0)
@@ -512,6 +517,7 @@ function AvaliacaoDetalhadaMobile({
                   <p className="prospects-empty">Carregando resumo financeiro...</p>
                 ) : analiseDetalhada?.calculos ? (
                   <>
+                    {vendaPendente && <p role="status" className="prospects-modal__hint">{MENSAGEM_VIABILIDADE_PENDENTE}</p>}
                     {getMensagemPrefillAnalise(analiseDetalhada?.meta) ? (
                       <p className="prospects-modal__hint">
                         {getMensagemPrefillAnalise(analiseDetalhada.meta)}
@@ -528,11 +534,11 @@ function AvaliacaoDetalhadaMobile({
                       </div>
                       <div className="prospects-auto-card">
                         <span>Lucro esperado</span>
-                        <strong>{formatarMoeda(analiseDetalhada.calculos.lucro_esperado_valor)}</strong>
+                        <strong>{vendaPendente ? "A definir" : formatarMoeda(analiseDetalhada.calculos.lucro_esperado_valor)}</strong>
                       </div>
                       <div className="prospects-auto-card">
                         <span>ROI estimado</span>
-                        <strong>{formatarPercentual(analiseDetalhada.calculos.roi_esperado_percentual)}</strong>
+                        <strong>{vendaPendente ? "A definir" : formatarPercentual(analiseDetalhada.calculos.roi_esperado_percentual)}</strong>
                       </div>
                     </div>
                   </>
@@ -828,7 +834,7 @@ function AvaliacaoDetalhadaMobile({
                   </div>
                   <div className="prospects-ai-summary__actions">
                     <button type="button" className="prospects-btn secondary prospects-btn--subtle" onClick={() => onAbrirAnalise(item)}>
-                      {viabilidadeDisponivel ? "Editar análise financeira" : "Preencher análise financeira"}
+                      {viabilidadeDisponivel && !vendaPendente ? "Editar análise financeira" : "Preencher análise financeira"}
                     </button>
                   </div>
                 </div>
@@ -837,6 +843,7 @@ function AvaliacaoDetalhadaMobile({
                   <p className="prospects-empty">Carregando resumo financeiro...</p>
                 ) : viabilidadeDisponivel ? (
                   <>
+                    {vendaPendente && <p role="status" className="prospects-modal__hint">{MENSAGEM_VIABILIDADE_PENDENTE}</p>}
                     {getMensagemPrefillAnalise(analiseDetalhada?.meta) ? (
                       <p className="prospects-modal__hint">
                         {getMensagemPrefillAnalise(analiseDetalhada.meta)}
@@ -853,11 +860,11 @@ function AvaliacaoDetalhadaMobile({
                       </div>
                       <div className="prospects-auto-card">
                         <span>Lucro esperado</span>
-                        <strong>{formatarMoeda(analiseDetalhada.calculos.lucro_esperado_valor)}</strong>
+                        <strong>{vendaPendente ? "A definir" : formatarMoeda(analiseDetalhada.calculos.lucro_esperado_valor)}</strong>
                       </div>
                       <div className="prospects-auto-card">
                         <span>ROI estimado</span>
-                        <strong>{formatarPercentual(analiseDetalhada.calculos.roi_esperado_percentual)}</strong>
+                        <strong>{vendaPendente ? "A definir" : formatarPercentual(analiseDetalhada.calculos.roi_esperado_percentual)}</strong>
                       </div>
                     </div>
                   </>

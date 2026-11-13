@@ -10,6 +10,10 @@ import {
 } from "./ProspeccoesShared";
 import styles from "./ProspeccaoDetailDesktop.module.css";
 import TarefasPainel from "../../components/tarefas/TarefasPainel";
+import {
+  MENSAGEM_VIABILIDADE_PENDENTE,
+  temVendaEstimadaPendente,
+} from "../../utils/viabilidade";
 
 const tabs = [
   { key: "dados", label: "Visão geral" },
@@ -198,12 +202,13 @@ export default function ProspeccaoDetailDesktop({
   const date = (value) =>
     value ? formatarDataHoraCompacta(value) : "Data não informada";
   const financial = analiseDetalhada?.calculos;
+  const vendaPendente = temVendaEstimadaPendente(analiseDetalhada);
   const financialEntries = financial
     ? [
         ["Capital investido", money(financial.capital_investido_estimado)],
         ["Custo total", money(financial.custo_total_imovel)],
-        ["Lucro esperado", money(financial.lucro_esperado_valor)],
-        ["ROI estimado", formatarPercentual(financial.roi_esperado_percentual)],
+        ["Lucro esperado", vendaPendente ? "A definir" : money(financial.lucro_esperado_valor)],
+        ["ROI estimado", vendaPendente ? "A definir" : formatarPercentual(financial.roi_esperado_percentual)],
       ]
     : [];
 
@@ -213,6 +218,11 @@ export default function ProspeccaoDetailDesktop({
         <p className={styles.empty}>Carregando análise financeira…</p>
       ) : financial ? (
         <>
+          {vendaPendente && (
+            <p role="status" className={styles.hint}>
+              {MENSAGEM_VIABILIDADE_PENDENTE}
+            </p>
+          )}
           <Metrics entries={financialEntries} />
           {getMensagemPrefillAnalise(analiseDetalhada?.meta) ? (
             <p className={styles.hint}>
@@ -229,7 +239,7 @@ export default function ProspeccaoDetailDesktop({
         onClick={() => onAbrirAnalise(item)}
         disabled={financialSaving}
       >
-        {financial ? "Editar premissas financeiras" : "Preencher viabilidade"}
+        {financial && !vendaPendente ? "Editar premissas financeiras" : "Preencher viabilidade"}
       </button>
     </>
   );

@@ -4093,7 +4093,13 @@ def calcular_analise_prospeccao(dados):
     tempo_operacao_meses = _coerce_tempo_operacao(dados.get("tempo_operacao_meses"))
     percentual_financiamento = _round_percent(dados.get("percentual_financiamento"))
     prestacao_mensal_financiamento = _round_money(dados.get("prestacao_mensal_financiamento"))
-    valor_estimado_venda = _round_money(dados.get("valor_estimado_venda"))
+    valor_estimado_venda = _coerce_nullable_money(dados.get("valor_estimado_venda"))
+    venda_estimada_pendente = (
+        valor_estimado_venda is None or valor_estimado_venda <= 0
+    )
+    if venda_estimada_pendente:
+        valor_estimado_venda = None
+    venda_para_calculo = valor_estimado_venda or 0.0
 
     reforma = _round_money(dados.get("reforma"))
     condominio_atraso = _round_money(dados.get("condominio_atraso"))
@@ -4157,7 +4163,7 @@ def calcular_analise_prospeccao(dados):
     )
 
     base_ganho_capital = _round_money(max(
-        (valor_estimado_venda - comissao_corretor_valor) - custo_total_imovel,
+        (venda_para_calculo - comissao_corretor_valor) - custo_total_imovel,
         0.0,
     ))
     ganho_capital_percentual, ganho_capital_valor = _resolver_percentual_valor(
@@ -4167,7 +4173,7 @@ def calcular_analise_prospeccao(dados):
     )
 
     lucro_esperado_valor = _round_money(
-        valor_estimado_venda -
+        venda_para_calculo -
         comissao_corretor_valor -
         ganho_capital_valor -
         custo_total_imovel
@@ -4185,6 +4191,7 @@ def calcular_analise_prospeccao(dados):
         "percentual_financiamento": percentual_financiamento,
         "prestacao_mensal_financiamento": prestacao_mensal_financiamento,
         "valor_estimado_venda": valor_estimado_venda,
+        "venda_estimada_pendente": venda_estimada_pendente,
         "reforma": reforma,
         "condominio_atraso": condominio_atraso,
         "iptu_atraso": iptu_atraso,
@@ -4211,11 +4218,14 @@ def calcular_analise_prospeccao(dados):
         "desembolso_aquisicao": desembolso_aquisicao,
         "custo_total_imovel": custo_total_imovel,
         "capital_investido_estimado": capital_investido_estimado,
-        "base_ganho_capital": base_ganho_capital,
-        "despesas_pos_venda": _round_money(comissao_corretor_valor + ganho_capital_valor),
-        "lucro_esperado_valor": lucro_esperado_valor,
-        "roi_esperado_percentual": roi_esperado_percentual,
-        "roi_esperado_valor": lucro_esperado_valor,
+        "base_ganho_capital": None if venda_estimada_pendente else base_ganho_capital,
+        "despesas_pos_venda": (
+            None if venda_estimada_pendente
+            else _round_money(comissao_corretor_valor + ganho_capital_valor)
+        ),
+        "lucro_esperado_valor": None if venda_estimada_pendente else lucro_esperado_valor,
+        "roi_esperado_percentual": None if venda_estimada_pendente else roi_esperado_percentual,
+        "roi_esperado_valor": None if venda_estimada_pendente else lucro_esperado_valor,
     }
 
 
@@ -4852,7 +4862,7 @@ def _montar_resposta_analise_prospeccao(row, numero_bem):
             "valor_maximo_lance": float(row["valor_maximo_lance"]) if row["valor_maximo_lance"] is not None else (float(row.get("valor_maximo")) if row.get("valor_maximo") is not None else 0.0),
             "percentual_financiamento": float(row["percentual_financiamento"]) if row["percentual_financiamento"] is not None else 0.0,
             "prestacao_mensal_financiamento": float(row["prestacao_mensal_financiamento"]) if row["prestacao_mensal_financiamento"] is not None else 0.0,
-            "valor_estimado_venda": float(row["valor_estimado_venda"]) if row["valor_estimado_venda"] is not None else 0.0,
+            "valor_estimado_venda": _float_or_none(row["valor_estimado_venda"]),
             "reforma": float(row["reforma"]) if row["reforma"] is not None else 0.0,
             "condominio_atraso": float(row["condominio_atraso"]) if row["condominio_atraso"] is not None else 0.0,
             "iptu_atraso": float(row["iptu_atraso"]) if row["iptu_atraso"] is not None else 0.0,
@@ -4888,6 +4898,7 @@ def _montar_resposta_analise_prospeccao(row, numero_bem):
         "numero_bem": numero_bem,
         "inputs": calculada,
         "calculos": {
+            "venda_estimada_pendente": calculada["venda_estimada_pendente"],
             "despesas_unicas": calculada["despesas_unicas"],
             "despesa_mensal_total": calculada["despesa_mensal_total"],
             "despesas_mensais_projetadas": calculada["despesas_mensais_projetadas"],

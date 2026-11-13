@@ -2,8 +2,10 @@ import { OfertaAvisos } from "./ProspeccoesShared";
 import ProspeccaoDialog from "./ProspeccaoDialog";
 /* eslint-disable react-refresh/only-export-components */
 import React from "react";
+import { MENSAGEM_VIABILIDADE_PENDENTE } from "../../utils/viabilidade";
 
 const formatarMoeda = (valor) => {
+  if (valor === null || valor === undefined) return "A definir";
   const numero = Number(valor || 0);
   return numero.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 };
@@ -133,6 +135,7 @@ const formatIntegerInput = (value) => {
 };
 
 export const formatDraftValue = (field, value) => {
+  if (field === "valor_estimado_venda" && toNumber(value) <= 0) return "";
   if (MONEY_FIELDS.has(field)) return formatMoneyInput(value);
   if (PERCENT_FIELDS.has(field)) return formatPercentInput(value);
   if (INTEGER_FIELDS.has(field)) return formatIntegerInput(value);
@@ -218,6 +221,7 @@ const computeAnalise = (draft, pairModes) => {
   const percentualFinanciamento = roundPercent(draft.percentual_financiamento);
   const prestacaoMensalFinanciamento = roundMoney(draft.prestacao_mensal_financiamento);
   const valorEstimadoVenda = roundMoney(draft.valor_estimado_venda);
+  const vendaEstimadaPendente = valorEstimadoVenda <= 0;
 
   const reforma = roundMoney(draft.reforma);
   const condominioAtraso = roundMoney(draft.condominio_atraso);
@@ -285,7 +289,7 @@ const computeAnalise = (draft, pairModes) => {
     valor_maximo_lance: valorMaximoLance,
     percentual_financiamento: percentualFinanciamento,
     prestacao_mensal_financiamento: prestacaoMensalFinanciamento,
-    valor_estimado_venda: valorEstimadoVenda,
+    valor_estimado_venda: vendaEstimadaPendente ? null : valorEstimadoVenda,
     reforma,
     condominio_atraso: condominioAtraso,
     iptu_atraso: iptuAtraso,
@@ -306,6 +310,7 @@ const computeAnalise = (draft, pairModes) => {
   };
 
   const calculos = {
+    venda_estimada_pendente: vendaEstimadaPendente,
     valor_financiado: valorFinanciado,
     desembolso_aquisicao: desembolsoAquisicao,
     despesas_unicas: despesasUnicas,
@@ -315,10 +320,10 @@ const computeAnalise = (draft, pairModes) => {
     custo_financiamento_projetado: custoFinanciamentoProjetado,
     custo_total_imovel: custoTotalImovel,
     capital_investido_estimado: capitalInvestidoEstimado,
-    base_ganho_capital: baseGanhoCapital,
-    despesas_pos_venda: despesasPosVenda,
-    lucro_esperado_valor: lucroEsperadoValor,
-    roi_esperado_percentual: roiEsperadoPercentual,
+    base_ganho_capital: vendaEstimadaPendente ? null : baseGanhoCapital,
+    despesas_pos_venda: vendaEstimadaPendente ? null : despesasPosVenda,
+    lucro_esperado_valor: vendaEstimadaPendente ? null : lucroEsperadoValor,
+    roi_esperado_percentual: vendaEstimadaPendente ? null : roiEsperadoPercentual,
   };
 
   return { inputs, calculos };
@@ -464,7 +469,7 @@ export function AnaliseModal({
                   </div>
                   {vendaEstimadaPendente ? (
                     <div className="prospects-analise-inline-note prospects-analise-inline-note--warning" role="status" aria-live="polite">
-                      O ROI aparece indefinido enquanto o campo <strong>Valor estimado da venda</strong> estiver zerado. Preencha esse valor para ver a projeção real.
+                      {MENSAGEM_VIABILIDADE_PENDENTE}
                     </div>
                   ) : null}
                 </section>
