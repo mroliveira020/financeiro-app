@@ -90,14 +90,7 @@ export default function LancamentosImovel({ imovelId, refreshKey, onChanged }) {
     };
   }, [imovelId, refreshKey]);
 
-  useEffect(() => {
-    if (socios.length === 1)
-      setForm((atual) =>
-        atual && !atual.paid_by_user_id
-          ? { ...atual, paid_by_user_id: String(socios[0].user_id) }
-          : atual,
-      );
-  }, [socios]);
+  const pagadorSelecionado = form?.paid_by_user_id || (socios.length === 1 ? String(socios[0].user_id) : "");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -177,14 +170,14 @@ export default function LancamentosImovel({ imovelId, refreshKey, onChanged }) {
       if (
         socios.length &&
         !socios.some(
-          (item) => String(item.user_id) === String(form.paid_by_user_id),
+          (item) => String(item.user_id) === String(pagadorSelecionado),
         )
       )
         throw new Error("Selecione quem pagou.");
       const base = {
         id_imovel: Number(imovelId),
-        paid_by_user_id: form.paid_by_user_id
-          ? Number(form.paid_by_user_id)
+        paid_by_user_id: pagadorSelecionado
+          ? Number(pagadorSelecionado)
           : null,
         tipo_movimentacao: form.tipo_movimentacao || "despesa_imovel",
         beneficiary_user_id: form.beneficiary_user_id ?? null,
@@ -554,7 +547,7 @@ export default function LancamentosImovel({ imovelId, refreshKey, onChanged }) {
                 <label>
                   Quem pagou
                   <select
-                    value={form.paid_by_user_id}
+                    value={pagadorSelecionado}
                     onChange={(event) =>
                       alterar("paid_by_user_id", event.target.value)
                     }

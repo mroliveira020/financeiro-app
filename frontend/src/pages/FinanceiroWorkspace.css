@@ -558,3 +558,20 @@
 .socios-desktop .financeiro-formulario footer { margin-top: 12px; }
 .socios-desktop h2 { margin-bottom: 0; }
 .financeiro-historico .financeiro-tabela th:not(:nth-child(4)), .financeiro-historico .financeiro-tabela td:not(:nth-child(4)) { text-align: left; }
+
+.carteira-tabela tfoot {
+  border-top: 2px solid var(--fin-linha);
+  background: var(--surface-brand-soft);
+  font-weight: 700;
+}
+.carteira-tabela tfoot th,
+.carteira-tabela tfoot td {
+  padding: 16px 8px;
+  color: var(--fin-texto);
+}
+.carteira-tabela tfoot small {
+  display: block;
+  margin-top: 4px;
+  color: var(--fin-secundario);
+  font-weight: 400;
+}
