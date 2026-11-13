@@ -51,7 +51,7 @@ describe("AppLayout", () => {
       hasCapability: (...caps) => caps.includes("prospector"),
     });
 
-    expect(screen.queryByRole("link", { name: /financeiro/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /carteira/i })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /prospec/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /usuários/i })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Prospecção" })).toBeInTheDocument();
@@ -63,10 +63,10 @@ describe("AppLayout", () => {
       hasCapability: (...caps) => caps.includes("socio"),
     });
 
-    expect(screen.getByRole("link", { name: /financeiro/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /carteira/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /prospec/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /usuários/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Financeiro" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Carteira" })).toBeInTheDocument();
   });
 
   it("mostra toda a navegação para administrador", () => {
@@ -75,7 +75,7 @@ describe("AppLayout", () => {
       hasCapability: (...caps) => caps.includes("admin"),
     });
 
-    expect(screen.getByRole("link", { name: /financeiro/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /carteira/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /prospec/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /usuários/i })).toBeInTheDocument();
     expect(screen.getByTestId("editor-bar")).toBeInTheDocument();
@@ -90,7 +90,7 @@ describe("AppLayout", () => {
     });
 
     const bottomNav = screen.getByRole("navigation", { name: /navegação principal/i });
-    expect(within(bottomNav).getByRole("link", { name: /financeiro/i })).toBeInTheDocument();
+    expect(within(bottomNav).getByRole("link", { name: /carteira/i })).toBeInTheDocument();
     expect(within(bottomNav).getByRole("link", { name: /prospec/i })).toBeInTheDocument();
     expect(within(bottomNav).getByRole("link", { name: /usuários/i })).toBeInTheDocument();
   });

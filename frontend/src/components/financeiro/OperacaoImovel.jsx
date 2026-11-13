@@ -134,6 +134,7 @@ export default function OperacaoImovel({
           refreshKey={refreshKey}
           onChanged={onChanged}
           viewMode={visao}
+          onNavigate={selecionar}
         />
       </div>
       {visitadas.includes("lancamentos") && (

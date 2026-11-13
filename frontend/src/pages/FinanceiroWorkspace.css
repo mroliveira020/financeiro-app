@@ -111,6 +111,7 @@
 }
 .carteira-desktop > header {
   margin-bottom: 0 !important;
+  justify-content: flex-end !important;
 }
 .carteira-desktop > .card {
   border-radius: 0;
@@ -159,6 +160,118 @@
 }
 .financeiro-metricas strong {
   font-size: clamp(18px, 2vw, 26px);
+}
+.financeiro-workspace .resumo-card {
+  display: block;
+  container: none;
+}
+.resumo-operacao {
+  font-size: 16px;
+}
+.financeiro-workspace .resumo-card--operacao h2 {
+  font-size: 26px;
+  font-weight: 700;
+}
+.financeiro-workspace .resumo-operacao__indicadores {
+  clear: both;
+  padding: 0 0 24px;
+  border-bottom: 1px solid var(--fin-linha);
+}
+.resumo-operacao__indicadores dt {
+  margin-bottom: 10px;
+  color: var(--fin-secundario);
+  font-weight: 400;
+}
+.resumo-operacao__indicadores dd {
+  margin: 0;
+  font-size: clamp(20px, 2vw, 28px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.resumo-operacao__colunas {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 28px;
+}
+.financeiro-workspace .resumo-operacao h3 {
+  margin: 0 0 18px;
+  font-size: 24px;
+  font-weight: 700;
+}
+.resumo-operacao__socios {
+  border-left: 1px solid var(--fin-linha);
+  padding-left: 28px;
+}
+.resumo-operacao__valores {
+  margin-bottom: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.resumo-operacao__valores > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 6px;
+  border-bottom: 1px solid var(--fin-linha);
+}
+.resumo-operacao__valores dt {
+  color: var(--fin-secundario);
+  font-weight: 400;
+}
+.resumo-operacao__valores dd {
+  flex-shrink: 0;
+  margin: 0;
+}
+.resumo-operacao__valores .resumo-operacao__resultado {
+  margin-top: 12px;
+  padding: 12px 8px;
+  border: 0;
+  border-radius: 5px;
+  background: #e5edff;
+  font-size: 18px;
+  font-weight: 700;
+}
+.resumo-operacao__resultado dt {
+  color: var(--fin-texto);
+  font-weight: 700;
+}
+.resumo-operacao__valores .resumo-operacao__roi {
+  border: 0;
+}
+.resumo-operacao__roi dd {
+  font-size: 20px;
+  font-weight: 700;
+}
+.resumo-operacao__participacao {
+  color: var(--fin-secundario);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.resumo-operacao__acertos {
+  padding-top: 2px;
+  margin-bottom: 24px;
+}
+.resumo-operacao__acertos h4 {
+  margin-bottom: 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.resumo-operacao__acertos p {
+  margin-bottom: 6px;
+}
+.resumo-operacao__acertos .resumo-operacao__saldo {
+  font-size: 26px;
+  font-weight: 700;
+}
+@media (max-width: 1200px) {
+  .resumo-operacao__colunas {
+    grid-template-columns: 1fr;
+  }
+  .resumo-operacao__socios {
+    padding: 24px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--fin-linha);
+  }
 }
 .financeiro-tabela-scroll {
   overflow-x: auto;
@@ -361,6 +474,9 @@
 }
 .financeiro-workspace .resumo-card__table {
   overflow-x: auto;
+}
+.financeiro-workspace .resumo-card__budget-table {
+  display: block;
 }
 .financeiro-workspace .resumo-card__table th {
   white-space: normal;

@@ -664,9 +664,15 @@ function Home({ desktop = false, onOpenImovel, refreshKey = 0 }) {
 
   return (
     <div className={desktop ? "carteira-desktop" : "container py-4"}>
-      <header className="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 gap-3">
-        <div>
-          <h1 className="fs-3 fw-bold mb-1">{desktop ? "Imóveis comprados" : "Painel de Imóveis"}</h1>
+      <header
+        className={
+          desktop && !canEdit
+            ? "visually-hidden"
+            : "d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 gap-3"
+        }
+      >
+        <div className={desktop ? "visually-hidden" : undefined}>
+          <h1 className="fs-3 fw-bold mb-1">{desktop ? "Carteira" : "Painel de Imóveis"}</h1>
           {!desktop && <p className="text-muted mb-0">Acompanhe os resultados e acesse os dashboards de cada operação.</p>}
         </div>
         {canEdit && (
