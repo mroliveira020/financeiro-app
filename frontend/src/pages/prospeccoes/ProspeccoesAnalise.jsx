@@ -360,6 +360,7 @@ function CampoTextoNumerico({ label, value, onChange, onFocus, onBlur, placehold
 }
 
 export function AnaliseModal({
+  inline = false,
   item,
   draft,
   meta,
@@ -386,12 +387,13 @@ export function AnaliseModal({
     return formatDraftValue(field, inputs[field]);
   };
 
+  const Container = inline ? "section" : ProspeccaoDialog;
+  const containerProps = inline
+    ? { className: "prospect-financial-inline prospects-modal--analise", "aria-labelledby": "analise-title" }
+    : { className: "prospects-modal--analise", titleId: "analise-title", onClose: () => { if (!saving) onClose(); } };
+
   return (
-    <ProspeccaoDialog
-      className="prospects-modal--analise"
-      titleId="analise-title"
-      onClose={() => { if (!saving) onClose(); }}
-    >
+    <Container {...containerProps}>
         <div className="prospects-modal__header">
           <div>
             <p className="prospects-eyebrow">Viabilidade</p>
@@ -607,12 +609,12 @@ export function AnaliseModal({
         </div>
         <div className="prospects-modal__footer">
           <button type="button" className="prospects-btn secondary" onClick={onClose} disabled={saving}>
-            Fechar
+            {inline ? "Fechar edição" : "Fechar"}
           </button>
           <button type="button" className="prospects-btn primary" onClick={onSave} disabled={loading || saving}>
             {saving ? "Salvando..." : "Salvar análise"}
           </button>
         </div>
-    </ProspeccaoDialog>
+    </Container>
   );
 }

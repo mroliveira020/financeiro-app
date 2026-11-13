@@ -43,6 +43,11 @@ vi.mock("./prospeccoes/ProspeccoesDetailModals", () => ({
     <button onClick={p.onSolicitarMatricula}>Solicitar matrícula</button>
     <button onClick={p.onSolicitarEnriquecimento}>Enriquecer</button>
     <button onClick={() => p.onTabChange("enriquecimento")}>Aba enriquecimento</button>
+    <button onClick={() => p.onTabChange("comunicacao")}>Aba comunicação</button>
+    <button onClick={() => p.onTabChange("dados")}>Aba dados</button>
+    <button onClick={() => p.onAbrirAnalise(p.item)}>Editar viabilidade</button>
+    <input aria-label="Rascunho de mensagem" value={p.mensagemDraft} onChange={(event) => p.onMensagemDraftChange(event.target.value)} />
+    {p.financialEditor}
   </div> : null,
 }));
 
@@ -81,6 +86,72 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("IA isolada por abertura do imóvel", () => {
+  it("preserva a mensagem ao voltar à prospecção e reabrir o imóvel", async () => {
+    montar();
+    await abrir("A");
+    await waitFor(() => expect(screen.getByTestId("texto-ia")).toHaveTextContent("Análise A"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Rascunho de mensagem" }), { target: { value: "Rever ocupação." } });
+    fireEvent.click(screen.getByRole("button", { name: "Fechar hub" }));
+    await abrir("A");
+    expect(screen.getByRole("textbox", { name: "Rascunho de mensagem" })).toHaveValue("Rever ocupação.");
+  });
+
+  it("abre a análise financeira com a origem do imóvel capturado", async () => {
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+    montar();
+    await abrir("A");
+    await waitFor(() => expect(screen.getByTestId("texto-ia")).toHaveTextContent("Análise A"));
+    fireEvent.click(screen.getByRole("button", { name: "Editar viabilidade" }));
+    expect(fetchAnaliseSelecionado).toHaveBeenLastCalledWith("A", "capturados");
+    await screen.findByLabelText("Valor estimado da venda");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("descarta a leitura antiga do editor financeiro ao editar outro imóvel", async () => {
+    const oldRead = deferred();
+    fetchAnaliseSelecionado.mockImplementation((numero, origem, options) => {
+      if (options) return Promise.resolve({ numero_bem: numero });
+      return numero === "A" ? oldRead.promise : Promise.resolve({ inputs: { valor_estimado_venda: 250000 } });
+    });
+    montar();
+    await abrir("A");
+    fireEvent.click(screen.getByRole("button", { name: "Editar viabilidade" }));
+    await abrir("B");
+    fireEvent.click(screen.getByRole("button", { name: "Editar viabilidade" }));
+    await waitFor(() => expect(screen.getByLabelText("Valor estimado da venda")).toHaveValue("250.000,00"));
+    await act(async () => oldRead.resolve({ inputs: { valor_estimado_venda: 99000 } }));
+    expect(screen.getByLabelText("Valor estimado da venda")).toHaveValue("250.000,00");
+  });
+
+  it("carrega a comunicação salva sem solicitar um novo processamento", async () => {
+    montar();
+    fireEvent.click(await screen.findByRole("button", { name: "Selecionado A" }));
+    await waitFor(() => expect(screen.getByTestId("financeiro")).toHaveTextContent("A"));
+    expect(fetchAiAnalise).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Aba comunicação" }));
+    await waitFor(() => expect(screen.getByTestId("texto-ia")).toHaveTextContent("Análise A"));
+    expect(enviarMensagemAiChat).not.toHaveBeenCalled();
+    expect(solicitarMatricula).not.toHaveBeenCalled();
+    expect(solicitarEnriquecimento).not.toHaveBeenCalled();
+  });
+
+  it("mantém o aviso de processamento ao mudar de seção do imóvel", async () => {
+    const job = deferred();
+    pollAiJob.mockImplementation((numero, jobId, options) => {
+      options.onProgress({ status: "pending" });
+      return job.promise;
+    });
+    montar();
+    await abrir("A");
+    await waitFor(() => expect(screen.getByTestId("texto-ia")).toHaveTextContent("Análise A"));
+    fireEvent.click(screen.getByRole("button", { name: "Gerar IA" }));
+    await waitFor(() => expect(screen.getByTestId("status-ia")).toHaveTextContent(/aguardando processamento/i));
+    fireEvent.click(screen.getByRole("button", { name: "Aba comunicação" }));
+    expect(screen.getByTestId("status-ia")).toHaveTextContent(/aguardando processamento/i);
+    await act(async () => job.resolve({ numero_bem: "A", status: "done" }));
+  });
+
   it("descarta a leitura atrasada de A depois de abrir B", async () => {
     const antigo = deferred();
     fetchAiAnalise.mockImplementation((numero) => numero === "A" ? antigo.promise : Promise.resolve(analise("B")));
@@ -159,7 +230,7 @@ describe("IA isolada por abertura do imóvel", () => {
     await waitFor(() => expect(screen.getByTestId("texto-ia")).toHaveTextContent("Análise B"));
     await act(async () => job.resolve({ numero_bem: "A", status: "done" }));
     expect(screen.getByTestId("texto-ia")).toHaveTextContent("Análise B");
-    expect(screen.getByTestId("enriquecimento")).toBeEmptyDOMElement();
+    expect(screen.getByTestId("enriquecimento")).toHaveTextContent("B");
   });
 
   it("descarta enriquecimento carregado por uma aba anterior", async () => {
@@ -172,7 +243,7 @@ describe("IA isolada por abertura do imóvel", () => {
     await waitFor(() => expect(fetchEnriquecimento).toHaveBeenCalledTimes(1));
     await abrir("B");
     await act(async () => antigo.resolve({ numero_bem: "A" }));
-    expect(screen.getByTestId("enriquecimento")).toBeEmptyDOMElement();
+    expect(screen.getByTestId("enriquecimento")).toHaveTextContent("B");
     expect(screen.getByRole("heading", { name: "Imóvel B" })).toBeInTheDocument();
   });
 

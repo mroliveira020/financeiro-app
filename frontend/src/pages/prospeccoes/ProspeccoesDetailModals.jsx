@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import ProspeccaoDialog from "./ProspeccaoDialog";
+import ProspeccaoDetailDesktop from "./ProspeccaoDetailDesktop";
 import { handleTabKeys } from "../../utils/handleTabKeys";
 import {
   OfertaAvisos,
@@ -180,7 +181,14 @@ export function AvaliacaoAutomaticaModal({
   );
 }
 
-export function AvaliacaoDetalhadaModal({
+export function AvaliacaoDetalhadaModal(props) {
+  if (!props.item) return null;
+  return props.inline
+    ? <ProspeccaoDetailDesktop {...props} />
+    : <AvaliacaoDetalhadaMobile {...props} />;
+}
+
+function AvaliacaoDetalhadaMobile({
   inline = false,
   item,
   tab,
