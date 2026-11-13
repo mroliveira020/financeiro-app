@@ -125,6 +125,27 @@
   width: auto;
   height: auto;
 }
+.carteira-tabela__controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+  margin-bottom: 24px;
+}
+.carteira-tabela__controles .financeiro-filtros {
+  flex: 1 1 560px;
+  margin-bottom: 0;
+}
+.carteira-tabela__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+.carteira-tabela__acoes .financeiro-visao {
+  margin: 0;
+}
 .financeiro-filtros {
   display: flex;
   gap: 16px;

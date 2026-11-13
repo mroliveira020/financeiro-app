@@ -17,6 +17,7 @@ export default function CarteiraTabela({
   imoveis,
   onOpen,
   onIncluirVendidos,
+  onAddImovel,
   refreshKey,
 }) {
   const [visao, setVisao] = useState("total");
@@ -77,61 +78,78 @@ export default function CarteiraTabela({
 
   return (
     <section className="carteira-tabela">
-      <div className="financeiro-visao">
-        {[
-          ["total", "Total"],
-          ["minha", "Minha participação"],
-        ].map(([valor, titulo]) => (
-          <button
-            type="button"
-            key={valor}
-            aria-pressed={visao === valor}
-            disabled={valor === "minha" && !participacoes}
-            onClick={() => setVisao(valor)}
+      <div className="carteira-tabela__controles">
+        <div className="financeiro-filtros">
+          <label>
+            Buscar imóvel
+            <input
+              type="search"
+              value={busca}
+              onChange={(event) => setBusca(event.target.value)}
+              placeholder="Nome ou endereço"
+            />
+          </label>
+          <label>
+            Situação
+            <select
+              value={situacao}
+              onChange={(event) => {
+                setSituacao(event.target.value);
+                onIncluirVendidos(event.target.value !== "ativos");
+              }}
+            >
+              <option value="ativos">Ativos</option>
+              <option value="vendidos">Vendidos</option>
+              <option value="todos">Todos</option>
+            </select>
+          </label>
+          <label>
+            Ordenar por
+            <select
+              value={ordenacao}
+              onChange={(event) => setOrdenacao(event.target.value)}
+            >
+              <option value="nome">Nome do imóvel</option>
+              <option value="investimentoTotal">Investimento previsto</option>
+              <option value="valorEfetivado">Efetivado</option>
+              <option value="valorAInvestir">A investir</option>
+              <option value="lucroProjetado">Resultado projetado</option>
+            </select>
+          </label>
+        </div>
+        <div className="carteira-tabela__acoes">
+          <div
+            className="financeiro-visao"
+            aria-label="Visão financeira da carteira"
           >
-            {titulo}
-          </button>
-        ))}
+            {[
+              ["total", "Total"],
+              ["minha", "Minha participação"],
+            ].map(([valor, titulo]) => (
+              <button
+                type="button"
+                key={valor}
+                aria-pressed={visao === valor}
+                disabled={valor === "minha" && !participacoes}
+                onClick={() => setVisao(valor)}
+              >
+                {titulo}
+              </button>
+            ))}
+          </div>
+          {onAddImovel && (
+            <button
+              type="button"
+              className="fin-button fin-button-primary"
+              onClick={onAddImovel}
+              aria-label="Cadastrar novo imóvel"
+            >
+              <span aria-hidden="true">＋</span> Imóvel
+            </button>
+          )}
+        </div>
       </div>
       {erro && <p role="alert">{erro}</p>}
-      <div className="financeiro-filtros">
-        <label>
-          Buscar imóvel
-          <input
-            type="search"
-            value={busca}
-            onChange={(event) => setBusca(event.target.value)}
-            placeholder="Nome ou endereço"
-          />
-        </label>
-        <label>
-          Situação
-          <select
-            value={situacao}
-            onChange={(event) => {
-              setSituacao(event.target.value);
-              onIncluirVendidos(event.target.value !== "ativos");
-            }}
-          >
-            <option value="ativos">Ativos</option>
-            <option value="vendidos">Vendidos</option>
-            <option value="todos">Todos</option>
-          </select>
-        </label>
-        <label>
-          Ordenar por
-          <select
-            value={ordenacao}
-            onChange={(event) => setOrdenacao(event.target.value)}
-          >
-            <option value="nome">Nome do imóvel</option>
-            <option value="investimentoTotal">Investimento previsto</option>
-            <option value="valorEfetivado">Efetivado</option>
-            <option value="valorAInvestir">A investir</option>
-            <option value="lucroProjetado">Resultado projetado</option>
-          </select>
-        </label>
-      </div>
       <div className="financeiro-metricas">
         {[
           ["Investimento previsto", totais.previsto],

@@ -42,3 +42,16 @@ it("recalcula pelos imóveis vendidos e pela participação de cada imóvel", as
   expect(rodape()).toHaveTextContent("3 imóveis");
   expect(valores()).toEqual(["R$ 3.000,00", "R$ 2.525,00", "R$ 475,00", "R$ 525,00"]);
 });
+
+it("oferece o cadastro na faixa de controles quando a página disponibiliza a ação", () => {
+  const incluir = vi.fn();
+  const props = { imoveis, onOpen: vi.fn(), onIncluirVendidos: vi.fn() };
+  const { rerender } = render(<CarteiraTabela {...props} />);
+  expect(screen.queryByRole("button", { name: "Cadastrar novo imóvel" })).not.toBeInTheDocument();
+
+  rerender(<CarteiraTabela {...props} onAddImovel={incluir} />);
+  fireEvent.click(screen.getByRole("button", { name: "Cadastrar novo imóvel" }));
+  expect(incluir).toHaveBeenCalledOnce();
+  expect(screen.getByRole("searchbox", { name: "Buscar imóvel" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Total" })).toHaveAttribute("aria-pressed", "true");
+});

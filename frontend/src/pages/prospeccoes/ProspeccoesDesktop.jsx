@@ -401,7 +401,7 @@ export default function ProspeccoesDesktop({
         aria-labelledby="desktop-research-tab"
         hidden={Boolean(activeCode)}
       >
-        <h1>Prospecção</h1>
+        <h1 className={styles.srOnly}>Prospecção</h1>
         <div className={styles.filters}>
           <ProspeccaoSearch
             value={query.busca}
