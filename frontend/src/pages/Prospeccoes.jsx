@@ -460,6 +460,7 @@ export default function Prospeccoes() {
   const [observacaoMapLink, setObservacaoMapLink] = useState("");
   const [observacaoAnaliseBase, setObservacaoAnaliseBase] = useState(null);
   const [analiseItem, setAnaliseItem] = useState(null);
+  const analiseLoadRequestRef = useRef(0);
   const [analiseDraft, setAnaliseDraft] = useState(null);
   const [analiseMeta, setAnaliseMeta] = useState(null);
   const [analiseCache, setAnaliseCache] = useState({});
@@ -991,6 +992,8 @@ export default function Prospeccoes() {
   };
 
   const openAnaliseModal = async (item, origem = "selecionados") => {
+    if (analiseSaving) return;
+    const requestId = ++analiseLoadRequestRef.current;
     const fallbackInputs = createAnaliseFallbackInputs(item);
     const cacheKey = `${origem}:${item.codigo}`;
     const cachedAnalise = analiseCache[cacheKey];
@@ -1001,12 +1004,14 @@ export default function Prospeccoes() {
     setAnaliseLoading(true);
     try {
       const data = await fetchAnaliseSelecionado(item.codigo, origem);
+      if (requestId !== analiseLoadRequestRef.current) return;
       const inputs = data?.inputs || {};
       setAnaliseCache((prev) => ({ ...prev, [cacheKey]: data }));
       setAnaliseDraft(createAnaliseDraft(inputs));
       setAnalisePairModes(createAnalisePairModes(inputs));
       setAnaliseMeta(data?.meta || null);
     } catch (err) {
+      if (requestId !== analiseLoadRequestRef.current) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao carregar análise");
       setMensagem(message);
       const fallbackData = cachedAnalise || {
@@ -1017,11 +1022,12 @@ export default function Prospeccoes() {
       setAnalisePairModes(createAnalisePairModes(fallbackData.inputs));
       setAnaliseMeta(fallbackData.meta || { prefill_source: "fallback_local" });
     } finally {
-      setAnaliseLoading(false);
+      if (requestId === analiseLoadRequestRef.current) setAnaliseLoading(false);
     }
   };
 
   const closeAnaliseModal = () => {
+    analiseLoadRequestRef.current += 1;
     setAnaliseItem(null);
     setAnaliseDraft(null);
     setAnaliseMeta(null);
@@ -1238,8 +1244,8 @@ export default function Prospeccoes() {
     const session = hubSession.begin(item.codigo, origem);
     const aiAttemptKey = `${origem}:${item.codigo}`;
     const enriquecimentoAttemptKey = `${origem}:${item.codigo}`;
-    const needsAiData = initialTab === "ia" || initialTab === "matricula";
-    const needsEnriquecimentoData = initialTab === "enriquecimento";
+    const needsAiData = ["ia", "matricula", "comunicacao"].includes(initialTab);
+    const needsEnriquecimentoData = initialTab === "enriquecimento" || (!mobileAccess && initialTab === "ia");
     aiAutoInitAttemptRef.current.clear();
     enriquecimentoFetchAttemptRef.current.clear();
     aiDeferredActionRef.current = gerarAnaliseInicial ? { numeroBem: item.codigo, origem, tipo: "analise_inicial" } : null;
@@ -1292,6 +1298,13 @@ export default function Prospeccoes() {
   };
 
   const closeAvaliacaoDetalhadaModal = () => {
+    if (!mobileAccess && avaliacaoDetalhadaItem) {
+      desktopDraftsRef.current.set(avaliacaoDetalhadaItem.codigo, {
+        mensagem: aiMensagemDraft,
+        sintese: aiSinteseDraft !== (aiAnalise?.analise_texto || "") ? aiSinteseDraft : undefined,
+        tab: avaliacaoDetalhadaTab,
+      });
+    }
     hubSession.cancel();
     if (avaliacaoDetalhadaItem?.codigo) {
       enriquecimentoFetchAttemptRef.current.delete(`${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem.codigo}`);
@@ -1554,8 +1567,7 @@ export default function Prospeccoes() {
 
   const handleAvaliacaoDetalhadaTabChange = useCallback((nextTab) => {
     setAvaliacaoDetalhadaTab(nextTab);
-    setAvaliacaoDetalhadaStatusState();
-  }, [setAvaliacaoDetalhadaStatusState]);
+  }, []);
 
   const avaliacaoDetalhadaStatusAction = (() => {
     if (!avaliacaoDetalhadaStatusActionKind) return null;
@@ -1567,17 +1579,17 @@ export default function Prospeccoes() {
   })();
 
   useEffect(() => {
-    if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "ia") return;
+    if (!avaliacaoDetalhadaItem || !["ia", "comunicacao"].includes(avaliacaoDetalhadaTab)) return;
     const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
     if (!session) return;
     if (aiLoading || aiSending) return;
-    if (aiAnalise?.historico_chat?.length || aiAnalise?.matricula_texto) return;
-    if (!(user?.ai_access || user?.role === "admin")) return;
+    if (aiAnalise && (!mobileAccess || aiAnalise.historico_chat?.length || aiAnalise.matricula_texto)) return;
+    if (mobileAccess && !(user?.ai_access || user?.role === "admin")) return;
     const aiAttemptKey = `${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem.codigo}`;
     if (aiAutoInitAttemptRef.current.has(aiAttemptKey)) return;
     aiAutoInitAttemptRef.current.add(aiAttemptKey);
 
-    carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: mobileAccess, origem: avaliacaoDetalhadaOrigem }).catch((err) => {
+    carregarAiAnalise(avaliacaoDetalhadaItem.codigo, { autoInit: mobileAccess && avaliacaoDetalhadaTab === "ia", origem: avaliacaoDetalhadaOrigem }).catch((err) => {
       if (!session.isCurrent()) return;
       const message = err?.response?.data?.error || (err instanceof Error ? err.message : "Erro ao iniciar avaliação IA");
       setMensagem(message);
@@ -1588,7 +1600,7 @@ export default function Prospeccoes() {
   }, [hubSession, avaliacaoDetalhadaItem, avaliacaoDetalhadaTab, avaliacaoDetalhadaOrigem, aiAnalise, aiLoading, aiSending, user, carregarAiAnalise, setAvaliacaoDetalhadaStatusState, mobileAccess]);
 
   useEffect(() => {
-    if (!avaliacaoDetalhadaItem || avaliacaoDetalhadaTab !== "enriquecimento") return;
+    if (!avaliacaoDetalhadaItem || (avaliacaoDetalhadaTab !== "enriquecimento" && (mobileAccess || !["ia", "matricula"].includes(avaliacaoDetalhadaTab)))) return;
     const session = hubSession.get(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem);
     if (!session) return;
     if (enriquecimentoLoading || enriquecimentoDetalhadoLoading || enriquecimentoDetalhado) return;
@@ -1596,11 +1608,11 @@ export default function Prospeccoes() {
     if (enriquecimentoFetchAttemptRef.current.has(attemptKey)) return;
     enriquecimentoFetchAttemptRef.current.add(attemptKey);
     setEnriquecimentoDetalhadoLoading(true);
-    setAvaliacaoDetalhadaStatusState();
+    if (mobileAccess) setAvaliacaoDetalhadaStatusState();
     session.wait(fetchEnriquecimento(avaliacaoDetalhadaItem.codigo, avaliacaoDetalhadaOrigem, { signal: session.signal }))
       .then((data) => {
         setEnriquecimentoDetalhado(data || null);
-        setAvaliacaoDetalhadaStatusState();
+        if (mobileAccess) setAvaliacaoDetalhadaStatusState();
       })
       .catch((err) => {
         if (!session.isCurrent()) return;
@@ -1617,6 +1629,7 @@ export default function Prospeccoes() {
     enriquecimentoDetalhado,
     enriquecimentoLoading,
     enriquecimentoDetalhadoLoading,
+    mobileAccess,
     setAvaliacaoDetalhadaStatusState,
   ]);
 
@@ -1850,6 +1863,24 @@ export default function Prospeccoes() {
     return () => setTopbarContent(null);
   }, [mobileAccess, selectedBaseDados.length, selectedMetrics.altaPrioridade, selectedMetrics.semResponsavel, selectedPrimaryStatLabel, setTopbarContent]);
 
+  const inlineFinancial = !mobileAccess && analiseItem?.origem === "capturados";
+  const financialEditor = <AnaliseModal
+    inline={inlineFinancial}
+    item={analiseItem}
+    draft={analiseDraft}
+    meta={analiseMeta}
+    pairModes={analisePairModes}
+    loading={analiseLoading}
+    saving={analiseSaving}
+    onClose={closeAnaliseModal}
+    onFieldChange={handleAnaliseFieldChange}
+    onFieldFocus={handleAnaliseFieldFocus}
+    onFieldBlur={handleAnaliseFieldBlur}
+    onPairModeChange={handleAnalisePairModeChange}
+    onSave={handleSalvarAnalise}
+    onSimularOfertaAtual={handleSimularOfertaAtual}
+  />;
+
   return (
     <div className={`prospects-page ${mobileAccess ? "" : "prospects-page--desktop"}`}>
       {mensagem ? (
@@ -2063,8 +2094,8 @@ export default function Prospeccoes() {
           }}
           onCloseTab={(codigo) => {
             setDesktopTabs((current) => current.filter((item) => item.codigo !== codigo));
-            desktopDraftsRef.current.delete(codigo);
             if (avaliacaoDetalhadaItem?.codigo === codigo) closeAvaliacaoDetalhadaModal();
+            desktopDraftsRef.current.delete(codigo);
           }}
         />
       )}
@@ -2112,21 +2143,7 @@ export default function Prospeccoes() {
         onSave={handleSalvarObservacoes}
       />
 
-      <AnaliseModal
-        item={analiseItem}
-        draft={analiseDraft}
-        meta={analiseMeta}
-        pairModes={analisePairModes}
-        loading={analiseLoading}
-        saving={analiseSaving}
-        onClose={closeAnaliseModal}
-        onFieldChange={handleAnaliseFieldChange}
-        onFieldFocus={handleAnaliseFieldFocus}
-        onFieldBlur={handleAnaliseFieldBlur}
-        onPairModeChange={handleAnalisePairModeChange}
-        onSave={handleSalvarAnalise}
-        onSimularOfertaAtual={handleSimularOfertaAtual}
-      />
+      {inlineFinancial ? null : financialEditor}
 
       <AvaliacaoAutomaticaModal
         item={avaliacaoAutomaticaItem}
@@ -2147,6 +2164,8 @@ export default function Prospeccoes() {
       />
 
       <AvaliacaoDetalhadaModal
+        financialEditor={inlineFinancial && analiseItem?.codigo === avaliacaoDetalhadaItem?.codigo && analiseItem?.origem === avaliacaoDetalhadaOrigem ? financialEditor : null}
+        financialSaving={analiseSaving}
         inline={!mobileAccess}
         key={`${avaliacaoDetalhadaOrigem}:${avaliacaoDetalhadaItem?.codigo || "fechado"}`}
         item={avaliacaoDetalhadaItem}
@@ -2177,7 +2196,10 @@ export default function Prospeccoes() {
         onSolicitarMatricula={handleSolicitarMatricula}
         onSolicitarEnriquecimento={handleSolicitarEnriquecimento}
         onSelecionarNoFunil={handleSelecionarNoHub}
-        onAbrirAnalise={openAnaliseModal}
+        onAbrirAnalise={(item) => {
+          if (!mobileAccess) setAvaliacaoDetalhadaTab("viabilidade");
+          openAnaliseModal(item, avaliacaoDetalhadaOrigem);
+        }}
         selecionandoNoFunil={Boolean(avaliacaoDetalhadaItem && includeLoadingIds.has(avaliacaoDetalhadaItem.codigo))}
         jaSelecionadoNoFunil={Boolean(avaliacaoDetalhadaItem && selectedCodes.has(avaliacaoDetalhadaItem.codigo))}
         canChat={Boolean(user?.ai_access || user?.role === "admin")}

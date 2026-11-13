@@ -35,3 +35,17 @@ A primeira entrega cobre pesquisa, cards, links e abas com a ficha existente. A 
 ## Validação desta revisão
 
 Foram aprovados 54 testes de interface, 49 testes de backend, ESLint e build de produção. A consulta de preço e data e a classificação de análises foram verificadas com SELECT sobre a base real. A prévia local foi capturada com o componente integrado e dados ilustrativos. Os cliques enviados pela automação do navegador continuaram sem acionar os controles, por isso a conferência manual de interação em navegador permanece pendente. Os testes de interface exercitam filtros, links, abas, consultas e solicitação de IA com serviços simulados.
+
+## Ficha do imóvel no computador
+
+A ficha oferece Visão geral, Avaliação IA, Comunicação e Viabilidade. Cidade e UF identificam o imóvel no cabeçalho. O menor lance e sua data usam os mesmos campos do card. Google Maps, anúncio original e edital ficam junto à navegação. A referência fotográfica permanece ao lado da leitura.
+
+A Avaliação IA organiza títulos Markdown explícitos em seções expansíveis. Textos antigos sem títulos são exibidos integralmente em Análise disponível. Matrícula, comparáveis, contexto do leilão, bairro e resumo financeiro continuam acessíveis. As seções exibem o conteúdo persistido. A geração de um relatório completo no padrão editorial definido depende da integração com o fluxo externo de IA.
+
+Comunicação consulta o histórico e permite enviar perguntas e pedidos de ajuste pelo serviço de chat existente. O comando interno de inicialização é ocultado. A navegação conserva avisos de processamento. Voltar à prospecção preserva rascunhos de mensagem e síntese na sessão da página. Leituras e resultados atrasados de outro imóvel são descartados.
+
+A edição financeira dos capturados abre dentro de Viabilidade. A consulta e o salvamento recebem a origem do imóvel. Pedidos de leitura antigos do editor são descartados ao abrir outro imóvel. O formulário mantém as premissas, simulação e cálculos existentes.
+
+A apresentação móvel usa o componente anterior. Esta entrega inclui 67 testes de interface, incluindo leitura de textos antigos, navegação, comunicação, edição financeira e respostas atrasadas. A conferência visual e as interações da prévia local usam dados ilustrativos. A conferência autenticada em produção depende do acesso do usuário.
+
+As decisões de participação e sincronismo foram atualizadas no backlog oficial. Retirar a intenção arquiva tarefas de preparação A fazer, preservando o histórico. A integração com Lembretes deve oferecer conexão, envio das tarefas, sincronizar agora, última sincronização, nova tentativa e desconexão, com vínculo estável para evitar duplicações. A geração automática de tarefas, anexos, exportação PDF e integração com o iPhone seguem nas tarefas próprias, vinculadas ao fluxo externo que será informado pelo usuário.

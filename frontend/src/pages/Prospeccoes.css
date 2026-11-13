@@ -3703,4 +3703,14 @@
   .prospect-detail-inline .prospects-modal__body { max-height: none; overflow: visible; padding: 0; }
   .prospect-detail-inline .prospects-modal__header { padding: 0 0 12px; }
   .prospect-detail-inline .prospects-modal__close { border-radius: 5px; }
+  .prospect-financial-inline .prospects-analise-grid--sticky-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .prospect-financial-inline .prospects-analise-grid--sticky-summary .prospects-analise-section--summary { grid-column: 1 / -1; grid-row: auto; position: static; box-shadow: none; }
+  .prospect-financial-inline .prospects-analise-grid--sticky-summary .prospects-analise-section--quarter { grid-column: span 1; }
+  .prospect-financial-inline .prospects-analise-grid--sticky-summary .prospects-analise-section--half,
+  .prospect-financial-inline .prospects-analise-grid--sticky-summary .prospects-analise-section--full { grid-column: 1 / -1; }
+  .prospect-financial-inline .prospects-analise-section { border-radius: 6px; }
+  .prospect-financial-inline .prospects-summary-card,
+  .prospect-financial-inline .prospects-form-field input { border-radius: 5px; }
+  .prospect-financial-inline .prospects-btn { border-radius: 5px; min-height: 32px; padding: 7px 11px; font-size: 13px; }
+  .prospect-financial-inline .prospects-modal__footer { padding: 16px 0 0; }
 }
