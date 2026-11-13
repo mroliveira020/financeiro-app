@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useCompactLayout } from "../../hooks/useCompactLayout";
 import EditorBar from "../EditorBar";
 import { useAuth } from "../../context/AuthContext";
 import logo from "../../assets/house-color.png";
@@ -35,10 +36,12 @@ const icons = {
 };
 
 function ShellNavLink({ to, icon, label, compact = false }) {
+  const location = useLocation();
+  const financeActive = to === "/" && (location.pathname === "/financeiro" || location.pathname.startsWith("/dashboard/"));
   return (
     <NavLink
       to={to}
-      className={({ isActive }) => `app-shell__nav-item ${compact ? "app-shell__nav-item--compact" : ""} ${isActive ? "active" : ""}`.trim()}
+      className={({ isActive }) => `app-shell__nav-item ${compact ? "app-shell__nav-item--compact" : ""} ${isActive || financeActive ? "active" : ""}`.trim()}
       end
     >
       {icon}
@@ -50,6 +53,8 @@ function ShellNavLink({ to, icon, label, compact = false }) {
 export default function AppLayout() {
   const { user, hasCapability, logout } = useAuth();
   const location = useLocation();
+  const compactLayout = useCompactLayout();
+  const isFinanceiroDesktop = !compactLayout && (location.pathname === "/" || location.pathname === "/financeiro" || location.pathname.startsWith("/dashboard/"));
   const [topbarContent, setTopbarContent] = useState(null);
   const canAccessFinance = Boolean(user?.finance_access || hasCapability("admin"));
   const canAccessProspeccoes = hasCapability("admin", "prospector");
@@ -89,7 +94,7 @@ export default function AppLayout() {
   }, []);
 
   return (
-    <div className={`app-shell ${isProspeccoesPage ? "app-shell--prospeccao" : ""}`}>
+    <div className={`app-shell ${isProspeccoesPage ? "app-shell--prospeccao" : ""} ${isFinanceiroDesktop ? "app-shell--financeiro-desktop" : ""}`}>
       <aside className="app-shell__sidebar">
         <div className="app-shell__brand">
           <img src={logo} alt="Financeiro Imóveis" />

@@ -5,7 +5,7 @@ import "./EqualizacaoConsolidada.css";
 const moeda = (centavos) => (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const hoje = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
-export default function EqualizacaoConsolidada({ imovelId, refreshKey, onChanged }) {
+export default function EqualizacaoConsolidada({ imovelId, refreshKey, onChanged, inline = false, onOpenChange, historico }) {
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState("");
@@ -57,17 +57,18 @@ export default function EqualizacaoConsolidada({ imovelId, refreshKey, onChanged
   const fechar = useCallback(() => {
     if (salvando) return;
     setAberto(false);
+    onOpenChange?.(false);
     if (sucesso) onChanged?.();
     botaoRef.current?.focus();
-  }, [salvando, sucesso, onChanged]);
+  }, [salvando, sucesso, onChanged, onOpenChange]);
 
   useEffect(() => {
-    if (!aberto) return undefined;
+    if (!aberto || inline) return undefined;
     fecharRef.current?.focus();
     const anterior = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = anterior; };
-  }, [aberto]);
+  }, [aberto, inline]);
 
   const grupo = dados?.socios.find((s) => String(s.socio_id) === socioId);
   const itens = grupo?.imoveis.filter((i) => selecionados.includes(i.id_imovel)) || [];
@@ -110,6 +111,283 @@ export default function EqualizacaoConsolidada({ imovelId, refreshKey, onChanged
     if (!event.shiftKey && document.activeElement === ultimo) { event.preventDefault(); primeiro?.focus(); }
   };
 
+  if (inline) {
+    if (!aberto)
+      return (
+        <div className="financeiro-compensar-acao">
+          {outros > 0 || erro ? (
+            <button
+              className="fin-button"
+              ref={botaoRef}
+              onClick={() => {
+                setAberto(true);
+                onOpenChange?.(true);
+                setSucesso(null);
+                setData(hoje());
+                setDescricao("");
+                carregar();
+              }}
+            >
+              Compensar entre imóveis
+            </button>
+          ) : null}
+        </div>
+      );
+    return (
+      <section className="compensacao-inline">
+        <div className="financeiro-cabecalho-secao">
+          <h2>Compensação entre imóveis</h2>
+          <button
+            type="button"
+            className="fin-button"
+            ref={fecharRef}
+            disabled={salvando}
+            onClick={fechar}
+          >
+            Voltar aos saldos
+          </button>
+        </div>
+        {sucesso ? (
+          <div role="status" className="financeiro-sucesso">
+            <h3>Acerto registrado</h3>
+            <p>
+              {sucesso.valor_transferido > 0
+                ? `Transferência registrada de ${moeda(Math.round(sucesso.valor_transferido * 100))}.`
+                : "Os valores selecionados foram compensados integralmente."}
+            </p>
+            <p>O histórico de cada imóvel ficou vinculado ao mesmo acerto.</p>
+            <button type="button" className="fin-button" onClick={fechar}>
+              Concluir
+            </button>
+          </div>
+        ) : (
+          <>
+            <p>
+              Selecione os imóveis para acertar seus saldos com o mesmo sócio.
+            </p>
+            {carregando ? (
+              <p role="status">Atualizando saldos…</p>
+            ) : (
+              <form onSubmit={confirmar}>
+                <fieldset disabled={salvando}>
+                  <div className="financeiro-duas-colunas">
+                    <div>
+                      <label className="compensacao-socio">
+                        Sócio
+                        <select
+                          value={socioId}
+                          onChange={(event) => {
+                            mudar(setSocioId, event.target.value);
+                            setSelecionados(
+                              dados.socios
+                                .find(
+                                  (socio) =>
+                                    String(socio.socio_id) ===
+                                    event.target.value,
+                                )
+                                ?.imoveis.map((imovel) => imovel.id_imovel) ||
+                                [],
+                            );
+                          }}
+                        >
+                          <option value="">Selecione</option>
+                          {dados?.socios.map((socio) => (
+                            <option key={socio.socio_id} value={socio.socio_id}>
+                              {socio.socio_nome}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <h3>Seus saldos com {grupo?.socio_nome || "o sócio"}</h3>
+                      <p>{itens.length} imóveis selecionados</p>
+                      <div className="financeiro-tabela-scroll">
+                        <table className="financeiro-tabela">
+                          <thead>
+                            <tr>
+                              <th>
+                                <input
+                                  type="checkbox"
+                                  aria-label="Selecionar todos os imóveis"
+                                  ref={(node) => {
+                                    if (node)
+                                      node.indeterminate =
+                                        itens.length > 0 &&
+                                        itens.length <
+                                          (grupo?.imoveis.length || 0);
+                                  }}
+                                  checked={
+                                    Boolean(grupo?.imoveis.length) &&
+                                    itens.length === grupo.imoveis.length
+                                  }
+                                  onChange={(event) =>
+                                    mudar(
+                                      setSelecionados,
+                                      event.target.checked
+                                        ? grupo?.imoveis.map(
+                                            (imovel) => imovel.id_imovel,
+                                          ) || []
+                                        : [],
+                                    )
+                                  }
+                                />
+                              </th>
+                              <th>Imóvel</th>
+                              <th>A receber</th>
+                              <th>A pagar</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {grupo?.imoveis.map((imovel) => (
+                              <tr key={imovel.id_imovel}>
+                                <td>
+                                  <input
+                                    type="checkbox"
+                                    aria-label={`Incluir ${imovel.nome}`}
+                                    checked={selecionados.includes(
+                                      imovel.id_imovel,
+                                    )}
+                                    onChange={() =>
+                                      mudar(
+                                        setSelecionados,
+                                        selecionados.includes(imovel.id_imovel)
+                                          ? selecionados.filter(
+                                              (id) => id !== imovel.id_imovel,
+                                            )
+                                          : [...selecionados, imovel.id_imovel],
+                                      )
+                                    }
+                                  />
+                                </td>
+                                <td>
+                                  <strong>{imovel.nome}</strong>
+                                  {imovel.atual && (
+                                    <small className="d-block">
+                                      Imóvel atual
+                                    </small>
+                                  )}
+                                </td>
+                                <td className="financeiro-positivo">
+                                  {imovel.saldo_centavos > 0
+                                    ? moeda(imovel.saldo_centavos)
+                                    : "—"}
+                                </td>
+                                <td className="financeiro-pendente">
+                                  {imovel.saldo_centavos < 0
+                                    ? moeda(-imovel.saldo_centavos)
+                                    : "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {historico && <div className="compensacao-historico">{historico}</div>}
+                  {!grupo && (
+                        <p>
+                          Não há saldos elegíveis para compensar neste momento.
+                        </p>
+                      )}
+                      {(dados?.avisos || []).map((aviso) => (
+                        <p className="financeiro-aviso" key={aviso.id_imovel}>
+                          {aviso.nome} — {aviso.motivo}
+                        </p>
+                      ))}
+                    </div>
+                    <aside className="financeiro-formulario">
+                      <h3>Prévia do acerto</h3>
+                      <div aria-live="polite" className="compensacao-previa">
+                        <p>
+                          A receber <strong>{moeda(aReceber)}</strong>
+                        </p>
+                        <p>
+                          A pagar <strong>{moeda(aPagar)}</strong>
+                        </p>
+                        <h3>
+                          {saldo > 0
+                            ? `Você recebe de ${grupo?.socio_nome || "o sócio"}`
+                            : saldo < 0
+                              ? `Você paga para ${grupo?.socio_nome || "o sócio"}`
+                              : "Compensação integral"}
+                        </h3>
+                        <strong className="compensacao-valor">
+                          {moeda(Math.abs(saldo))}
+                        </strong>
+                        <p>
+                          O acerto será registrado nos {itens.length} imóveis
+                          selecionados.
+                        </p>
+                      </div>
+                      <label>
+                        Data do acerto
+                        <input
+                          type="date"
+                          required
+                          value={data}
+                          onChange={(event) =>
+                            mudar(setData, event.target.value)
+                          }
+                        />
+                      </label>
+                      <label>
+                        Observação (opcional)
+                        <input
+                          maxLength={500}
+                          value={descricao}
+                          onChange={(event) =>
+                            mudar(setDescricao, event.target.value)
+                          }
+                        />
+                      </label>
+                      {saldo !== 0 && (
+                        <p>
+                          Após confirmar{" "}
+                          {saldo > 0 ? "o recebimento" : "o pagamento"},
+                          registre o acerto.
+                        </p>
+                      )}
+                      {itens.length < 2 && (
+                        <p>Selecione pelo menos dois imóveis.</p>
+                      )}
+                      <footer>
+                        <button
+                          type="button"
+                          className="fin-button"
+                          onClick={fechar}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          className="fin-button fin-button-primary"
+                          disabled={
+                            !grupo || itens.length < 2 || !data || bloqueado
+                          }
+                        >
+                          {salvando ? "Registrando…" : "Registrar acerto"}
+                        </button>
+                      </footer>
+                    </aside>
+                  </div>
+                </fieldset>
+              </form>
+            )}
+            {erro && (
+              <div role="alert" className="financeiro-erro">
+                {erro}{" "}
+                <button
+                  className="fin-button"
+                  disabled={salvando}
+                  onClick={carregar}
+                >
+                  Atualizar saldos
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+    );
+  }
   return <>
     {outros > 0 || erro ? <button type="button" className="equalizacao-consolidada__trigger" ref={botaoRef}
       aria-label="Ver saldos de equalização em outros imóveis" aria-haspopup="dialog"

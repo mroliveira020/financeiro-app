@@ -9,7 +9,7 @@ import { useCompactLayout } from "../hooks/useCompactLayout";
 const formatarMoeda = (valor) =>
   Number(valor ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-const dataHojeIso = () => new Date().toISOString().slice(0, 10);
+const dataHojeIso = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
 const formatarDataBrasil = (valor) => {
   if (!valor) return "—";
@@ -33,8 +33,11 @@ const formatarDataBrasil = (valor) => {
   return data.toLocaleDateString("pt-BR");
 };
 
-function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "total" }) {
-  const { id } = useParams();
+function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "total", imovelId, desktop = false, onCompensacaoChange }) {
+  const { id: routeId } = useParams();
+  const id = imovelId || routeId;
+  const [compensando, setCompensando] = useState(false);
+  const [sucesso, setSucesso] = useState("");
   const { hasCapability, user } = useAuth();
   const [estado, setEstado] = useState({
     carregando: true,
@@ -240,6 +243,7 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
         descricao: "",
       });
       setModalEqualizacaoAberto(false);
+      setSucesso("Acerto registrado.");
       onChanged?.();
       setVersaoLocal((versao) => versao + 1);
     } catch (error) {
@@ -278,6 +282,306 @@ function FinanceiroCompartilhadoCard({ refreshKey = 0, onChanged, viewMode = "to
     return null;
   }, [user?.id]);
 
+  if (desktop) {
+    if (estado.carregando && !estado.dados)
+      return <p role="status">Carregando posição dos sócios…</p>;
+    if (estado.erro)
+return (
+        <p role="alert" className="financeiro-erro">
+          {estado.erro}
+        </p>
+      );
+    const historicoDesktop = (
+<div className="financeiro-historico">
+              <h3>Histórico de acertos</h3>
+              <div className="financeiro-tabela-scroll">
+                <table className="financeiro-tabela">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>De</th>
+                      <th>Para</th>
+                      <th>Valor</th>
+                      <th>Observação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {equalizacoesExibidas.map((item) => (
+                      <tr key={item.id}>
+                        <td>{formatarDataBrasil(item.data)}</td>
+                        <td>{formatarNomeSocio(item.paid_by_user_id)}</td>
+                        <td>{formatarNomeSocio(item.beneficiary_user_id)}</td>
+                        <td>{formatarMoeda(item.valor)}</td>
+                        <td>
+                          {item.descricao || "Acerto entre sócios"}
+                          {item.equalizacao_operacao_id && (
+                            <small className="d-block">
+                              Acerto entre imóveis
+                            </small>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {!equalizacoesExibidas.length && <p>Nenhum acerto registrado.</p>}
+            </div>
+    );
+    return (
+      <section className="socios-desktop">
+        <EqualizacaoConsolidada
+          imovelId={id}
+          refreshKey={`${refreshKey}-${versaoLocal}`}
+          inline
+          historico={historicoDesktop}
+          onOpenChange={(aberto) => { setCompensando(aberto); onCompensacaoChange?.(aberto); }}
+          onChanged={() => {
+            setVersaoLocal((valor) => valor + 1);
+            onChanged?.();
+          }}
+        />
+        <div hidden={compensando}>
+          <h2>Sócios e acertos</h2>
+          <div className="financeiro-resumo-linha">
+            <span>
+              Despesas operacionais{" "}
+              <strong>
+                {formatarMoeda(totais.total_despesas_operacionais)}
+              </strong>
+            </span>
+            <span>
+              Acertos registrados{" "}
+              <strong>{formatarMoeda(totais.total_equalizacoes)}</strong>
+            </span>
+          </div>
+          {Number(totais.total_nao_atribuido) !== 0 && (
+            <p className="financeiro-aviso">
+              Despesas sem pagador atribuído{" "}
+              {formatarMoeda(totais.total_nao_atribuido)}. Revise os
+              lançamentos.
+            </p>
+          )}
+          <h3>Posição dos sócios</h3>
+          <div className="financeiro-tabela-scroll">
+            <table className="financeiro-tabela">
+              <thead>
+                <tr>
+                  {[
+                    "Sócio",
+                    "Participação",
+                    "Pago em despesas",
+                    "Parte nas despesas",
+                    "Acertos enviados",
+                    "Acertos recebidos",
+                    "Saldo atual",
+                  ].map((titulo) => (
+                    <th key={titulo}>{titulo}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sociosExibidos.map((socio) => (
+                  <tr key={socio.user_id}>
+                    <td>
+                      {formatarNomeSocio(socio.user_id)}
+                      {Number(socio.user_id) === Number(user?.id)
+                        ? " (você)"
+                        : ""}
+                    </td>
+                    <td>
+                      {Number(socio.percentual_participacao).toLocaleString(
+                        "pt-BR",
+                      )}
+                      %
+                    </td>
+                    <td>{formatarMoeda(socio.total_pago_operacional)}</td>
+                    <td>{formatarMoeda(socio.valor_devido_participacao)}</td>
+                    <td>{formatarMoeda(socio.equalizacao_enviada)}</td>
+                    <td>{formatarMoeda(socio.equalizacao_recebida)}</td>
+                    <td
+                      className={
+                        Number(socio.saldo_liquido) < 0
+                          ? "financeiro-pendente"
+                          : "financeiro-positivo"
+                      }
+                    >
+                      <strong>
+                        {formatarMoeda(Math.abs(Number(socio.saldo_liquido)))}
+                      </strong>
+                      <small className="d-block">
+                        {Number(socio.saldo_liquido) > 0
+                          ? "A receber"
+                          : Number(socio.saldo_liquido) < 0
+                            ? "A pagar"
+                            : "Equalizado"}
+                      </small>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {!sociosExibidos.length && (
+            <p>Nenhum sócio configurado para este imóvel.</p>
+          )}
+          {socioAtual && (
+            <p className="financeiro-aviso">
+              {saldoAPagar > 0
+                ? `Você tem ${formatarMoeda(saldoAPagar)} a pagar.`
+                : saldoAReceber > 0
+                  ? `Você tem ${formatarMoeda(saldoAReceber)} a receber.`
+                  : "Sua posição está equalizada."}
+            </p>
+          )}
+          {sucesso && (
+            <p role="status" className="financeiro-sucesso">
+              {sucesso}
+            </p>
+          )}
+          <div
+            className={
+              podeRegistrarMinhaEqualizacao ? "financeiro-duas-colunas" : ""
+            }
+          >
+            {historicoDesktop}
+            {podeRegistrarMinhaEqualizacao && (
+              <aside className="financeiro-formulario">
+                <h3>
+                  {direcaoEqualizacao === "receber"
+                    ? "Registrar recebimento"
+                    : "Registrar pagamento"}
+                </h3>
+                <p>
+                  Registre após confirmar{" "}
+                  {direcaoEqualizacao === "receber"
+                    ? "o recebimento"
+                    : "o pagamento"}
+                  .
+                </p>
+                <form onSubmit={handleSubmitEqualizacao}>
+                  <fieldset disabled={salvandoEqualizacao}>
+                    <label>
+                      Data
+                      <input
+                        type="date"
+                        required
+                        value={form.data}
+                        onChange={(event) =>
+                          handleChange("data", event.target.value)
+                        }
+                      />
+                    </label>
+                    <label>
+                      Quem pagou
+                      {direcaoEqualizacao === "receber" ? (
+                        <select
+                          value={form.paid_by_user_id}
+                          onChange={(event) =>
+                            handleChange("paid_by_user_id", event.target.value)
+                          }
+                          required
+                        >
+                          <option value="">Selecione</option>
+                          {devedores.map((socio) => (
+                            <option key={socio.user_id} value={socio.user_id}>
+                              {formatarNomeSocio(socio.user_id)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input readOnly value={formatarNomeSocio(user?.id)} />
+                      )}
+                    </label>
+                    <label>
+                      Quem recebeu
+                      {direcaoEqualizacao === "pagar" ? (
+                        <select
+                          value={form.beneficiary_user_id}
+                          onChange={(event) =>
+                            handleChange(
+                              "beneficiary_user_id",
+                              event.target.value,
+                            )
+                          }
+                          required
+                        >
+                          <option value="">Selecione</option>
+                          {credores.map((socio) => (
+                            <option key={socio.user_id} value={socio.user_id}>
+                              {formatarNomeSocio(socio.user_id)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input readOnly value={formatarNomeSocio(user?.id)} />
+                      )}
+                    </label>
+                    <label>
+                      Valor
+                      <input
+                        required
+                        inputMode="decimal"
+                        value={form.valor}
+                        onChange={(event) =>
+                          handleChange("valor", event.target.value)
+                        }
+                      />
+                    </label>
+                    <label>
+                      Observação (opcional)
+                      <input
+                        value={form.descricao}
+                        onChange={(event) =>
+                          handleChange("descricao", event.target.value)
+                        }
+                      />
+                    </label>
+                    <p>
+                      Pix{" "}
+                      {sociosPorId[String(form.beneficiary_user_id)]
+                        ?.user_pix_key || "não informado"}
+                    </p>
+                    {erroEqualizacao && (
+                      <p role="alert" className="financeiro-erro">
+                        {erroEqualizacao}
+                      </p>
+                    )}
+                    <footer>
+                      <button
+                        type="button"
+                        className="fin-button"
+                        onClick={() => {
+                          setForm((atual) => ({
+                            ...atual,
+                            valor: "",
+                            descricao: "",
+                          }));
+                          setErroEqualizacao("");
+                        }}
+                      >
+                        Limpar
+                      </button>
+                      <button
+                        type="submit"
+                        className="fin-button fin-button-primary"
+                      >
+                        {salvandoEqualizacao
+                          ? "Registrando…"
+                          : direcaoEqualizacao === "receber"
+                            ? "Registrar recebimento"
+                            : "Registrar pagamento"}
+                      </button>
+                    </footer>
+                  </fieldset>
+                </form>
+              </aside>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  }
   return (
     <section className="dashboard-card financeiro-compartilhado-card">
       <header className="financeiro-compartilhado-card__header">

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../../services/http";
 
-function ModalEditarImovel({ imovel, onClose, onSave }) {
+function ModalEditarImovel({ imovel, onClose, onSave, inline = false }) {
   const [form, setForm] = useState({
     nome: "",
     vendido: false,
@@ -139,9 +139,9 @@ function ModalEditarImovel({ imovel, onClose, onSave }) {
   };
 
   return (
-    <div className="modal fade show" style={{ display: "block" }} tabIndex="-1">
-      <div className="modal-dialog">
-        <div className="modal-content">
+    <div className={inline ? "financeiro-editor-dados" : "modal fade show"} style={{ display: "block" }} tabIndex="-1">
+      <div className={inline ? "" : "modal-dialog"}>
+        <div className={inline ? "" : "modal-content"}>
 
           <div className="modal-header">
             <h5 className="modal-title">Editar Imóvel</h5>

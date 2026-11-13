@@ -7,6 +7,8 @@ from ratelimit import limiter
 from models import (
     listar_lancamentos_incompletos_view,
     listar_lancamentos_completos_view,
+    listar_lancamentos_imovel,
+    listar_participacoes_usuario,
     adicionar_lancamentos_em_lote,
     atualizar_lancamentos_em_lote,
     obter_data_ultima_atualizacao,
@@ -45,6 +47,30 @@ def _obter_parametros_paginacao():
     page_size = request.args.get('pageSize', request.args.get('limit', 50))
     page = request.args.get('page', 1)
     return page_size, page
+
+
+@dashboard_bp.route('/dashboard/participacoes', methods=['GET'])
+@requires_auth
+@cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
+def get_participacoes_usuario():
+    return jsonify(listar_participacoes_usuario(get_current_user()['id'])), 200
+
+
+@dashboard_bp.route('/dashboard/lancamentos/imovel/<int:id_imovel>', methods=['GET'])
+@requires_auth
+@cross_origin(origins=ALLOWED_ORIGINS_LIST or '*')
+def get_lancamentos_imovel(id_imovel):
+    if not _usuario_pode_acessar_imovel_financeiro(id_imovel):
+        return jsonify({"error": "Permissão insuficiente para este imóvel"}), 403
+    try:
+        page_size, page = _obter_parametros_paginacao()
+        return jsonify(listar_lancamentos_imovel(
+            id_imovel, filtros=request.args, limit=page_size, page=page,
+        )), 200
+    except ValueError as error:
+        return jsonify({"error": str(error)}), 400
+    except Exception:
+        return jsonify({"error": "Não foi possível consultar os lançamentos."}), 500
 
 
 # ==========================================================

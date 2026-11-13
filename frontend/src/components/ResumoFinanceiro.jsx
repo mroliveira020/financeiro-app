@@ -2,11 +2,14 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../services/http";
 import ModalEditarOrcamento from "./ModalEditarOrcamento";
+import EditorOrcamento from "./financeiro/EditorOrcamento";
 import { useAuth } from "../context/AuthContext";
 import { useCompactLayout } from "../hooks/useCompactLayout";
 import { fetchSociosImovel } from "../services/api";
 
-function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
+function ResumoFinanceiro({ refreshKey = 0, viewMode = "total", imovelId, desktop = false, painel = "resumo", onChanged }) {
+  const [erro, setErro] = useState("");
+  const [loading, setLoading] = useState(true);
   const [resumo, setResumo] = useState([]);
   const [aliquotaGanhoCapital, setAliquotaGanhoCapital] = useState(0.15);
   const [mostrarModalOrcamento, setMostrarModalOrcamento] = useState(false);
@@ -18,10 +21,12 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
   const compactLayout = useCompactLayout();
 
   const { id: idImovelParam } = useParams();
-  const id_imovel = idImovelParam;
+  const id_imovel = imovelId || idImovelParam;
 
   const carregarResumo = useCallback(async () => {
     if (!id_imovel) return;
+    setLoading(true);
+    setErro("");
     try {
       const { data } = await api.get(`/dashboard/resumo-financeiro/${id_imovel}`);
       const itens = Array.isArray(data) ? data : data?.items || [];
@@ -31,7 +36,8 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
     } catch (error) {
       console.error("Erro ao buscar resumo financeiro", error);
       setAliquotaGanhoCapital(0.15);
-    }
+      setErro("Não foi possível carregar o resumo financeiro.");
+    } finally { setLoading(false); }
   }, [id_imovel]);
 
   useEffect(() => {
@@ -468,6 +474,98 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total" }) {
     </div>
   ) : null;
 
+  if (desktop) {
+    if (loading)
+      return <p role="status">Carregando informações financeiras…</p>;
+    if (erro)
+      return (
+        <div role="alert" className="financeiro-erro">
+          {erro}{" "}
+          <button className="fin-button" onClick={carregarResumo}>
+            Tentar novamente
+          </button>
+        </div>
+      );
+    return (
+      <section className="resumo-card">
+        <div className="financeiro-cabecalho-secao">
+          <h2>{painel === "orcamento" ? "Orçamento" : "Resumo financeiro"}</h2>
+          {painel === "orcamento" && canEdit && (
+            <button
+              className="fin-button fin-button-primary"
+              onClick={() => setMostrarModalOrcamento(true)}
+            >
+              Editar orçamento
+            </button>
+          )}
+        </div>
+        {usandoMinhaParticipacao && (
+          <p>
+            Valores proporcionais à sua participação de{" "}
+            {(participationRatio * 100).toLocaleString("pt-BR")}%.
+          </p>
+        )}
+        <div hidden={painel !== "orcamento"}>
+            {mostrarModalOrcamento ? (
+              <EditorOrcamento
+                id_imovel={id_imovel}
+                onClose={() => setMostrarModalOrcamento(false)}
+                onSave={() => {
+                  setMostrarModalOrcamento(false);
+                  carregarResumo();
+                  onChanged?.();
+                }}
+              />
+            ) : (
+              tabelaPrimeira
+            )}
+            <details className="mt-4">
+              <summary>Grupos de fechamento</summary>
+              <div className="resumo-card__table">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Grupo</th>
+                      <th>Orçamento</th>
+                      <th>Efetivado</th>
+                      <th>Total estimado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {terceiraTabela.map((item) => (
+                      <tr key={item.id_grupo}>
+                        <td>{item.grupo}</td>
+                        <td>{formatarMoeda(scaleMoney(item.orcamento))}</td>
+                        <td>
+                          {formatarMoeda(scaleMoney(item.valor_efetivado))}
+                        </td>
+                        <td>
+                          {formatarMoeda(
+                            scaleMoney(calcularTotalEstimado(item)),
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+        </div>
+        <div hidden={painel === "orcamento"}>
+            <div className="financeiro-metricas">
+              {kpis.map((item) => (
+                <div key={item.titulo}>
+                  <span>{item.titulo}</span>
+                  <strong>{item.valor}</strong>
+                </div>
+              ))}
+            </div>
+            <h3>Projeção de fechamento</h3>
+            {tabelaFechamento}
+        </div>
+      </section>
+    );
+  }
   return (
     <>
       <section className="dashboard-card resumo-card">

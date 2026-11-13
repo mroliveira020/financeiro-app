@@ -16,6 +16,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import "./Home.css";
 import { invalidateCatalogo } from "../hooks/useCatalogos";
+import CarteiraTabela from "../components/financeiro/CarteiraTabela";
 import ModalEditarImovel from "../components/dadosCadastrais/ModalEditarImovel";
 
 const GastosMensaisChart = lazy(() => import("../components/GastosMensaisChart"));
@@ -146,7 +147,7 @@ const calcularResumoPorImoveis = (lista = []) => {
   };
 };
 
-function Home() {
+function Home({ desktop = false, onOpenImovel, refreshKey = 0 }) {
   const [imoveis, setImoveis] = useState([]);
   const [loadingImoveis, setLoadingImoveis] = useState(true);
   const [erroImoveis, setErroImoveis] = useState(false);
@@ -261,6 +262,7 @@ function Home() {
     try {
       const fetcher = hasRestrictedFinanceAccess ? fetchImoveisFinanceiroAcessiveis : fetchImoveis;
       const data = await fetcher({
+        forceRefresh: true,
         retries: IMOVEIS_MAX_RETRIES,
         baseDelayMs: RETRY_BASE_DELAY_MS,
         onRetry: ({ attempt }) => {
@@ -324,7 +326,7 @@ function Home() {
     fetchUltimaAtualizacao()
       .then((res) => setUltimaAtualizacao(res?.data || null))
       .catch(() => setUltimaAtualizacao(null));
-  }, [carregarImoveis]);
+  }, [carregarImoveis, refreshKey]);
 
   useEffect(() => {
     setLoadingResumo(true);
@@ -661,11 +663,11 @@ function Home() {
   );
 
   return (
-    <div className="container py-4">
+    <div className={desktop ? "carteira-desktop" : "container py-4"}>
       <header className="d-flex flex-column flex-md-row align-items-md-center justify-content-between mb-4 gap-3">
         <div>
-          <h1 className="fs-3 fw-bold mb-1">Painel de Imóveis</h1>
-          <p className="text-muted mb-0">Acompanhe os resultados e acesse os dashboards de cada operação.</p>
+          <h1 className="fs-3 fw-bold mb-1">{desktop ? "Imóveis comprados" : "Painel de Imóveis"}</h1>
+          {!desktop && <p className="text-muted mb-0">Acompanhe os resultados e acesse os dashboards de cada operação.</p>}
         </div>
         {canEdit && (
           <button
@@ -677,7 +679,7 @@ function Home() {
             }}
             title="Cadastrar novo imóvel"
           >
-            <span aria-hidden="true">＋</span>
+            <span aria-hidden="true">＋</span>{desktop && " Imóvel"}
             <span className="visually-hidden">Cadastrar novo imóvel</span>
           </button>
         )}
@@ -685,9 +687,9 @@ function Home() {
 
       {showAddImovelModal && (
         <>
-          <div className="modal fade show d-block" tabIndex={-1} role="dialog" aria-modal="true">
-            <div className="modal-dialog modal-dialog-centered">
-              <div className="modal-content">
+          <div className={desktop ? "financeiro-editor-dados" : "modal fade show d-block"} tabIndex={-1} role={desktop ? undefined : "dialog"} aria-modal={desktop ? undefined : "true"}>
+            <div className={desktop ? "" : "modal-dialog modal-dialog-centered"}>
+              <div className={desktop ? "" : "modal-content"}>
                 <div className="modal-header">
                   <h5 className="modal-title">Cadastrar imóvel</h5>
                   <button
@@ -754,7 +756,7 @@ function Home() {
               </div>
             </div>
           </div>
-          <div className="modal-backdrop fade show" />
+          {!desktop && <div className="modal-backdrop fade show" />}
         </>
       )}
 
@@ -766,7 +768,7 @@ function Home() {
         />
       ) : null}
 
-      <div className="home-filter-bar card border-0 shadow-sm mb-4">
+      <div className="home-filter-bar card border-0 shadow-sm mb-4" hidden={desktop}>
         <div className="card-body d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
           <div>
             <h2 className="fs-6 fw-semibold mb-1">Visibilidade dos imóveis</h2>
@@ -786,6 +788,7 @@ function Home() {
         </div>
       </div>
 
+      {desktop && <div hidden={loadingImoveis || erroImoveis}><CarteiraTabela refreshKey={refreshKey} imoveis={imoveis} onOpen={onOpenImovel} onIncluirVendidos={setMostrarVendidos} /></div>}
       {/* Gráfico de desembolsos mensais */}
       <section className="card border-0 shadow-sm mb-4">
         <div className="card-body">
@@ -913,7 +916,7 @@ function Home() {
       </section>
 
       {/* Resumo agregado dos imóveis */}
-      <section className="card border-0 shadow-sm mb-4 resumo-imoveis-card">
+      <section className="card border-0 shadow-sm mb-4 resumo-imoveis-card" hidden={desktop}>
         <div className="card-body">
           <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-3">
             <div>
@@ -973,7 +976,7 @@ function Home() {
             Tentar novamente
           </button>
         </div>
-      ) : imoveisVisiveis.length === 0 ? (
+      ) : desktop ? null : imoveisVisiveis.length === 0 ? (
         imoveis.length > 0 ? (
           <div className="alert alert-light" role="alert">
             Nenhum imóvel atende ao filtro atual.
