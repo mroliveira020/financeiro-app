@@ -52,8 +52,8 @@ export default function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-card__header">
-          <h1>Gestão de imóveis</h1>
-          <p className="text-muted mb-0">Acesse para operar o financeiro, a seleção e a prospecção dos imóveis.</p>
+          <h1>Investimentos Imobiliários</h1>
+          <p className="text-muted mb-0">Acompanhe oportunidades, sua carteira e as tarefas dos imóveis.</p>
         </div>
 
         <form className="login-form" onSubmit={handleSubmit}>

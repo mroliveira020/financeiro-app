@@ -6,6 +6,14 @@ A Carteira mostra fotos cadastradas, nome e endereço, investimento previsto, va
 
 O imóvel oferece Resumo, Orçamento, Lançamentos, Sócios e acertos, Tarefas e Dados. Resumo reutiliza os cálculos atuais de fechamento. Orçamento apresenta os grupos em tabela e edição integrada à página. Dados reutiliza os campos cadastrais existentes. Tarefas usa a área compartilhada já publicada.
 
+## Resumo do imóvel
+
+O Resumo apresenta investimento previsto, valor efetivado, saldo a investir e resultado projetado. A projeção discrimina venda, investimento, financiamento a quitar, corretagem, imposto e retorno estimado. A visão Minha participação aplica o percentual ativo aos valores da projeção.
+
+A posição entre sócios mostra sempre a participação pessoal, sua parte no investimento e no saldo a investir e o saldo dos acertos registrados. A consulta usa a rota existente de financeiro compartilhado. Falhas nessa consulta permitem nova tentativa e mantêm a projeção disponível. Valores de acertos ausentes aparecem como indisponíveis. Lançamentos sem pagador geram aviso de revisão. Os atalhos abrem Orçamento e Sócios e acertos nas seções do imóvel, preservando os rascunhos das abas.
+
+O portal se identifica como Investimentos Imobiliários, inclusive no login e nos títulos do navegador. A navegação usa Carteira e o título visível da lista aparece apenas na aba. O título principal da página permanece disponível para leitores de tela.
+
 ## Lançamentos
 
 `GET /dashboard/lancamentos/imovel/<id>` reúne despesas e receitas ativas do imóvel com paginação. Recebe `busca`, `inicio`, `fim`, `categoria`, `pagador`, `situacao`, `page` e `pageSize`. A busca compara descrições sem diferenciar maiúsculas. Os limites de data são inclusivos em formato ISO. Categoria e pagador recebem identificadores numéricos. Situação aceita `confirmado` ou `pendente`.

@@ -69,7 +69,7 @@ export default function AppLayout() {
     ? "Usuários"
     : isProspeccoesPage
       ? "Prospecção"
-      : "Financeiro";
+      : "Carteira";
   const pageSubtitle = isTarefasPage ? "Acompanhamento das tarefas dos imóveis." : isUsuariosPage
     ? "Gestão de acessos, permissões e composição societária do portal."
     : isProspeccoesPage
@@ -78,7 +78,7 @@ export default function AppLayout() {
   const sidebarUserLabel = user?.name || user?.email || "Sessão ativa";
   const navItems = useMemo(() => {
     const items = [];
-    if (canAccessFinance) items.push({ to: "/", icon: icons.home, label: "Financeiro" });
+    if (canAccessFinance) items.push({ to: "/", icon: icons.home, label: "Carteira" });
     if (canAccessProspeccoes) items.push({ to: "/prospeccoes", icon: icons.prospects, label: "Prospecção" });
     if (canAccessFinance || canAccessProspeccoes) items.push({ to: "/tarefas", icon: icons.tasks, label: "Tarefas" });
     if (isAdmin) items.push({ to: "/usuarios", icon: icons.users, label: "Usuários" });
@@ -97,10 +97,10 @@ export default function AppLayout() {
     <div className={`app-shell ${isProspeccoesPage ? "app-shell--prospeccao" : ""} ${isFinanceiroDesktop ? "app-shell--financeiro-desktop" : ""}`}>
       <aside className="app-shell__sidebar">
         <div className="app-shell__brand">
-          <img src={logo} alt="Financeiro Imóveis" />
+          <img src={logo} alt="Investimentos Imobiliários" />
           <div className="app-shell__brand-copy">
-            <span className="app-shell__brand-title">Financeiro</span>
-            <span className="app-shell__brand-subtitle">Imóveis</span>
+            <span className="app-shell__brand-title">Investimentos</span>
+            <span className="app-shell__brand-subtitle">Imobiliários</span>
           </div>
         </div>
         <nav className="app-shell__nav">

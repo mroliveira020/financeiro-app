@@ -3,11 +3,20 @@ import { useParams } from "react-router-dom";
 import api from "../services/http";
 import ModalEditarOrcamento from "./ModalEditarOrcamento";
 import EditorOrcamento from "./financeiro/EditorOrcamento";
+import ResumoOperacao from "./financeiro/ResumoOperacao";
 import { useAuth } from "../context/AuthContext";
 import { useCompactLayout } from "../hooks/useCompactLayout";
 import { fetchSociosImovel } from "../services/api";
 
-function ResumoFinanceiro({ refreshKey = 0, viewMode = "total", imovelId, desktop = false, painel = "resumo", onChanged }) {
+function ResumoFinanceiro({
+  refreshKey = 0,
+  viewMode = "total",
+  imovelId,
+  desktop = false,
+  painel = "resumo",
+  onChanged,
+  onNavigate,
+}) {
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(true);
   const [resumo, setResumo] = useState([]);
@@ -487,9 +496,11 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total", imovelId, deskto
         </div>
       );
     return (
-      <section className="resumo-card">
+      <section
+        className={`resumo-card ${painel === "resumo" ? "resumo-card--operacao" : ""}`}
+      >
         <div className="financeiro-cabecalho-secao">
-          <h2>{painel === "orcamento" ? "Orçamento" : "Resumo financeiro"}</h2>
+          <h2>{painel === "orcamento" ? "Orçamento" : "Resumo do imóvel"}</h2>
           {painel === "orcamento" && canEdit && (
             <button
               className="fin-button fin-button-primary"
@@ -552,16 +563,24 @@ function ResumoFinanceiro({ refreshKey = 0, viewMode = "total", imovelId, deskto
             </details>
         </div>
         <div hidden={painel === "orcamento"}>
-            <div className="financeiro-metricas">
-              {kpis.map((item) => (
-                <div key={item.titulo}>
-                  <span>{item.titulo}</span>
-                  <strong>{item.valor}</strong>
-                </div>
-              ))}
-            </div>
-            <h3>Projeção de fechamento</h3>
-            {tabelaFechamento}
+          <ResumoOperacao
+            imovelId={id_imovel}
+            userId={user?.id}
+            refreshKey={refreshKey}
+            onNavigate={onNavigate}
+            scaleMoney={scaleMoney}
+            valores={{
+              investimento: investimentoTotal,
+              efetivado: totaisPrimeira.valor_efetivado,
+              saldo: totaisPrimeira.saldo_a_investir_total,
+              resultado: resultadoLiquido,
+              venda: valorDeVenda,
+              financiamento: totalEstimadoGrupo6,
+              corretagem: corretor,
+              imposto: irGanhoDeCapital,
+              roi,
+            }}
+          />
         </div>
       </section>
     );

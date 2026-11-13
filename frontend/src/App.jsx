@@ -15,11 +15,11 @@ import PrimeiroAcesso from "./pages/PrimeiroAcesso";
 import Tarefas from "./pages/Tarefas";
 
 const MOBILE_BREAKPOINT = 900;
-const APP_TITLE_BASE = "Financeiro Imóveis";
+const APP_TITLE_BASE = "Investimentos Imobiliários";
 
 function getRouteTitle(pathname) {
-  if (!pathname || pathname === "/") return `Financeiro — ${APP_TITLE_BASE}`;
-  if (pathname === "/financeiro") return `Financeiro — ${APP_TITLE_BASE}`;
+  if (!pathname || pathname === "/") return `Carteira — ${APP_TITLE_BASE}`;
+  if (pathname === "/financeiro") return `Carteira — ${APP_TITLE_BASE}`;
   if (pathname === "/prospeccoes") return `Prospecção — ${APP_TITLE_BASE}`;
   if (pathname === "/tarefas") return `Tarefas — ${APP_TITLE_BASE}`;
   if (pathname === "/usuarios") return `Usuários — ${APP_TITLE_BASE}`;
