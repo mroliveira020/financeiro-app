@@ -110,3 +110,21 @@ describe("Equalização entre imóveis", () => {
     expect(registrarEqualizacaoConsolidada).toHaveBeenCalledOnce();
   });
 });
+
+it("oferece compensação integrada com seleção parcial e recibo", async () => {
+  const onOpenChange = vi.fn();
+  render(<EqualizacaoConsolidada inline imovelId="23" onOpenChange={onOpenChange} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Compensar entre imóveis" }));
+  await screen.findByRole("heading", { name: "Você recebe de Marco" });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  expect(onOpenChange).toHaveBeenCalledWith(true);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Incluir Rio Verde GO" }));
+  expect(screen.getByRole("checkbox", { name: "Selecionar todos os imóveis" }).indeterminate).toBe(true);
+  expect(screen.getByRole("button", { name: "Registrar acerto" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Incluir Rio Verde GO" }));
+  fireEvent.click(screen.getByRole("button", { name: "Registrar acerto" }));
+  await screen.findByRole("heading", { name: "Acerto registrado" });
+  expect(registrarEqualizacaoConsolidada).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "Concluir" }));
+  expect(onOpenChange).toHaveBeenLastCalledWith(false);
+});

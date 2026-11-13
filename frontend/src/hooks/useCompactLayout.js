@@ -16,7 +16,7 @@ export function useCompactLayout(maxWidth = 900) {
   const [compact, setCompact] = useState(getMatches);
 
   useEffect(() => {
-    if (typeof window === "undefined") return undefined;
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
 
     const mediaQuery = window.matchMedia(`(max-width: ${maxWidth}px)`);
     const pointerQuery =

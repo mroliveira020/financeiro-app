@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { Navigate, Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home";
+import FinanceiroWorkspace from "./pages/FinanceiroWorkspace";
+import { useCompactLayout } from "./hooks/useCompactLayout";
 import Dashboard from "./pages/Dashboard";
 import AppLayout from "./components/layout/AppLayout";
 import Login from "./pages/Login";
@@ -38,34 +40,15 @@ function isMobileDevice() {
   return width && (coarsePointer || touchPoints > 0 || userAgent);
 }
 
-function HomeEntry() {
-  const { user, hasCapability } = useAuth();
-  const canAccessFinance = Boolean(user?.finance_access || hasCapability("admin"));
-  if (!canAccessFinance && hasCapability("prospector")) {
-    return <Navigate to="/prospeccoes" replace />;
-  }
-  if (isMobileDevice()) {
-    return <Navigate to="/prospeccoes" replace />;
-  }
-  return <Home />;
-}
-
 function FinanceiroEntry() {
   const { user, hasCapability } = useAuth();
+  const location = useLocation();
+  const compact = useCompactLayout();
   const canAccessFinance = Boolean(user?.finance_access || hasCapability("admin"));
-  if (!canAccessFinance && hasCapability("prospector")) {
-    return <Navigate to="/prospeccoes" replace />;
-  }
-  return <Home />;
-}
-
-function DashboardEntry() {
-  const { user, hasCapability } = useAuth();
-  const canAccessFinance = Boolean(user?.finance_access || hasCapability("admin"));
-  if (!canAccessFinance && hasCapability("prospector")) {
-    return <Navigate to="/prospeccoes" replace />;
-  }
-  return <Dashboard />;
+  if (!canAccessFinance && hasCapability("prospector")) return <Navigate to="/prospeccoes" replace />;
+  if (location.pathname === "/" && isMobileDevice()) return <Navigate to="/prospeccoes" replace />;
+  if (compact) return location.pathname.startsWith("/dashboard/") ? <Dashboard /> : <Home />;
+  return <FinanceiroWorkspace />;
 }
 
 function UsuariosEntry() {
@@ -96,11 +79,13 @@ function App() {
         <Route path="/primeiro-acesso" element={<PrimeiroAcesso />} />
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<HomeEntry />} />
-            <Route path="/financeiro" element={<FinanceiroEntry />} />
+            <Route element={<FinanceiroEntry />}>
+              <Route path="/" element={<></>} />
+              <Route path="/financeiro" element={<></>} />
+              <Route path="/dashboard/:id" element={<></>} />
+            </Route>
             <Route path="/prospeccoes" element={<Prospeccoes />} />
             <Route path="/tarefas" element={<Tarefas />} />
-            <Route path="/dashboard/:id" element={<DashboardEntry />} />
             <Route path="/usuarios" element={<UsuariosEntry />} />
           </Route>
         </Route>

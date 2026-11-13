@@ -1862,7 +1862,8 @@ def listar_imoveis():
                 totais.periodo_inicio,
                 totais.periodo_fim,
                 COALESCE(grupos.lista, '[]'::jsonb) AS grupos,
-                im.foto_url
+                im.foto_url,
+                im.endereco
             FROM imoveis im
             LEFT JOIN LATERAL (
                 SELECT
@@ -2336,6 +2337,99 @@ def _normalizar_paginacao(limit, page, limit_padrao=50, limit_maximo=200):
 
     offset_val = (page_val - 1) * limit_val
     return limit_val, page_val, offset_val
+
+
+def listar_participacoes_usuario(usuario_id):
+    conn, cur = conectar()
+    try:
+        cur.execute('''SELECT id_imovel, percentual_participacao
+                       FROM imovel_socios
+                       WHERE user_id = %s AND ativo = TRUE
+                         AND percentual_participacao > 0''', (usuario_id,))
+        return {str(row['id_imovel']): float(row['percentual_participacao'])
+                for row in cur.fetchall()}
+    finally:
+        conn.close()
+
+
+def listar_lancamentos_imovel(id_imovel, *, filtros=None, limit=50, page=1):
+    """Lista despesas e receitas ativas, com classificação pela situação."""
+    filtros = filtros or {}
+    limit_val, page_val, offset_val = _normalizar_paginacao(limit, page)
+    condicoes = ["v.id_imovel = %s",
+                 "COALESCE(l.tipo_movimentacao, 'despesa_imovel') <> 'equalizacao_socios'"]
+    params = [id_imovel]
+    busca = str(filtros.get('busca') or '').strip()[:200]
+    if busca:
+        condicoes.append("strpos(lower(COALESCE(v.descricao, '')), lower(%s)) > 0")
+        params.append(busca)
+    for campo, coluna in [('categoria', 'COALESCE(v.id_categoria, 0)'),
+                          ('pagador', 'COALESCE(l.paid_by_user_id, 0)')]:
+        valor = filtros.get(campo)
+        if valor not in (None, ''):
+            try:
+                numero = int(valor)
+                if numero < 0:
+                    raise ValueError()
+            except (TypeError, ValueError):
+                raise ValueError('Categoria ou pagador inválido.')
+            condicoes.append(f'{coluna} = %s')
+            params.append(numero)
+    datas = {}
+    for campo, operador in [('inicio', '>='), ('fim', '<=')]:
+        if filtros.get(campo):
+            try:
+                datas[campo] = datetime.strptime(filtros[campo], '%Y-%m-%d').date()
+            except (TypeError, ValueError):
+                raise ValueError('Informe uma data válida para o período.')
+            condicoes.append(f'v.data {operador} %s')
+            params.append(datas[campo])
+    if datas.get('inicio') and datas.get('fim') and datas['inicio'] > datas['fim']:
+        raise ValueError('A data inicial deve ser anterior à data final.')
+    situacao = filtros.get('situacao')
+    if situacao:
+        if situacao not in ('confirmado', 'pendente'):
+            raise ValueError('Situação inválida.')
+        condicoes.append('v.confirmado = %s')
+        params.append(situacao == 'confirmado')
+    base = """WITH v AS (
+        SELECT id AS id_lancamento, data, descricao, valor, id_imovel,
+               id_categoria, id_situacao, COALESCE(id_situacao, 0) = 1 AS confirmado
+        FROM lancamentos WHERE ativo IS DISTINCT FROM FALSE
+    )"""
+    joins = '''FROM v JOIN lancamentos l ON l.id = v.id_lancamento
+        LEFT JOIN categorias c ON c.id = v.id_categoria
+        LEFT JOIN users u ON u.id = l.paid_by_user_id'''
+    where = ' WHERE ' + ' AND '.join(condicoes)
+    conn, cur = conectar()
+    try:
+        # Uma única instrução mantém totais e página no mesmo snapshot.
+        cur.execute(base + ''', filtrados AS (
+            SELECT v.*, l.paid_by_user_id, l.beneficiary_user_id,
+                   COALESCE(l.tipo_movimentacao, 'despesa_imovel') AS tipo_movimentacao,
+                   c.categoria AS nome_categoria, COALESCE(u.name, u.email) AS paid_by_user_name
+            ''' + joins + where + '''
+        ), pagina AS (
+            SELECT * FROM filtrados ORDER BY data DESC, id_lancamento DESC LIMIT %s OFFSET %s
+        )
+        SELECT COALESCE((SELECT json_agg(p ORDER BY p.data DESC, p.id_lancamento DESC) FROM pagina p), '[]'::json) AS items,
+               COUNT(*) AS total,
+               COUNT(*) FILTER (WHERE NOT confirmado) AS pendentes,
+               COALESCE(SUM(valor) FILTER (WHERE confirmado), 0) AS soma
+        FROM filtrados''', (*params, limit_val, offset_val))
+        resultado = cur.fetchone() or {}
+    finally:
+        conn.close()
+    return {
+        'items': resultado.get('items') or [],
+        'total': int(resultado.get('total') or 0),
+        'summary': {
+            'total': int(resultado.get('total') or 0),
+            'pendentes': int(resultado.get('pendentes') or 0),
+            'soma': float(resultado.get('soma') or 0),
+        },
+        'page': page_val, 'pageSize': limit_val,
+    }
 
 
 def listar_lancamentos_completos_view(id_imovel, *, limit=50, page=1):

@@ -15,12 +15,13 @@ import {
 import { useCatalogos } from "../../hooks/useCatalogos";
 import ModalNovaTransacao from "../TransacoesIncompletas/ModalNovaTransacao";
 
-function DadosCadastrais({ refreshKey = 0, onChanged }) {
-  const { id } = useParams();
+function DadosCadastrais({ refreshKey = 0, onChanged, imovelId, desktop = false }) {
+  const { id: routeId } = useParams();
+  const id = imovelId || routeId;
   const navigate = useNavigate();
 
   const [imovel, setImovel] = useState(null);
-  const [expandir, setExpandir] = useState(false);
+  const [expandir, setExpandir] = useState(desktop);
   const [mostrarModalImoveis, setMostrarModalImoveis] = useState(false);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
   const [mostrarMapa, setMostrarMapa] = useState(false);
@@ -447,9 +448,9 @@ function DadosCadastrais({ refreshKey = 0, onChanged }) {
 
         {!compactLayout && (
           <div className="dados-card__actions">
-            <button type="button" onClick={() => setMostrarModalImoveis(true)}>
+            {!desktop && <button type="button" onClick={() => setMostrarModalImoveis(true)}>
               Trocar imóvel
-            </button>
+            </button>}
             {canEdit && (
               <button type="button" onClick={() => setMostrarModalEditar(true)}>
                 Editar dados
@@ -482,11 +483,13 @@ function DadosCadastrais({ refreshKey = 0, onChanged }) {
 
       {mostrarModalEditar && (
         <ModalEditarImovel
+          inline={desktop}
           imovel={imovel}
           onClose={() => setMostrarModalEditar(false)}
           onSave={() => {
             setMostrarModalEditar(false);
             fetchImovel();
+            onChanged?.();
           }}
         />
       )}
